@@ -1,13 +1,8 @@
-use crate::api::dispatch_api;
 use crate::emu::Emu;
-use crate::winapi::common::threads::RemoveVectoredExceptionHandler;
-use crate::winapi::libraries::kernel32::process_thread::FatalExit;
 use crate::winapi::winapi64::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    dispatch_api!(api, {
-        "FatalExit" => FatalExit(emu),
-        "RemoveVectoredExceptionHandler" => RemoveVectoredExceptionHandler(emu),
+    match api {
         "AddVectoredExceptionHandler" => kernel32::AddVectoredExceptionHandler(emu),
         "EtwEventEnabled" | "EventEnabled" => kernel32::EtwEventEnabled(emu),
         "EtwEventRegister" | "EventRegister" => kernel32::EtwEventRegister(emu),
@@ -20,8 +15,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RaiseException" => kernel32::RaiseException(emu),
         "SetUnhandledExceptionFilter" => kernel32::SetUnhandledExceptionFilter(emu),
         "UnhandledExceptionFilter" => kernel32::UnhandledExceptionFilter(emu),
-    },
-        handled(()) => true,
-        fallback => false,
-    )
+        _ => return false,
+    }
+    true
 }

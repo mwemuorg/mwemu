@@ -3,7 +3,6 @@ use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
 use crate::windows::peb::peb64;
-use goblin::pe::header::DOS_MAGIC;
 
 pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {
     let Some(dll) = modules::normalize_library_name(libname, false) else {
@@ -34,11 +33,11 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     // We detect this by checking for the MZ magic at the reported base.
     let already_linked_base = peb64::get_module_base(&dll, emu).and_then(|base| {
         let mz = emu.maps.read_word(base).unwrap_or(0);
-        if mz == DOS_MAGIC {
+        if mz == 0x5A4D {
             Some(base) // valid PE: keep it
         } else {
             log::trace!(
-                "load_library={} found in LDR at 0x{:x} but has no valid PE, reloading",
+                "load_library: {} found in LDR at 0x{:x} but has no valid PE, reloading",
                 dll,
                 base
             );
@@ -80,8 +79,8 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
                 peb64::dynamic_link_module(image.base, image.header_offset, &dll, emu);
                 emu.library_loaded = true; // Signal to GDB that library list changed
                 image.base
-            } else if let Some(exports) = get_stub_exports(&dll, emu.cfg.arch) {
-                let base = emu.create_stub_pe64(&dll, &exports);
+            } else if let Some(exports) = get_stub_exports(&dll) {
+                let base = emu.create_stub_pe64(&dll, exports);
                 if base != 0 {
                     peb64::dynamic_link_module(base, 0, &dll, emu);
                     emu.library_loaded = true;

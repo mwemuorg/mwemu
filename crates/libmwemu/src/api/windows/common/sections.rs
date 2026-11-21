@@ -5,21 +5,16 @@ use crate::maps::virtual_memory::{
     ALLOCATION_GRANULARITY, Allocation, MemoryKind, PAGE_SIZE, PageState, align_up,
 };
 use crate::winapi::common::memory;
-use crate::winapi::common::process::require_memory_access;
 use crate::winapi::common::strings;
 use crate::winapi::common::trace;
 use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::memory::*;
-use crate::windows::constants::process::{
-    INVALID_HANDLE_VALUE_32, INVALID_HANDLE_VALUE_64, PROCESS_VM_OPERATION,
-};
 
 fn error_to_win32(status: u64) -> u64 {
     match status {
         STATUS_INVALID_HANDLE => ERROR_INVALID_HANDLE,
-        STATUS_ACCESS_DENIED => ERROR_ACCESS_DENIED,
         STATUS_OBJECT_NAME_NOT_FOUND => ERROR_FILE_NOT_FOUND,
         STATUS_NO_MEMORY => ERROR_NOT_ENOUGH_MEMORY,
         STATUS_NOT_IMPLEMENTED => ERROR_NOT_SUPPORTED,
@@ -231,47 +226,19 @@ pub(crate) fn create_file_mapping(emu: &mut Emu, wide: bool) {
     let size = ((api_try!(emu, call.arg_u32(emu, 3)) as u64) << 32)
         | (api_try!(emu, call.arg_u32(emu, 4)) as u64);
     let ptr = api_try!(emu, call.arg(emu, 5));
-    finish_create_mapping(emu, file, size, protection, ptr, wide, 6);
-}
-
-fn create_mapping_from_app(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let file = api_try!(emu, call.arg(emu, 0));
-    let protect = api_try!(emu, call.arg_u32(emu, 2));
-    let size = api_try!(emu, call.arg_u64(emu, 3));
-    let name_index = if emu.cfg.arch.is_64bits() { 4 } else { 5 };
-    let ptr = api_try!(emu, call.arg(emu, name_index));
-    finish_create_mapping(emu, file, size, protect, ptr, true, name_index + 1);
-}
-
-fn finish_create_mapping(
-    emu: &mut Emu,
-    file: u64,
-    size: u64,
-    protection: u32,
-    ptr: u64,
-    wide: bool,
-    slots: usize,
-) {
-    let call = WinApi(Stdcall);
     let name = if ptr == 0 {
         String::new()
     } else {
         strings::read_text(emu, ptr, wide)
     };
-    let page_file = if emu.cfg.arch.is_64bits() {
-        INVALID_HANDLE_VALUE_64
+    let file = if file == u64::MAX || file == u32::MAX as u64 {
+        None
     } else {
-        INVALID_HANDLE_VALUE_32
+        Some(file)
     };
-    let file = (file != page_file).then_some(file);
     let value = match create(emu, file, size, protection, name) {
         Ok((handle, exists)) => {
-            emu.set_last_error(if exists {
-                ERROR_ALREADY_EXISTS
-            } else {
-                ERROR_SUCCESS
-            });
+            emu.set_last_error(if exists { 183 } else { 0 });
             handle
         }
         Err(status) => {
@@ -280,7 +247,7 @@ fn finish_create_mapping(
         }
     };
     call.set_return(emu, value);
-    call.cleanup_args(emu, slots);
+    call.cleanup_args(emu, 6);
 }
 
 fn view_protection(access: u32) -> Result<u32, u64> {
@@ -341,37 +308,6 @@ pub(crate) fn map_view(emu: &mut Emu, extended: bool) {
     } else {
         0
     };
-    finish_map_view(
-        emu,
-        handle,
-        access,
-        offset,
-        size,
-        address,
-        if extended { 6 } else { 5 },
-    );
-}
-
-fn map_view_from_app(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let handle = api_try!(emu, call.arg(emu, 0));
-    let access = api_try!(emu, call.arg_u32(emu, 1));
-    let offset = api_try!(emu, call.arg_u64(emu, 2));
-    let size_index = if emu.cfg.arch.is_64bits() { 3 } else { 4 };
-    let size = api_try!(emu, call.arg(emu, size_index));
-    finish_map_view(emu, handle, access, offset, size, 0, size_index + 1);
-}
-
-fn finish_map_view(
-    emu: &mut Emu,
-    handle: u64,
-    access: u32,
-    offset: u64,
-    size: u64,
-    address: u64,
-    slots: usize,
-) {
-    let call = WinApi(Stdcall);
     let result = view_protection(access)
         .and_then(|protection| map(emu, handle, address, offset, size, protection));
     let value = match result {
@@ -382,7 +318,7 @@ fn finish_map_view(
         }
     };
     call.set_return(emu, value);
-    call.cleanup_args(emu, slots);
+    call.cleanup_args(emu, if extended { 6 } else { 5 });
 }
 
 pub(crate) fn unmap_view(emu: &mut Emu, extended: bool) {
@@ -402,25 +338,6 @@ pub(crate) fn unmap_view(emu: &mut Emu, extended: bool) {
     };
     call.set_return(emu, value);
     call.cleanup_args(emu, if extended { 2 } else { 1 });
-}
-
-fn unmap_view_in_process(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let process = api_try!(emu, call.arg(emu, 0));
-    let base = api_try!(emu, call.arg(emu, 1));
-    let flags = api_try!(emu, call.arg_u32(emu, 2));
-    let result = if let Err(error) = require_memory_access(emu, process, PROCESS_VM_OPERATION) {
-        Err(error)
-    } else if flags != 0 {
-        Err(STATUS_NOT_IMPLEMENTED)
-    } else {
-        unmap(emu, base)
-    };
-    if let Err(status) = result {
-        emu.set_last_error(error_to_win32(status));
-    }
-    call.set_return(emu, u64::from(result.is_ok()));
-    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn nt_create(emu: &mut Emu, call: WindowsAbi) {
@@ -468,7 +385,9 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
     let size_ptr = api_try!(emu, call.arg(emu, 6));
     let protection = api_try!(emu, call.arg_u32(emu, 9));
     let result = (|| {
-        require_memory_access(emu, process, PROCESS_VM_OPERATION)?;
+        if !memory::current_process(process) {
+            return Err(STATUS_INVALID_HANDLE);
+        }
         if zero_bits != 0 || commit_size != 0 || flags != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
@@ -497,10 +416,11 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
 }
 
 pub(crate) fn nt_unmap(emu: &mut Emu, call: WindowsAbi) {
-    let process = api_try!(emu, call.arg(emu, 0));
-    let address = api_try!(emu, call.arg(emu, 1));
-    let result = require_memory_access(emu, process, PROCESS_VM_OPERATION)
-        .and_then(|()| unmap(emu, address));
+    let result = if memory::current_process(api_try!(emu, call.arg(emu, 0))) {
+        unmap(emu, api_try!(emu, call.arg(emu, 1)))
+    } else {
+        Err(STATUS_INVALID_HANDLE)
+    };
     call.set_return(emu, result.err().unwrap_or(0));
     call.cleanup_args(emu, 2);
 }
@@ -527,13 +447,6 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
             "file security protection size_high size_low name",
             true,
         ),
-        "CreateFileMappingFromApp" => (
-            create_mapping_from_app,
-            "file security protection size name",
-            true,
-        ),
-        "MapViewOfFileFromApp" => (map_view_from_app, "mapping access offset size", true),
-        "UnmapViewOfFile2" => (unmap_view_in_process, "process address flags", true),
         "MapViewOfFile" => (
             |emu| map_view(emu, false),
             "mapping access offset_high offset_low size",

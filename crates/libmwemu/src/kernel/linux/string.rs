@@ -7,357 +7,213 @@
 //! would ever see, because the copy happens inside the kernel, not in the
 //! driver's own code.
 
-use crate::api::abi::unix::UnixApi;
-use crate::api::dispatch_api;
-use crate::api::unix::{MemoryAccess, MemoryError, api_try, memory};
 use crate::emu::Emu;
-use crate::kernel::linux::{
-    mm::{guard_range, guarded_copy},
-    printk,
-};
-use crate::kernel::{HandlerRegistry, kernel_handlers};
-use crate::syscall::linux::constants::errors::{E2BIG, EINVAL, ERANGE};
+use crate::kernel::linux::printk;
+
+/// Copy `len` bytes, reporting either end that lands in a freed or
+/// out-of-bounds chunk.
+fn checked_copy(emu: &mut Emu, dst: u64, src: u64, len: u64) {
+    if len == 0 {
+        return;
+    }
+    let rip = emu.pc();
+    // Range-aware: flags a copy whose length overruns the destination chunk's
+    // requested size even when the tail lands past the mapped bucket.
+    emu.kernel_guard_range(rip, src, len, false);
+    emu.kernel_guard_range(rip, dst, len, true);
+    emu.kernel_guard_access(rip, src, len as u32, false);
+    emu.kernel_guard_access(rip, dst, len as u32, true);
+
+    let mut buf = vec![0u8; len as usize];
+    for (i, b) in buf.iter_mut().enumerate() {
+        *b = emu.maps.read_byte(src + i as u64).unwrap_or(0);
+    }
+    emu.maps.write_bytes(dst, &buf);
+}
 
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
-    dispatch_api!(symbol, emu, registry handlers(),
-        handled(()) => true,
-        fallback => false,
-    )
-}
-
-pub const fn handlers() -> HandlerRegistry {
-    kernel_handlers! {
-        "memcpy" | "__memcpy" | "memmove" | "__memmove" | "memcpy_toio" | "memcpy_fromio" => memcpy,
-        "memset" | "__memset" | "memset_io" => memset,
-        "memcmp" | "bcmp" => memcmp,
-        "strlen" => strlen,
-        "strnlen" => strnlen,
-        "strcmp" | "strncmp" | "strcasecmp" | "strncasecmp" => strcmp,
-        "strcpy" => strcpy,
-        "strncpy" | "strscpy" | "sized_strscpy" | "strlcpy" | "strscpy_pad" => strncpy,
-        "strcat" | "strncat" => strcat,
-        "strchr" | "strrchr" => strchr,
-        "strstr" => strstr,
+    match symbol {
+        "memcpy" | "__memcpy" | "memmove" | "__memmove" | "memcpy_toio" | "memcpy_fromio" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let len = emu.kernel_arg(2);
+            checked_copy(emu, dst, src, len);
+            emu.set_kernel_ret(dst);
+        }
+        "memset" | "__memset" | "memset_io" => {
+            let dst = emu.kernel_arg(0);
+            let byte = emu.kernel_arg(1) as u8;
+            let len = emu.kernel_arg(2);
+            if len > 0 {
+                let rip = emu.pc();
+                emu.kernel_guard_access(rip, dst, len as u32, true);
+                emu.kernel_guard_access(rip, dst + len - 1, 1, true);
+                emu.maps.write_bytes(dst, &vec![byte; len as usize]);
+            }
+            emu.set_kernel_ret(dst);
+        }
+        "memcmp" | "bcmp" => {
+            let a = emu.kernel_arg(0);
+            let b = emu.kernel_arg(1);
+            let len = emu.kernel_arg(2);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, a, len as u32, false);
+            emu.kernel_guard_access(rip, b, len as u32, false);
+            let mut result: i64 = 0;
+            for i in 0..len {
+                let x = emu.maps.read_byte(a + i).unwrap_or(0) as i64;
+                let y = emu.maps.read_byte(b + i).unwrap_or(0) as i64;
+                if x != y {
+                    result = x - y;
+                    break;
+                }
+            }
+            emu.set_kernel_ret(result as u64);
+        }
+        "strlen" => {
+            let p = emu.kernel_arg(0);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, p, 1, false);
+            let n = emu.maps.read_string(p).len() as u64;
+            emu.set_kernel_ret(n);
+        }
+        "strnlen" => {
+            let p = emu.kernel_arg(0);
+            let max = emu.kernel_arg(1);
+            let n = (emu.maps.read_string(p).len() as u64).min(max);
+            emu.set_kernel_ret(n);
+        }
+        "strcmp" | "strncmp" | "strcasecmp" | "strncasecmp" => {
+            let a = emu.maps.read_string(emu.kernel_arg(0));
+            let b = emu.maps.read_string(emu.kernel_arg(1));
+            let (a, b) = if symbol.starts_with("strn") {
+                let n = emu.kernel_arg(2) as usize;
+                (
+                    a.chars().take(n).collect::<String>(),
+                    b.chars().take(n).collect::<String>(),
+                )
+            } else {
+                (a, b)
+            };
+            let (a, b) = if symbol.contains("case") {
+                (a.to_lowercase(), b.to_lowercase())
+            } else {
+                (a, b)
+            };
+            let r: i64 = match a.cmp(&b) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            };
+            emu.set_kernel_ret(r as u64);
+        }
+        "strcpy" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let s = emu.maps.read_string(src);
+            checked_copy(emu, dst, src, s.len() as u64 + 1);
+            emu.set_kernel_ret(dst);
+        }
+        "strncpy" | "strscpy" | "sized_strscpy" | "strlcpy" | "strscpy_pad" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let max = emu.kernel_arg(2);
+            let mut s = emu.maps.read_string(src);
+            s.truncate(max.saturating_sub(1) as usize);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, dst, s.len() as u32 + 1, true);
+            emu.maps.write_string(dst, &s);
+            // strscpy returns the length copied, strncpy/strlcpy return dest.
+            let ret = if symbol.contains("strscpy") {
+                s.len() as u64
+            } else {
+                dst
+            };
+            emu.set_kernel_ret(ret);
+        }
+        "strcat" | "strncat" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let existing = emu.maps.read_string(dst);
+            let s = emu.maps.read_string(src);
+            let end = dst + existing.len() as u64;
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, end, s.len() as u32 + 1, true);
+            emu.maps.write_string(end, &s);
+            emu.set_kernel_ret(dst);
+        }
+        "strchr" | "strrchr" => {
+            let p = emu.kernel_arg(0);
+            let c = emu.kernel_arg(1) as u8 as char;
+            let s = emu.maps.read_string(p);
+            let found = if symbol == "strchr" {
+                s.find(c)
+            } else {
+                s.rfind(c)
+            };
+            emu.set_kernel_ret(found.map(|i| p + i as u64).unwrap_or(0));
+        }
+        "strstr" => {
+            let p = emu.kernel_arg(0);
+            let hay = emu.maps.read_string(p);
+            let needle = emu.maps.read_string(emu.kernel_arg(1));
+            emu.set_kernel_ret(hay.find(&needle).map(|i| p + i as u64).unwrap_or(0));
+        }
 
         // --- formatted output ------------------------------------------------
-        "snprintf" | "scnprintf" | "sprintf" => formatted_output,
+        "snprintf" | "scnprintf" => {
+            let dst = emu.kernel_arg(0);
+            let max = emu.kernel_arg(1);
+            let fmt = emu.kernel_arg(2);
+            let mut s = printk::format(emu, fmt, 3);
+            s.truncate(max.saturating_sub(1) as usize);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, dst, s.len() as u32 + 1, true);
+            emu.maps.write_string(dst, &s);
+            emu.set_kernel_ret(s.len() as u64);
+        }
+        "sprintf" => {
+            let dst = emu.kernel_arg(0);
+            let fmt = emu.kernel_arg(1);
+            let s = printk::format(emu, fmt, 2);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, dst, s.len() as u32 + 1, true);
+            emu.maps.write_string(dst, &s);
+            emu.set_kernel_ret(s.len() as u64);
+        }
 
         // --- string to number -------------------------------------------------
-        "simple_strtoul" | "simple_strtol" | "simple_strtoull" => simple_strtoul,
-        "kstrtoint" | "kstrtol" | "kstrtoul" | "kstrtouint" | "kstrtou32" | "kstrtou64"
-        | "kstrtoll" | "kstrtoull" => kstrtoint,
-    }
-}
-
-pub const SURFACE: &[&str] = handlers().names;
-
-pub fn has_handler(symbol: &str) -> bool {
-    handlers().find(symbol).is_some()
-}
-
-fn memcpy(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let len = api_try!(emu, call.arg(emu, 2));
-    api_try!(emu, guarded_copy(emu, dst, src, len));
-    call.set_return(emu, dst);
-}
-
-fn memset(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let byte = api_try!(emu, call.arg_u8(emu, 1));
-    let len = api_try!(emu, call.arg(emu, 2));
-    guard_range(emu, dst, len, true);
-    api_try!(emu, memory::fill(emu, dst, byte, len));
-    call.set_return(emu, dst);
-}
-
-fn memcmp(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let a = api_try!(emu, call.arg(emu, 0));
-    let b = api_try!(emu, call.arg(emu, 1));
-    let len = api_try!(emu, call.arg(emu, 2));
-    guard_range(emu, a, len, false);
-    guard_range(emu, b, len, false);
-    let result = api_try!(emu, memory::compare_bytes(emu, a, b, len));
-    call.set_return(emu, result as u64);
-}
-
-fn strlen(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let p = api_try!(emu, call.arg(emu, 0));
-    let n = api_try!(emu, memory::length(emu, p, u64::MAX));
-    guard_range(emu, p, n + 1, false);
-    call.set_return(emu, n);
-}
-
-fn strnlen(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let p = api_try!(emu, call.arg(emu, 0));
-    let max = api_try!(emu, call.arg(emu, 1));
-    let n = api_try!(emu, memory::length(emu, p, max));
-    guard_range(emu, p, n + u64::from(n < max), false);
-    call.set_return(emu, n);
-}
-
-fn strcmp(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let left = api_try!(emu, call.arg(emu, 0));
-    let right = api_try!(emu, call.arg(emu, 1));
-    let count = if matches!(symbol, "strncmp" | "strncasecmp") {
-        api_try!(emu, call.arg(emu, 2))
-    } else {
-        u64::MAX
-    };
-    let fold = matches!(symbol, "strcasecmp" | "strncasecmp");
-    let result = api_try!(emu, memory::compare_strings(emu, left, right, count, fold));
-    call.set_return(emu, result as u64);
-}
-
-fn strcpy(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let len = api_try!(emu, memory::length(emu, src, u64::MAX));
-    api_try!(emu, guarded_copy(emu, dst, src, len + 1));
-    call.set_return(emu, dst);
-}
-
-fn strncpy(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let destination = api_try!(emu, call.arg(emu, 0));
-    let source = api_try!(emu, call.arg(emu, 1));
-    let capacity = api_try!(emu, call.arg(emu, 2));
-    let counted = symbol.contains("strscpy");
-    if counted && capacity == 0 {
-        call.set_return(emu, E2BIG);
-        return;
-    }
-    let limit = if symbol == "strlcpy" {
-        u64::MAX
-    } else {
-        capacity
-    };
-    let length = api_try!(emu, memory::length(emu, source, limit));
-    guard_range(emu, source, length + u64::from(length < limit), false);
-    let copied = if symbol == "strncpy" {
-        length
-    } else {
-        length.min(capacity.saturating_sub(1))
-    };
-    let write_size = if symbol == "strncpy" || symbol == "strscpy_pad" {
-        capacity
-    } else if capacity == 0 {
-        0
-    } else {
-        copied + 1
-    };
-    guard_range(emu, destination, write_size, true);
-    api_try!(
-        emu,
-        memory::range(emu, destination, write_size, MemoryAccess::Write)
-    );
-    api_try!(emu, memory::copy(emu, destination, source, copied));
-    if copied < write_size {
-        api_try!(
-            emu,
-            memory::fill(emu, destination + copied, 0, write_size - copied)
-        );
-    }
-    let result = match symbol {
-        "strncpy" => destination,
-        "strlcpy" => length,
-        _ if length == capacity => E2BIG,
-        _ => copied,
-    };
-    call.set_return(emu, result);
-}
-
-fn strcat(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let destination = api_try!(emu, call.arg(emu, 0));
-    let source = api_try!(emu, call.arg(emu, 1));
-    let limit = if symbol == "strncat" {
-        api_try!(emu, call.arg(emu, 2))
-    } else {
-        u64::MAX
-    };
-    let prefix = api_try!(emu, memory::length(emu, destination, u64::MAX));
-    let suffix = api_try!(emu, memory::length(emu, source, limit));
-    guard_range(emu, destination, prefix + 1, false);
-    guard_range(emu, source, suffix + u64::from(suffix < limit), false);
-    guard_range(emu, destination + prefix, suffix + 1, true);
-    api_try!(
-        emu,
-        memory::terminated_copy(emu, destination + prefix, source, suffix)
-    );
-    call.set_return(emu, destination);
-}
-
-fn strchr(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let address = api_try!(emu, call.arg(emu, 0));
-    let byte = api_try!(emu, call.arg_u8(emu, 1));
-    let found = api_try!(
-        emu,
-        memory::find_character(emu, address, byte, symbol == "strrchr")
-    );
-    call.set_return(emu, found);
-}
-
-fn strstr(emu: &mut Emu, _symbol: &str) {
-    let call = UnixApi;
-    let source = api_try!(emu, call.arg(emu, 0));
-    let needle = api_try!(emu, call.arg(emu, 1));
-    let found = api_try!(emu, memory::find_string(emu, source, needle));
-    call.set_return(emu, found);
-}
-
-fn formatted_output(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let bounded = symbol != "sprintf";
-    let limit = if bounded {
-        api_try!(emu, call.arg(emu, 1))
-    } else {
-        u64::MAX
-    };
-    let format_index = 1 + usize::from(bounded);
-    let fmt = api_try!(emu, call.arg(emu, format_index));
-    let text = api_try!(emu, printk::format_bytes(emu, fmt, format_index + 1));
-    let required = text.len() as u64;
-    let written = required.min(limit.saturating_sub(1));
-    if limit != 0 {
-        guard_range(emu, dst, written + 1, true);
-        api_try!(
-            emu,
-            memory::range(emu, dst, written + 1, MemoryAccess::Write)
-        );
-        api_try!(emu, memory::write(emu, dst, &text[..written as usize]));
-        api_try!(emu, memory::write(emu, dst + written, &[0]));
-    }
-    call.set_return(
-        emu,
-        if symbol == "scnprintf" {
-            written
-        } else {
-            required
-        },
-    );
-}
-
-struct Digits {
-    value: u64,
-    end: u64,
-    overflow: bool,
-    any: bool,
-}
-
-fn digits(emu: &Emu, mut at: u64, mut base: u32) -> Result<Digits, MemoryError> {
-    let mut result = Digits {
-        value: 0,
-        end: at,
-        overflow: false,
-        any: false,
-    };
-    if base != 0 && !(2..=16).contains(&base) {
-        return Ok(result);
-    }
-    let mut byte = memory::byte_at(emu, at, 0)?;
-    if byte == b'0' && matches!(base, 0 | 16) {
-        let hex = matches!(memory::byte_at(emu, at, 1)?, b'x' | b'X');
-        if hex && (base == 16 || memory::byte_at(emu, at, 2)?.is_ascii_hexdigit()) {
-            base = 16;
-            byte = memory::byte_at(emu, at, 2)?;
-            at += 2;
+        "simple_strtoul" | "simple_strtol" | "simple_strtoull" => {
+            let s = emu.maps.read_string(emu.kernel_arg(0));
+            let base = emu.kernel_arg(2) as u32;
+            let base = if base == 0 { 10 } else { base };
+            let trimmed: String = s
+                .chars()
+                .take_while(|c| c.is_digit(base) || *c == '-')
+                .collect();
+            emu.set_kernel_ret(i64::from_str_radix(&trimmed, base).unwrap_or(0) as u64);
         }
-    }
-    if base == 0 {
-        base = if byte == b'0' { 8 } else { 10 };
-    }
-    while let Some(digit) = char::from(byte).to_digit(base) {
-        let (product, multiplication_overflow) = result.value.overflowing_mul(base.into());
-        let (value, addition_overflow) = product.overflowing_add(digit.into());
-        result.value = value;
-        result.overflow |= multiplication_overflow || addition_overflow;
-        result.any = true;
-        byte = memory::byte_at(emu, at, 1)?;
-        at += 1;
-    }
-    result.end = at;
-    Ok(result)
-}
+        "kstrtoint" | "kstrtol" | "kstrtoul" | "kstrtouint" | "kstrtou32" | "kstrtou64"
+        | "kstrtoll" | "kstrtoull" => {
+            let s = emu.maps.read_string(emu.kernel_arg(0)).trim().to_string();
+            let base = emu.kernel_arg(1) as u32;
+            let base = if base == 0 { 10 } else { base };
+            let out = emu.kernel_arg(2);
+            match i64::from_str_radix(&s, base) {
+                Ok(v) => {
+                    if symbol.ends_with("int") || symbol.ends_with("u32") {
+                        emu.maps.write_dword(out, v as u32);
+                    } else {
+                        emu.maps.write_qword(out, v as u64);
+                    }
+                    emu.set_kernel_ret(0);
+                }
+                // -EINVAL
+                Err(_) => emu.set_kernel_ret((-22i64) as u64),
+            }
+        }
 
-fn simple_strtoul(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let source = api_try!(emu, call.arg(emu, 0));
-    let end = api_try!(emu, call.arg(emu, 1));
-    let base = api_try!(emu, call.arg_u32(emu, 2));
-    let negative =
-        symbol == "simple_strtol" && api_try!(emu, memory::byte_at(emu, source, 0)) == b'-';
-    let parsed = api_try!(
-        emu,
-        digits(emu, source.saturating_add(u64::from(negative)), base)
-    );
-    if end != 0 {
-        api_try!(emu, memory::write(emu, end, &parsed.end.to_le_bytes()));
+        _ => return false,
     }
-    call.set_return(
-        emu,
-        if negative {
-            parsed.value.wrapping_neg()
-        } else {
-            parsed.value
-        },
-    );
-}
-
-fn kstrtoint(emu: &mut Emu, symbol: &str) {
-    let call = UnixApi;
-    let source = api_try!(emu, call.arg(emu, 0));
-    let base = api_try!(emu, call.arg_u32(emu, 1));
-    let output = api_try!(emu, call.arg(emu, 2));
-    let signed = matches!(symbol, "kstrtoint" | "kstrtol" | "kstrtoll");
-    let narrow = matches!(symbol, "kstrtoint" | "kstrtouint" | "kstrtou32");
-    let first = api_try!(emu, memory::byte_at(emu, source, 0));
-    let negative = signed && first == b'-';
-    let skip = first == b'+' || negative;
-    let parsed = api_try!(
-        emu,
-        digits(emu, source.saturating_add(u64::from(skip)), base)
-    );
-    if parsed.overflow {
-        call.set_return(emu, ERANGE);
-        return;
-    }
-    let next = api_try!(emu, memory::byte_at(emu, parsed.end, 0));
-    if !parsed.any
-        || !(next == 0 || next == b'\n' && api_try!(emu, memory::byte_at(emu, parsed.end, 1)) == 0)
-    {
-        call.set_return(emu, EINVAL);
-        return;
-    }
-    let value = i128::from(parsed.value) * if negative { -1 } else { 1 };
-    let valid = match (signed, narrow) {
-        (true, true) => i32::try_from(value).is_ok(),
-        (false, true) => u32::try_from(value).is_ok(),
-        (true, false) => i64::try_from(value).is_ok(),
-        (false, false) => true,
-    };
-    if !valid {
-        call.set_return(emu, ERANGE);
-        return;
-    }
-    let size = if narrow {
-        size_of::<u32>()
-    } else {
-        size_of::<u64>()
-    };
-    api_try!(
-        emu,
-        memory::write(emu, output, &value.to_le_bytes()[..size])
-    );
-    call.set_return(emu, 0);
+    true
 }

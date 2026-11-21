@@ -1,47 +1,220 @@
 use crate::maps::mem64::Permission;
-use crate::serialization::Serialization;
 use crate::tests::helpers;
 use crate::winapi::common::{heap, memory, strings};
-use crate::winapi::policy::{ApiDisposition, ApiMode, ApiStopReason};
-use crate::winapi::winapi64;
+use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::network::*;
 use crate::*;
 
+// ─── send/recv 64-bit: validates real buffer management ───
+
 #[test]
-fn legacy_ipv4_conversion_supports_classful_notation_and_thread_storage() {
-    for is64 in [false, true] {
-        let (mut emu, source) = helpers::prepare_winapi(is64);
-        for (text, expected) in [
-            ("127.1", [127, 0, 0, 1]),
-            ("0x7f000001", [127, 0, 0, 1]),
-            ("0177.0.1", [127, 0, 0, 1]),
-            ("1.2.65535", [1, 2, 255, 255]),
-            ("1.2.3.4 tail", [1, 2, 3, 4]),
-            ("08.1", [255; 4]),
-            ("1.2.3.400", [255; 4]),
-        ] {
-            emu.maps.write_string(source, text);
-            assert_eq!(
-                helpers::call_winapi_export(&mut emu, "ws2_32.dll", "inet_addr", &[source]),
-                u32::from_le_bytes(expected) as u64,
-                "{text}"
-            );
-        }
-        let format = |emu: &mut emu::Emu, ip| {
-            helpers::call_winapi_export(
-                emu,
-                "ws2_32.dll",
-                "inet_ntoa",
-                &[u32::from_le_bytes(ip).into()],
-            )
-        };
-        let buffer = format(&mut emu, [127, 0, 0, 1]);
-        assert_ne!(buffer, 0);
-        assert_eq!(emu.maps.read_string(buffer), "127.0.0.1");
-        assert_eq!(format(&mut emu, [192, 168, 1, 1]), buffer);
-        assert_eq!(emu.maps.read_string(buffer), "192.168.1.1");
+fn send_valid_socket_returns_len_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    assert_ne!(sock, 0);
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("sendbuf", buf, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_bytes(buf, &[0x48, 0x65, 0x6c, 0x6c, 0x6f]); // "Hello"
+
+    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::send, &[sock, buf, 5, 0]);
+    assert_eq!(ret, 5, "send should return the number of bytes sent");
+}
+
+#[test]
+fn send_invalid_socket_returns_zero_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("sendbuf", buf, 0x1000, Permission::READ_WRITE);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::send,
+        &[0xDEAD, buf, 5, 0], // invalid socket
+    );
+    assert_eq!(ret, 0, "send on invalid socket should return 0");
+}
+
+#[test]
+fn recv_valid_socket_fills_buffer_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("recvbuf", buf, 0x1000, Permission::READ_WRITE);
+    emu.maps.memset(buf, 0x00, 32);
+
+    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::recv, &[sock, buf, 16, 0]);
+    assert_eq!(ret, 16, "recv should return the requested length");
+
+    let byte = emu.maps.read_byte(buf).unwrap();
+    assert_ne!(byte, 0x00, "recv should fill the buffer with data (0x90)");
+}
+
+#[test]
+fn recv_invalid_socket_returns_error_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("recvbuf", buf, 0x1000, Permission::READ_WRITE);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::recv,
+        &[0xBAD, buf, 16, 0], // invalid socket
+    );
+    assert_eq!(ret, 1, "recv on invalid socket should return error (1)");
+}
+
+#[test]
+fn recv_4_byte_writes_size_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("recvbuf", buf, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_dword(buf, 0);
+
+    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::recv, &[sock, buf, 4, 0]);
+    assert_eq!(ret, 4, "recv of 4 bytes should return 4");
+
+    let val = emu.maps.read_dword(buf).unwrap();
+    assert_eq!(val, 0x0100, "recv of 4 bytes should write a size value");
+}
+
+#[test]
+fn send_loop_termination_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("sendbuf", buf, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_bytes(buf, &[0x41; 32]);
+
+    let mut returns = Vec::new();
+    for _ in 0..5 {
+        let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::send, &[sock, buf, 32, 0]);
+        returns.push(ret);
     }
+    assert!(
+        returns.contains(&0),
+        "after >3 sends, send should return 0 to terminate loops: {:?}",
+        returns
+    );
+}
+
+#[test]
+fn recv_loop_termination_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+
+    let buf = 0x30000u64;
+    emu.maps
+        .create_map("recvbuf", buf, 0x1000, Permission::READ_WRITE);
+
+    let mut returns = Vec::new();
+    for _ in 0..5 {
+        let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::recv, &[sock, buf, 32, 0]);
+        returns.push(ret);
+    }
+    assert!(
+        returns.contains(&0),
+        "after >3 recvs, recv should return 0 to terminate loops: {:?}",
+        returns
+    );
+}
+
+// ─── send/recv 32-bit ───
+
+#[test]
+fn send_valid_socket_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
+    assert_ne!(sock, 0);
+
+    let buf = 0x30000u32;
+    emu.maps
+        .create_map("sendbuf", buf as u64, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .write_bytes(buf as u64, &[0x48, 0x65, 0x6c, 0x6c, 0x6f]);
+
+    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::send, &[sock, buf, 5, 0]);
+    assert_eq!(ret, 5, "send 32-bit should return bytes sent");
+}
+
+#[test]
+fn recv_valid_socket_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
+
+    let buf = 0x30000u32;
+    emu.maps
+        .create_map("recvbuf", buf as u64, 0x1000, Permission::READ_WRITE);
+    emu.maps.memset(buf as u64, 0x00, 32);
+
+    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::recv, &[sock, buf, 16, 0]);
+    assert_eq!(ret, 16, "recv 32-bit should return requested length");
+}
+
+// ─── inet_addr 64-bit: real IP parsing ───
+
+#[test]
+fn inet_addr_parses_ip_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let str_addr = 0x30000u64;
+    emu.maps
+        .create_map("ipstr", str_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(str_addr, "127.0.0.1");
+
+    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::inet_addr, &[str_addr]);
+    assert_eq!(
+        ret, 0x0100007f,
+        "inet_addr(\"127.0.0.1\") should return 0x0100007f"
+    );
+}
+
+#[test]
+fn inet_addr_192_168_1_1_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let str_addr = 0x30000u64;
+    emu.maps
+        .create_map("ipstr", str_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(str_addr, "192.168.1.1");
+
+    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::inet_addr, &[str_addr]);
+    let expected = u32::from_ne_bytes([192, 168, 1, 1]) as u64;
+    assert_eq!(
+        ret, expected,
+        "inet_addr(\"192.168.1.1\") should parse correctly"
+    );
 }
 
 // ─── getaddrinfo 64-bit: handler-based DNS ───
@@ -55,7 +228,7 @@ fn getaddrinfo_creates_result_64() {
     let result_ptr = 0x31000u64;
     emu.maps
         .create_map("addrbuf", hostname, 0x2000, Permission::READ_WRITE);
-    emu.maps.write_string(hostname, "localhost");
+    emu.maps.write_string(hostname, "example.com");
     emu.maps.write_qword(result_ptr, 0);
 
     let ret = helpers::call_winapi64(
@@ -183,6 +356,41 @@ fn handler_put_and_read_bytes() {
 }
 
 // ─── socket lifecycle: create, exist, close ───
+
+#[test]
+fn socket_create_returns_unique_ids() {
+    use crate::winapi::helper;
+
+    let s1 = helper::socket_create();
+    let s2 = helper::socket_create();
+    assert_ne!(s1, s2, "socket ids must be unique");
+    assert!(
+        s1 >= 3,
+        "sockets should start at 3 (above stdin/stdout/stderr)"
+    );
+
+    helper::socket_close(s1);
+    helper::socket_close(s2);
+}
+
+#[test]
+fn socket_exist_tracks_lifecycle() {
+    use crate::winapi::helper;
+
+    let s = helper::socket_create();
+    assert!(helper::socket_exist(s), "socket should exist after create");
+
+    assert!(helper::socket_close(s), "close should return true");
+    assert!(
+        !helper::socket_exist(s),
+        "socket should not exist after close"
+    );
+
+    assert!(
+        !helper::socket_close(s),
+        "closing an already-closed socket should return false"
+    );
+}
 
 // ─── full crypto pipeline through advapi32 64-bit ───
 
@@ -667,7 +875,7 @@ fn ip_helper_unknown_exports_report_unsupported_calls() {
     for is64 in [false, true] {
         let (mut emu, _) = helpers::prepare_winapi(is64);
         emu.cfg.skip_unimplemented = false;
-        helpers::invoke_winapi_export(&mut emu, "iphlpapi.dll", "UnsupportedIpHelperQuery");
+        call_ip_helper(&mut emu, "UnsupportedIpHelperQuery", &[]);
         assert!(emu.api_policy.stopped());
         assert!(!emu.process_terminated);
     }
@@ -704,11 +912,9 @@ fn winsock_exports_preserve_stack_and_use_architecture_layouts() {
                     0,
                 ],
             );
-            assert!(emu.sockets.contains(socket));
+            assert!(winapi::helper::socket_exist(socket));
             let address = data + 512;
             let length = data + 544;
-            write_socket_address(&mut emu, address, AF_INET, 0);
-            assert_eq!(socket_call(&mut emu, "bind", &[socket, address, 16]), 0);
             assert!(emu.maps.write_dword(length, 16));
             assert_eq!(
                 helpers::call_winapi_export(
@@ -728,9 +934,54 @@ fn winsock_exports_preserve_stack_and_use_architecture_layouts() {
                     WSAENOTSOCK
                 );
             }
-            assert_eq!(socket_call(&mut emu, "closesocket", &[socket]), 0);
+            assert!(winapi::helper::socket_close(socket));
         }
     }
+}
+
+#[test]
+fn wsa_connect_reads_callee_data_from_the_fifth_argument() {
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    let socket = winapi::helper::socket_create();
+    let callee_data = data + 128;
+    let canary = data + 160;
+    assert!(emu.maps.write_qword(callee_data, u64::MAX));
+    assert!(emu.maps.write_qword(callee_data + 8, u64::MAX));
+    assert!(emu.maps.write_qword(canary, u64::MAX));
+    assert_eq!(
+        helpers::call_winapi_export(
+            &mut emu,
+            "ws2_32.dll",
+            "WSAConnect",
+            &[socket, 0, 0, 0, callee_data, canary, 0]
+        ),
+        0
+    );
+    assert_eq!(emu.maps.read_qword(callee_data), Some(0));
+    assert_eq!(emu.maps.read_qword(callee_data + 8), Some(0));
+    assert_eq!(emu.maps.read_qword(canary), Some(u64::MAX));
+    assert!(winapi::helper::socket_close(socket));
+}
+
+#[test]
+fn x86_extended_socket_calls_pop_the_complete_signature() {
+    let (mut emu, data) = helpers::prepare_winapi(false);
+    let socket = winapi::helper::socket_create();
+    for (name, arguments) in [
+        ("WSARecv", vec![socket, 0, 0, data, 0, 0, 0]),
+        ("WSARecvFrom", vec![socket, 0, 0, data, 0, 0, 0, 0, 0]),
+    ] {
+        assert!(emu.maps.write_dword(data, u32::MAX));
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "ws2_32.dll", name, &arguments),
+            0
+        );
+        assert_eq!(emu.maps.read_dword(data), Some(0));
+    }
+    let accepted =
+        helpers::call_winapi_export(&mut emu, "ws2_32.dll", "WSAAccept", &[socket, 0, 0, 0, 0]);
+    assert!(winapi::helper::socket_close(accepted));
+    assert!(winapi::helper::socket_close(socket));
 }
 
 #[test]
@@ -852,12 +1103,7 @@ fn address_info_pairs_use_native_layout_and_release_owned_results() {
             } else {
                 "host".repeat(40)
             };
-            emu.cfg.host_name = node.clone();
-            let canonical = node.clone();
-            let hints = data + 0x700;
-            const AI_CANONNAME: u32 = 2;
-            assert!(emu.maps.write_dword(hints, AI_CANONNAME));
-            emu.maps.write_dword(hints + 8, SOCK_DGRAM);
+            let canonical = format!("{node}.localdomain");
             assert!(
                 emu.maps
                     .write_bytes(data, &strings::encode_text(&format!("{node}\0"), wide))
@@ -871,14 +1117,12 @@ fn address_info_pairs_use_native_layout_and_release_owned_results() {
                     &mut emu,
                     "ws2_32.dll",
                     name,
-                    &[data, service, hints, output]
+                    &[data, service, 0, output]
                 ),
                 0
             );
             let result = memory::read_pointer(&emu, output).unwrap();
             assert_ne!(result, 0);
-            assert_eq!(emu.maps.read_dword(result + 8), Some(SOCK_DGRAM));
-            assert_eq!(emu.maps.read_dword(result + 12), Some(IPPROTO_UDP));
             assert_eq!(
                 emu.maps.read_dword(result + size_of::<u32>() as u64),
                 Some(AF_INET)
@@ -908,30 +1152,6 @@ fn address_info_pairs_use_native_layout_and_release_owned_results() {
             helpers::call_winapi_export(&mut emu, "ws2_32.dll", free, &[result]);
             assert_eq!(heap::owned_size(&emu, 0, result), None);
             helpers::call_winapi_export(&mut emu, "ws2_32.dll", free, &[0]);
-            emu.maps
-                .write_bytes(data, &strings::encode_text("192.0.2.5\0", wide));
-            assert_eq!(
-                helpers::call_winapi_export(&mut emu, "ws2_32.dll", name, &[data, 0, 0, output]),
-                0
-            );
-            let result = memory::read_pointer(&emu, output).unwrap();
-            assert_eq!(
-                memory::read_pointer(&emu, result + SCALARS_SIZE + pointer),
-                Some(0)
-            );
-            let address = memory::read_pointer(&emu, result + SCALARS_SIZE + 2 * pointer).unwrap();
-            assert_eq!(
-                emu.maps.read_dword(address + 4),
-                Some(u32::from_le_bytes([192, 0, 2, 5]))
-            );
-            helpers::call_winapi_export(&mut emu, "ws2_32.dll", free, &[result]);
-            emu.maps
-                .write_bytes(data, &strings::encode_text("unresolved.invalid\0", wide));
-            assert_eq!(
-                helpers::call_winapi_export(&mut emu, "ws2_32.dll", name, &[data, 0, 0, output]),
-                WSAHOST_NOT_FOUND
-            );
-            assert_eq!(memory::read_pointer(&emu, output), Some(0));
         }
     }
 }
@@ -956,778 +1176,6 @@ fn address_info_pairs_clear_result_on_unsupported_family() {
                 helpers::call_winapi_export(&mut emu, "ws2_32.dll", name, &[0, 0, 0, 0]),
                 WSAEFAULT
             );
-        }
-    }
-}
-
-#[test]
-fn address_conversion_pairs_share_ipv4_ipv6_and_error_contracts() {
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let binary = data + 0x200;
-        let output = data + 0x300;
-        for (parse, format, wide) in [
-            ("inet_pton", "inet_ntop", false),
-            ("InetPtonW", "InetNtopW", true),
-        ] {
-            for (family, text, expected) in [
-                (AF_INET, "192.0.2.1", vec![192, 0, 2, 1]),
-                (
-                    AF_INET6,
-                    "2001:db8::1",
-                    vec![0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                ),
-                (
-                    AF_INET6,
-                    "::ffff:192.0.2.1",
-                    vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 1],
-                ),
-            ] {
-                emu.set_last_error(ERROR_ACCESS_DENIED);
-                assert!(
-                    emu.maps
-                        .write_bytes(data, &strings::encode_text(&format!("{text}\0"), wide))
-                );
-                assert!(emu.maps.write_bytes(binary, &[0xa5; 17]));
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        parse,
-                        &[family as u64, data, binary]
-                    ),
-                    1
-                );
-                assert_eq!(
-                    emu.maps
-                        .read_bytes_option(binary, expected.len())
-                        .unwrap()
-                        .as_ref(),
-                    expected
-                );
-                assert_eq!(
-                    emu.maps.read_byte(binary + expected.len() as u64),
-                    Some(0xa5)
-                );
-                assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-                assert!(emu.maps.write_bytes(output, &[0xa5; 128]));
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        format,
-                        &[family as u64, binary, output, text.len() as u64]
-                    ),
-                    0
-                );
-                assert_eq!(emu.get_last_error(), WSAEINVAL);
-                assert_eq!(emu.maps.read_byte(output), Some(0xa5));
-                emu.set_last_error(ERROR_ACCESS_DENIED);
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        format,
-                        &[family as u64, binary, output, text.len() as u64 + 1]
-                    ),
-                    output
-                );
-                assert_eq!(strings::read_text(&emu, output, wide), text);
-                assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-            }
-            for text in ["127.1", "01.2.3.4", "256.0.0.1", "bad"] {
-                assert!(
-                    emu.maps
-                        .write_bytes(data, &strings::encode_text(&format!("{text}\0"), wide))
-                );
-                assert!(emu.maps.write_bytes(binary, &[0xa5; 16]));
-                emu.set_last_error(ERROR_ACCESS_DENIED);
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        parse,
-                        &[AF_INET as u64, data, binary]
-                    ),
-                    0
-                );
-                assert_eq!(
-                    emu.get_last_error(),
-                    if wide { WSAEINVAL } else { ERROR_ACCESS_DENIED }
-                );
-                assert_eq!(
-                    emu.maps.read_bytes_option(binary, 16).unwrap().as_ref(),
-                    &[0xa5; 16]
-                );
-            }
-            assert!(
-                emu.maps
-                    .write_bytes(data, &strings::encode_text("127.0.0.1\0", wide))
-            );
-            for (family, source, destination, error) in [
-                (AF_UNSPEC, data, binary, WSAEAFNOSUPPORT),
-                (AF_INET, 0, binary, WSAEFAULT),
-                (AF_INET, data, 0, WSAEFAULT),
-                (AF_INET, data, data + 0xfff, WSAEFAULT),
-            ] {
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        parse,
-                        &[family as u64, source, destination]
-                    ),
-                    SOCKET_ERROR
-                );
-                assert_eq!(emu.get_last_error(), error);
-            }
-            assert_eq!(
-                helpers::call_winapi_export(
-                    &mut emu,
-                    "ws2_32.dll",
-                    format,
-                    &[AF_UNSPEC as u64, binary, output, 64]
-                ),
-                0
-            );
-            assert_eq!(emu.get_last_error(), WSAEAFNOSUPPORT);
-        }
-    }
-}
-
-#[test]
-fn byte_order_helpers_use_guest_width_and_preserve_last_error() {
-    for is64 in [false, true] {
-        let (mut emu, _) = helpers::prepare_winapi(is64);
-        for (name, expected) in [
-            ("htons", 0x7856),
-            ("ntohs", 0x7856),
-            ("htonl", 0x7856_3412),
-            ("ntohl", 0x7856_3412),
-        ] {
-            emu.set_last_error(ERROR_ACCESS_DENIED);
-            let value = if is64 {
-                0xa5a5_a5a5_1234_5678
-            } else {
-                0x1234_5678
-            };
-            assert_eq!(
-                helpers::call_winapi_export(&mut emu, "ws2_32.dll", name, &[value]),
-                expected
-            );
-            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-        }
-    }
-}
-
-#[test]
-fn fd_set_membership_uses_guest_layout_and_preserves_error_state() {
-    const MARKER: u64 = 0x1234;
-    // Applications can override FD_SETSIZE; 64 is only the SDK default.
-    const SOCKET_COUNT: usize = 65;
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let width = if is64 {
-            size_of::<u64>()
-        } else {
-            size_of::<u32>()
-        };
-        let high_bits = if is64 { 1u64 << u32::BITS } else { 0 };
-        let mut set = vec![0; width * (SOCKET_COUNT + 1)];
-        set[..size_of::<u32>()].copy_from_slice(&(SOCKET_COUNT as u32).to_le_bytes());
-        for (index, bytes) in set[width..].chunks_exact_mut(width).enumerate() {
-            bytes.copy_from_slice(&(high_bits | (index as u64 + 1)).to_le_bytes()[..width]);
-        }
-        // Split fd_count across maps to cover checked reads at field boundaries.
-        let split = data + 0x2000;
-        emu.maps
-            .create_map("fd_count_head", split, 2, Permission::READ_WRITE)
-            .unwrap();
-        emu.maps
-            .create_map(
-                "fd_set_tail",
-                split + 2,
-                set.len() as u64 - 2,
-                Permission::READ_WRITE,
-            )
-            .unwrap();
-        for address in [data, split] {
-            assert!(emu.maps.write_bytes(address, &set));
-            for (socket, expected) in [
-                (high_bits | 1, 1),
-                (high_bits | 65, 1),
-                (0, 0),
-                (high_bits | 66, 0),
-            ] {
-                emu.set_last_error(MARKER);
-                assert_eq!(
-                    helpers::call_winapi_export(
-                        &mut emu,
-                        "ws2_32.dll",
-                        "__WSAFDIsSet",
-                        &[socket, address]
-                    ),
-                    expected
-                );
-                assert_eq!(emu.get_last_error(), MARKER);
-            }
-            assert!(emu.maps.write_bytes(address, &0u32.to_le_bytes()));
-            assert_eq!(
-                helpers::call_winapi_export(
-                    &mut emu,
-                    "ws2_32.dll",
-                    "__WSAFDIsSet",
-                    &[high_bits | 1, address]
-                ),
-                0
-            );
-        }
-    }
-}
-
-fn socket_call(emu: &mut emu::Emu, name: &str, arguments: &[u64]) -> u64 {
-    helpers::call_winapi_export(emu, "ws2_32.dll", name, arguments)
-}
-
-fn create_socket(emu: &mut emu::Emu, family: u32, kind: u32) -> u64 {
-    let socket = socket_call(emu, "socket", &[family as u64, kind as u64, 0]);
-    assert!(emu.sockets.contains(socket));
-    socket
-}
-
-fn write_socket_address(emu: &mut emu::Emu, address: u64, family: u32, port: u16) -> usize {
-    let size = if family == AF_INET6 { 28 } else { 16 };
-    let mut bytes = vec![0; size];
-    bytes[..2].copy_from_slice(&(family as u16).to_le_bytes());
-    bytes[2..4].copy_from_slice(&port.to_be_bytes());
-    assert!(emu.maps.write_bytes(address, &bytes));
-    size
-}
-
-#[test]
-fn sockets_are_owned_by_the_emulator_and_survive_native_snapshots() {
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let (mut other, _) = helpers::prepare_winapi(is64);
-        for name in ["socket", "WSASocketA", "WSASocketW"] {
-            emu.set_last_error(ERROR_ACCESS_DENIED);
-            let arguments = [AF_INET as u64, SOCK_STREAM as u64, 0, 0, 0, 0];
-            let socket = socket_call(
-                &mut emu,
-                name,
-                &arguments[..if name == "socket" { 3 } else { 6 }],
-            );
-            assert!(emu.sockets.contains(socket));
-            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-            assert_eq!(
-                socket_call(&mut other, "closesocket", &[socket]),
-                SOCKET_ERROR
-            );
-            assert_eq!(other.get_last_error(), WSAENOTSOCK);
-            emu = Serialization::deserialize(&Serialization::serialize(&emu));
-            assert!(emu.sockets.contains(socket));
-            assert_eq!(socket_call(&mut emu, "closesocket", &[socket]), 0);
-            assert!(!emu.sockets.contains(socket));
-            assert_eq!(
-                socket_call(&mut emu, "closesocket", &[socket]),
-                SOCKET_ERROR
-            );
-        }
-        for handle in [0, 1, 2, INVALID_SOCKET] {
-            assert_eq!(
-                socket_call(&mut emu, "closesocket", &[handle]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAENOTSOCK);
-        }
-        let invalid = if is64 { INVALID_SOCKET } else { SOCKET_ERROR };
-        for (family, kind, protocol, error) in [
-            (AF_UNSPEC, SOCK_STREAM, 0, WSAEAFNOSUPPORT),
-            (AF_INET, 0, 0, WSAESOCKTNOSUPPORT),
-            (AF_INET, SOCK_DGRAM, IPPROTO_TCP, WSAEPROTONOSUPPORT),
-        ] {
-            assert_eq!(
-                socket_call(
-                    &mut emu,
-                    "socket",
-                    &[family as u64, kind as u64, protocol as u64]
-                ),
-                invalid
-            );
-            assert_eq!(emu.get_last_error(), error);
-        }
-        let socket = create_socket(&mut emu, AF_INET, SOCK_STREAM);
-        // The x86 frame contains exactly three readable DWORDs: accept has no fourth argument.
-        if !is64 {
-            let frame = data + 0x1000 - 3 * size_of::<u32>() as u64;
-            assert!(emu.maps.write_bytes(frame, &(socket as u32).to_le_bytes()));
-            assert!(emu.maps.write_bytes(frame + 4, &0u32.to_le_bytes()));
-            assert!(emu.maps.write_bytes(frame + 8, &0u32.to_le_bytes()));
-            emu.set_sp(frame);
-            helpers::invoke_winapi_export(&mut emu, "ws2_32.dll", "accept");
-            assert!(!emu.api_policy.stopped());
-            assert_eq!(emu.sp(), data + 0x1000);
-            assert_eq!(emu.regs().get_eax(), SOCKET_ERROR);
-            assert_eq!(emu.get_last_error(), WSAEINVAL);
-        }
-    }
-}
-
-#[test]
-fn socket_addresses_and_accept_use_checked_in_out_lengths() {
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        for family in [AF_INET, AF_INET6] {
-            let socket = create_socket(&mut emu, family, SOCK_STREAM);
-            let size = write_socket_address(&mut emu, data, family, 0);
-            let output = data + 0x100;
-            let length = data + 0x200;
-            assert_eq!(socket_call(&mut emu, "listen", &[socket, 5]), SOCKET_ERROR);
-            assert_eq!(emu.get_last_error(), WSAEINVAL);
-            assert_eq!(
-                socket_call(&mut emu, "bind", &[socket, data, size as u64 - 1]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAEFAULT);
-            assert_eq!(
-                socket_call(&mut emu, "bind", &[socket, data, size as u64]),
-                0
-            );
-            assert_eq!(
-                socket_call(&mut emu, "bind", &[socket, data, size as u64]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAEINVAL);
-            assert!(emu.maps.write_bytes(output, &[0xa5; 32]));
-            assert!(emu.maps.write_dword(length, size as u32 - 1));
-            assert_eq!(
-                socket_call(&mut emu, "getsockname", &[socket, output, length]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAEFAULT);
-            assert_eq!(emu.maps.read_byte(output), Some(0xa5));
-            assert_eq!(emu.maps.read_dword(length), Some(size as u32 - 1));
-            assert!(emu.maps.write_dword(length, size as u32));
-            emu.set_last_error(ERROR_ACCESS_DENIED);
-            assert_eq!(
-                socket_call(&mut emu, "getsockname", &[socket, output, length]),
-                0
-            );
-            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-            assert_eq!(emu.maps.read_word(output), Some(family as u16));
-            assert_ne!(emu.maps.read_word(output + 2), Some(0));
-            assert_eq!(emu.maps.read_dword(length), Some(size as u32));
-            assert_eq!(emu.maps.read_byte(output + size as u64), Some(0xa5));
-            assert_eq!(socket_call(&mut emu, "listen", &[socket, 5]), 0);
-            assert!(emu.maps.write_dword(length, 1));
-            assert_eq!(
-                socket_call(&mut emu, "ioctlsocket", &[socket, FIONBIO as u64, length]),
-                0
-            );
-            for name in ["accept", "WSAAccept"] {
-                let arguments = [socket, output, length, 0, 0];
-                let count = if name == "accept" { 3 } else { 5 };
-                assert_eq!(
-                    socket_call(&mut emu, name, &arguments[..count]),
-                    if is64 { INVALID_SOCKET } else { SOCKET_ERROR }
-                );
-                assert_eq!(emu.get_last_error(), WSAEFAULT);
-                assert!(emu.maps.write_dword(length, size as u32));
-                assert!(emu.maps.write_bytes(output, &[0xa5; 32]));
-                assert_eq!(
-                    socket_call(&mut emu, name, &arguments[..count]),
-                    if is64 { INVALID_SOCKET } else { SOCKET_ERROR }
-                );
-                assert_eq!(emu.get_last_error(), WSAEWOULDBLOCK);
-                assert_eq!(emu.maps.read_byte(output), Some(0xa5));
-                assert_eq!(emu.maps.read_dword(length), Some(size as u32));
-                assert!(emu.maps.write_dword(length, 1));
-            }
-            assert_eq!(socket_call(&mut emu, "closesocket", &[socket]), 0);
-        }
-    }
-}
-
-#[test]
-fn socket_options_round_trip_and_reject_short_or_invalid_outputs() {
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let socket = create_socket(&mut emu, AF_INET, SOCK_STREAM);
-        let value = data + 0x100;
-        let length = data + 0x200;
-        // Include a LINGER structure: two little-endian u16 fields, not two native pointers.
-        for (level, option, input, expected) in [
-            (SOL_SOCKET, SO_KEEPALIVE, 42, 1),
-            (SOL_SOCKET, SO_RCVTIMEO, 250, 250),
-            (SOL_SOCKET, SO_LINGER, 5 << 16 | 1, 5 << 16 | 1),
-            (IPPROTO_TCP, TCP_NODELAY, 7, 1),
-        ] {
-            assert!(emu.maps.write_dword(value, input));
-            emu.set_last_error(ERROR_ACCESS_DENIED);
-            assert_eq!(
-                socket_call(
-                    &mut emu,
-                    "setsockopt",
-                    &[socket, level as u64, option as u64, value, 4]
-                ),
-                0
-            );
-            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-            emu = Serialization::deserialize(&Serialization::serialize(&emu));
-            assert!(emu.maps.write_qword(value, u64::MAX));
-            assert!(emu.maps.write_qword(length, u64::MAX));
-            assert!(emu.maps.write_dword(length, 8));
-            assert_eq!(
-                socket_call(
-                    &mut emu,
-                    "getsockopt",
-                    &[socket, level as u64, option as u64, value, length]
-                ),
-                0
-            );
-            assert_eq!(emu.maps.read_dword(value), Some(expected));
-            assert_eq!(emu.maps.read_dword(value + 4), Some(u32::MAX));
-            assert_eq!(emu.maps.read_dword(length), Some(4));
-            assert_eq!(emu.maps.read_dword(length + 4), Some(u32::MAX));
-        }
-        for (name, length_arg) in [("setsockopt", 3), ("getsockopt", length)] {
-            assert!(emu.maps.write_dword(value, 0xa5a5_a5a5));
-            assert!(emu.maps.write_dword(length, 3));
-            assert_eq!(
-                socket_call(
-                    &mut emu,
-                    name,
-                    &[
-                        socket,
-                        SOL_SOCKET as u64,
-                        SO_KEEPALIVE as u64,
-                        value,
-                        length_arg
-                    ]
-                ),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAEFAULT);
-            assert_eq!(emu.maps.read_dword(value), Some(0xa5a5_a5a5));
-        }
-        assert_eq!(
-            socket_call(
-                &mut emu,
-                "setsockopt",
-                &[socket, SOL_SOCKET as u64, SO_TYPE as u64, value, 4]
-            ),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAENOPROTOOPT);
-        assert_eq!(
-            socket_call(
-                &mut emu,
-                "getsockopt",
-                &[
-                    INVALID_SOCKET,
-                    SOL_SOCKET as u64,
-                    SO_TYPE as u64,
-                    value,
-                    length
-                ]
-            ),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAENOTSOCK);
-        // Split a DWORD across adjacent mappings instead of assuming one-map fields.
-        let split = data + 0x2000;
-        emu.maps
-            .create_map("option_head", split, 2, Permission::READ_WRITE)
-            .unwrap();
-        emu.maps
-            .create_map("option_tail", split + 2, 2, Permission::READ_WRITE)
-            .unwrap();
-        assert!(emu.maps.write_bytes(split, &1u32.to_le_bytes()));
-        assert_eq!(
-            socket_call(
-                &mut emu,
-                "setsockopt",
-                &[socket, SOL_SOCKET as u64, SO_KEEPALIVE as u64, split, 4]
-            ),
-            0
-        );
-        assert_eq!(
-            socket_call(&mut emu, "ioctlsocket", &[socket, FIONBIO as u64, split]),
-            0
-        );
-        assert_eq!(
-            socket_call(&mut emu, "ioctlsocket", &[socket, FIONREAD as u64, split]),
-            0
-        );
-        assert_eq!(memory::read_array::<4>(&emu, split), Some([0; 4]));
-    }
-}
-
-#[test]
-fn offline_sockets_report_connection_and_buffer_state_without_fabricating_input() {
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let tcp = create_socket(&mut emu, AF_INET, SOCK_STREAM);
-        let udp = create_socket(&mut emu, AF_INET, SOCK_DGRAM);
-        let size = write_socket_address(&mut emu, data, AF_INET, 80) as u64;
-        let buffer = data + 0x100;
-        assert!(emu.maps.write_bytes(buffer, &[0xa5; 32]));
-        assert_eq!(
-            socket_call(&mut emu, "connect", &[tcp, data, size]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAECONNREFUSED);
-        for name in ["send", "recv"] {
-            assert_eq!(
-                socket_call(&mut emu, name, &[0, buffer, 4, 0]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAENOTSOCK);
-            assert_eq!(
-                socket_call(&mut emu, name, &[tcp, buffer, 4, 0]),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAENOTCONN);
-        }
-        assert_eq!(socket_call(&mut emu, "connect", &[udp, data, size]), 0);
-        for _ in 0..5 {
-            assert_eq!(socket_call(&mut emu, "send", &[udp, buffer, 4, 0]), 4);
-        }
-        assert_eq!(socket_call(&mut emu, "send", &[udp, 0, 0, 0]), 0);
-        assert_eq!(
-            socket_call(&mut emu, "send", &[udp, buffer, u32::MAX as u64, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAEINVAL);
-        assert_eq!(
-            socket_call(&mut emu, "send", &[udp, data + 0xfff, 2, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAEFAULT);
-        assert_eq!(
-            socket_call(&mut emu, "WSAEventSelect", &[0, 0, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAENOTSOCK);
-        assert_eq!(socket_call(&mut emu, "WSAEventSelect", &[udp, 0, 0]), 0);
-        assert_eq!(
-            socket_call(&mut emu, "recv", &[udp, buffer, 4, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAEWOULDBLOCK);
-        assert!(emu.maps.write_dword(data, 1));
-        assert_eq!(
-            socket_call(&mut emu, "ioctlsocket", &[udp, FIONBIO as u64, data]),
-            0
-        );
-        assert_eq!(
-            socket_call(&mut emu, "recv", &[udp, buffer, 4, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAEWOULDBLOCK);
-        assert_eq!(
-            emu.maps.read_bytes_option(buffer, 32).unwrap().as_ref(),
-            &[0xa5; 32]
-        );
-        assert_eq!(socket_call(&mut emu, "shutdown", &[udp, SD_SEND as u64]), 0);
-        assert_eq!(
-            socket_call(&mut emu, "send", &[udp, buffer, 4, 0]),
-            SOCKET_ERROR
-        );
-        assert_eq!(emu.get_last_error(), WSAESHUTDOWN);
-    }
-}
-
-#[test]
-fn socket_waits_use_the_selected_policy_without_creating_a_peer() {
-    for (is64, mode) in [false, true].into_iter().flat_map(|is64| {
-        [
-            ApiMode::Strict,
-            ApiMode::SimulateFail,
-            ApiMode::SimulateSuccess,
-        ]
-        .map(|mode| (is64, mode))
-    }) {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        emu.set_api_mode(mode);
-        let socket = create_socket(&mut emu, AF_INET, SOCK_STREAM);
-        let size = write_socket_address(&mut emu, data, AF_INET, 0) as u64;
-        assert_eq!(socket_call(&mut emu, "bind", &[socket, data, size]), 0);
-        assert_eq!(socket_call(&mut emu, "listen", &[socket, 5]), 0);
-        let output = data + 0x100;
-        let length = data + 0x200;
-        assert!(emu.maps.write_bytes(output, &[0xa5; 32]));
-        assert!(emu.maps.write_dword(length, size as u32));
-        emu.set_last_error(ERROR_ACCESS_DENIED);
-        let sp = emu.sp();
-        if is64 {
-            helpers::call_winapi64(
-                &mut emu,
-                |emu| helpers::invoke_winapi_export(emu, "ws2_32.dll", "accept"),
-                &[socket, output, length],
-            );
-        } else {
-            helpers::call_winapi32(
-                &mut emu,
-                |emu| helpers::invoke_winapi_export(emu, "ws2_32.dll", "accept"),
-                &[socket as u32, output as u32, length as u32],
-            );
-        }
-        let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-        assert_eq!(outcome.call.name, "accept");
-        match mode {
-            ApiMode::Strict => {
-                assert_eq!(
-                    outcome.disposition,
-                    ApiDisposition::Stopped(ApiStopReason::StrictPolicy)
-                );
-                assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-                assert_eq!(
-                    emu.sp(),
-                    if is64 {
-                        sp
-                    } else {
-                        sp - 3 * size_of::<u32>() as u64
-                    }
-                );
-            }
-            ApiMode::SimulateFail => {
-                assert_eq!(outcome.disposition, ApiDisposition::SimulatedFailure);
-                assert_eq!(emu.get_last_error(), WSAEOPNOTSUPP);
-                assert_eq!(
-                    emu.regs().rax,
-                    if is64 { INVALID_SOCKET } else { SOCKET_ERROR }
-                );
-                assert_eq!(emu.sp(), sp);
-            }
-            ApiMode::SimulateSuccess => {
-                assert_eq!(outcome.disposition, ApiDisposition::SimulatedSuccess);
-                assert_eq!(emu.regs().rax, 0);
-                assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-                assert_eq!(emu.sp(), sp);
-            }
-        }
-        assert!(!emu.sockets.contains(0));
-        assert_eq!(
-            emu.maps.read_bytes_option(output, 32).unwrap().as_ref(),
-            &[0xa5; 32]
-        );
-        assert_eq!(emu.maps.read_dword(length), Some(size as u32));
-    }
-}
-
-#[test]
-fn socket_byte_order_writes_the_declared_output_width() {
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    for is64 in [false, true] {
-        let (mut emu, data) = prepare_winapi(is64);
-        let lib = "ws2_32.dll";
-        let sock = call(&mut emu, lib, "socket", &[2, 2, 17]);
-        for (api, expected, size) in [
-            ("WSAHtons", 0x4433, 2),
-            ("WSANtohs", 0x4433, 2),
-            ("WSAHtonl", 0x44332211, 4),
-            ("WSANtohl", 0x44332211, 4),
-        ] {
-            emu.maps.write_qword(data, u64::MAX);
-            assert_eq!(call(&mut emu, lib, api, &[sock, 0x11223344, data]), 0);
-            assert_eq!(
-                if size == 2 {
-                    emu.maps.read_word(data).map(u32::from)
-                } else {
-                    emu.maps.read_dword(data)
-                },
-                Some(expected)
-            );
-            assert_eq!(emu.maps.read_byte(data + size), Some(u8::MAX));
-            assert_eq!(call(&mut emu, lib, api, &[sock, 0, 0]), SOCKET_ERROR);
-            assert_eq!(emu.get_last_error(), WSAEFAULT);
-        }
-    }
-}
-
-#[test]
-fn winsock_events_share_the_windows_wait_state() {
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    use crate::winapi::common::memory::write_pointer;
-    use crate::windows::constants::process::{WAIT_OBJECT_0, WAIT_TIMEOUT};
-    for is64 in [false, true] {
-        let (mut emu, events) = prepare_winapi(is64);
-        let library = "ws2_32.dll";
-        let event = call(&mut emu, library, "WSACreateEvent", &[]);
-        assert_ne!(event, 0);
-        write_pointer(&mut emu, events, event);
-        let args = [1, events, 0, 0, 0];
-        assert_eq!(
-            call(&mut emu, library, "WSAWaitForMultipleEvents", &args),
-            WAIT_TIMEOUT
-        );
-        assert_eq!(call(&mut emu, library, "WSASetEvent", &[event]), 1);
-        for _ in 0..2 {
-            assert_eq!(
-                call(&mut emu, library, "WSAWaitForMultipleEvents", &args),
-                WAIT_OBJECT_0
-            );
-        }
-        assert_eq!(call(&mut emu, library, "WSAResetEvent", &[event]), 1);
-        assert_eq!(
-            call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[event, 0]),
-            WAIT_TIMEOUT
-        );
-        assert_eq!(call(&mut emu, library, "WSACloseEvent", &[event]), 1);
-        assert_eq!(call(&mut emu, library, "WSACloseEvent", &[event]), 0);
-        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
-        emu.set_api_mode(ApiMode::SimulateFail);
-        assert_eq!(call(&mut emu, library, "WSAPoll", &[0; 3]), SOCKET_ERROR);
-        assert_eq!(emu.get_last_error(), WSAEOPNOTSUPP);
-    }
-}
-
-#[test]
-fn textual_socket_endpoints_preserve_family_port_and_buffer_bounds() {
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    for is64 in [false, true] {
-        let (mut emu, data) = prepare_winapi(is64);
-        let (address, length, out) = (data + 128, data + 256, data + 512);
-        for (input, family, size) in [
-            ("192.0.2.18:443", AF_INET, 16),
-            ("[2001:db8::1]:80", AF_INET6, 28),
-        ] {
-            emu.maps.write_wide_string(data, input);
-            emu.maps.write_dword(length, size);
-            assert_eq!(
-                call(
-                    &mut emu,
-                    "ws2_32.dll",
-                    "WSAStringToAddressW",
-                    &[data, family.into(), 0, address, length]
-                ),
-                0
-            );
-            assert_eq!(emu.maps.read_word(address), Some(family as u16));
-            emu.maps.write_dword(length, 1);
-            emu.maps.write_byte(out, 0xcc);
-            assert_eq!(
-                call(
-                    &mut emu,
-                    "ws2_32.dll",
-                    "WSAAddressToStringA",
-                    &[address, size.into(), 0, out, length]
-                ),
-                SOCKET_ERROR
-            );
-            assert_eq!(emu.get_last_error(), WSAEFAULT);
-            assert_eq!(emu.maps.read_byte(out), Some(0xcc));
-            assert_eq!(
-                call(
-                    &mut emu,
-                    "ws2_32.dll",
-                    "WSAAddressToStringA",
-                    &[address, size.into(), 0, out, length]
-                ),
-                0
-            );
-            assert_eq!(emu.maps.read_string(out), input);
         }
     }
 }

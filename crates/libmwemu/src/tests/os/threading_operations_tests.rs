@@ -1,18 +1,17 @@
-use itertools::iproduct;
-
 use crate::context::{context32::Context32, context64::Context64};
 use crate::maps::mem64::Permission;
-use crate::serialization::Serialization;
 use crate::tests::helpers;
 use crate::threading::scheduler::ThreadScheduler;
+use crate::winapi::winapi64;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::exceptions::*;
 use crate::windows::constants::process::*;
 use crate::{emu32, emu64};
+use itertools::iproduct;
 
 #[test]
 fn threading_disabled_by_default() {
-    let emu = emu64();
+    let emu = crate::emu64();
 
     assert!(
         !emu.is_threading_enabled(),
@@ -22,7 +21,7 @@ fn threading_disabled_by_default() {
 
 #[test]
 fn enable_threading() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     emu.enable_threading(true);
 
@@ -38,7 +37,7 @@ fn enable_threading() {
 
 #[test]
 fn disable_threading() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     // First enable it
     emu.enable_threading(true);
@@ -59,7 +58,7 @@ fn disable_threading() {
 
 #[test]
 fn threading_toggle() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     // Test multiple toggles
     emu.enable_threading(true);
@@ -77,7 +76,7 @@ fn threading_toggle() {
 
 #[test]
 fn threading_state_32bit() {
-    let mut emu = emu32();
+    let mut emu = crate::emu32();
 
     assert!(
         !emu.is_threading_enabled(),
@@ -93,7 +92,7 @@ fn threading_state_32bit() {
 
 #[test]
 fn threading_state_64bit() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     assert!(
         !emu.is_threading_enabled(),
@@ -109,7 +108,7 @@ fn threading_state_64bit() {
 
 #[test]
 fn threading_idempotent_enable() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     // Enable multiple times
     emu.enable_threading(true);
@@ -124,7 +123,7 @@ fn threading_idempotent_enable() {
 
 #[test]
 fn threading_idempotent_disable() {
-    let mut emu = emu64();
+    let mut emu = crate::emu64();
 
     // Disable multiple times (already disabled by default)
     emu.enable_threading(false);
@@ -134,6 +133,171 @@ fn threading_idempotent_disable() {
     assert!(
         !emu.is_threading_enabled(),
         "Threading should remain disabled"
+    );
+}
+
+#[test]
+fn srw_lock_roundtrip_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let lock_addr = 0x100000u64;
+    emu.maps
+        .create_map("srw_lock", lock_addr, 0x1000, Permission::READ_WRITE);
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::InitializeSRWLock,
+        &[lock_addr],
+    );
+    assert_eq!(
+        emu.maps.read_qword(lock_addr).unwrap(),
+        0,
+        "InitializeSRWLock must zero the lock"
+    );
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::AcquireSRWLockExclusive,
+        &[lock_addr],
+    );
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::ReleaseSRWLockExclusive,
+        &[lock_addr],
+    );
+
+    let acquired = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::TryAcquireSRWLockExclusive,
+        &[lock_addr],
+    );
+    assert_eq!(acquired, 1, "TryAcquireSRWLockExclusive must succeed");
+
+    let shared = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::TryAcquireSRWLockShared,
+        &[lock_addr],
+    );
+    assert_eq!(shared, 1, "TryAcquireSRWLockShared must succeed");
+}
+
+#[test]
+fn wait_for_multiple_objects_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handles_addr = 0x100000u64;
+    emu.maps
+        .create_map("handles", handles_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_qword(handles_addr, 0x100);
+    emu.maps.write_qword(handles_addr + 8, 0x200);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::WaitForMultipleObjects,
+        &[2, handles_addr, 0, 0],
+    );
+    assert_eq!(ret, 0, "WaitForMultipleObjects must return WAIT_OBJECT_0");
+}
+
+#[test]
+fn srw_lock_lifecycle() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let lock_addr = 0x100000u64;
+    emu.maps
+        .create_map("srwlock", lock_addr, 0x1000, Permission::READ_WRITE);
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::InitializeSRWLock,
+        &[lock_addr],
+    );
+    assert_eq!(
+        emu.maps.read_qword(lock_addr).unwrap(),
+        0,
+        "SRWLock should be zeroed after init"
+    );
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::AcquireSRWLockExclusive,
+        &[lock_addr],
+    );
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::ReleaseSRWLockExclusive,
+        &[lock_addr],
+    );
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::AcquireSRWLockShared,
+        &[lock_addr],
+    );
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::ReleaseSRWLockShared,
+        &[lock_addr],
+    );
+}
+
+#[test]
+fn try_acquire_srw_lock() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let lock_addr = 0x100000u64;
+    emu.maps
+        .create_map("srwlock", lock_addr, 0x1000, Permission::READ_WRITE);
+
+    helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::InitializeSRWLock,
+        &[lock_addr],
+    );
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::TryAcquireSRWLockExclusive,
+        &[lock_addr],
+    );
+    assert_eq!(
+        ret, 1,
+        "TryAcquireSRWLockExclusive should succeed (return 1)"
+    );
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::TryAcquireSRWLockShared,
+        &[lock_addr],
+    );
+    assert_eq!(ret, 1, "TryAcquireSRWLockShared should succeed (return 1)");
+}
+
+#[test]
+fn wait_for_multiple_objects() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handles_addr = 0x100000u64;
+    emu.maps
+        .create_map("handles", handles_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_qword(handles_addr, 0x10);
+    emu.maps.write_qword(handles_addr + 8, 0x20);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::WaitForMultipleObjects,
+        &[2, handles_addr, 0, 100],
+    );
+    assert_eq!(
+        ret, 0,
+        "WaitForMultipleObjects should return WAIT_OBJECT_0 (0)"
     );
 }
 
@@ -362,579 +526,5 @@ fn ntdll_slist_gateway_clears_only_the_guest_header() {
             assert_eq!(emu.maps.read_byte(header + offset), Some(0));
         }
         assert!(emu.api_policy.last_outcome.is_none());
-    }
-}
-
-#[test]
-fn windows_thread_identity_and_suspend_counts_share_handles_and_survive_snapshots() {
-    use crate::serialization::Serialization;
-    for (is64, library) in iproduct!([false, true], ["kernel32.dll", "kernelbase.dll"]) {
-        let (mut emu, _) = helpers::prepare_winapi(is64);
-        let parent = emu.current_thread().id;
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetCurrentThreadId", &[]),
-            parent
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetThreadId", &[NT_CURRENT_THREAD]),
-            parent
-        );
-        let thread = helpers::call_winapi_export(
-            &mut emu,
-            library,
-            "CreateThread",
-            &[0, 0, 0x600000, 0, CREATE_SUSPENDED, 0],
-        );
-        let child = emu.threads[1].id;
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetThreadId", &[thread]),
-            child
-        );
-        let opened = helpers::call_winapi_export(&mut emu, library, "OpenThread", &[0, 0, child]);
-        assert_ne!(opened, 0);
-        assert_ne!(opened, thread);
-        emu.set_last_error(ERROR_ACCESS_DENIED);
-        for (api, expected, suspended) in [
-            ("SuspendThread", 1, true),
-            ("SuspendThread", 2, true),
-            ("ResumeThread", 3, true),
-            ("ResumeThread", 2, true),
-        ] {
-            assert_eq!(
-                helpers::call_winapi_export(&mut emu, library, api, &[opened]),
-                expected
-            );
-            assert_eq!(emu.threads[1].suspended, suspended);
-            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-        }
-        emu = Serialization::deserialize(&Serialization::serialize(&emu));
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetThreadId", &[opened]),
-            child
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "ResumeThread", &[thread]),
-            1
-        );
-        assert!(!emu.threads[1].suspended);
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "ResumeThread", &[opened]),
-            0
-        );
-        emu.threads[1].windows.suspend_count = MAXIMUM_SUSPEND_COUNT;
-        emu.threads[1].suspended = true;
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "SuspendThread", &[thread]),
-            u32::MAX as u64
-        );
-        assert_eq!(emu.get_last_error(), ERROR_SIGNAL_REFUSED);
-        assert_eq!(emu.threads[1].windows.suspend_count, MAXIMUM_SUSPEND_COUNT);
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "CloseHandle", &[opened]),
-            1
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetThreadId", &[opened]),
-            0
-        );
-        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "GetThreadId", &[thread]),
-            child
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "OpenThread", &[0, 0, 0]),
-            0
-        );
-        assert_eq!(emu.get_last_error(), ERROR_INVALID_PARAMETER);
-    }
-}
-
-#[test]
-fn windows_thread_error_state_follows_teb_memory_and_survives_snapshots() {
-    use crate::serialization::{Serialization, native::NativeSnapshotV5};
-    use crate::windows::structures::{TEB, TEB64};
-    use iced_x86::{Code, Encoder, Instruction, MemoryOperand, Register};
-
-    const CODE_BASE: u64 = 0x600000;
-    const PRIMARY_TEB: u64 = 0x700000;
-    const GUEST_ERROR: u32 = 0x1234;
-    for is64 in [false, true] {
-        let (mut emu, _) = helpers::prepare_winapi(is64);
-        emu.maps
-            .create_map("teb", PRIMARY_TEB, 0x2000, Permission::READ_WRITE)
-            .unwrap();
-        emu.maps
-            .create_map(
-                "teb_access_code",
-                CODE_BASE,
-                0x1000,
-                Permission::READ_WRITE_EXECUTE,
-            )
-            .unwrap();
-        let (last_error, tid, segment) = if is64 {
-            (
-                TEB64::LAST_ERROR_VALUE_OFFSET,
-                TEB64::CLIENT_ID_THREAD_ID_OFFSET,
-                Register::GS,
-            )
-        } else {
-            (
-                TEB::LAST_ERROR_VALUE_OFFSET,
-                TEB::CLIENT_ID_THREAD_ID_OFFSET,
-                Register::FS,
-            )
-        };
-        let memory = |offset| {
-            MemoryOperand::new(
-                Register::None,
-                Register::None,
-                1,
-                offset as i64,
-                4,
-                false,
-                segment,
-            )
-        };
-        let instructions = [
-            Instruction::with2(Code::Mov_rm32_r32, memory(last_error), Register::EAX).unwrap(),
-            Instruction::with2(Code::Mov_r32_rm32, Register::EAX, memory(last_error)).unwrap(),
-            Instruction::with2(Code::Mov_r32_rm32, Register::ECX, memory(tid)).unwrap(),
-        ];
-        let mut encoder = Encoder::new(if is64 { 64 } else { 32 });
-        let mut pc = CODE_BASE;
-        for instruction in instructions {
-            pc += encoder.encode(&instruction, pc).unwrap() as u64;
-        }
-        assert!(emu.maps.write_bytes(CODE_BASE, &encoder.take_buffer()));
-        helpers::call_winapi_export(
-            &mut emu,
-            "kernel32.dll",
-            "SetLastError",
-            &[ERROR_ACCESS_DENIED],
-        );
-        assert_eq!(
-            emu.maps.read_dword(PRIMARY_TEB + last_error),
-            Some(ERROR_ACCESS_DENIED as u32)
-        );
-        helpers::call_winapi_export(
-            &mut emu,
-            "kernel32.dll",
-            "CreateThread",
-            &[0, 0, CODE_BASE, 0, 0, 0],
-        );
-        let child_teb = emu.threads[1].windows.teb;
-        assert_ne!(child_teb, PRIMARY_TEB);
-        assert_ne!(child_teb, 0);
-        assert_eq!(emu.maps.read_dword(child_teb + last_error), Some(0));
-        assert!(ThreadScheduler::switch_to_thread(&mut emu, 1));
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, "kernelbase.dll", "GetLastError", &[]),
-            0
-        );
-        emu.regs_mut().rip = CODE_BASE;
-        emu.regs_mut().rax = GUEST_ERROR as u64;
-        let previous_seh = emu.seh();
-        assert!(emu.step());
-        assert_eq!(emu.get_last_error(), GUEST_ERROR as u64);
-        assert_eq!(
-            emu.seh(),
-            previous_seh,
-            "a TEB field store must not replace the SEH head"
-        );
-        emu.regs_mut().rax = 0;
-        assert!(emu.step());
-        assert_eq!(emu.regs().rax, GUEST_ERROR as u64);
-        assert!(emu.step());
-        assert_eq!(emu.regs().get_ecx(), emu.current_thread().id);
-        assert!(
-            emu.maps
-                .write_dword(child_teb + last_error, ERROR_INVALID_HANDLE as u32)
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetLastError", &[]),
-            ERROR_INVALID_HANDLE
-        );
-        assert!(ThreadScheduler::switch_to_thread(&mut emu, 0));
-        assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
-        let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
-        assert_eq!(restored.get_last_error(), ERROR_ACCESS_DENIED);
-        assert!(ThreadScheduler::switch_to_thread(&mut restored, 1));
-        assert_eq!(restored.get_last_error(), ERROR_INVALID_HANDLE);
-        restored.clear_last_error();
-        assert_eq!(restored.maps.read_dword(child_teb + last_error), Some(0));
-        // Legacy snapshots have only the active thread's error and a boolean suspension state.
-        let mut legacy = b"MWEMU\0\x05\0".to_vec();
-        legacy.extend(bitcode::serialize(&NativeSnapshotV5::from(&emu)).unwrap());
-        let restored = Serialization::deserialize(&legacy);
-        assert_eq!(restored.get_last_error(), ERROR_ACCESS_DENIED);
-    }
-}
-
-#[test]
-fn waits_observe_event_reset_mode_and_consume_semaphore_counts() {
-    use crate::tests::helpers::call_winapi_export as call;
-    use crate::winapi::common::memory::write_pointer;
-    use crate::windows::constants::process::{WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let width = if is64 { 8 } else { 4 };
-        emu.maps.write_wide_string(data, "LocalEvent");
-        let event = call(&mut emu, "kernelbase.dll", "CreateEventW", &[0, 0, 0, data]);
-        let other = call(
-            &mut emu,
-            "kernel32.dll",
-            "OpenEventW",
-            &[0x0010_0002, 0, data],
-        );
-        assert_ne!(event, 0);
-        assert_ne!(other, 0);
-        assert_ne!(event, other);
-        emu = Serialization::deserialize(&Serialization::serialize(&emu));
-        let semaphore = call(&mut emu, "kernel32.dll", "CreateSemaphoreA", &[0, 1, 2, 0]);
-        assert!(write_pointer(&mut emu, data, semaphore));
-        assert!(write_pointer(&mut emu, data + width, event));
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernelbase.dll",
-                "WaitForMultipleObjects",
-                &[2, data, 1, 0]
-            ),
-            WAIT_TIMEOUT
-        );
-        assert_eq!(
-            call(&mut emu, "ntdll.dll", "ZwSetEvent", &[other, data + 64]),
-            0
-        );
-        assert_eq!(emu.maps.read_dword(data + 64), Some(0));
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "WaitForMultipleObjects",
-                &[2, data, 1, 0]
-            ),
-            WAIT_OBJECT_0
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "WaitForMultipleObjects",
-                &[2, data, 0, 0]
-            ),
-            WAIT_TIMEOUT
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "ReleaseSemaphore",
-                &[semaphore, 2, data + 64]
-            ),
-            1
-        );
-        assert_eq!(emu.maps.read_dword(data + 64), Some(0));
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "ReleaseSemaphore",
-                &[semaphore, 1, data + 64]
-            ),
-            0
-        );
-        assert_eq!(emu.get_last_error(), ERROR_TOO_MANY_POSTS);
-        assert_eq!(call(&mut emu, "ntdll.dll", "NtClose", &[other]), 0);
-        assert_eq!(
-            call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[other, 0]),
-            WAIT_FAILED
-        );
-        assert_eq!(call(&mut emu, "kernel32.dll", "SetEvent", &[event]), 1);
-        emu.maps.write_qword(data + 128, 0);
-        assert_eq!(
-            call(
-                &mut emu,
-                "ntdll.dll",
-                "NtWaitForSingleObject",
-                &[event, 0, data + 128]
-            ),
-            WAIT_OBJECT_0
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "ntdll.dll",
-                "NtWaitForSingleObject",
-                &[event, 0, data + 128]
-            ),
-            WAIT_TIMEOUT
-        );
-    }
-}
-
-#[test]
-fn mutex_recursion_and_relative_timer_waits_use_guest_state() {
-    use crate::tests::helpers::call_winapi_export as call;
-    use crate::windows::constants::process::{WAIT_OBJECT_0, WAIT_TIMEOUT};
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let mutex = call(&mut emu, "kernel32.dll", "CreateMutexW", &[0, 1, 0]);
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernelbase.dll",
-                "WaitForSingleObject",
-                &[mutex, 0]
-            ),
-            WAIT_OBJECT_0
-        );
-        for _ in 0..2 {
-            assert_eq!(call(&mut emu, "kernel32.dll", "ReleaseMutex", &[mutex]), 1);
-        }
-        assert_eq!(call(&mut emu, "kernel32.dll", "ReleaseMutex", &[mutex]), 0);
-        let timer = call(&mut emu, "kernel32.dll", "CreateWaitableTimerW", &[0, 0, 0]);
-        emu.maps.write_qword(data, (-50_000i64) as u64);
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernelbase.dll",
-                "SetWaitableTimer",
-                &[timer, data, 0, 0, 0, 0]
-            ),
-            1
-        );
-        assert_eq!(
-            call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[timer, 0]),
-            WAIT_TIMEOUT
-        );
-        assert_eq!(
-            call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[timer, 5]),
-            WAIT_OBJECT_0
-        );
-        assert_eq!(
-            call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[timer, 0]),
-            WAIT_TIMEOUT
-        );
-    }
-}
-
-#[test]
-fn process_tls_and_vectored_handles_survive_thread_switch_and_snapshot() {
-    use helpers::call_winapi_export as call;
-    for is64 in [false, true] {
-        let (mut emu, _) = helpers::prepare_winapi(is64);
-        let mut next = emu.current_thread().clone();
-        next.id += 1;
-        emu.threads.push(next);
-        let slot = call(&mut emu, "kernel32.dll", "TlsAlloc", &[]);
-        let callback = 0x1234;
-        let first = call(
-            &mut emu,
-            "ntdll.dll",
-            "RtlAddVectoredExceptionHandler",
-            &[0, callback],
-        );
-        let second = call(
-            &mut emu,
-            "kernel32.dll",
-            "AddVectoredExceptionHandler",
-            &[1, callback],
-        );
-        assert_ne!(first, 0);
-        assert_ne!(first, second);
-        assert_eq!(
-            call(&mut emu, "kernelbase.dll", "TlsSetValue", &[slot, 0x5678]),
-            1
-        );
-        emu.current_thread_id = 1;
-        assert_eq!(call(&mut emu, "ntdll.dll", "RtlTlsGetValue", &[slot]), 0);
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "TlsSetValue",
-                &[u64::from(u32::MAX), 1]
-            ),
-            0
-        );
-        emu = Serialization::deserialize(&Serialization::serialize(&emu));
-        assert_eq!(emu.veh_list(), &[callback, callback]);
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernelbase.dll",
-                "RemoveVectoredExceptionHandler",
-                &[first]
-            ),
-            1
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "ntdll.dll",
-                "RtlRemoveVectoredExceptionHandler",
-                &[first]
-            ),
-            0
-        );
-        assert_eq!(emu.veh_list(), &[callback]);
-        emu.current_thread_id = 0;
-        assert_eq!(
-            call(&mut emu, "kernelbase.dll", "TlsGetValue", &[slot]),
-            0x5678
-        );
-        assert_eq!(call(&mut emu, "kernel32.dll", "TlsFree", &[slot]), 1);
-        assert_eq!(call(&mut emu, "ntdll.dll", "RtlTlsAlloc", &[]), slot);
-        assert_eq!(call(&mut emu, "kernel32.dll", "TlsGetValue", &[slot]), 0);
-        assert_eq!(
-            call(
-                &mut emu,
-                "kernel32.dll",
-                "RemoveVectoredExceptionHandler",
-                &[second]
-            ),
-            1
-        );
-    }
-}
-
-#[test]
-fn kernel_context_capture_saves_integer_registers_through_each_dll() {
-    for is64 in [false, true] {
-        let (mut emu, out) = helpers::prepare_winapi(is64);
-        for dll in ["kernel32.dll", "ntdll.dll"] {
-            emu.regs_mut().rbx = 0x4567;
-            helpers::call_winapi_export(&mut emu, dll, "RtlCaptureContext", &[out]);
-            let mut regs = *emu.regs();
-            regs.rbx = 0;
-            if is64 {
-                let mut saved = Context64::new(&regs);
-                saved.load(out, &mut emu.maps);
-                saved.sync(&mut regs);
-            } else {
-                let mut saved = Context32::new(&regs);
-                saved.load(out as u32, &mut emu.maps);
-                saved.sync(&mut regs);
-            }
-            assert_eq!(regs.rbx, 0x4567);
-        }
-    }
-}
-
-#[test]
-fn kernel_address_wait_compares_guest_bytes_and_uses_timeout_as_a_value() {
-    use helpers::call_winapi_export as call;
-    for is64 in [false, true] {
-        let (mut emu, ptr) = helpers::prepare_winapi(is64);
-        let compare = ptr + 8;
-        emu.cfg.short_circuit_sleep = false;
-        emu.maps.write_qword(ptr, 0x800);
-        emu.maps.write_qword(compare, 0);
-        for dll in ["kernel32.dll", "kernelbase.dll"] {
-            assert_eq!(
-                call(&mut emu, dll, "WaitOnAddress", &[ptr, compare, 2, 0]),
-                1
-            );
-            let tick = emu.tick;
-            assert_eq!(
-                call(&mut emu, dll, "WaitOnAddress", &[ptr, compare, 1, 3]),
-                0
-            );
-            assert_eq!(emu.get_last_error(), ERROR_TIMEOUT);
-            assert_eq!(emu.tick, tick + 3);
-            assert_eq!(
-                call(&mut emu, dll, "WaitOnAddress", &[ptr, compare, 3, 0]),
-                0
-            );
-            assert_eq!(emu.get_last_error(), ERROR_INVALID_PARAMETER);
-            call(&mut emu, dll, "WakeByAddressSingle", &[ptr]);
-            assert_eq!(emu.maps.read_qword(ptr), Some(0x800));
-        }
-    }
-}
-
-#[test]
-fn fiber_slots_reuse_indices_and_value2_preserves_last_error() {
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    for is64 in [false, true] {
-        let (mut emu, _) = prepare_winapi(is64);
-        let kernel = "kernel32.dll";
-        let base = "kernelbase.dll";
-        let slot = call(&mut emu, kernel, "FlsAlloc", &[0]);
-        assert!(slot > 0 && slot < 4080);
-        assert_eq!(call(&mut emu, base, "FlsSetValue", &[slot, 123]), 1);
-        emu.set_last_error(73);
-        assert_eq!(call(&mut emu, kernel, "FlsGetValue2", &[slot]), 123);
-        assert_eq!(emu.get_last_error(), 73);
-        assert_eq!(call(&mut emu, base, "FlsGetValue2", &[slot + 1]), 0);
-        assert_eq!(emu.get_last_error(), 73);
-        assert_eq!(call(&mut emu, base, "FlsFree", &[slot]), 1);
-        assert_eq!(call(&mut emu, kernel, "FlsAlloc", &[0]), slot);
-        assert_eq!(call(&mut emu, base, "FlsGetValue", &[slot]), 0);
-        let tls = call(&mut emu, kernel, "TlsAlloc", &[]);
-        assert_eq!(call(&mut emu, base, "TlsSetValue", &[tls, 456]), 1);
-        emu.set_last_error(73);
-        assert_eq!(call(&mut emu, kernel, "TlsGetValue2", &[tls]), 456);
-        assert_eq!(emu.get_last_error(), 73);
-    }
-}
-
-#[test]
-fn srw_locks_track_shared_owners_and_exclude_writers() {
-    for (wide, library) in iproduct!([false, true], ["kernel32.dll", "kernelbase.dll"]) {
-        let (mut emu, lock) = helpers::prepare_winapi(wide);
-        let mut invoke = |name: &str| helpers::call_winapi_export(&mut emu, library, name, &[lock]);
-        invoke("InitializeSRWLock");
-        assert_eq!(invoke("TryAcquireSRWLockShared"), 1);
-        assert_eq!(invoke("TryAcquireSRWLockShared"), 1);
-        assert_eq!(invoke("TryAcquireSRWLockExclusive"), 0);
-        invoke("ReleaseSRWLockShared");
-        assert_eq!(invoke("TryAcquireSRWLockExclusive"), 0);
-        invoke("ReleaseSRWLockShared");
-        assert_eq!(invoke("TryAcquireSRWLockExclusive"), 1);
-        assert_eq!(invoke("TryAcquireSRWLockShared"), 0);
-        invoke("ReleaseSRWLockExclusive");
-        invoke("AcquireSRWLockShared");
-        invoke("ReleaseSRWLockShared");
-        invoke("AcquireSRWLockExclusive");
-        invoke("ReleaseSRWLockExclusive");
-        assert_eq!(emu.maps.read_qword(lock), Some(0));
-    }
-}
-
-#[test]
-fn interlocked_exchange_and_add_return_the_previous_long() {
-    for (wide, library) in iproduct!([false, true], ["kernel32.dll", "kernelbase.dll"]) {
-        let (mut emu, address) = helpers::prepare_winapi(wide);
-        emu.maps.write_qword(address, u64::MAX);
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "InterlockedExchangeAdd", &[address, 2]),
-            u64::from(u32::MAX)
-        );
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                library,
-                "InterlockedCompareExchange",
-                &[address, 8, 0]
-            ),
-            1
-        );
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                library,
-                "InterlockedCompareExchange",
-                &[address, 8, 1]
-            ),
-            1
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, library, "InterlockedExchange", &[address, 6]),
-            8
-        );
-        assert_eq!(emu.maps.read_qword(address), Some(0xffff_ffff_0000_0006));
     }
 }

@@ -1,9 +1,7 @@
-use super::trace_syscall32;
-use crate::api::abi::unix::LinuxSyscall;
 use crate::emu;
 use crate::syscall::linux::constants::errors::*;
 use crate::syscall::linux::constants::syscalls::*;
-use crate::syscall::linux::unsupported;
+
 use crate::winapi::helper;
 
 macro_rules! syscall_name {
@@ -25,8 +23,12 @@ pub(super) fn dispatch(emu: &mut emu::Emu) {
     dispatch_legacy_syscall32(emu);
 }
 
+fn trace_simple_syscall32(emu: &mut emu::Emu, name: &str) {
+    super::trace_syscall32(emu, &format!("{name}()"));
+}
+
 fn trace_socketcall32(emu: &mut emu::Emu, name: &str) {
-    trace_syscall32(emu, &format!("socketcall {name}()"));
+    super::trace_syscall32(emu, &format!("socketcall {name}()"));
 }
 
 fn format_trace_args(args: &[(&str, String)]) -> String {
@@ -47,118 +49,132 @@ fn format_trace_args(args: &[(&str, String)]) -> String {
     rendered
 }
 
-fn unsupported_syscall32_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
-    unsupported(emu, &format!("{name}{}", format_trace_args(args)));
+fn trace_syscall32_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
+    super::trace_syscall32(emu, &format!("{name}{}", format_trace_args(args)));
 }
 
 fn trace_socketcall32_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
-    trace_syscall32(
+    super::trace_syscall32(
         emu,
         &format!("socketcall {name}{}", format_trace_args(args)),
     );
 }
 
 fn trace_legacy_syscall32(emu: &mut emu::Emu, name: &str) {
-    unsupported(emu, name);
+    trace_simple_syscall32(emu, name);
 }
 
 fn trace_bad_syscall32(emu: &mut emu::Emu, nr: u64) {
-    trace_syscall32(emu, &format!("bad_nr(0x{nr:x})"));
+    super::trace_syscall32(emu, &format!("bad_nr(0x{nr:x})"));
 }
 fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
     match emu.regs().get_eax() {
         19 => {
-            let fd = emu.regs().get_ebx();
-            unsupported_syscall32_args(emu, "lseek", &[("fd", fd.to_string())]);
+            let fd = emu.regs().rbx;
+            trace_syscall32_args(emu, "lseek", &[("fd", fd.to_string())]);
         }
 
-        21 => unsupported(emu, "mount"),
+        20 => trace_simple_syscall32(emu, "getpid"),
 
-        22 => unsupported(emu, "umount"),
+        21 => trace_simple_syscall32(emu, "mount"),
 
-        23 => unsupported(emu, "setuid"),
+        22 => trace_simple_syscall32(emu, "umount"),
 
-        25 => unsupported(emu, "stime"),
+        23 => trace_simple_syscall32(emu, "setuid"),
 
-        26 => unsupported(emu, "ptrace"),
+        24 => trace_simple_syscall32(emu, "getuid"),
 
-        27 => unsupported(emu, "alarm"),
+        25 => trace_simple_syscall32(emu, "stime"),
 
-        28 => unsupported(emu, "oldfstat"),
+        26 => trace_simple_syscall32(emu, "ptrace"),
 
-        29 => unsupported(emu, "pause"),
+        27 => trace_simple_syscall32(emu, "alarm"),
 
-        30 => unsupported(emu, "utime"),
+        28 => trace_simple_syscall32(emu, "oldfstat"),
 
-        31 => unsupported(emu, "stty"),
+        29 => trace_simple_syscall32(emu, "pause"),
 
-        32 => unsupported(emu, "gtty"),
+        30 => trace_simple_syscall32(emu, "utime"),
 
-        33 => unsupported(emu, "access"),
+        31 => trace_simple_syscall32(emu, "stty"),
 
-        34 => unsupported(emu, "nice"),
+        32 => trace_simple_syscall32(emu, "gtty"),
 
-        35 => unsupported(emu, "ftime"),
+        33 => trace_simple_syscall32(emu, "access"),
 
-        36 => unsupported(emu, "sync"),
+        34 => trace_simple_syscall32(emu, "nice"),
+
+        35 => trace_simple_syscall32(emu, "ftime"),
+
+        36 => trace_simple_syscall32(emu, "sync"),
 
         37 => {
-            let pid = emu.regs().get_ebx();
-            let sig = emu.regs().get_ecx();
-            unsupported_syscall32_args(
+            let pid = emu.regs().rbx;
+            let sig = emu.regs().rcx;
+            trace_syscall32_args(
                 emu,
                 "kill",
                 &[("pid", pid.to_string()), ("sig", sig.to_string())],
             );
         }
 
-        38 => unsupported(emu, "rename"),
+        38 => trace_simple_syscall32(emu, "rename"),
 
-        39 => unsupported(emu, "mkdir"),
+        39 => trace_simple_syscall32(emu, "mkdir"),
 
-        40 => unsupported(emu, "rmdir"),
+        40 => trace_simple_syscall32(emu, "rmdir"),
 
         41 => {
-            let fd = emu.regs().get_ebx();
-            unsupported_syscall32_args(emu, "dup", &[("fd", fd.to_string())]);
+            let fd = emu.regs().rbx;
+            trace_syscall32_args(emu, "dup", &[("fd", fd.to_string())]);
         }
 
-        43 => unsupported(emu, "times"),
+        42 => trace_simple_syscall32(emu, "pipe"),
 
-        44 => unsupported(emu, "prof"),
+        43 => trace_simple_syscall32(emu, "times"),
 
-        45 => unsupported(emu, "brk"),
+        44 => trace_simple_syscall32(emu, "prof"),
 
-        46 => unsupported(emu, "setgid"),
+        45 => trace_simple_syscall32(emu, "brk"),
 
-        48 => unsupported(emu, "signal"),
+        46 => trace_simple_syscall32(emu, "setgid"),
 
-        51 => unsupported(emu, "acct"),
+        47 => trace_simple_syscall32(emu, "getgid"),
 
-        52 => unsupported(emu, "umount2"),
+        48 => trace_simple_syscall32(emu, "signal"),
 
-        53 => unsupported(emu, "lock"),
+        49 => trace_simple_syscall32(emu, "geteuid"),
 
-        54 => unsupported(emu, "ioctl"),
+        50 => trace_simple_syscall32(emu, "getegid"),
 
-        56 => unsupported(emu, "mpx"),
+        51 => trace_simple_syscall32(emu, "acct"),
 
-        57 => unsupported(emu, "setpgid"),
+        52 => trace_simple_syscall32(emu, "umount2"),
 
-        58 => unsupported(emu, "ulimit"),
+        53 => trace_simple_syscall32(emu, "lock"),
 
-        59 => unsupported(emu, "oldolduname"),
+        54 => trace_simple_syscall32(emu, "ioctl"),
 
-        60 => unsupported(emu, "umask"),
+        55 => trace_simple_syscall32(emu, "fcntl"),
 
-        61 => unsupported(emu, "chroot"),
+        56 => trace_simple_syscall32(emu, "mpx"),
 
-        62 => unsupported(emu, "ustat"),
+        57 => trace_simple_syscall32(emu, "setpgid"),
+
+        58 => trace_simple_syscall32(emu, "ulimit"),
+
+        59 => trace_simple_syscall32(emu, "oldolduname"),
+
+        60 => trace_simple_syscall32(emu, "umask"),
+
+        61 => trace_simple_syscall32(emu, "chroot"),
+
+        62 => trace_simple_syscall32(emu, "ustat"),
 
         63 => {
             let old_fd = emu.regs().get_ebx();
             let new_fd = emu.regs().get_ecx();
-            unsupported_syscall32_args(
+            trace_syscall32_args(
                 emu,
                 "dup2",
                 &[
@@ -168,80 +184,84 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
             );
         }
 
-        65 => unsupported(emu, "getpgrp"),
+        64 => trace_simple_syscall32(emu, "getppid"),
 
-        66 => unsupported(emu, "setsid"),
+        65 => trace_simple_syscall32(emu, "getpgrp"),
 
-        67 => unsupported(emu, "sigaction"),
+        66 => trace_simple_syscall32(emu, "setsid"),
 
-        68 => unsupported(emu, "sgetmask"),
+        67 => trace_simple_syscall32(emu, "sigaction"),
 
-        69 => unsupported(emu, "ssetmask"),
+        68 => trace_simple_syscall32(emu, "sgetmask"),
 
-        70 => unsupported(emu, "setreuid"),
+        69 => trace_simple_syscall32(emu, "ssetmask"),
 
-        71 => unsupported(emu, "setregid"),
+        70 => trace_simple_syscall32(emu, "setreuid"),
 
-        72 => unsupported(emu, "sigsuspend"),
+        71 => trace_simple_syscall32(emu, "setregid"),
 
-        73 => unsupported(emu, "sigpending"),
+        72 => trace_simple_syscall32(emu, "sigsuspend"),
 
-        74 => unsupported(emu, "sethostname"),
+        73 => trace_simple_syscall32(emu, "sigpending"),
 
-        75 => unsupported(emu, "setrlimit"),
+        74 => trace_simple_syscall32(emu, "sethostname"),
 
-        76 => unsupported(emu, "getrlimit"),
+        75 => trace_simple_syscall32(emu, "setrlimit"),
 
-        77 => unsupported(emu, "getrusage"),
+        76 => trace_simple_syscall32(emu, "getrlimit"),
 
-        78 => unsupported(emu, "gettimeofday"),
+        77 => trace_simple_syscall32(emu, "getrusage"),
 
-        79 => unsupported(emu, "settimeofday"),
+        78 => trace_simple_syscall32(emu, "gettimeofday"),
 
-        81 => unsupported(emu, "setgroups"),
+        79 => trace_simple_syscall32(emu, "settimeofday"),
 
-        82 => unsupported(emu, "select"),
+        80 => trace_simple_syscall32(emu, "getgroups"),
 
-        83 => unsupported(emu, "symlink"),
+        81 => trace_simple_syscall32(emu, "setgroups"),
 
-        84 => unsupported(emu, "oldlstat"),
+        82 => trace_simple_syscall32(emu, "select"),
 
-        85 => unsupported(emu, "readlink"),
+        83 => trace_simple_syscall32(emu, "symlink"),
 
-        86 => unsupported(emu, "uselib"),
+        84 => trace_simple_syscall32(emu, "oldlstat"),
 
-        87 => unsupported(emu, "swapon"),
+        85 => trace_simple_syscall32(emu, "readlink"),
 
-        88 => unsupported(emu, "reboot"),
+        86 => trace_simple_syscall32(emu, "uselib"),
 
-        89 => unsupported(emu, "readdir"),
+        87 => trace_simple_syscall32(emu, "swapon"),
 
-        90 => unsupported(emu, "mmap"),
+        88 => trace_simple_syscall32(emu, "reboot"),
 
-        91 => unsupported(emu, "munmap"),
+        89 => trace_simple_syscall32(emu, "readdir"),
 
-        92 => unsupported(emu, "truncate"),
+        90 => trace_simple_syscall32(emu, "mmap"),
 
-        93 => unsupported(emu, "ftruncate"),
+        91 => trace_simple_syscall32(emu, "munmap"),
 
-        94 => unsupported(emu, "fchmod"),
+        92 => trace_simple_syscall32(emu, "truncate"),
 
-        95 => unsupported(emu, "fchown"),
+        93 => trace_simple_syscall32(emu, "ftruncate"),
 
-        96 => unsupported(emu, "getpriority"),
+        94 => trace_simple_syscall32(emu, "fchmod"),
 
-        97 => unsupported(emu, "setpriority"),
+        95 => trace_simple_syscall32(emu, "fchown"),
 
-        98 => unsupported(emu, "profil"),
+        96 => trace_simple_syscall32(emu, "getpriority"),
 
-        99 => unsupported(emu, "statfs"),
+        97 => trace_simple_syscall32(emu, "setpriority"),
 
-        100 => unsupported(emu, "fstatfs"),
+        98 => trace_simple_syscall32(emu, "profil"),
 
-        101 => unsupported(emu, "ioperm"),
+        99 => trace_simple_syscall32(emu, "statfs"),
+
+        100 => trace_simple_syscall32(emu, "fstatfs"),
+
+        101 => trace_simple_syscall32(emu, "ioperm"),
 
         102 => {
-            match emu.regs().get_ebx() as u32 {
+            match emu.regs().rbx as u32 {
                 SYS_SOCKET => {
                     let sock = helper::socket_create();
                     let fam = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -617,212 +637,234 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 _ => {
-                    log::warn!("invalid socket call {}", emu.regs().get_ebx());
+                    log::warn!("invalid socket call {}", emu.regs().rbx);
                 }
             }
         }
 
-        103 => unsupported(emu, "syslog"),
+        103 => trace_simple_syscall32(emu, "syslog"),
 
-        104 => unsupported(emu, "setitimer"),
+        104 => trace_simple_syscall32(emu, "setitimer"),
 
-        105 => unsupported(emu, "getitimer"),
+        105 => trace_simple_syscall32(emu, "getitimer"),
 
-        106 => unsupported(emu, "stat"),
+        106 => trace_simple_syscall32(emu, "stat"),
 
-        107 => unsupported(emu, "lstat"),
+        107 => trace_simple_syscall32(emu, "lstat"),
 
-        108 => unsupported(emu, "fstat"),
+        108 => trace_simple_syscall32(emu, "fstat"),
 
-        109 => unsupported(emu, "olduname"),
+        109 => trace_simple_syscall32(emu, "olduname"),
 
-        110 => unsupported(emu, "iopl"),
+        110 => trace_simple_syscall32(emu, "iopl"),
 
-        111 => unsupported(emu, "vhanghup"),
+        111 => trace_simple_syscall32(emu, "vhanghup"),
 
-        112 => unsupported(emu, "idle"),
+        112 => trace_simple_syscall32(emu, "idle"),
 
-        113 => unsupported(emu, "vm86old"),
+        113 => trace_simple_syscall32(emu, "vm86old"),
 
-        114 => unsupported(emu, "wait4"),
+        114 => trace_simple_syscall32(emu, "wait4"),
 
-        115 => unsupported(emu, "swapoff"),
+        115 => trace_simple_syscall32(emu, "swapoff"),
 
-        116 => unsupported(emu, "sysinfo"),
+        116 => trace_simple_syscall32(emu, "sysinfo"),
 
-        117 => unsupported(emu, "ipc"),
+        117 => trace_simple_syscall32(emu, "ipc"),
 
-        118 => unsupported(emu, "fsync"),
+        118 => trace_simple_syscall32(emu, "fsync"),
 
-        119 => unsupported(emu, "sigreturn"),
+        119 => trace_simple_syscall32(emu, "sigreturn"),
 
-        120 => unsupported(emu, "clone"),
+        120 => trace_simple_syscall32(emu, "clone"),
 
-        121 => unsupported(emu, "setdomainname"),
+        121 => trace_simple_syscall32(emu, "setdomainname"),
 
-        123 => unsupported(emu, "modify_ltd"),
+        122 => trace_simple_syscall32(emu, "uname"),
 
-        124 => unsupported(emu, "adjtimex"),
+        123 => trace_simple_syscall32(emu, "modify_ltd"),
 
-        125 => unsupported(emu, "mprotect"),
+        124 => trace_simple_syscall32(emu, "adjtimex"),
 
-        126 => unsupported(emu, "sigprocmask"),
+        125 => trace_simple_syscall32(emu, "mprotect"),
 
-        127 => unsupported(emu, "create_module"),
+        126 => trace_simple_syscall32(emu, "sigprocmask"),
 
-        128 => unsupported(emu, "init_module"),
+        127 => trace_simple_syscall32(emu, "create_module"),
 
-        129 => unsupported(emu, "delete_module"),
+        128 => trace_simple_syscall32(emu, "init_module"),
 
-        130 => unsupported(emu, "get_kernel_syms"),
+        129 => trace_simple_syscall32(emu, "delete_module"),
 
-        131 => unsupported(emu, "quotactl"),
+        130 => trace_simple_syscall32(emu, "get_kernel_syms"),
 
-        132 => unsupported(emu, "getpgid"),
+        131 => trace_simple_syscall32(emu, "quotactl"),
 
-        133 => unsupported(emu, "fchdir"),
+        132 => trace_simple_syscall32(emu, "getpgid"),
 
-        134 => unsupported(emu, "bdflush"),
+        133 => trace_simple_syscall32(emu, "fchdir"),
 
-        135 => unsupported(emu, "sysfs"),
+        134 => trace_simple_syscall32(emu, "bdflush"),
 
-        136 => unsupported(emu, "personality"),
+        135 => trace_simple_syscall32(emu, "sysfs"),
 
-        137 => unsupported(emu, "afs_syscall"),
+        136 => trace_simple_syscall32(emu, "personality"),
 
-        138 => unsupported(emu, "setfsuid"),
+        137 => trace_simple_syscall32(emu, "afs_syscall"),
 
-        139 => unsupported(emu, "setfsgid"),
+        138 => trace_simple_syscall32(emu, "setfsuid"),
 
-        140 => unsupported(emu, "_llseek"),
+        139 => trace_simple_syscall32(emu, "setfsgid"),
 
-        141 => unsupported(emu, "getdents"),
+        140 => trace_simple_syscall32(emu, "_llseek"),
 
-        142 => unsupported(emu, "_newselect"),
+        141 => trace_simple_syscall32(emu, "getdents"),
 
-        143 => unsupported(emu, "flock"),
+        142 => trace_simple_syscall32(emu, "_newselect"),
 
-        144 => unsupported(emu, "msync"),
+        143 => trace_simple_syscall32(emu, "flock"),
 
-        145 => unsupported(emu, "readv"),
+        144 => trace_simple_syscall32(emu, "msync"),
 
-        147 => unsupported(emu, "getsid"),
+        145 => trace_simple_syscall32(emu, "readv"),
 
-        148 => unsupported(emu, "fdatasync"),
+        146 => trace_simple_syscall32(emu, "writev"),
 
-        149 => unsupported(emu, "_sysctl"),
+        147 => trace_simple_syscall32(emu, "getsid"),
 
-        150 => unsupported(emu, "mlock"),
+        148 => trace_simple_syscall32(emu, "fdatasync"),
 
-        151 => unsupported(emu, "munlock"),
+        149 => trace_simple_syscall32(emu, "_sysctl"),
 
-        152 => unsupported(emu, "mlockall"),
+        150 => trace_simple_syscall32(emu, "mlock"),
 
-        153 => unsupported(emu, "munlockall"),
+        151 => trace_simple_syscall32(emu, "munlock"),
 
-        154 => unsupported(emu, "sched_setparam"),
+        152 => trace_simple_syscall32(emu, "mlockall"),
 
-        155 => unsupported(emu, "sched_getparam"),
+        153 => trace_simple_syscall32(emu, "munlockall"),
 
-        156 => unsupported(emu, "sched_setscheduler"),
+        154 => trace_simple_syscall32(emu, "sched_setparam"),
 
-        157 => unsupported(emu, "sched_getscheduler"),
+        155 => trace_simple_syscall32(emu, "sched_getparam"),
 
-        158 => unsupported(emu, "sched_yield"),
+        156 => trace_simple_syscall32(emu, "sched_setscheduler"),
 
-        159 => unsupported(emu, "sched_get_priority_max"),
+        157 => trace_simple_syscall32(emu, "sched_getscheduler"),
 
-        160 => unsupported(emu, "sched_get_priority_min"),
+        158 => trace_simple_syscall32(emu, "sched_yield"),
 
-        161 => unsupported(emu, "sched_rr_get_inverval"),
+        159 => trace_simple_syscall32(emu, "sched_get_priority_max"),
 
-        162 => unsupported(emu, "nanosleep"),
+        160 => trace_simple_syscall32(emu, "sched_get_priority_min"),
 
-        163 => unsupported(emu, "mremap"),
+        161 => trace_simple_syscall32(emu, "sched_rr_get_inverval"),
 
-        164 => unsupported(emu, "setresuid"),
+        162 => trace_simple_syscall32(emu, "nanosleep"),
 
-        166 => unsupported(emu, "vm86"),
+        163 => trace_simple_syscall32(emu, "mremap"),
 
-        167 => unsupported(emu, "query_module"),
+        164 => trace_simple_syscall32(emu, "setresuid"),
 
-        168 => unsupported(emu, "poll"),
+        165 => trace_simple_syscall32(emu, "getresuid"),
 
-        169 => unsupported(emu, "nfsservctrl"),
+        166 => trace_simple_syscall32(emu, "vm86"),
 
-        170 => unsupported(emu, "setresgid"),
+        167 => trace_simple_syscall32(emu, "query_module"),
 
-        172 => unsupported(emu, "prctl"),
+        168 => trace_simple_syscall32(emu, "poll"),
 
-        173 => unsupported(emu, "rt_sigreturn"),
+        169 => trace_simple_syscall32(emu, "nfsservctrl"),
 
-        174 => unsupported(emu, "rt_sigcation"),
+        170 => trace_simple_syscall32(emu, "setresgid"),
 
-        175 => unsupported(emu, "rt_sigprocmask"),
+        171 => trace_simple_syscall32(emu, "getresgid"),
 
-        176 => unsupported(emu, "rt_sigpending"),
+        172 => trace_simple_syscall32(emu, "prctl"),
 
-        177 => unsupported(emu, "rt_sigtimedwait"),
+        173 => trace_simple_syscall32(emu, "rt_sigreturn"),
 
-        178 => unsupported(emu, "rt_sigqueueinfo"),
+        174 => trace_simple_syscall32(emu, "rt_sigcation"),
 
-        179 => unsupported(emu, "rt_sigsuspend"),
+        175 => trace_simple_syscall32(emu, "rt_sigprocmask"),
 
-        180 => unsupported(emu, "pread64"),
+        176 => trace_simple_syscall32(emu, "rt_sigpending"),
 
-        181 => unsupported(emu, "pwrite64"),
+        177 => trace_simple_syscall32(emu, "rt_sigtimedwait"),
 
-        182 => unsupported(emu, "chown"),
+        178 => trace_simple_syscall32(emu, "rt_sigqueueinfo"),
 
-        183 => unsupported(emu, "getcwd"),
+        179 => trace_simple_syscall32(emu, "rt_sigsuspend"),
 
-        184 => unsupported(emu, "capget"),
+        180 => trace_simple_syscall32(emu, "pread64"),
 
-        185 => unsupported(emu, "capset"),
+        181 => trace_simple_syscall32(emu, "pwrite64"),
 
-        186 => unsupported(emu, "sigaltstack"),
+        182 => trace_simple_syscall32(emu, "chown"),
 
-        187 => unsupported(emu, "sendfile"),
+        183 => trace_simple_syscall32(emu, "getcwd"),
 
-        188 => unsupported(emu, "getpmsg"),
+        184 => trace_simple_syscall32(emu, "capget"),
 
-        189 => unsupported(emu, "putpmsg"),
+        185 => trace_simple_syscall32(emu, "capset"),
 
-        190 => unsupported(emu, "vfork"),
+        186 => trace_simple_syscall32(emu, "sigaltstack"),
 
-        191 => unsupported(emu, "ugetrlimit"),
+        187 => trace_simple_syscall32(emu, "sendfile"),
 
-        192 => unsupported(emu, "mmap2"),
+        188 => trace_simple_syscall32(emu, "getpmsg"),
 
-        193 => unsupported(emu, "truncate64"),
+        189 => trace_simple_syscall32(emu, "putpmsg"),
 
-        194 => unsupported(emu, "ftruncate64"),
+        190 => trace_simple_syscall32(emu, "vfork"),
 
-        195 => unsupported(emu, "stat64"),
+        191 => trace_simple_syscall32(emu, "ugetrlimit"),
 
-        196 => unsupported(emu, "lstat64"),
+        192 => trace_simple_syscall32(emu, "mmap2"),
 
-        197 => unsupported(emu, "fstat64"),
+        193 => trace_simple_syscall32(emu, "truncate64"),
 
-        198 => unsupported(emu, "lchown32"),
+        194 => trace_simple_syscall32(emu, "ftruncate64"),
 
-        203 => unsupported(emu, "getreuid32"),
+        195 => trace_simple_syscall32(emu, "stat64"),
 
-        204 => unsupported(emu, "getregid32"),
+        196 => trace_simple_syscall32(emu, "lstat64"),
 
-        206 => unsupported(emu, "setgroups32"),
+        197 => trace_simple_syscall32(emu, "fstat64"),
 
-        207 => unsupported(emu, "fchown32"),
+        198 => trace_simple_syscall32(emu, "lchown32"),
 
-        208 => unsupported(emu, "setresuid32"),
+        199 => trace_simple_syscall32(emu, "getuid32"),
 
-        210 => unsupported(emu, "setresgid32"),
+        200 => trace_simple_syscall32(emu, "getgid32"),
 
-        212 => unsupported(emu, "chown32"),
+        201 => trace_simple_syscall32(emu, "geteuid32"),
 
-        213 => unsupported(emu, "setuid32"),
+        202 => trace_simple_syscall32(emu, "getegid32"),
 
-        214 => unsupported(emu, "setgid32"),
+        203 => trace_simple_syscall32(emu, "getreuid32"),
+
+        204 => trace_simple_syscall32(emu, "getregid32"),
+
+        205 => trace_simple_syscall32(emu, "getgrups32"),
+
+        206 => trace_simple_syscall32(emu, "setgroups32"),
+
+        207 => trace_simple_syscall32(emu, "fchown32"),
+
+        208 => trace_simple_syscall32(emu, "setresuid32"),
+
+        209 => trace_simple_syscall32(emu, "getresuid32"),
+
+        210 => trace_simple_syscall32(emu, "setresgid32"),
+
+        211 => trace_simple_syscall32(emu, "getresgid32"),
+
+        212 => trace_simple_syscall32(emu, "chown32"),
+
+        213 => trace_simple_syscall32(emu, "setuid32"),
+
+        214 => trace_simple_syscall32(emu, "setgid32"),
 
         _ => {
             const SYS32_SYSCALL_NAMES: &[&str] = syscall_names![
@@ -1265,12 +1307,11 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 "memfd_secret",
                 "process_mrelease",
             ];
-            if emu.regs().get_eax() >= SYS32_SYSCALL_NAMES.len() as u64 {
-                trace_bad_syscall32(emu, emu.regs().get_eax());
+            if emu.regs().rax >= SYS32_SYSCALL_NAMES.len() as u64 {
+                trace_bad_syscall32(emu, emu.regs().rax);
             } else {
-                trace_legacy_syscall32(emu, SYS32_SYSCALL_NAMES[emu.regs().get_eax() as usize]);
+                trace_legacy_syscall32(emu, SYS32_SYSCALL_NAMES[emu.regs().rax as usize]);
             }
-            LinuxSyscall.set_return(emu, ENOSYS);
         }
     }
 }

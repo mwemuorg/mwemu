@@ -7,16 +7,6 @@
 //! reaches `IoCreateDevice`. If they returned garbage, DriverEntry would fail
 //! before the device the exploit talks to ever existed.
 
-use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
-use crate::api::dispatch_api;
-use crate::api::windows::common::{memory_ops, ntdll};
-use crate::api::windows::policy::api_try;
-use crate::exception::types::ExceptionType;
-use crate::kernel::{HandlerRegistry, kernel_handlers, return_one, return_zero};
-use crate::windows::constants::errors::{STATUS_INVALID_IMAGE_FORMAT, STATUS_SUCCESS};
-use goblin::pe::header::DOS_MAGIC;
-use goblin::pe::optional_header::MAGIC_64;
-
 use super::structs::*;
 use super::*;
 use crate::kernel::heap::Region;
@@ -140,106 +130,789 @@ fn fill_version_info(emu: &mut Emu, info: u64) {
 }
 
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
-    dispatch_api!(symbol, emu, registry handlers(),
-        handled(()) => true,
-        fallback => false,
-    )
-}
-
-pub const fn handlers() -> HandlerRegistry {
-    kernel_handlers! {
+    match symbol {
         // --- memory helpers (guarded) ------------------------------------------
-        "RtlCopyMemory" | "RtlMoveMemory" | "RtlCopyMemoryNonTemporal" => RtlCopyMemory,
-        "RtlZeroMemory" | "RtlSecureZeroMemory" => RtlZeroMemory,
-        "RtlFillMemory" => RtlFillMemory,
-        "RtlCompareMemory" => RtlCompareMemory,
-        "RtlEqualMemory" => RtlEqualMemory,
+        "RtlCopyMemory" | "RtlMoveMemory" | "RtlCopyMemoryNonTemporal" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let len = emu.kernel_arg(2);
+            crt::checked_copy(emu, dst, src, len);
+            emu.set_kernel_ret(dst);
+        }
+        "RtlZeroMemory" | "RtlSecureZeroMemory" => {
+            let dst = emu.kernel_arg(0);
+            let len = emu.kernel_arg(1);
+            crt::checked_fill(emu, dst, 0, len);
+            emu.set_kernel_ret(dst);
+        }
+        "RtlFillMemory" => {
+            let dst = emu.kernel_arg(0);
+            let len = emu.kernel_arg(1);
+            let byte = emu.kernel_arg(2) as u8;
+            crt::checked_fill(emu, dst, byte, len);
+            emu.set_kernel_ret(dst);
+        }
+        "RtlCompareMemory" => {
+            let a = emu.kernel_arg(0);
+            let b = emu.kernel_arg(1);
+            let len = emu.kernel_arg(2);
+            let rip = emu.pc();
+            emu.kernel_guard_access(rip, a, len as u32, false);
+            emu.kernel_guard_access(rip, b, len as u32, false);
+            let mut n = 0;
+            while n < len && emu.maps.read_byte(a + n) == emu.maps.read_byte(b + n) {
+                n += 1;
+            }
+            emu.set_kernel_ret(n);
+        }
+        "RtlEqualMemory" => {
+            let a = emu.kernel_arg(0);
+            let b = emu.kernel_arg(1);
+            let len = emu.kernel_arg(2);
+            let eq = (0..len).all(|i| emu.maps.read_byte(a + i) == emu.maps.read_byte(b + i));
+            emu.set_kernel_ret(eq as u64);
+        }
 
         // --- counted strings ------------------------------------------------------
-        "RtlInitUnicodeString" | "RtlInitUnicodeStringEx" => initialize_counted_string,
-        "RtlInitAnsiString" | "RtlInitString" | "RtlInitAnsiStringEx" | "RtlInitUTF8String" => initialize_counted_string,
-        "RtlCopyUnicodeString" | "RtlCopyString" => RtlCopyUnicodeString,
-        "RtlAppendUnicodeStringToString" => RtlAppendUnicodeStringToString,
-        "RtlAppendUnicodeToString" => RtlAppendUnicodeToString,
-        "RtlAppendStringToString" => RtlAppendStringToString,
-        "RtlCompareUnicodeString" | "RtlCompareString" => RtlCompareUnicodeString,
-        "RtlEqualUnicodeString" | "RtlEqualString" => RtlEqualUnicodeString,
-        "RtlPrefixUnicodeString" | "RtlPrefixString" => RtlPrefixUnicodeString,
-        "RtlUpcaseUnicodeString" | "RtlDowncaseUnicodeString" => RtlUpcaseUnicodeString,
-        "RtlUpcaseUnicodeChar" | "RtlDowncaseUnicodeChar" => RtlUpcaseUnicodeChar,
-        "RtlAnsiCharToUnicodeChar" => RtlAnsiCharToUnicodeChar,
+        "RtlInitUnicodeString" | "RtlInitUnicodeStringEx" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            if src == 0 {
+                write_unicode_header(emu, dst, 0, 0, 0);
+            } else {
+                let n = emu.maps.read_wide_string(src).encode_utf16().count() as u64 * 2;
+                write_unicode_header(emu, dst, src, n, n + 2);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlInitAnsiString" | "RtlInitString" | "RtlInitAnsiStringEx" | "RtlInitUTF8String" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            if src == 0 {
+                write_unicode_header(emu, dst, 0, 0, 0);
+            } else {
+                let n = emu.maps.read_string(src).len() as u64;
+                write_unicode_header(emu, dst, src, n, n + 1);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlCopyUnicodeString" | "RtlCopyString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let max = unicode_max(emu, dst);
+            let dbuf = unicode_buf(emu, dst);
+            if src == 0 {
+                emu.maps.write_word(dst, 0);
+            } else {
+                let n = unicode_len(emu, src).min(max);
+                let sbuf = unicode_buf(emu, src);
+                if n > 0 && dbuf != 0 && sbuf != 0 {
+                    crt::checked_copy(emu, dbuf, sbuf, n);
+                }
+                emu.maps.write_word(dst, n as u16);
+                let cw = if symbol == "RtlCopyString" { 1 } else { 2 };
+                if n + cw <= max && dbuf != 0 {
+                    if cw == 2 {
+                        emu.maps.write_word(dbuf + n, 0);
+                    } else {
+                        emu.maps.write_byte(dbuf + n, 0);
+                    }
+                }
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlAppendUnicodeStringToString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let n = unicode_len(emu, src) as usize;
+            let sbuf = unicode_buf(emu, src);
+            let bytes: Vec<u8> = (0..n)
+                .map(|i| emu.maps.read_byte(sbuf + i as u64).unwrap_or(0))
+                .collect();
+            let st = unicode_append(emu, dst, &bytes);
+            emu.set_kernel_ret(st);
+        }
+        "RtlAppendUnicodeToString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let s = if src == 0 {
+                String::new()
+            } else {
+                emu.maps.read_wide_string(src)
+            };
+            let st = unicode_append(emu, dst, &utf16_bytes(&s));
+            emu.set_kernel_ret(st);
+        }
+        "RtlAppendStringToString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let s = read_ansi_string(emu, src);
+            let st = unicode_append(emu, dst, s.as_bytes());
+            emu.set_kernel_ret(st);
+        }
+        "RtlCompareUnicodeString" | "RtlCompareString" => {
+            let ci = emu.kernel_arg(2) != 0;
+            let (a, b) = if symbol == "RtlCompareString" {
+                (
+                    read_ansi_string(emu, emu.kernel_arg(0)),
+                    read_ansi_string(emu, emu.kernel_arg(1)),
+                )
+            } else {
+                (
+                    read_unicode_string(emu, emu.kernel_arg(0)),
+                    read_unicode_string(emu, emu.kernel_arg(1)),
+                )
+            };
+            emu.set_kernel_ret(compare_strings(&a, &b, ci) as u64);
+        }
+        "RtlEqualUnicodeString" | "RtlEqualString" => {
+            let ci = emu.kernel_arg(2) != 0;
+            let (a, b) = if symbol == "RtlEqualString" {
+                (
+                    read_ansi_string(emu, emu.kernel_arg(0)),
+                    read_ansi_string(emu, emu.kernel_arg(1)),
+                )
+            } else {
+                (
+                    read_unicode_string(emu, emu.kernel_arg(0)),
+                    read_unicode_string(emu, emu.kernel_arg(1)),
+                )
+            };
+            emu.set_kernel_ret((compare_strings(&a, &b, ci) == 0) as u64);
+        }
+        "RtlPrefixUnicodeString" | "RtlPrefixString" => {
+            let ci = emu.kernel_arg(2) != 0;
+            let (p, s) = if symbol == "RtlPrefixString" {
+                (
+                    read_ansi_string(emu, emu.kernel_arg(0)),
+                    read_ansi_string(emu, emu.kernel_arg(1)),
+                )
+            } else {
+                (
+                    read_unicode_string(emu, emu.kernel_arg(0)),
+                    read_unicode_string(emu, emu.kernel_arg(1)),
+                )
+            };
+            let ok = if ci {
+                s.to_lowercase().starts_with(&p.to_lowercase())
+            } else {
+                s.starts_with(&p)
+            };
+            emu.set_kernel_ret(ok as u64);
+        }
+        "RtlUpcaseUnicodeString" | "RtlDowncaseUnicodeString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let alloc = emu.kernel_arg(2) != 0;
+            let s = read_unicode_string(emu, src);
+            let s = if symbol == "RtlUpcaseUnicodeString" {
+                s.to_uppercase()
+            } else {
+                s.to_lowercase()
+            };
+            if alloc {
+                let (buf, len) = alloc_wide(emu, &s, symbol);
+                write_unicode_header(emu, dst, buf, len, len + 2);
+            } else {
+                let bytes = utf16_bytes(&s);
+                emu.maps.write_word(dst, 0);
+                unicode_append(emu, dst, &bytes);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlUpcaseUnicodeChar" | "RtlDowncaseUnicodeChar" => {
+            let c = emu.kernel_arg(0) as u16;
+            let ch = char::from_u32(c as u32).unwrap_or('\0');
+            let r = if symbol == "RtlUpcaseUnicodeChar" {
+                ch.to_uppercase().next().unwrap_or(ch)
+            } else {
+                ch.to_lowercase().next().unwrap_or(ch)
+            };
+            emu.set_kernel_ret(r as u64);
+        }
+        "RtlAnsiCharToUnicodeChar" => {
+            let pp = emu.kernel_arg(0);
+            let p = emu.maps.read_qword(pp).unwrap_or(0);
+            let c = emu.maps.read_byte(p).unwrap_or(0);
+            emu.maps.write_qword(pp, p + 1);
+            emu.set_kernel_ret(c as u64);
+        }
         // RtlAnsiStringToUnicodeString(Dest, Source, AllocateDestinationString)
-        "RtlAnsiStringToUnicodeString" | "RtlUTF8StringToUnicodeString" => RtlAnsiStringToUnicodeString,
-        "RtlUnicodeStringToAnsiString" | "RtlUnicodeStringToUTF8String" => RtlUnicodeStringToAnsiString,
-        "RtlFreeUnicodeString" | "RtlFreeAnsiString" | "RtlFreeUTF8String" | "RtlFreeOemString" => RtlFreeUnicodeString,
-        "RtlUnicodeStringToInteger" | "RtlCharToInteger" => RtlUnicodeStringToInteger,
-        "RtlIntegerToUnicodeString" | "RtlInt64ToUnicodeString" => RtlIntegerToUnicodeString,
+        "RtlAnsiStringToUnicodeString" | "RtlUTF8StringToUnicodeString" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let alloc = emu.kernel_arg(2) != 0;
+            let s = read_ansi_string(emu, src);
+            if alloc {
+                let (buf, len) = alloc_wide(emu, &s, symbol);
+                write_unicode_header(emu, dst, buf, len, len + 2);
+                emu.set_kernel_ret(if buf != 0 { 0 } else { STATUS_NO_MEMORY });
+            } else {
+                emu.maps.write_word(dst, 0);
+                let st = unicode_append(emu, dst, &utf16_bytes(&s));
+                emu.set_kernel_ret(st);
+            }
+        }
+        "RtlUnicodeStringToAnsiString" | "RtlUnicodeStringToUTF8String" => {
+            let dst = emu.kernel_arg(0);
+            let src = emu.kernel_arg(1);
+            let alloc = emu.kernel_arg(2) != 0;
+            let s = read_unicode_string(emu, src);
+            if alloc {
+                let buf = emu.kernel_alloc(
+                    Region::Slab,
+                    s.len() as u64 + 1,
+                    "ansi-string",
+                    symbol,
+                    true,
+                );
+                if buf != 0 {
+                    emu.maps.write_string(buf, &s);
+                }
+                write_unicode_header(emu, dst, buf, s.len() as u64, s.len() as u64 + 1);
+                emu.set_kernel_ret(if buf != 0 { 0 } else { STATUS_NO_MEMORY });
+            } else {
+                emu.maps.write_word(dst, 0);
+                let st = unicode_append(emu, dst, s.as_bytes());
+                emu.set_kernel_ret(st);
+            }
+        }
+        "RtlFreeUnicodeString" | "RtlFreeAnsiString" | "RtlFreeUTF8String" | "RtlFreeOemString" => {
+            let us = emu.kernel_arg(0);
+            let buf = unicode_buf(emu, us);
+            if buf != 0 {
+                emu.kernel_free(buf, symbol);
+                write_unicode_header(emu, us, 0, 0, 0);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlUnicodeStringToInteger" | "RtlCharToInteger" => {
+            let base = emu.kernel_arg(1) as u32;
+            let out = emu.kernel_arg(2);
+            let s = if symbol == "RtlCharToInteger" {
+                emu.maps.read_string(emu.kernel_arg(0))
+            } else {
+                read_unicode_string(emu, emu.kernel_arg(0))
+            };
+            let t = s.trim();
+            let (digits, radix) = if base == 0 {
+                if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+                    (h, 16)
+                } else if let Some(o) = t.strip_prefix("0o") {
+                    (o, 8)
+                } else if let Some(b) = t.strip_prefix("0b") {
+                    (b, 2)
+                } else {
+                    (t, 10)
+                }
+            } else {
+                (t, base)
+            };
+            let end = digits
+                .find(|c: char| !c.is_digit(radix))
+                .unwrap_or(digits.len());
+            let v = u32::from_str_radix(&digits[..end], radix).unwrap_or(0);
+            write_out_dword(emu, out, v);
+            emu.set_kernel_ret(0);
+        }
+        "RtlIntegerToUnicodeString" | "RtlInt64ToUnicodeString" => {
+            let v = emu.kernel_arg(0);
+            let base = emu.kernel_arg(1) as u32;
+            let dst = emu.kernel_arg(2);
+            let v = if symbol == "RtlIntegerToUnicodeString" {
+                v as u32 as u64
+            } else {
+                v
+            };
+            let s = match base {
+                16 => format!("{:x}", v),
+                8 => format!("{:o}", v),
+                2 => format!("{:b}", v),
+                _ => v.to_string(),
+            };
+            emu.maps.write_word(dst, 0);
+            let st = unicode_append(emu, dst, &utf16_bytes(&s));
+            emu.set_kernel_ret(st);
+        }
         "RtlUnicodeToMultiByteN"
         | "RtlUpcaseUnicodeToMultiByteN"
         | "RtlUnicodeToOemN"
-        | "RtlUnicodeToUTF8N" => RtlUnicodeToMultiByteN,
-        "RtlMultiByteToUnicodeN" | "RtlOemToUnicodeN" | "RtlUTF8ToUnicodeN" => RtlMultiByteToUnicodeN,
+        | "RtlUnicodeToUTF8N" => {
+            // (MultiByteString, MaxBytes, *BytesInMultiByte, UnicodeString, BytesInUnicode)
+            let dst = emu.kernel_arg(0);
+            let max = emu.kernel_arg(1);
+            let out = emu.kernel_arg(2);
+            let src = emu.kernel_arg(3);
+            let n = (emu.kernel_arg(4) as u32 as u64) / 2;
+            let s = emu.maps.read_wide_string_n(src, n as usize);
+            let s = if symbol.contains("Upcase") {
+                s.to_uppercase()
+            } else {
+                s
+            };
+            let bytes = s.as_bytes();
+            let n = (bytes.len() as u64).min(max);
+            emu.maps.write_bytes(dst, &bytes[..n as usize]);
+            write_out_dword(emu, out, n as u32);
+            emu.set_kernel_ret(0);
+        }
+        "RtlMultiByteToUnicodeN" | "RtlOemToUnicodeN" | "RtlUTF8ToUnicodeN" => {
+            // (UnicodeString, MaxBytes, *BytesInUnicode, MultiByteString, BytesInMultiByte)
+            let dst = emu.kernel_arg(0);
+            let max = emu.kernel_arg(1);
+            let out = emu.kernel_arg(2);
+            let src = emu.kernel_arg(3);
+            let n = emu.kernel_arg(4) as u32 as u64;
+            let bytes: Vec<u8> = (0..n)
+                .map(|i| emu.maps.read_byte(src + i).unwrap_or(0))
+                .collect();
+            let s = String::from_utf8_lossy(&bytes).to_string();
+            let wide = utf16_bytes(&s);
+            let n = (wide.len() as u64).min(max);
+            emu.maps.write_bytes(dst, &wide[..n as usize]);
+            write_out_dword(emu, out, n as u32);
+            emu.set_kernel_ret(0);
+        }
         "RtlUnicodeToMultiByteSize"
         | "RtlxUnicodeStringToAnsiSize"
         | "RtlMultiByteToUnicodeSize"
-        | "RtlxAnsiStringToUnicodeSize" => RtlUnicodeToMultiByteSize,
-        "RtlHashUnicodeString" => RtlHashUnicodeString,
-        "RtlStringFromGUID" => RtlStringFromGUID,
-        "RtlGUIDFromString" => RtlGUIDFromString,
+        | "RtlxAnsiStringToUnicodeSize" => {
+            let v = match symbol {
+                "RtlUnicodeToMultiByteSize" => {
+                    let out = emu.kernel_arg(0);
+                    let n = emu.kernel_arg(2) / 2;
+                    write_out_dword(emu, out, n as u32);
+                    0
+                }
+                "RtlMultiByteToUnicodeSize" => {
+                    let out = emu.kernel_arg(0);
+                    let n = emu.kernel_arg(2) * 2;
+                    write_out_dword(emu, out, n as u32);
+                    0
+                }
+                "RtlxUnicodeStringToAnsiSize" => unicode_len(emu, emu.kernel_arg(0)) / 2 + 1,
+                _ => unicode_len(emu, emu.kernel_arg(0)) * 2 + 2,
+            };
+            emu.set_kernel_ret(v);
+        }
+        "RtlHashUnicodeString" => {
+            let s = read_unicode_string(emu, emu.kernel_arg(0));
+            let ci = emu.kernel_arg(1) != 0;
+            let out = emu.kernel_arg(3);
+            let s = if ci { s.to_uppercase() } else { s };
+            let mut h: u32 = 0;
+            for c in s.encode_utf16() {
+                h = h.wrapping_mul(65599).wrapping_add(c as u32);
+            }
+            write_out_dword(emu, out, h);
+            emu.set_kernel_ret(0);
+        }
+        "RtlStringFromGUID" => {
+            let guid = emu.kernel_arg(0);
+            let dst = emu.kernel_arg(1);
+            let d1 = emu.maps.read_dword(guid).unwrap_or(0);
+            let d2 = emu.maps.read_word(guid + 4).unwrap_or(0);
+            let d3 = emu.maps.read_word(guid + 6).unwrap_or(0);
+            let b: Vec<u8> = (0..8)
+                .map(|i| emu.maps.read_byte(guid + 8 + i).unwrap_or(0))
+                .collect();
+            let s = format!(
+                "{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}",
+                d1, d2, d3, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]
+            );
+            let (buf, len) = alloc_wide(emu, &s, symbol);
+            write_unicode_header(emu, dst, buf, len, len + 2);
+            emu.set_kernel_ret(0);
+        }
+        "RtlGUIDFromString" => {
+            let s = read_unicode_string(emu, emu.kernel_arg(0));
+            let out = emu.kernel_arg(1);
+            let hex: Vec<u8> = s
+                .chars()
+                .filter(|c| c.is_ascii_hexdigit())
+                .collect::<String>()
+                .as_bytes()
+                .chunks(2)
+                .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap_or("0"), 16).unwrap_or(0))
+                .collect();
+            if hex.len() == 16 {
+                emu.maps
+                    .write_dword(out, u32::from_be_bytes([hex[0], hex[1], hex[2], hex[3]]));
+                emu.maps
+                    .write_word(out + 4, u16::from_be_bytes([hex[4], hex[5]]));
+                emu.maps
+                    .write_word(out + 6, u16::from_be_bytes([hex[6], hex[7]]));
+                emu.maps.write_bytes(out + 8, &hex[8..16]);
+                emu.set_kernel_ret(0);
+            } else {
+                emu.set_kernel_ret(STATUS_INVALID_PARAMETER);
+            }
+        }
 
         // --- version ------------------------------------------------------------------
-        "RtlGetVersion" => RtlGetVersion,
-        "RtlVerifyVersionInfo" => return_zero,
-        "RtlIsNtDdiVersionAvailable" | "RtlIsServicePackVersionInstalled" => return_one,
-        "RtlGetNtVersionNumbers" => RtlGetNtVersionNumbers,
-        "RtlGetNtProductType" => RtlGetNtProductType,
+        "RtlGetVersion" => {
+            let info = emu.kernel_arg(0);
+            fill_version_info(emu, info);
+            emu.set_kernel_ret(0);
+        }
+        "RtlVerifyVersionInfo" => emu.set_kernel_ret(0),
+        "RtlIsNtDdiVersionAvailable" | "RtlIsServicePackVersionInstalled" => emu.set_kernel_ret(1),
+        "RtlGetNtVersionNumbers" => {
+            let (a, b, c) = (emu.kernel_arg(0), emu.kernel_arg(1), emu.kernel_arg(2));
+            write_out_dword(emu, a, OS_MAJOR);
+            write_out_dword(emu, b, OS_MINOR);
+            write_out_dword(emu, c, NT_BUILD_NUMBER as u32 | 0xF000_0000);
+            emu.set_kernel_ret(0);
+        }
+        "RtlGetNtProductType" => {
+            let out = emu.kernel_arg(0);
+            write_out_dword(emu, out, 1);
+            emu.set_kernel_ret(1);
+        }
 
         // --- registry helpers ---------------------------------------------------------
         // Nothing is stored under the emulated registry, so queries report the
         // value as absent and the driver falls back to its defaults.
-        "RtlQueryRegistryValues" | "RtlQueryRegistryValuesEx" => registry_query_stub,
+        "RtlQueryRegistryValues" | "RtlQueryRegistryValuesEx" => {
+            let path = emu.kernel_arg(1);
+            let name = if path != 0 {
+                emu.maps.read_wide_string(path)
+            } else {
+                String::new()
+            };
+            log::info!("{}: '{}'", symbol, name);
+            emu.set_kernel_ret(STATUS_OBJECT_NAME_NOT_FOUND);
+        }
         "RtlWriteRegistryValue"
         | "RtlCreateRegistryKey"
         | "RtlDeleteRegistryValue"
-        | "RtlCheckRegistryKey" => registry_update_stub,
-        "RtlFormatCurrentUserKeyPath" => RtlFormatCurrentUserKeyPath,
+        | "RtlCheckRegistryKey" => {
+            let path = emu.kernel_arg(1);
+            let name = if path != 0 {
+                emu.maps.read_wide_string(path)
+            } else {
+                String::new()
+            };
+            log::info!("{}: '{}'", symbol, name);
+            emu.set_kernel_ret(0);
+        }
+        "RtlFormatCurrentUserKeyPath" => {
+            let dst = emu.kernel_arg(0);
+            let (buf, len) = alloc_wide(emu, "\\Registry\\User\\.DEFAULT", symbol);
+            write_unicode_header(emu, dst, buf, len, len + 2);
+            emu.set_kernel_ret(0);
+        }
 
         // --- security descriptors -----------------------------------------------------
-        "RtlCreateSecurityDescriptor" => RtlCreateSecurityDescriptor,
-        "RtlSetDaclSecurityDescriptor" | "RtlSetSaclSecurityDescriptor" => RtlSetDaclSecurityDescriptor,
-        "RtlSetOwnerSecurityDescriptor" | "RtlSetGroupSecurityDescriptor" => RtlSetOwnerSecurityDescriptor,
-        "RtlGetDaclSecurityDescriptor" | "RtlGetSaclSecurityDescriptor" => RtlGetDaclSecurityDescriptor,
-        "RtlGetOwnerSecurityDescriptor" | "RtlGetGroupSecurityDescriptor" => RtlGetOwnerSecurityDescriptor,
-        "RtlLengthSecurityDescriptor" => RtlLengthSecurityDescriptor,
+        "RtlCreateSecurityDescriptor" => {
+            let sd = emu.kernel_arg(0);
+            let rev = emu.kernel_arg(1) as u8;
+            emu.maps.write_bytes(sd, &[0u8; SD_ABSOLUTE_SIZE as usize]);
+            emu.maps.write_byte(sd + SD_REVISION, rev);
+            emu.set_kernel_ret(0);
+        }
+        "RtlSetDaclSecurityDescriptor" | "RtlSetSaclSecurityDescriptor" => {
+            let sd = emu.kernel_arg(0);
+            let present = emu.kernel_arg(1) != 0;
+            let acl = emu.kernel_arg(2);
+            let defaulted = emu.kernel_arg(3) != 0;
+            let (off, present_bit, def_bit) = if symbol == "RtlSetDaclSecurityDescriptor" {
+                (SD_DACL, SE_DACL_PRESENT, SE_DACL_DEFAULTED)
+            } else {
+                (SD_SACL, SE_SACL_PRESENT, 0x20)
+            };
+            let mut ctl =
+                emu.maps.read_word(sd + SD_CONTROL).unwrap_or(0) & !(present_bit | def_bit);
+            if present {
+                ctl |= present_bit;
+                emu.maps.write_qword(sd + off, acl);
+                if defaulted {
+                    ctl |= def_bit;
+                }
+            } else {
+                emu.maps.write_qword(sd + off, 0);
+            }
+            emu.maps.write_word(sd + SD_CONTROL, ctl);
+            emu.set_kernel_ret(0);
+        }
+        "RtlSetOwnerSecurityDescriptor" | "RtlSetGroupSecurityDescriptor" => {
+            let sd = emu.kernel_arg(0);
+            let sid = emu.kernel_arg(1);
+            let off = if symbol == "RtlSetOwnerSecurityDescriptor" {
+                SD_OWNER
+            } else {
+                SD_GROUP
+            };
+            emu.maps.write_qword(sd + off, sid);
+            emu.set_kernel_ret(0);
+        }
+        "RtlGetDaclSecurityDescriptor" | "RtlGetSaclSecurityDescriptor" => {
+            // (SD, *Present, *Acl, *Defaulted)
+            let sd = emu.kernel_arg(0);
+            let present_out = emu.kernel_arg(1);
+            let acl_out = emu.kernel_arg(2);
+            let def_out = emu.kernel_arg(3);
+            let (off, bit) = if symbol == "RtlGetDaclSecurityDescriptor" {
+                (SD_DACL, SE_DACL_PRESENT)
+            } else {
+                (SD_SACL, SE_SACL_PRESENT)
+            };
+            let ctl = emu.maps.read_word(sd + SD_CONTROL).unwrap_or(0);
+            let present = ctl & bit != 0;
+            let acl = if present {
+                emu.maps.read_qword(sd + off).unwrap_or(0)
+            } else {
+                0
+            };
+            if present_out != 0 {
+                emu.maps.write_byte(present_out, present as u8);
+            }
+            write_out_qword(emu, acl_out, acl);
+            if def_out != 0 {
+                emu.maps.write_byte(def_out, 0);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlGetOwnerSecurityDescriptor" | "RtlGetGroupSecurityDescriptor" => {
+            let sd = emu.kernel_arg(0);
+            let sid_out = emu.kernel_arg(1);
+            let def_out = emu.kernel_arg(2);
+            let off = if symbol == "RtlGetOwnerSecurityDescriptor" {
+                SD_OWNER
+            } else {
+                SD_GROUP
+            };
+            let sid = emu.maps.read_qword(sd + off).unwrap_or(0);
+            write_out_qword(emu, sid_out, sid);
+            if def_out != 0 {
+                emu.maps.write_byte(def_out, 0);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlLengthSecurityDescriptor" => {
+            let sd = emu.kernel_arg(0);
+            let n = sd_self_relative_size(emu, sd);
+            emu.set_kernel_ret(n);
+        }
         "RtlValidSecurityDescriptor"
         | "RtlValidRelativeSecurityDescriptor"
         | "RtlValidSid"
-        | "RtlValidAcl" => return_one,
+        | "RtlValidAcl" => emu.set_kernel_ret(1),
         // RtlAbsoluteToSelfRelativeSD(Absolute, SelfRelative, *BufferLength)
-        "RtlAbsoluteToSelfRelativeSD" | "RtlMakeSelfRelativeSD" => RtlAbsoluteToSelfRelativeSD,
-        "RtlSelfRelativeToAbsoluteSD" | "RtlSelfRelativeToAbsoluteSD2" => return_not_supported,
-        "RtlCreateAcl" => RtlCreateAcl,
+        "RtlAbsoluteToSelfRelativeSD" | "RtlMakeSelfRelativeSD" => {
+            let abs = emu.kernel_arg(0);
+            let rel = emu.kernel_arg(1);
+            let len_ptr = emu.kernel_arg(2);
+            let need = sd_self_relative_size(emu, abs);
+            let have = emu.maps.read_dword(len_ptr).unwrap_or(0) as u64;
+            if have < need || rel == 0 {
+                write_out_dword(emu, len_ptr, need as u32);
+                emu.set_kernel_ret(STATUS_BUFFER_TOO_SMALL);
+                return true;
+            }
+            // Self-relative header is 0x14 bytes: Revision, Sbz1, Control,
+            // then four u32 offsets (Owner, Group, Sacl, Dacl).
+            emu.maps.write_bytes(rel, &vec![0u8; need as usize]);
+            emu.maps
+                .write_byte(rel, emu.maps.read_byte(abs).unwrap_or(1));
+            let ctl = emu.maps.read_word(abs + SD_CONTROL).unwrap_or(0) | SE_SELF_RELATIVE;
+            emu.maps.write_word(rel + 2, ctl);
+            let mut cursor = 0x14u64;
+            for (i, part) in [SD_OWNER, SD_GROUP, SD_SACL, SD_DACL].iter().enumerate() {
+                let p = emu.maps.read_qword(abs + part).unwrap_or(0);
+                if p == 0 || !emu.maps.is_mapped(p) {
+                    continue;
+                }
+                let n = if i < 2 {
+                    sid_length(emu, p)
+                } else {
+                    emu.maps.read_word(p + ACL_SIZE).unwrap_or(0) as u64
+                };
+                emu.maps.memcpy(rel + cursor, p, n as usize);
+                emu.maps.write_dword(rel + 4 + i as u64 * 4, cursor as u32);
+                cursor += n;
+            }
+            write_out_dword(emu, len_ptr, need as u32);
+            emu.set_kernel_ret(0);
+        }
+        "RtlSelfRelativeToAbsoluteSD" | "RtlSelfRelativeToAbsoluteSD2" => {
+            emu.set_kernel_ret(STATUS_NOT_SUPPORTED);
+        }
+        "RtlCreateAcl" => {
+            let acl = emu.kernel_arg(0);
+            let len = emu.kernel_arg(1);
+            let rev = emu.kernel_arg(2) as u8;
+            emu.maps
+                .write_bytes(acl, &vec![0u8; len.min(0x10000) as usize]);
+            emu.maps.write_byte(acl, rev);
+            emu.maps.write_word(acl + ACL_SIZE, len as u16);
+            emu.maps.write_word(acl + ACL_ACE_COUNT, 0);
+            emu.set_kernel_ret(0);
+        }
         // RtlAddAccessAllowedAce(Acl, AceRevision, AccessMask, Sid)
         "RtlAddAccessAllowedAce"
         | "RtlAddAccessAllowedAceEx"
         | "RtlAddAccessDeniedAce"
         | "RtlAddAccessDeniedAceEx"
-        | "RtlAddMandatoryAce" => RtlAddAccessAllowedAce,
-        "RtlGetAce" => RtlGetAce,
-        "RtlLengthSid" => RtlLengthSid,
-        "RtlLengthRequiredSid" => RtlLengthRequiredSid,
-        "RtlInitializeSid" | "RtlInitializeSidEx" => RtlInitializeSid,
-        "RtlSubAuthoritySid" => RtlSubAuthoritySid,
-        "RtlSubAuthorityCountSid" => RtlSubAuthorityCountSid,
-        "RtlCopySid" => RtlCopySid,
-        "RtlEqualSid" | "RtlEqualPrefixSid" => RtlEqualSid,
-        "RtlConvertSidToUnicodeString" => RtlConvertSidToUnicodeString,
+        | "RtlAddMandatoryAce" => {
+            let acl = emu.kernel_arg(0);
+            let ex = symbol.ends_with("Ex") || symbol == "RtlAddMandatoryAce";
+            let (mask, sid) = if ex {
+                (emu.kernel_arg(3) as u32, emu.kernel_arg(4))
+            } else {
+                (emu.kernel_arg(2) as u32, emu.kernel_arg(3))
+            };
+            let ace_type = if symbol.contains("Denied") {
+                1
+            } else if symbol.contains("Mandatory") {
+                0x11
+            } else {
+                0
+            };
+            let st = add_ace(emu, acl, ace_type, mask, sid);
+            emu.set_kernel_ret(st);
+        }
+        "RtlGetAce" => {
+            let acl = emu.kernel_arg(0);
+            let idx = emu.kernel_arg(1);
+            let out = emu.kernel_arg(2);
+            let count = emu.maps.read_word(acl + ACL_ACE_COUNT).unwrap_or(0) as u64;
+            if idx >= count {
+                emu.set_kernel_ret(STATUS_INVALID_PARAMETER);
+                return true;
+            }
+            let mut off = ACL_HEADER_SIZE;
+            for _ in 0..idx {
+                off += emu.maps.read_word(acl + off + 2).unwrap_or(0) as u64;
+            }
+            write_out_qword(emu, out, acl + off);
+            emu.set_kernel_ret(0);
+        }
+        "RtlLengthSid" => {
+            let sid = emu.kernel_arg(0);
+            let n = sid_length(emu, sid);
+            emu.set_kernel_ret(n);
+        }
+        "RtlLengthRequiredSid" => {
+            let n = emu.kernel_arg(0);
+            emu.set_kernel_ret(8 + 4 * n);
+        }
+        "RtlInitializeSid" | "RtlInitializeSidEx" => {
+            let sid = emu.kernel_arg(0);
+            let auth = emu.kernel_arg(1);
+            let count = emu.kernel_arg(2) as u8;
+            emu.maps.write_byte(sid, 1);
+            emu.maps.write_byte(sid + 1, count);
+            if auth != 0 {
+                emu.maps.memcpy(sid + 2, auth, 6);
+            }
+            emu.set_kernel_ret(0);
+        }
+        "RtlSubAuthoritySid" => {
+            let sid = emu.kernel_arg(0);
+            let i = emu.kernel_arg(1);
+            emu.set_kernel_ret(sid + 8 + 4 * i);
+        }
+        "RtlSubAuthorityCountSid" => {
+            let sid = emu.kernel_arg(0);
+            emu.set_kernel_ret(sid + 1);
+        }
+        "RtlCopySid" => {
+            let len = emu.kernel_arg(0);
+            let dst = emu.kernel_arg(1);
+            let src = emu.kernel_arg(2);
+            let n = sid_length(emu, src);
+            if n > len {
+                emu.set_kernel_ret(STATUS_BUFFER_TOO_SMALL);
+            } else {
+                emu.maps.memcpy(dst, src, n as usize);
+                emu.set_kernel_ret(0);
+            }
+        }
+        "RtlEqualSid" | "RtlEqualPrefixSid" => {
+            let a = emu.kernel_arg(0);
+            let b = emu.kernel_arg(1);
+            let n = sid_length(emu, a);
+            let eq = n == sid_length(emu, b)
+                && (0..n).all(|i| emu.maps.read_byte(a + i) == emu.maps.read_byte(b + i));
+            emu.set_kernel_ret(eq as u64);
+        }
+        "RtlConvertSidToUnicodeString" => {
+            let dst = emu.kernel_arg(0);
+            let sid = emu.kernel_arg(1);
+            let alloc = emu.kernel_arg(2) != 0;
+            let count = emu.maps.read_byte(sid + 1).unwrap_or(0) as u64;
+            let auth = emu.maps.read_byte(sid + 7).unwrap_or(0);
+            let mut s = format!("S-1-{}", auth);
+            for i in 0..count {
+                s.push_str(&format!(
+                    "-{}",
+                    emu.maps.read_dword(sid + 8 + 4 * i).unwrap_or(0)
+                ));
+            }
+            if alloc {
+                let (buf, len) = alloc_wide(emu, &s, symbol);
+                write_unicode_header(emu, dst, buf, len, len + 2);
+            } else {
+                emu.maps.write_word(dst, 0);
+                unicode_append(emu, dst, &utf16_bytes(&s));
+            }
+            emu.set_kernel_ret(0);
+        }
 
         // --- image helpers -------------------------------------------------------------
-        "RtlImageNtHeader" | "RtlImageNtHeaderEx" => RtlImageNtHeader,
+        "RtlImageNtHeader" | "RtlImageNtHeaderEx" => {
+            let base = if symbol == "RtlImageNtHeader" {
+                emu.kernel_arg(0)
+            } else {
+                emu.kernel_arg(1)
+            };
+            let out = emu.kernel_arg(3);
+            let nt = if emu.maps.read_word(base) == Some(0x5a4d) {
+                base + emu.maps.read_dword(base + 0x3c).unwrap_or(0) as u64
+            } else {
+                0
+            };
+            if symbol == "RtlImageNtHeader" {
+                emu.set_kernel_ret(nt);
+            } else {
+                write_out_qword(emu, out, nt);
+                emu.set_kernel_ret(if nt != 0 { 0 } else { 0xC000007B });
+            }
+        }
         // RtlImageDirectoryEntryToData(Base, MappedAsImage, Directory, *Size)
-        "RtlImageDirectoryEntryToData" => RtlImageDirectoryEntryToData,
-        "RtlLookupFunctionEntry" | "RtlLookupFunctionTable" | "RtlPcToFileHeader" => image_lookup_stub,
+        "RtlImageDirectoryEntryToData" => {
+            let base = emu.kernel_arg(0);
+            let dir = emu.kernel_arg(2);
+            let size_out = emu.kernel_arg(3);
+            let mut result = 0;
+            if emu.maps.read_word(base) == Some(0x5a4d) {
+                let nt = base + emu.maps.read_dword(base + 0x3c).unwrap_or(0) as u64;
+                let magic = emu.maps.read_word(nt + 0x18).unwrap_or(0);
+                let dirs = if magic == 0x20b {
+                    nt + 0x18 + 0x70
+                } else {
+                    nt + 0x18 + 0x60
+                };
+                let rva = emu.maps.read_dword(dirs + dir * 8).unwrap_or(0) as u64;
+                let size = emu.maps.read_dword(dirs + dir * 8 + 4).unwrap_or(0);
+                if rva != 0 {
+                    result = base + rva;
+                    write_out_dword(emu, size_out, size);
+                }
+            }
+            emu.set_kernel_ret(result);
+        }
+        "RtlLookupFunctionEntry" | "RtlLookupFunctionTable" | "RtlPcToFileHeader" => {
+            if symbol == "RtlPcToFileHeader" {
+                let out = emu.kernel_arg(1);
+                let base = emu.kernel.as_ref().map(|k| k.module.base).unwrap_or(0);
+                write_out_qword(emu, out, base);
+                emu.set_kernel_ret(base);
+            } else {
+                emu.set_kernel_ret(0);
+            }
+        }
         "RtlVirtualUnwind"
         | "RtlWalkFrameChain"
         | "RtlCaptureStackBackTrace"
@@ -248,53 +921,242 @@ pub const fn handlers() -> HandlerRegistry {
         | "RtlAddFunctionTable"
         | "RtlDeleteFunctionTable"
         | "RtlInstallFunctionTableCallback"
-        | "RtlUnwind" => return_zero,
-        "RtlUnwindEx" | "RtlRaiseException" | "RtlRaiseStatus" => exception_abort,
-        "RtlAssert" => RtlAssert,
+        | "RtlUnwind" => {
+            emu.set_kernel_ret(0);
+        }
+        "RtlUnwindEx" | "RtlRaiseException" | "RtlRaiseStatus" => {
+            let what = if symbol == "RtlRaiseStatus" {
+                format!("status 0x{:x}", emu.kernel_arg(0))
+            } else {
+                "exception record".to_string()
+            };
+            emu.kernel_abort(format!(
+                "{} ({}) — no SEH dispatch in kernel mode",
+                symbol, what
+            ));
+        }
+        "RtlAssert" => {
+            let msg = emu.maps.read_string(emu.kernel_arg(0));
+            let file = emu.maps.read_string(emu.kernel_arg(1));
+            let line = emu.kernel_arg(2);
+            emu.kernel_log_line(format!("ASSERT {} at {}:{}", msg, file, line));
+            emu.set_kernel_ret(0);
+        }
 
         // --- bitmaps --------------------------------------------------------------------
-        "RtlInitializeBitMap" => RtlInitializeBitMap,
-        "RtlClearAllBits" | "RtlSetAllBits" => RtlClearAllBits,
-        "RtlSetBit" | "RtlClearBit" | "RtlTestBit" | "RtlCheckBit" => RtlSetBit,
-        "RtlSetBits" | "RtlClearBits" => RtlSetBits,
+        "RtlInitializeBitMap" => {
+            let bm = emu.kernel_arg(0);
+            let buf = emu.kernel_arg(1);
+            let bits = emu.kernel_arg(2) as u32;
+            emu.maps.write_dword(bm, bits);
+            emu.maps.write_qword(bm + 8, buf);
+            emu.set_kernel_ret(0);
+        }
+        "RtlClearAllBits" | "RtlSetAllBits" => {
+            let bm = emu.kernel_arg(0);
+            let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
+            let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
+            let v = if symbol == "RtlSetAllBits" { 0xff } else { 0 };
+            emu.maps
+                .write_bytes(buf, &vec![v; bits.div_ceil(8) as usize]);
+            emu.set_kernel_ret(0);
+        }
+        "RtlSetBit" | "RtlClearBit" | "RtlTestBit" | "RtlCheckBit" => {
+            let bm = emu.kernel_arg(0);
+            let bit = emu.kernel_arg(1);
+            let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
+            let byte = buf + bit / 8;
+            let mut v = emu.maps.read_byte(byte).unwrap_or(0);
+            let mask = 1u8 << (bit % 8);
+            match symbol {
+                "RtlSetBit" => {
+                    v |= mask;
+                    emu.maps.write_byte(byte, v);
+                    emu.set_kernel_ret(0);
+                }
+                "RtlClearBit" => {
+                    v &= !mask;
+                    emu.maps.write_byte(byte, v);
+                    emu.set_kernel_ret(0);
+                }
+                _ => emu.set_kernel_ret((v & mask != 0) as u64),
+            }
+        }
+        "RtlSetBits" | "RtlClearBits" => {
+            let bm = emu.kernel_arg(0);
+            let start = emu.kernel_arg(1);
+            let n = emu.kernel_arg(2);
+            let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
+            for bit in start..start + n {
+                let byte = buf + bit / 8;
+                let mut v = emu.maps.read_byte(byte).unwrap_or(0);
+                if symbol == "RtlSetBits" {
+                    v |= 1 << (bit % 8);
+                } else {
+                    v &= !(1 << (bit % 8));
+                }
+                emu.maps.write_byte(byte, v);
+            }
+            emu.set_kernel_ret(0);
+        }
         "RtlFindClearBits"
         | "RtlFindClearBitsAndSet"
         | "RtlFindSetBits"
         | "RtlFindSetBitsAndClear"
         | "RtlFindNextForwardRunClear"
         | "RtlFindFirstRunClear"
-        | "RtlFindLongestRunClear" => RtlFindClearBits,
-        "RtlNumberOfSetBits" | "RtlNumberOfClearBits" => RtlNumberOfSetBits,
+        | "RtlFindLongestRunClear" => {
+            let bm = emu.kernel_arg(0);
+            let n = emu.kernel_arg(1).max(1);
+            let want_set = symbol.contains("SetBits");
+            let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
+            let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
+            let get = |emu: &Emu, bit: u64| {
+                emu.maps.read_byte(buf + bit / 8).unwrap_or(0) & (1 << (bit % 8)) != 0
+            };
+            let mut found = 0xffff_ffffu64;
+            let mut run = 0;
+            for bit in 0..bits {
+                if get(emu, bit) == want_set {
+                    run += 1;
+                    if run == n {
+                        found = bit + 1 - n;
+                        break;
+                    }
+                } else {
+                    run = 0;
+                }
+            }
+            if found != 0xffff_ffff && (symbol.ends_with("AndSet") || symbol.ends_with("AndClear"))
+            {
+                for bit in found..found + n {
+                    let byte = buf + bit / 8;
+                    let mut v = emu.maps.read_byte(byte).unwrap_or(0);
+                    if symbol.ends_with("AndSet") {
+                        v |= 1 << (bit % 8);
+                    } else {
+                        v &= !(1 << (bit % 8));
+                    }
+                    emu.maps.write_byte(byte, v);
+                }
+            }
+            emu.set_kernel_ret(found);
+        }
+        "RtlNumberOfSetBits" | "RtlNumberOfClearBits" => {
+            let bm = emu.kernel_arg(0);
+            let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
+            let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
+            let set = (0..bits)
+                .filter(|bit| {
+                    emu.maps.read_byte(buf + bit / 8).unwrap_or(0) & (1 << (bit % 8)) != 0
+                })
+                .count() as u64;
+            emu.set_kernel_ret(if symbol == "RtlNumberOfSetBits" {
+                set
+            } else {
+                bits - set
+            });
+        }
 
         // --- time, random, misc -----------------------------------------------------------
-        "RtlTimeToTimeFields" => RtlTimeToTimeFields,
-        "RtlTimeFieldsToTime" => RtlTimeFieldsToTime,
-        "RtlRandom" | "RtlRandomEx" => RtlRandom,
+        "RtlTimeToTimeFields" => {
+            let t = emu.maps.read_qword(emu.kernel_arg(0)).unwrap_or(0);
+            let out = emu.kernel_arg(1);
+            // Only the fields a log line needs: seconds since 1601 split up.
+            let secs = t / 10_000_000;
+            let days = secs / 86400;
+            let (y, m, d) = civil_from_days(days as i64 - 134774); // 1601 -> 1970 offset
+            emu.maps.write_word(out, y as u16);
+            emu.maps.write_word(out + 2, m as u16);
+            emu.maps.write_word(out + 4, d as u16);
+            emu.maps.write_word(out + 6, ((secs / 3600) % 24) as u16);
+            emu.maps.write_word(out + 8, ((secs / 60) % 60) as u16);
+            emu.maps.write_word(out + 10, (secs % 60) as u16);
+            emu.maps.write_word(out + 12, ((t / 10_000) % 1000) as u16);
+            emu.maps.write_word(out + 14, ((days + 1) % 7) as u16);
+            emu.set_kernel_ret(0);
+        }
+        "RtlTimeFieldsToTime" => {
+            let out = emu.kernel_arg(1);
+            emu.maps.write_qword(out, system_time_now());
+            emu.set_kernel_ret(1);
+        }
+        "RtlRandom" | "RtlRandomEx" => {
+            let seed_ptr = emu.kernel_arg(0);
+            let seed = emu.maps.read_dword(seed_ptr).unwrap_or(1);
+            let next = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+            emu.maps.write_dword(seed_ptr, next);
+            emu.set_kernel_ret((next >> 1) as u64);
+        }
         "RtlQueryFeatureConfiguration"
         | "RtlQueryFeatureConfigurationChangeStamp"
         | "RtlRegisterFeatureConfigurationChangeNotification"
         | "RtlUnregisterFeatureConfigurationChangeNotification"
-        | "RtlNotifyFeatureUsage" => feature_configuration_stub,
-        "RtlIsGenericTableEmptyAvl" | "RtlIsGenericTableEmpty" => return_one,
-        "RtlInitializeGenericTableAvl" | "RtlInitializeGenericTable" => table_initialize_stub,
+        | "RtlNotifyFeatureUsage" => {
+            emu.set_kernel_ret(if symbol == "RtlQueryFeatureConfiguration" {
+                STATUS_NOT_FOUND
+            } else {
+                0
+            });
+        }
+        "RtlIsGenericTableEmptyAvl" | "RtlIsGenericTableEmpty" => emu.set_kernel_ret(1),
+        "RtlInitializeGenericTableAvl" | "RtlInitializeGenericTable" => {
+            let t = emu.kernel_arg(0);
+            emu.maps.write_bytes(t, &[0u8; 0x40]);
+            emu.set_kernel_ret(0);
+        }
         // RtlInsertElementGenericTableAvl(Table, Buffer, BufferSize, *NewElement)
-        "RtlInsertElementGenericTableAvl" | "RtlInsertElementGenericTable" => table_insert_stub,
+        "RtlInsertElementGenericTableAvl" | "RtlInsertElementGenericTable" => {
+            let buf = emu.kernel_arg(1);
+            let size = emu.kernel_arg(2);
+            let new_out = emu.kernel_arg(3);
+            let e = emu.kernel_alloc(Region::Slab, size.max(1), "generic-table", symbol, true);
+            if e != 0 {
+                emu.maps.memcpy(e, buf, size as usize);
+            }
+            if new_out != 0 {
+                emu.maps.write_byte(new_out, 1);
+            }
+            emu.set_kernel_ret(e);
+        }
         "RtlLookupElementGenericTableAvl"
         | "RtlLookupElementGenericTable"
         | "RtlEnumerateGenericTableAvl"
         | "RtlEnumerateGenericTable"
         | "RtlEnumerateGenericTableWithoutSplayingAvl"
         | "RtlGetElementGenericTableAvl"
-        | "RtlLookupFirstMatchingElementGenericTableAvl" => return_zero,
-        "RtlDeleteElementGenericTableAvl" | "RtlDeleteElementGenericTable" => return_one,
-        "RtlNumberGenericTableElementsAvl" | "RtlNumberGenericTableElements" => table_count_stub,
-        "RtlIsNameLegalDOS8Dot3" => return_one,
-        "RtlSetBitMapEx" | "RtlCopyLuid" => return_zero,
+        | "RtlLookupFirstMatchingElementGenericTableAvl" => emu.set_kernel_ret(0),
+        "RtlDeleteElementGenericTableAvl" | "RtlDeleteElementGenericTable" => emu.set_kernel_ret(1),
+        "RtlNumberGenericTableElementsAvl" | "RtlNumberGenericTableElements" => {
+            emu.set_kernel_ret(0)
+        }
+        "RtlIsNameLegalDOS8Dot3" => emu.set_kernel_ret(1),
+        "RtlSetBitMapEx" | "RtlCopyLuid" => emu.set_kernel_ret(0),
 
         // --- FsRtl --------------------------------------------------------------------
         // FsRtlIsNameInExpression(Expression, Name, IgnoreCase, UpcaseTable)
-        "FsRtlIsNameInExpression" | "FsRtlIsNameInExpressionPrivate" => FsRtlIsNameInExpression,
-        "FsRtlIsDbcsInExpression" => FsRtlIsDbcsInExpression,
+        "FsRtlIsNameInExpression" | "FsRtlIsNameInExpressionPrivate" => {
+            let expr_us = emu.kernel_arg(0);
+            let name_us = emu.kernel_arg(1);
+            let ignore_case = emu.kernel_arg(2) != 0;
+            let expr = read_unicode_string(emu, expr_us);
+            let name = read_unicode_string(emu, name_us);
+            let result = fsrtl_name_match(&expr, &name, ignore_case);
+            log::info!(
+                "FsRtlIsNameInExpression: '{}' vs '{}' case_insensitive={} -> {}",
+                expr,
+                name,
+                ignore_case,
+                result
+            );
+            emu.set_kernel_ret(result as u64);
+        }
+        "FsRtlIsDbcsInExpression" => {
+            let expr = read_ansi_string(emu, emu.kernel_arg(0));
+            let name = read_ansi_string(emu, emu.kernel_arg(1));
+            let result = fsrtl_name_match(&expr, &name, false);
+            emu.set_kernel_ret(result as u64);
+        }
         "FsRtlNotifyVolumeEvent"
         | "FsRtlNotifyVolumeEventEx"
         | "FsRtlNotifyCleanup"
@@ -324,1145 +1186,37 @@ pub const fn handlers() -> HandlerRegistry {
         | "FsRtlMdlReadDev"
         | "FsRtlMdlReadCompleteDev"
         | "FsRtlPrepareMdlWriteDev"
-        | "FsRtlMdlWriteCompleteDev" => return_zero,
+        | "FsRtlMdlWriteCompleteDev" => {
+            emu.set_kernel_ret(0);
+        }
         "FsRtlAllocateExtraCreateParameterList"
         | "FsRtlAllocateExtraCreateParameter"
         | "FsRtlAllocateExtraCreateParameterFromLookasideList"
         | "FsRtlAllocatePoolWithTag"
-        | "FsRtlAllocateResource" => filesystem_allocation_stub,
-        "FsRtlIsNtstatusExpected" => return_one,
-        "FsRtlIsPagingFile" | "FsRtlIsSystemPagingFile" => return_zero,
-        "FsRtlAreNamesEqual" => FsRtlAreNamesEqual,
-    }
-}
-
-pub const SURFACE: &[&str] = handlers().names;
-
-pub fn has_handler(symbol: &str) -> bool {
-    handlers().find(symbol).is_some()
-}
-
-fn RtlCopyMemory(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let len = api_try!(emu, call.arg(emu, 2));
-    crt::checked_copy(emu, dst, src, len);
-    call.set_return(emu, dst);
-}
-
-fn RtlZeroMemory(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let len = api_try!(emu, call.arg(emu, 1));
-    crt::checked_fill(emu, dst, 0, len);
-    call.set_return(emu, dst);
-}
-
-fn RtlFillMemory(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let len = api_try!(emu, call.arg(emu, 1));
-    let byte = api_try!(emu, call.arg_u8(emu, 2));
-    crt::checked_fill(emu, dst, byte, len);
-    call.set_return(emu, dst);
-}
-
-fn compare_memory(emu: &mut Emu, equality: bool) {
-    let call = WinApi(Stdcall);
-    let a = api_try!(emu, call.arg(emu, 0));
-    let b = api_try!(emu, call.arg(emu, 1));
-    let len = api_try!(emu, call.arg(emu, 2));
-    if len != 0 {
-        let rip = emu.pc();
-        for address in [a, b] {
-            emu.kernel_guard_range(rip, address, len, false);
-            emu.kernel_guard_access(rip, address, len.min(u32::MAX as u64) as u32, false);
+        | "FsRtlAllocateResource" => {
+            let size = match symbol {
+                "FsRtlAllocatePoolWithTag" => emu.kernel_arg(1).max(1),
+                _ => 0x100,
+            };
+            let p = emu.kernel_alloc(Region::Slab, size, "fsrtl", symbol, true);
+            emu.set_kernel_ret(p);
         }
-    }
-    match memory_ops::matching_prefix(emu, a, b, len) {
-        Some(matched) => call.set_return(
-            emu,
-            if equality {
-                (matched == len) as u64
+        "FsRtlIsNtstatusExpected" => emu.set_kernel_ret(1),
+        "FsRtlIsPagingFile" | "FsRtlIsSystemPagingFile" => emu.set_kernel_ret(0),
+        "FsRtlAreNamesEqual" => {
+            let a = read_unicode_string(emu, emu.kernel_arg(0));
+            let b = read_unicode_string(emu, emu.kernel_arg(1));
+            let ignore_case = emu.kernel_arg(2) != 0;
+            let eq = if ignore_case {
+                a.eq_ignore_ascii_case(&b)
             } else {
-                matched
-            },
-        ),
-        None => emu.exception(ExceptionType::BadAddressDereferencing),
-    }
-}
-
-fn RtlCompareMemory(emu: &mut Emu, _symbol: &str) {
-    compare_memory(emu, false);
-}
-
-fn RtlEqualMemory(emu: &mut Emu, _symbol: &str) {
-    compare_memory(emu, true);
-}
-
-fn RtlCopyUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let max = unicode_max(emu, dst);
-    let dbuf = unicode_buf(emu, dst);
-    if src == 0 {
-        emu.maps.write_word(dst, 0);
-    } else {
-        let n = unicode_len(emu, src).min(max);
-        let sbuf = unicode_buf(emu, src);
-        if n > 0 && dbuf != 0 && sbuf != 0 {
-            crt::checked_copy(emu, dbuf, sbuf, n);
+                a == b
+            };
+            emu.set_kernel_ret(eq as u64);
         }
-        emu.maps.write_word(dst, n as u16);
-        let cw = if symbol == "RtlCopyString" { 1 } else { 2 };
-        if n + cw <= max && dbuf != 0 {
-            if cw == 2 {
-                emu.maps.write_word(dbuf + n, 0);
-            } else {
-                emu.maps.write_byte(dbuf + n, 0);
-            }
-        }
+        _ => return false,
     }
-    call.set_return(emu, 0);
-}
-
-fn RtlAppendUnicodeStringToString(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let n = unicode_len(emu, src) as usize;
-    let sbuf = unicode_buf(emu, src);
-    let bytes: Vec<u8> = (0..n)
-        .map(|i| emu.maps.read_byte(sbuf + i as u64).unwrap_or(0))
-        .collect();
-    let st = unicode_append(emu, dst, &bytes);
-    call.set_return(emu, st);
-}
-
-fn RtlAppendUnicodeToString(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let s = if src == 0 {
-        String::new()
-    } else {
-        emu.maps.read_wide_string(src)
-    };
-    let st = unicode_append(emu, dst, &utf16_bytes(&s));
-    call.set_return(emu, st);
-}
-
-fn RtlAppendStringToString(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let s = read_ansi_string(emu, src);
-    let st = unicode_append(emu, dst, s.as_bytes());
-    call.set_return(emu, st);
-}
-
-fn RtlCompareUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let ci = api_try!(emu, call.arg(emu, 2)) != 0;
-    let (a, b) = if symbol == "RtlCompareString" {
-        (
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    } else {
-        (
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    };
-    call.set_return(emu, compare_strings(&a, &b, ci) as u64);
-}
-
-fn RtlEqualUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let ci = api_try!(emu, call.arg(emu, 2)) != 0;
-    let (a, b) = if symbol == "RtlEqualString" {
-        (
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    } else {
-        (
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    };
-    call.set_return(emu, (compare_strings(&a, &b, ci) == 0) as u64);
-}
-
-fn RtlPrefixUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let ci = api_try!(emu, call.arg(emu, 2)) != 0;
-    let (p, s) = if symbol == "RtlPrefixString" {
-        (
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_ansi_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    } else {
-        (
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 0))),
-            read_unicode_string(emu, api_try!(emu, call.arg(emu, 1))),
-        )
-    };
-    let ok = if ci {
-        s.to_lowercase().starts_with(&p.to_lowercase())
-    } else {
-        s.starts_with(&p)
-    };
-    call.set_return(emu, ok as u64);
-}
-
-fn RtlUpcaseUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let alloc = api_try!(emu, call.arg(emu, 2)) != 0;
-    let s = read_unicode_string(emu, src);
-    let s = if symbol == "RtlUpcaseUnicodeString" {
-        s.to_uppercase()
-    } else {
-        s.to_lowercase()
-    };
-    if alloc {
-        let (buf, len) = alloc_wide(emu, &s, symbol);
-        write_unicode_header(emu, dst, buf, len, len + 2);
-    } else {
-        let bytes = utf16_bytes(&s);
-        emu.maps.write_word(dst, 0);
-        unicode_append(emu, dst, &bytes);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlUpcaseUnicodeChar(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let c = api_try!(emu, call.arg_u16(emu, 0));
-    let ch = char::from_u32(c as u32).unwrap_or('\0');
-    let r = if symbol == "RtlUpcaseUnicodeChar" {
-        ch.to_uppercase().next().unwrap_or(ch)
-    } else {
-        ch.to_lowercase().next().unwrap_or(ch)
-    };
-    call.set_return(emu, r as u64);
-}
-
-fn RtlAnsiCharToUnicodeChar(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let pp = api_try!(emu, call.arg(emu, 0));
-    let p = emu.maps.read_qword(pp).unwrap_or(0);
-    let c = emu.maps.read_byte(p).unwrap_or(0);
-    emu.maps.write_qword(pp, p + 1);
-    call.set_return(emu, c as u64);
-}
-
-fn RtlAnsiStringToUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let alloc = api_try!(emu, call.arg(emu, 2)) != 0;
-    let s = read_ansi_string(emu, src);
-    if alloc {
-        let (buf, len) = alloc_wide(emu, &s, symbol);
-        write_unicode_header(emu, dst, buf, len, len + 2);
-        call.set_return(emu, if buf != 0 { 0 } else { STATUS_NO_MEMORY });
-    } else {
-        emu.maps.write_word(dst, 0);
-        let st = unicode_append(emu, dst, &utf16_bytes(&s));
-        call.set_return(emu, st);
-    }
-}
-
-fn RtlUnicodeStringToAnsiString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let src = api_try!(emu, call.arg(emu, 1));
-    let alloc = api_try!(emu, call.arg(emu, 2)) != 0;
-    let s = read_unicode_string(emu, src);
-    if alloc {
-        let buf = emu.kernel_alloc(
-            Region::Slab,
-            s.len() as u64 + 1,
-            "ansi-string",
-            symbol,
-            true,
-        );
-        if buf != 0 {
-            emu.maps.write_string(buf, &s);
-        }
-        write_unicode_header(emu, dst, buf, s.len() as u64, s.len() as u64 + 1);
-        call.set_return(emu, if buf != 0 { 0 } else { STATUS_NO_MEMORY });
-    } else {
-        emu.maps.write_word(dst, 0);
-        let st = unicode_append(emu, dst, s.as_bytes());
-        call.set_return(emu, st);
-    }
-}
-
-fn RtlFreeUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let us = api_try!(emu, call.arg(emu, 0));
-    let buf = unicode_buf(emu, us);
-    if buf != 0 {
-        emu.kernel_free(buf, symbol);
-        write_unicode_header(emu, us, 0, 0, 0);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlUnicodeStringToInteger(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let base = api_try!(emu, call.arg_u32(emu, 1));
-    let out = api_try!(emu, call.arg(emu, 2));
-    let s = if symbol == "RtlCharToInteger" {
-        emu.maps.read_string(api_try!(emu, call.arg(emu, 0)))
-    } else {
-        read_unicode_string(emu, api_try!(emu, call.arg(emu, 0)))
-    };
-    let t = s.trim();
-    let (digits, radix) = if base == 0 {
-        if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
-            (h, 16)
-        } else if let Some(o) = t.strip_prefix("0o") {
-            (o, 8)
-        } else if let Some(b) = t.strip_prefix("0b") {
-            (b, 2)
-        } else {
-            (t, 10)
-        }
-    } else {
-        (t, base)
-    };
-    let end = digits
-        .find(|c: char| !c.is_digit(radix))
-        .unwrap_or(digits.len());
-    let v = u32::from_str_radix(&digits[..end], radix).unwrap_or(0);
-    write_out_dword(emu, out, v);
-    call.set_return(emu, 0);
-}
-
-fn RtlIntegerToUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let v = if symbol == "RtlIntegerToUnicodeString" {
-        api_try!(emu, call.arg_u32(emu, 0)) as u64
-    } else {
-        api_try!(emu, call.arg(emu, 0))
-    };
-    let base = api_try!(emu, call.arg_u32(emu, 1));
-    let dst = api_try!(emu, call.arg(emu, 2));
-    let s = match base {
-        16 => format!("{:x}", v),
-        8 => format!("{:o}", v),
-        2 => format!("{:b}", v),
-        _ => v.to_string(),
-    };
-    emu.maps.write_word(dst, 0);
-    let st = unicode_append(emu, dst, &utf16_bytes(&s));
-    call.set_return(emu, st);
-}
-
-fn RtlUnicodeToMultiByteN(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    // (MultiByteString, MaxBytes, *BytesInMultiByte, UnicodeString, BytesInUnicode)
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let max = api_try!(emu, call.arg(emu, 1));
-    let out = api_try!(emu, call.arg(emu, 2));
-    let src = api_try!(emu, call.arg(emu, 3));
-    let n = (api_try!(emu, call.arg_u32(emu, 4)) as u64) / 2;
-    let s = emu.maps.read_wide_string_n(src, n as usize);
-    let s = if symbol.contains("Upcase") {
-        s.to_uppercase()
-    } else {
-        s
-    };
-    let bytes = s.as_bytes();
-    let n = (bytes.len() as u64).min(max);
-    emu.maps.write_bytes(dst, &bytes[..n as usize]);
-    write_out_dword(emu, out, n as u32);
-    call.set_return(emu, 0);
-}
-
-fn RtlMultiByteToUnicodeN(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    // (UnicodeString, MaxBytes, *BytesInUnicode, MultiByteString, BytesInMultiByte)
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let max = api_try!(emu, call.arg(emu, 1));
-    let out = api_try!(emu, call.arg(emu, 2));
-    let src = api_try!(emu, call.arg(emu, 3));
-    let n = api_try!(emu, call.arg_u32(emu, 4)) as u64;
-    let bytes: Vec<u8> = (0..n)
-        .map(|i| emu.maps.read_byte(src + i).unwrap_or(0))
-        .collect();
-    let s = String::from_utf8_lossy(&bytes).to_string();
-    let wide = utf16_bytes(&s);
-    let n = (wide.len() as u64).min(max);
-    emu.maps.write_bytes(dst, &wide[..n as usize]);
-    write_out_dword(emu, out, n as u32);
-    call.set_return(emu, 0);
-}
-
-fn RtlUnicodeToMultiByteSize(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let v = match symbol {
-        "RtlUnicodeToMultiByteSize" => {
-            let out = api_try!(emu, call.arg(emu, 0));
-            let n = api_try!(emu, call.arg(emu, 2)) / 2;
-            write_out_dword(emu, out, n as u32);
-            0
-        }
-        "RtlMultiByteToUnicodeSize" => {
-            let out = api_try!(emu, call.arg(emu, 0));
-            let n = api_try!(emu, call.arg(emu, 2)) * 2;
-            write_out_dword(emu, out, n as u32);
-            0
-        }
-        "RtlxUnicodeStringToAnsiSize" => unicode_len(emu, api_try!(emu, call.arg(emu, 0))) / 2 + 1,
-        _ => unicode_len(emu, api_try!(emu, call.arg(emu, 0))) * 2 + 2,
-    };
-    call.set_return(emu, v);
-}
-
-fn RtlHashUnicodeString(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let s = read_unicode_string(emu, api_try!(emu, call.arg(emu, 0)));
-    let ci = api_try!(emu, call.arg(emu, 1)) != 0;
-    let out = api_try!(emu, call.arg(emu, 3));
-    let s = if ci { s.to_uppercase() } else { s };
-    let mut h: u32 = 0;
-    for c in s.encode_utf16() {
-        h = h.wrapping_mul(65599).wrapping_add(c as u32);
-    }
-    write_out_dword(emu, out, h);
-    call.set_return(emu, 0);
-}
-
-fn RtlStringFromGUID(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let guid = api_try!(emu, call.arg(emu, 0));
-    let dst = api_try!(emu, call.arg(emu, 1));
-    let d1 = emu.maps.read_dword(guid).unwrap_or(0);
-    let d2 = emu.maps.read_word(guid + 4).unwrap_or(0);
-    let d3 = emu.maps.read_word(guid + 6).unwrap_or(0);
-    let b: Vec<u8> = (0..8)
-        .map(|i| emu.maps.read_byte(guid + 8 + i).unwrap_or(0))
-        .collect();
-    let s = format!(
-        "{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}",
-        d1, d2, d3, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]
-    );
-    let (buf, len) = alloc_wide(emu, &s, symbol);
-    write_unicode_header(emu, dst, buf, len, len + 2);
-    call.set_return(emu, 0);
-}
-
-fn RtlGUIDFromString(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let s = read_unicode_string(emu, api_try!(emu, call.arg(emu, 0)));
-    let out = api_try!(emu, call.arg(emu, 1));
-    let hex: Vec<u8> = s
-        .chars()
-        .filter(|c| c.is_ascii_hexdigit())
-        .collect::<String>()
-        .as_bytes()
-        .chunks(2)
-        .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap_or("0"), 16).unwrap_or(0))
-        .collect();
-    if hex.len() == 16 {
-        emu.maps
-            .write_dword(out, u32::from_be_bytes([hex[0], hex[1], hex[2], hex[3]]));
-        emu.maps
-            .write_word(out + 4, u16::from_be_bytes([hex[4], hex[5]]));
-        emu.maps
-            .write_word(out + 6, u16::from_be_bytes([hex[6], hex[7]]));
-        emu.maps.write_bytes(out + 8, &hex[8..16]);
-        call.set_return(emu, 0);
-    } else {
-        call.set_return(emu, STATUS_INVALID_PARAMETER);
-    }
-}
-
-fn RtlGetVersion(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let info = api_try!(emu, call.arg(emu, 0));
-    fill_version_info(emu, info);
-    call.set_return(emu, 0);
-}
-
-fn RtlGetNtVersionNumbers(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let (a, b, c) = (
-        api_try!(emu, call.arg(emu, 0)),
-        api_try!(emu, call.arg(emu, 1)),
-        api_try!(emu, call.arg(emu, 2)),
-    );
-    write_out_dword(emu, a, OS_MAJOR);
-    write_out_dword(emu, b, OS_MINOR);
-    write_out_dword(emu, c, NT_BUILD_NUMBER as u32 | 0xF000_0000);
-    call.set_return(emu, 0);
-}
-
-fn RtlGetNtProductType(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let out = api_try!(emu, call.arg(emu, 0));
-    write_out_dword(emu, out, 1);
-    call.set_return(emu, 1);
-}
-
-fn registry_query_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let path = api_try!(emu, call.arg(emu, 1));
-    let name = if path != 0 {
-        emu.maps.read_wide_string(path)
-    } else {
-        String::new()
-    };
-    log::info!("{}: '{}'", symbol, name);
-    call.set_return(emu, STATUS_OBJECT_NAME_NOT_FOUND);
-}
-
-fn registry_update_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let path = api_try!(emu, call.arg(emu, 1));
-    let name = if path != 0 {
-        emu.maps.read_wide_string(path)
-    } else {
-        String::new()
-    };
-    log::info!("{}: '{}'", symbol, name);
-    call.set_return(emu, 0);
-}
-
-fn RtlFormatCurrentUserKeyPath(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let (buf, len) = alloc_wide(emu, "\\Registry\\User\\.DEFAULT", symbol);
-    write_unicode_header(emu, dst, buf, len, len + 2);
-    call.set_return(emu, 0);
-}
-
-fn RtlCreateSecurityDescriptor(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let rev = api_try!(emu, call.arg_u8(emu, 1));
-    emu.maps.write_bytes(sd, &[0u8; SD_ABSOLUTE_SIZE as usize]);
-    emu.maps.write_byte(sd + SD_REVISION, rev);
-    call.set_return(emu, 0);
-}
-
-fn RtlSetDaclSecurityDescriptor(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let present = api_try!(emu, call.arg(emu, 1)) != 0;
-    let acl = api_try!(emu, call.arg(emu, 2));
-    let defaulted = api_try!(emu, call.arg(emu, 3)) != 0;
-    let (off, present_bit, def_bit) = if symbol == "RtlSetDaclSecurityDescriptor" {
-        (SD_DACL, SE_DACL_PRESENT, SE_DACL_DEFAULTED)
-    } else {
-        (SD_SACL, SE_SACL_PRESENT, 0x20)
-    };
-    let mut ctl = emu.maps.read_word(sd + SD_CONTROL).unwrap_or(0) & !(present_bit | def_bit);
-    if present {
-        ctl |= present_bit;
-        emu.maps.write_qword(sd + off, acl);
-        if defaulted {
-            ctl |= def_bit;
-        }
-    } else {
-        emu.maps.write_qword(sd + off, 0);
-    }
-    emu.maps.write_word(sd + SD_CONTROL, ctl);
-    call.set_return(emu, 0);
-}
-
-fn RtlSetOwnerSecurityDescriptor(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let sid = api_try!(emu, call.arg(emu, 1));
-    let off = if symbol == "RtlSetOwnerSecurityDescriptor" {
-        SD_OWNER
-    } else {
-        SD_GROUP
-    };
-    emu.maps.write_qword(sd + off, sid);
-    call.set_return(emu, 0);
-}
-
-fn RtlGetDaclSecurityDescriptor(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    // (SD, *Present, *Acl, *Defaulted)
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let present_out = api_try!(emu, call.arg(emu, 1));
-    let acl_out = api_try!(emu, call.arg(emu, 2));
-    let def_out = api_try!(emu, call.arg(emu, 3));
-    let (off, bit) = if symbol == "RtlGetDaclSecurityDescriptor" {
-        (SD_DACL, SE_DACL_PRESENT)
-    } else {
-        (SD_SACL, SE_SACL_PRESENT)
-    };
-    let ctl = emu.maps.read_word(sd + SD_CONTROL).unwrap_or(0);
-    let present = ctl & bit != 0;
-    let acl = if present {
-        emu.maps.read_qword(sd + off).unwrap_or(0)
-    } else {
-        0
-    };
-    if present_out != 0 {
-        emu.maps.write_byte(present_out, present as u8);
-    }
-    write_out_qword(emu, acl_out, acl);
-    if def_out != 0 {
-        emu.maps.write_byte(def_out, 0);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlGetOwnerSecurityDescriptor(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let sid_out = api_try!(emu, call.arg(emu, 1));
-    let def_out = api_try!(emu, call.arg(emu, 2));
-    let off = if symbol == "RtlGetOwnerSecurityDescriptor" {
-        SD_OWNER
-    } else {
-        SD_GROUP
-    };
-    let sid = emu.maps.read_qword(sd + off).unwrap_or(0);
-    write_out_qword(emu, sid_out, sid);
-    if def_out != 0 {
-        emu.maps.write_byte(def_out, 0);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlLengthSecurityDescriptor(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sd = api_try!(emu, call.arg(emu, 0));
-    let n = sd_self_relative_size(emu, sd);
-    call.set_return(emu, n);
-}
-
-fn RtlAbsoluteToSelfRelativeSD(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let abs = api_try!(emu, call.arg(emu, 0));
-    let rel = api_try!(emu, call.arg(emu, 1));
-    let len_ptr = api_try!(emu, call.arg(emu, 2));
-    let need = sd_self_relative_size(emu, abs);
-    let have = emu.maps.read_dword(len_ptr).unwrap_or(0) as u64;
-    if have < need || rel == 0 {
-        write_out_dword(emu, len_ptr, need as u32);
-        call.set_return(emu, STATUS_BUFFER_TOO_SMALL);
-        return;
-    }
-    // Self-relative header is 0x14 bytes: Revision, Sbz1, Control,
-    // then four u32 offsets (Owner, Group, Sacl, Dacl).
-    emu.maps.write_bytes(rel, &vec![0u8; need as usize]);
-    emu.maps
-        .write_byte(rel, emu.maps.read_byte(abs).unwrap_or(1));
-    let ctl = emu.maps.read_word(abs + SD_CONTROL).unwrap_or(0) | SE_SELF_RELATIVE;
-    emu.maps.write_word(rel + 2, ctl);
-    let mut cursor = 0x14u64;
-    for (i, part) in [SD_OWNER, SD_GROUP, SD_SACL, SD_DACL].iter().enumerate() {
-        let p = emu.maps.read_qword(abs + part).unwrap_or(0);
-        if p == 0 || !emu.maps.is_mapped(p) {
-            continue;
-        }
-        let n = if i < 2 {
-            sid_length(emu, p)
-        } else {
-            emu.maps.read_word(p + ACL_SIZE).unwrap_or(0) as u64
-        };
-        emu.maps.memcpy(rel + cursor, p, n as usize);
-        emu.maps.write_dword(rel + 4 + i as u64 * 4, cursor as u32);
-        cursor += n;
-    }
-    write_out_dword(emu, len_ptr, need as u32);
-    call.set_return(emu, 0);
-}
-
-fn return_not_supported(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    call.set_return(emu, STATUS_NOT_SUPPORTED);
-}
-
-fn RtlCreateAcl(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let acl = api_try!(emu, call.arg(emu, 0));
-    let len = api_try!(emu, call.arg(emu, 1));
-    let rev = api_try!(emu, call.arg_u8(emu, 2));
-    emu.maps
-        .write_bytes(acl, &vec![0u8; len.min(0x10000) as usize]);
-    emu.maps.write_byte(acl, rev);
-    emu.maps.write_word(acl + ACL_SIZE, len as u16);
-    emu.maps.write_word(acl + ACL_ACE_COUNT, 0);
-    call.set_return(emu, 0);
-}
-
-fn RtlAddAccessAllowedAce(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let acl = api_try!(emu, call.arg(emu, 0));
-    let ex = symbol.ends_with("Ex") || symbol == "RtlAddMandatoryAce";
-    let (mask, sid) = if ex {
-        (
-            api_try!(emu, call.arg_u32(emu, 3)),
-            api_try!(emu, call.arg(emu, 4)),
-        )
-    } else {
-        (
-            api_try!(emu, call.arg_u32(emu, 2)),
-            api_try!(emu, call.arg(emu, 3)),
-        )
-    };
-    let ace_type = if symbol.contains("Denied") {
-        1
-    } else if symbol.contains("Mandatory") {
-        0x11
-    } else {
-        0
-    };
-    let st = add_ace(emu, acl, ace_type, mask, sid);
-    call.set_return(emu, st);
-}
-
-fn RtlGetAce(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let acl = api_try!(emu, call.arg(emu, 0));
-    let idx = api_try!(emu, call.arg(emu, 1));
-    let out = api_try!(emu, call.arg(emu, 2));
-    let count = emu.maps.read_word(acl + ACL_ACE_COUNT).unwrap_or(0) as u64;
-    if idx >= count {
-        call.set_return(emu, STATUS_INVALID_PARAMETER);
-        return;
-    }
-    let mut off = ACL_HEADER_SIZE;
-    for _ in 0..idx {
-        off += emu.maps.read_word(acl + off + 2).unwrap_or(0) as u64;
-    }
-    write_out_qword(emu, out, acl + off);
-    call.set_return(emu, 0);
-}
-
-fn RtlLengthSid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sid = api_try!(emu, call.arg(emu, 0));
-    let n = sid_length(emu, sid);
-    call.set_return(emu, n);
-}
-
-fn RtlLengthRequiredSid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let n = api_try!(emu, call.arg(emu, 0));
-    call.set_return(emu, 8 + 4 * n);
-}
-
-fn RtlInitializeSid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sid = api_try!(emu, call.arg(emu, 0));
-    let auth = api_try!(emu, call.arg(emu, 1));
-    let count = api_try!(emu, call.arg_u8(emu, 2));
-    emu.maps.write_byte(sid, 1);
-    emu.maps.write_byte(sid + 1, count);
-    if auth != 0 {
-        emu.maps.memcpy(sid + 2, auth, 6);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlSubAuthoritySid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sid = api_try!(emu, call.arg(emu, 0));
-    let i = api_try!(emu, call.arg(emu, 1));
-    call.set_return(emu, sid + 8 + 4 * i);
-}
-
-fn RtlSubAuthorityCountSid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let sid = api_try!(emu, call.arg(emu, 0));
-    call.set_return(emu, sid + 1);
-}
-
-fn RtlCopySid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let len = api_try!(emu, call.arg(emu, 0));
-    let dst = api_try!(emu, call.arg(emu, 1));
-    let src = api_try!(emu, call.arg(emu, 2));
-    let n = sid_length(emu, src);
-    if n > len {
-        call.set_return(emu, STATUS_BUFFER_TOO_SMALL);
-    } else {
-        emu.maps.memcpy(dst, src, n as usize);
-        call.set_return(emu, 0);
-    }
-}
-
-fn RtlEqualSid(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let a = api_try!(emu, call.arg(emu, 0));
-    let b = api_try!(emu, call.arg(emu, 1));
-    let n = sid_length(emu, a);
-    let eq = n == sid_length(emu, b)
-        && (0..n).all(|i| emu.maps.read_byte(a + i) == emu.maps.read_byte(b + i));
-    call.set_return(emu, eq as u64);
-}
-
-fn RtlConvertSidToUnicodeString(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let dst = api_try!(emu, call.arg(emu, 0));
-    let sid = api_try!(emu, call.arg(emu, 1));
-    let alloc = api_try!(emu, call.arg(emu, 2)) != 0;
-    let count = emu.maps.read_byte(sid + 1).unwrap_or(0) as u64;
-    let auth = emu.maps.read_byte(sid + 7).unwrap_or(0);
-    let mut s = format!("S-1-{}", auth);
-    for i in 0..count {
-        s.push_str(&format!(
-            "-{}",
-            emu.maps.read_dword(sid + 8 + 4 * i).unwrap_or(0)
-        ));
-    }
-    if alloc {
-        let (buf, len) = alloc_wide(emu, &s, symbol);
-        write_unicode_header(emu, dst, buf, len, len + 2);
-    } else {
-        emu.maps.write_word(dst, 0);
-        unicode_append(emu, dst, &utf16_bytes(&s));
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlImageNtHeader(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let base = if symbol == "RtlImageNtHeader" {
-        api_try!(emu, call.arg(emu, 0))
-    } else {
-        api_try!(emu, call.arg(emu, 1))
-    };
-    let out = api_try!(emu, call.arg(emu, 3));
-    let nt = if emu.maps.read_word(base) == Some(DOS_MAGIC) {
-        base + emu.maps.read_dword(base + 0x3c).unwrap_or(0) as u64
-    } else {
-        0
-    };
-    if symbol == "RtlImageNtHeader" {
-        call.set_return(emu, nt);
-    } else {
-        write_out_qword(emu, out, nt);
-        call.set_return(
-            emu,
-            if nt != 0 {
-                STATUS_SUCCESS
-            } else {
-                STATUS_INVALID_IMAGE_FORMAT
-            },
-        );
-    }
-}
-
-fn RtlImageDirectoryEntryToData(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let base = api_try!(emu, call.arg(emu, 0));
-    let dir = api_try!(emu, call.arg(emu, 2));
-    let size_out = api_try!(emu, call.arg(emu, 3));
-    let mut result = 0;
-    if emu.maps.read_word(base) == Some(DOS_MAGIC) {
-        let nt = base + emu.maps.read_dword(base + 0x3c).unwrap_or(0) as u64;
-        let magic = emu.maps.read_word(nt + 0x18).unwrap_or(0);
-        let dirs = if magic == MAGIC_64 {
-            nt + 0x18 + 0x70
-        } else {
-            nt + 0x18 + 0x60
-        };
-        let rva = emu.maps.read_dword(dirs + dir * 8).unwrap_or(0) as u64;
-        let size = emu.maps.read_dword(dirs + dir * 8 + 4).unwrap_or(0);
-        if rva != 0 {
-            result = base + rva;
-            write_out_dword(emu, size_out, size);
-        }
-    }
-    call.set_return(emu, result);
-}
-
-fn image_lookup_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    if symbol == "RtlPcToFileHeader" {
-        let out = api_try!(emu, call.arg(emu, 1));
-        let base = emu.kernel.as_ref().map(|k| k.module.base).unwrap_or(0);
-        write_out_qword(emu, out, base);
-        call.set_return(emu, base);
-    } else {
-        call.set_return(emu, 0);
-    }
-}
-
-fn exception_abort(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let what = if symbol == "RtlRaiseStatus" {
-        format!("status 0x{:x}", api_try!(emu, call.arg(emu, 0)))
-    } else {
-        "exception record".to_string()
-    };
-    emu.kernel_abort(format!(
-        "{} ({}) — no SEH dispatch in kernel mode",
-        symbol, what
-    ));
-}
-
-fn RtlAssert(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let msg = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
-    let file = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
-    let line = api_try!(emu, call.arg(emu, 2));
-    emu.kernel_log_line(format!("ASSERT {} at {}:{}", msg, file, line));
-    call.set_return(emu, 0);
-}
-
-fn RtlInitializeBitMap(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let buf = api_try!(emu, call.arg(emu, 1));
-    let bits = api_try!(emu, call.arg_u32(emu, 2));
-    emu.maps.write_dword(bm, bits);
-    emu.maps.write_qword(bm + 8, buf);
-    call.set_return(emu, 0);
-}
-
-fn RtlClearAllBits(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
-    let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
-    let v = if symbol == "RtlSetAllBits" { 0xff } else { 0 };
-    emu.maps
-        .write_bytes(buf, &vec![v; bits.div_ceil(8) as usize]);
-    call.set_return(emu, 0);
-}
-
-fn RtlSetBit(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let bit = api_try!(emu, call.arg(emu, 1));
-    let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
-    let byte = buf + bit / 8;
-    let mut v = emu.maps.read_byte(byte).unwrap_or(0);
-    let mask = 1u8 << (bit % 8);
-    match symbol {
-        "RtlSetBit" => {
-            v |= mask;
-            emu.maps.write_byte(byte, v);
-            call.set_return(emu, 0);
-        }
-        "RtlClearBit" => {
-            v &= !mask;
-            emu.maps.write_byte(byte, v);
-            call.set_return(emu, 0);
-        }
-        _ => call.set_return(emu, (v & mask != 0) as u64),
-    }
-}
-
-fn RtlSetBits(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let start = api_try!(emu, call.arg(emu, 1));
-    let n = api_try!(emu, call.arg(emu, 2));
-    let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
-    for bit in start..start + n {
-        let byte = buf + bit / 8;
-        let mut v = emu.maps.read_byte(byte).unwrap_or(0);
-        if symbol == "RtlSetBits" {
-            v |= 1 << (bit % 8);
-        } else {
-            v &= !(1 << (bit % 8));
-        }
-        emu.maps.write_byte(byte, v);
-    }
-    call.set_return(emu, 0);
-}
-
-fn RtlFindClearBits(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let n = api_try!(emu, call.arg(emu, 1)).max(1);
-    let want_set = symbol.contains("SetBits");
-    let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
-    let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
-    let get = |emu: &Emu, bit: u64| {
-        emu.maps.read_byte(buf + bit / 8).unwrap_or(0) & (1 << (bit % 8)) != 0
-    };
-    let mut found = 0xffff_ffffu64;
-    let mut run = 0;
-    for bit in 0..bits {
-        if get(emu, bit) == want_set {
-            run += 1;
-            if run == n {
-                found = bit + 1 - n;
-                break;
-            }
-        } else {
-            run = 0;
-        }
-    }
-    if found != 0xffff_ffff && (symbol.ends_with("AndSet") || symbol.ends_with("AndClear")) {
-        for bit in found..found + n {
-            let byte = buf + bit / 8;
-            let mut v = emu.maps.read_byte(byte).unwrap_or(0);
-            if symbol.ends_with("AndSet") {
-                v |= 1 << (bit % 8);
-            } else {
-                v &= !(1 << (bit % 8));
-            }
-            emu.maps.write_byte(byte, v);
-        }
-    }
-    call.set_return(emu, found);
-}
-
-fn RtlNumberOfSetBits(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let bm = api_try!(emu, call.arg(emu, 0));
-    let bits = emu.maps.read_dword(bm).unwrap_or(0) as u64;
-    let buf = emu.maps.read_qword(bm + 8).unwrap_or(0);
-    let set = (0..bits)
-        .filter(|bit| emu.maps.read_byte(buf + bit / 8).unwrap_or(0) & (1 << (bit % 8)) != 0)
-        .count() as u64;
-    call.set_return(
-        emu,
-        if symbol == "RtlNumberOfSetBits" {
-            set
-        } else {
-            bits - set
-        },
-    );
-}
-
-fn RtlTimeToTimeFields(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let t = emu
-        .maps
-        .read_qword(api_try!(emu, call.arg(emu, 0)))
-        .unwrap_or(0);
-    let out = api_try!(emu, call.arg(emu, 1));
-    // Only the fields a log line needs: seconds since 1601 split up.
-    let secs = t / 10_000_000;
-    let days = secs / 86400;
-    let (y, m, d) = civil_from_days(days as i64 - 134774); // 1601 -> 1970 offset
-    emu.maps.write_word(out, y as u16);
-    emu.maps.write_word(out + 2, m as u16);
-    emu.maps.write_word(out + 4, d as u16);
-    emu.maps.write_word(out + 6, ((secs / 3600) % 24) as u16);
-    emu.maps.write_word(out + 8, ((secs / 60) % 60) as u16);
-    emu.maps.write_word(out + 10, (secs % 60) as u16);
-    emu.maps.write_word(out + 12, ((t / 10_000) % 1000) as u16);
-    emu.maps.write_word(out + 14, ((days + 1) % 7) as u16);
-    call.set_return(emu, 0);
-}
-
-fn RtlTimeFieldsToTime(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let out = api_try!(emu, call.arg(emu, 1));
-    emu.maps.write_qword(out, system_time_now());
-    call.set_return(emu, 1);
-}
-
-fn RtlRandom(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let seed_ptr = api_try!(emu, call.arg(emu, 0));
-    let seed = emu.maps.read_dword(seed_ptr).unwrap_or(1);
-    let next = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
-    emu.maps.write_dword(seed_ptr, next);
-    call.set_return(emu, (next >> 1) as u64);
-}
-
-fn feature_configuration_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    call.set_return(
-        emu,
-        if symbol == "RtlQueryFeatureConfiguration" {
-            STATUS_NOT_FOUND
-        } else {
-            0
-        },
-    );
-}
-
-fn table_initialize_stub(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let t = api_try!(emu, call.arg(emu, 0));
-    emu.maps.write_bytes(t, &[0u8; 0x40]);
-    call.set_return(emu, 0);
-}
-
-fn table_insert_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let buf = api_try!(emu, call.arg(emu, 1));
-    let size = api_try!(emu, call.arg(emu, 2));
-    let new_out = api_try!(emu, call.arg(emu, 3));
-    let e = emu.kernel_alloc(Region::Slab, size.max(1), "generic-table", symbol, true);
-    if e != 0 {
-        emu.maps.memcpy(e, buf, size as usize);
-    }
-    if new_out != 0 {
-        emu.maps.write_byte(new_out, 1);
-    }
-    call.set_return(emu, e);
-}
-
-fn table_count_stub(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    call.set_return(emu, 0);
-}
-
-fn FsRtlIsNameInExpression(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let expr_us = api_try!(emu, call.arg(emu, 0));
-    let name_us = api_try!(emu, call.arg(emu, 1));
-    let ignore_case = api_try!(emu, call.arg(emu, 2)) != 0;
-    let expr = read_unicode_string(emu, expr_us);
-    let name = read_unicode_string(emu, name_us);
-    let result = fsrtl_name_match(&expr, &name, ignore_case);
-    log::info!(
-        "FsRtlIsNameInExpression: '{}' vs '{}' case_insensitive={} -> {}",
-        expr,
-        name,
-        ignore_case,
-        result
-    );
-    call.set_return(emu, result as u64);
-}
-
-fn FsRtlIsDbcsInExpression(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let expr = read_ansi_string(emu, api_try!(emu, call.arg(emu, 0)));
-    let name = read_ansi_string(emu, api_try!(emu, call.arg(emu, 1)));
-    let result = fsrtl_name_match(&expr, &name, false);
-    call.set_return(emu, result as u64);
-}
-
-fn filesystem_allocation_stub(emu: &mut Emu, symbol: &str) {
-    let call = WinApi(Stdcall);
-    let size = match symbol {
-        "FsRtlAllocatePoolWithTag" => api_try!(emu, call.arg(emu, 1)).max(1),
-        _ => 0x100,
-    };
-    let p = emu.kernel_alloc(Region::Slab, size, "fsrtl", symbol, true);
-    call.set_return(emu, p);
-}
-
-fn FsRtlAreNamesEqual(emu: &mut Emu, _symbol: &str) {
-    let call = WinApi(Stdcall);
-    let a = read_unicode_string(emu, api_try!(emu, call.arg(emu, 0)));
-    let b = read_unicode_string(emu, api_try!(emu, call.arg(emu, 1)));
-    let ignore_case = api_try!(emu, call.arg(emu, 2)) != 0;
-    let eq = if ignore_case {
-        a.eq_ignore_ascii_case(&b)
-    } else {
-        a == b
-    };
-    call.set_return(emu, eq as u64);
+    true
 }
 
 /// NTFS/FsRtl wildcard matching: `*` matches any sequence, `?` matches
@@ -1556,6 +1310,167 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-fn initialize_counted_string(emu: &mut Emu, symbol: &str) {
-    ntdll::dispatch_counted_string(symbol, "ntoskrnl", emu);
-}
+pub const SURFACE: &[&str] = &[
+    "RtlCopyMemory",
+    "RtlMoveMemory",
+    "RtlZeroMemory",
+    "RtlSecureZeroMemory",
+    "RtlFillMemory",
+    "RtlCompareMemory",
+    "RtlEqualMemory",
+    "RtlInitUnicodeString",
+    "RtlInitUnicodeStringEx",
+    "RtlInitAnsiString",
+    "RtlInitString",
+    "RtlInitUTF8String",
+    "RtlCopyUnicodeString",
+    "RtlCopyString",
+    "RtlAppendUnicodeStringToString",
+    "RtlAppendUnicodeToString",
+    "RtlAppendStringToString",
+    "RtlCompareUnicodeString",
+    "RtlCompareString",
+    "RtlEqualUnicodeString",
+    "RtlEqualString",
+    "RtlPrefixUnicodeString",
+    "RtlPrefixString",
+    "RtlUpcaseUnicodeString",
+    "RtlDowncaseUnicodeString",
+    "RtlUpcaseUnicodeChar",
+    "RtlDowncaseUnicodeChar",
+    "RtlAnsiCharToUnicodeChar",
+    "RtlAnsiStringToUnicodeString",
+    "RtlUnicodeStringToAnsiString",
+    "RtlUTF8StringToUnicodeString",
+    "RtlUnicodeStringToUTF8String",
+    "RtlFreeUnicodeString",
+    "RtlFreeAnsiString",
+    "RtlFreeUTF8String",
+    "RtlUnicodeStringToInteger",
+    "RtlCharToInteger",
+    "RtlIntegerToUnicodeString",
+    "RtlInt64ToUnicodeString",
+    "RtlUnicodeToMultiByteN",
+    "RtlUpcaseUnicodeToMultiByteN",
+    "RtlMultiByteToUnicodeN",
+    "RtlUnicodeToMultiByteSize",
+    "RtlMultiByteToUnicodeSize",
+    "RtlxUnicodeStringToAnsiSize",
+    "RtlxAnsiStringToUnicodeSize",
+    "RtlHashUnicodeString",
+    "RtlStringFromGUID",
+    "RtlGUIDFromString",
+    "RtlGetVersion",
+    "RtlVerifyVersionInfo",
+    "RtlIsNtDdiVersionAvailable",
+    "RtlGetNtVersionNumbers",
+    "RtlGetNtProductType",
+    "RtlQueryRegistryValues",
+    "RtlQueryRegistryValuesEx",
+    "RtlWriteRegistryValue",
+    "RtlCreateRegistryKey",
+    "RtlDeleteRegistryValue",
+    "RtlCheckRegistryKey",
+    "RtlFormatCurrentUserKeyPath",
+    "RtlCreateSecurityDescriptor",
+    "RtlSetDaclSecurityDescriptor",
+    "RtlSetSaclSecurityDescriptor",
+    "RtlSetOwnerSecurityDescriptor",
+    "RtlSetGroupSecurityDescriptor",
+    "RtlGetDaclSecurityDescriptor",
+    "RtlGetSaclSecurityDescriptor",
+    "RtlGetOwnerSecurityDescriptor",
+    "RtlGetGroupSecurityDescriptor",
+    "RtlLengthSecurityDescriptor",
+    "RtlValidSecurityDescriptor",
+    "RtlValidRelativeSecurityDescriptor",
+    "RtlAbsoluteToSelfRelativeSD",
+    "RtlMakeSelfRelativeSD",
+    "RtlCreateAcl",
+    "RtlAddAccessAllowedAce",
+    "RtlAddAccessAllowedAceEx",
+    "RtlAddAccessDeniedAce",
+    "RtlAddMandatoryAce",
+    "RtlGetAce",
+    "RtlValidAcl",
+    "RtlLengthSid",
+    "RtlLengthRequiredSid",
+    "RtlInitializeSid",
+    "RtlSubAuthoritySid",
+    "RtlSubAuthorityCountSid",
+    "RtlCopySid",
+    "RtlEqualSid",
+    "RtlValidSid",
+    "RtlConvertSidToUnicodeString",
+    "RtlImageNtHeader",
+    "RtlImageNtHeaderEx",
+    "RtlImageDirectoryEntryToData",
+    "RtlLookupFunctionEntry",
+    "RtlPcToFileHeader",
+    "RtlVirtualUnwind",
+    "RtlWalkFrameChain",
+    "RtlCaptureStackBackTrace",
+    "RtlCaptureContext",
+    "RtlUnwind",
+    "RtlUnwindEx",
+    "RtlRaiseException",
+    "RtlRaiseStatus",
+    "RtlAssert",
+    "RtlInitializeBitMap",
+    "RtlClearAllBits",
+    "RtlSetAllBits",
+    "RtlSetBit",
+    "RtlClearBit",
+    "RtlTestBit",
+    "RtlSetBits",
+    "RtlClearBits",
+    "RtlFindClearBits",
+    "RtlFindClearBitsAndSet",
+    "RtlFindSetBits",
+    "RtlFindSetBitsAndClear",
+    "RtlFindNextForwardRunClear",
+    "RtlNumberOfSetBits",
+    "RtlNumberOfClearBits",
+    "RtlTimeToTimeFields",
+    "RtlTimeFieldsToTime",
+    "RtlRandom",
+    "RtlRandomEx",
+    "RtlQueryFeatureConfiguration",
+    "RtlNotifyFeatureUsage",
+    "RtlIsGenericTableEmptyAvl",
+    "RtlInitializeGenericTableAvl",
+    "RtlInsertElementGenericTableAvl",
+    "RtlLookupElementGenericTableAvl",
+    "RtlDeleteElementGenericTableAvl",
+    "RtlEnumerateGenericTableAvl",
+    "RtlNumberGenericTableElementsAvl",
+    "RtlIsNameLegalDOS8Dot3",
+    "FsRtlIsNameInExpression",
+    "FsRtlIsNameInExpressionPrivate",
+    "FsRtlIsDbcsInExpression",
+    "FsRtlAreNamesEqual",
+    "FsRtlIsNtstatusExpected",
+    "FsRtlIsPagingFile",
+    "FsRtlIsSystemPagingFile",
+    "FsRtlNotifyVolumeEvent",
+    "FsRtlNotifyCleanup",
+    "FsRtlNotifyFilterChangeDirectory",
+    "FsRtlNotifyFilterReportChange",
+    "FsRtlNotifyFullChangeDirectory",
+    "FsRtlNotifyFullReportChange",
+    "FsRtlNotifyInitializeSync",
+    "FsRtlNotifyUninitializeSync",
+    "FsRtlRegisterFileSystemFilterCallbacks",
+    "FsRtlRegisterUncProvider",
+    "FsRtlRegisterUncProviderEx",
+    "FsRtlDeregisterUncProvider",
+    "FsRtlCancellableWaitForSingleObject",
+    "FsRtlCancellableWaitForMultipleObjects",
+    "FsRtlAllocateExtraCreateParameterList",
+    "FsRtlAllocateExtraCreateParameter",
+    "FsRtlFreeExtraCreateParameter",
+    "FsRtlFreeExtraCreateParameterList",
+    "FsRtlTeardownPerStreamContexts",
+    "FsRtlAcquireFileExclusive",
+    "FsRtlReleaseFile",
+];

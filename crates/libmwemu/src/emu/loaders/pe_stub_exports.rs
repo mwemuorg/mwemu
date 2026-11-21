@@ -1,7 +1,5 @@
-use std::borrow::Cow;
-
-use crate::arch::Arch;
-
+/// Export catalogs for PE32 stub DLLs.
+/// Each function returns the list of export names for a system DLL stub.
 pub fn kernel32_exports() -> &'static [&'static str] {
     &[
         "VirtualAlloc",
@@ -298,6 +296,9 @@ pub fn ntdll_exports() -> &'static [&'static str] {
         "RtlAddVectoredExceptionHandler",
         "NtQuerySystemInformation",
         "RtlCaptureContext",
+        "RtlLookupFunctionEntry",
+        "RtlVirtualUnwind",
+        "RtlAddFunctionTable",
     ]
 }
 
@@ -344,7 +345,6 @@ pub fn ws2_32_exports() -> &'static [&'static str] {
         "WSAGetLastError",
         "WSASetLastError",
         "WSAIoctl",
-        "WSAEventSelect",
     ]
 }
 
@@ -390,13 +390,6 @@ pub fn advapi32_exports() -> &'static [&'static str] {
         "LookupPrivilegeValueA",
         "OpenThreadToken",
         "RevertToSelf",
-        "BaseRegOpenKey",
-        "BaseRegCloseKey",
-        "BaseRegDeleteKeyEx",
-        "BaseRegDeleteValue",
-        "BaseRegFlushKey",
-        "SystemFunction036",
-        "FindFirstFreeAce",
     ]
 }
 
@@ -463,7 +456,7 @@ pub fn winhttp_exports() -> &'static [&'static str] {
 }
 
 /// Look up the stub export list for a DLL name (case-insensitive basename).
-pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'static str]>> {
+pub fn get_stub_exports(dll_name: &str) -> Option<&'static [&'static str]> {
     let lower = dll_name.to_ascii_lowercase();
     let base = lower
         .rsplit('/')
@@ -473,7 +466,7 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         .next()
         .unwrap_or(&lower)
         .trim_end_matches(".dll");
-    let common = match base {
+    match base {
         "kernel32" => Some(kernel32_exports()),
         "ntdll" => Some(ntdll_exports()),
         "kernelbase" => Some(kernelbase_exports()),
@@ -484,7 +477,6 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         "iphlpapi" => Some(iphlpapi_exports()),
         "user32" => Some(user32_exports()),
         "winhttp" => Some(winhttp_exports()),
-        "cryptbase" => Some(cryptbase_exports()),
         "bcryptprimitives" => Some(bcryptprimitives_exports()),
         "winmm" => Some(winmm_exports()),
         "mscoree" => Some(mscoree_exports()),
@@ -495,21 +487,7 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         "urlmon" => Some(urlmon_exports()),
         "gdiplus" => Some(gdiplus_exports()),
         _ => None,
-    }?;
-    let extra: &[&str] = match (arch.is_64bits(), base) {
-        (true, "ntdll") => &[
-            "RtlLookupFunctionEntry",
-            "RtlVirtualUnwind",
-            "RtlAddFunctionTable",
-        ],
-        (true, "kernel32") => &["RtlLookupFunctionEntry"],
-        _ => return Some(Cow::Borrowed(common)),
-    };
-    Some(Cow::Owned([common, extra].concat()))
-}
-
-fn cryptbase_exports() -> &'static [&'static str] {
-    &["SystemFunction036"]
+    }
 }
 
 fn bcryptprimitives_exports() -> &'static [&'static str] {

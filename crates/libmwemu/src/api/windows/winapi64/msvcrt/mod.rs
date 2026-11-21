@@ -2,8 +2,7 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::buffers::BufferKind;
 use crate::winapi::common::buffers;
-use crate::winapi::common::crt::{self, Runtime::Msvcrt};
-use crate::winapi::common::crt_stdio;
+use crate::winapi::common::crt;
 use crate::winapi::winapi64::kernel32;
 
 mod io;
@@ -27,8 +26,6 @@ fn release(emu: &mut emu::Emu, addr: u64) {
 }
 
 // --- Native execution helpers (kept from the original 64-bit msvcrt) ---
-
-pub(crate) const SYNTHETIC_TEXT: &str = "msvcrt.stub";
 
 const NATIVE_SECTIONS: [&str; 2] = ["msvcrt.text", "msvcrtfothk"];
 
@@ -66,10 +63,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
-    if crt::dispatch(api, emu)
-        || crt::dispatch_runtime(api, emu, Msvcrt)
-        || crt_stdio::gateway(api, emu, Msvcrt)
-    {
+    if crt::dispatch(api, emu) {
         return String::new();
     }
     if runtime::dispatch(api, emu)

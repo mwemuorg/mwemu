@@ -1,0 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
+use crate::emu;
+use crate::winapi::policy::api_try;
+
+pub fn _sprintf_p(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let buf_size = api_try!(emu, call.arg(emu, 1)) as usize;
+    let fmt_ptr = api_try!(emu, call.arg(emu, 2));
+    let fmt = emu.maps.read_string(fmt_ptr);
+    if buf != 0 {
+        emu.maps.write_string(buf, &fmt);
+    }
+    log_red!(emu, "wincrt!_sprintf_p buf:0x{:x} fmt:'{}'", buf, fmt);
+    call.set_return(emu, fmt.len() as u64);
+}

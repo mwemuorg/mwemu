@@ -29,7 +29,7 @@ pub(crate) trait FormatLoader {
 /// asked for instead of the image's own entry point.
 pub(crate) fn apply_entry_point_override(emu: &mut Emu) {
     if emu.cfg.entry_point != CFG_DEFAULT_BASE {
-        emu.set_pc(emu.cfg.entry_point);
+        emu.regs_mut().rip = emu.cfg.entry_point;
     }
 }
 

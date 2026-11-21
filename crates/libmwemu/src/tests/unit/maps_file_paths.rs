@@ -111,11 +111,6 @@ fn open_known_dll(emu: &mut Emu, name: &str, relative: bool) -> u64 {
     let object_attributes = args + 0x10;
     let unicode_string = args + 0x50;
     let buffer = args + 0x100;
-    emu.maps.write_dword(object_attributes, 48);
-    emu.maps.write_word(
-        unicode_string + 2,
-        (name.encode_utf16().count() as u16 + 1) * 2,
-    );
     if relative {
         let directory = 0x1234;
         emu.known_dll_dir_handles.insert(directory);

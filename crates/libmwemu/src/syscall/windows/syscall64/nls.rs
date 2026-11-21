@@ -11,10 +11,8 @@
 //! files placed in `cfg.maps_folder` (`locale.nls`, `C_1252.NLS`, etc.) and
 //! mapping them at the addresses ntdll expects.
 
-use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 /// Default LCID we report — `0x407` is `de-DE`, but every Windows we've seen
@@ -23,21 +21,24 @@ use crate::windows::constants::errors::*;
 /// loading.
 const DEFAULT_LOCALE_ID: u32 = 0x0409;
 
-const NLS_SECTION_TYPE_CODEPAGE: u32 = 11;
+const NLS_SECTION_TYPE_CODEPAGE: u64 = 11;
 
 /// `NtInitializeNlsFiles(PVOID *BaseAddress, PLCID DefaultLocaleId, PLARGE_INTEGER DefaultCasingTableSize)`.
 ///
 /// Loads `locale.nls` from `cfg.maps_folder` and writes its mapped base back
 /// to the caller. ntdll uses this to find the Unicode case-mapping tables.
 pub fn nt_initialize_nls_files(emu: &mut Emu) {
-    let call = WinSyscall;
-    let [base_address_out, locale_id_out, casing_size_out] = api_try!(emu, call.args(emu));
-    if !emu.maps.validate_write_range(base_address_out, 8)
-        || !emu.maps.validate_write_range(locale_id_out, 4)
-        || (casing_size_out != 0 && !emu.maps.validate_write_range(casing_size_out, 8))
-    {
-        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
-    }
+    let base_address_out = emu.regs().rcx;
+    let locale_id_out = emu.regs().rdx;
+    let casing_size_out = emu.regs().r8;
+
+    log_orange!(
+        emu,
+        "syscall 0x108: NtInitializeNlsFiles base_addr_out: 0x{:x} locale_id_out: 0x{:x} casing_size_out: 0x{:x}",
+        base_address_out,
+        locale_id_out,
+        casing_size_out,
+    );
 
     let path = emu.cfg.get_maps_folder("locale.nls");
     let bytes = match std::fs::read(&path) {
@@ -60,10 +61,16 @@ pub fn nt_initialize_nls_files(emu: &mut Emu) {
         }
     };
 
-    emu.maps.write_qword(base_address_out, base);
-    emu.maps.write_dword(locale_id_out, DEFAULT_LOCALE_ID);
-    if casing_size_out != 0 {
-        emu.maps.write_qword(casing_size_out, bytes.len() as u64);
+    if base_address_out != 0 && emu.maps.is_mapped(base_address_out) {
+        let _ = emu.maps.write_qword(base_address_out, base);
+    }
+    if locale_id_out != 0 && emu.maps.is_mapped(locale_id_out) {
+        let _ = emu.maps.write_dword(locale_id_out, DEFAULT_LOCALE_ID);
+    }
+    if casing_size_out != 0 && emu.maps.is_mapped(casing_size_out) {
+        // LARGE_INTEGER (8 bytes). Use the file size as a reasonable upper
+        // bound; ntdll uses this to validate the table extent.
+        let _ = emu.maps.write_qword(casing_size_out, bytes.len() as u64);
     }
 
     log::trace!(
@@ -76,32 +83,37 @@ pub fn nt_initialize_nls_files(emu: &mut Emu) {
 }
 
 /// `NtGetNlsSectionPtr(ULONG SectionType, ULONG SectionData, PVOID ContextData,
-///                    PVOID *SectionPointer, PSIZE_T SectionSize)`.
+///                    PVOID *SectionPointer, PULONG SectionSize)`.
 ///
 /// `SectionType == 11` is the codepage-section variant; `SectionData` holds
 /// the codepage number (1252, 437, …). Maps the corresponding `C_<n>.NLS`
 /// from `cfg.maps_folder`.
 pub fn nt_get_nls_section_ptr(emu: &mut Emu) {
-    let call = WinSyscall;
-    let [
+    let section_type = emu.regs().rcx;
+    let section_data = emu.regs().rdx;
+    let _context_data = emu.regs().r8;
+    let section_ptr_out = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let section_size_out = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+
+    log_orange!(
+        emu,
+        "syscall 0x102: NtGetNlsSectionPtr type: {} data: {} section_ptr_out: 0x{:x} section_size_out: 0x{:x}",
         section_type,
         section_data,
-        context,
         section_ptr_out,
         section_size_out,
-    ] = api_try!(emu, call.args(emu));
-    if context != 0 {
-        return call.set_return(emu, STATUS_INVALID_PARAMETER);
+    );
+
+    if section_type != NLS_SECTION_TYPE_CODEPAGE {
+        log::warn!(
+            "NtGetNlsSectionPtr: unsupported section_type {}, returning NOT_SUPPORTED",
+            section_type
+        );
+        emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
+        return;
     }
-    if section_type as u32 != NLS_SECTION_TYPE_CODEPAGE {
-        return call.set_return(emu, STATUS_NOT_SUPPORTED);
-    }
-    if !emu.maps.validate_write_range(section_ptr_out, 8)
-        || (section_size_out != 0 && !emu.maps.validate_write_range(section_size_out, 8))
-    {
-        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
-    }
-    let section_data = section_data as u32;
+
     let file_name = format!("C_{}.NLS", section_data);
     let path = emu.cfg.get_maps_folder(&file_name);
     let bytes = match std::fs::read(&path) {
@@ -121,10 +133,13 @@ pub fn nt_get_nls_section_ptr(emu: &mut Emu) {
         }
     };
 
-    emu.maps.write_qword(section_ptr_out, base);
-    if section_size_out != 0 {
-        emu.maps
-            .write_qword(section_size_out, page_align_up(bytes.len()) as u64);
+    if section_ptr_out != 0 && emu.maps.is_mapped(section_ptr_out) {
+        let _ = emu.maps.write_qword(section_ptr_out, base);
+    }
+    if section_size_out != 0 && emu.maps.is_mapped(section_size_out) {
+        let _ = emu
+            .maps
+            .write_dword(section_size_out, page_align_up(bytes.len()) as u32);
     }
 
     log::trace!(

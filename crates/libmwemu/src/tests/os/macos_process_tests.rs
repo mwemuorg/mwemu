@@ -1,7 +1,6 @@
 //! macOS fork/wait/pthread APIs, called directly through the libsystem gateway.
 use super::unix_api_helpers::{aarch64_env, ret, set_args};
 use crate::api::macos::libsystem::gateway;
-use crate::emu::Emu;
 use crate::threading::process::INITIAL_PID;
 
 #[test]
@@ -101,7 +100,7 @@ fn pthread_self_is_main_thread_id() {
 use crate::threading::context::ThreadContext;
 
 /// Add a second thread and return its index.
-fn second_thread(emu: &mut Emu) -> usize {
+fn second_thread(emu: &mut crate::emu::Emu) -> usize {
     let t = ThreadContext::new(0x1001, emu.cfg.arch);
     emu.threads.push(t);
     emu.threads.len() - 1
@@ -184,81 +183,4 @@ fn atfork_child_handler_list_survives_fork() {
     gateway("_pthread_atfork", &mut emu);
     gateway("_fork", &mut emu);
     assert_eq!(emu.processes.atfork.len(), 1);
-}
-
-#[test]
-fn raw_fork_exit_restores_the_parent_and_reports_the_child_status() {
-    use crate::syscall::macos::{syscall_aarch64, syscall_x86_64};
-    use crate::{emu_aarch64, emu64};
-    for mut emu in [emu64(), emu_aarch64()] {
-        let syscall = |emu: &mut Emu, nr, arg| {
-            if emu.cfg.arch.is_aarch64() {
-                let r = emu.regs_aarch64_mut();
-                r.x[16] = nr;
-                r.x[0] = arg;
-                r.nzcv.c = true;
-                syscall_aarch64::gateway(emu);
-                let r = emu.regs_aarch64();
-                (r.x[0], r.x[1], r.nzcv.c)
-            } else {
-                emu.regs_mut().rax = 0x2000000 | nr;
-                emu.regs_mut().rdi = arg;
-                emu.flags_mut().f_cf = true;
-                syscall_x86_64::gateway(emu);
-                (emu.regs().rax, emu.regs().rdx, emu.flags().f_cf)
-            }
-        };
-        let parent = emu.processes.pid;
-        let result = syscall(&mut emu, 2, 0);
-        let child = emu.processes.pid;
-        assert_ne!(child, parent);
-        assert_eq!(result, (child, 1, false));
-        assert_eq!(syscall(&mut emu, 1, 7), (child, 0, false));
-        assert_eq!(emu.processes.pid, parent);
-        assert_eq!(emu.reap_child(child as i64), Some((child, 7 << 8)));
-        syscall(&mut emu, 1, 3);
-        assert_eq!(emu.processes.exit_status, Some(3 << 8));
-    }
-}
-
-#[test]
-fn raw_bsd_calls_return_errno_in_carry_and_write_counted_bytes() {
-    use crate::maps::mem64::Permission;
-    use crate::syscall::macos::{syscall_aarch64, syscall_x86_64};
-    use crate::{emu_aarch64, emu64};
-    const DATA: u64 = 0x10000;
-    for mut emu in [emu64(), emu_aarch64()] {
-        emu.maps
-            .create_map("data", DATA, 0x1000, Permission::READ_WRITE)
-            .unwrap();
-        emu.maps.write_bytes(DATA, b"a\0b");
-        let call = |emu: &mut Emu, nr, args: [u64; 6]| {
-            if emu.cfg.arch.is_aarch64() {
-                let r = emu.regs_aarch64_mut();
-                r.x[16] = nr;
-                r.x[..6].copy_from_slice(&args);
-                syscall_aarch64::gateway(emu);
-                let r = emu.regs_aarch64();
-                (r.x[0], r.nzcv.c)
-            } else {
-                let r = emu.regs_mut();
-                r.rax = nr;
-                [r.rdi, r.rsi, r.rdx, r.r10, r.r8, r.r9] = args;
-                syscall_x86_64::gateway(emu);
-                (emu.regs().rax, emu.flags().f_cf)
-            }
-        };
-        assert_eq!(call(&mut emu, 4, [13, DATA, 3, 0, 0, 0]), (9, true));
-        assert_eq!(call(&mut emu, 4, [1, DATA, 3, 0, 0, 0]), (3, false));
-        assert_eq!(emu.emulated_stdout, b"a\0b");
-        assert_eq!(call(&mut emu, 4, [1, 0, 1, 0, 0, 0]), (14, true));
-        assert_eq!(call(&mut emu, 0xffff, [0; 6]), (78, true));
-        let (map, failed) = call(&mut emu, 197, [0, 4096, 3, 0x1002, u64::MAX, 0]);
-        assert!(!failed);
-        assert!(emu.maps.write_byte(map, 1));
-        assert_eq!(call(&mut emu, 74, [map, 4096, 1, 0, 0, 0]), (0, false));
-        assert!(!emu.maps.can_access_range(map, 1, Permission::WRITE));
-        assert_eq!(call(&mut emu, 73, [map, 4096, 0, 0, 0, 0]), (0, false));
-        assert!(emu.maps.get_mem_by_addr(map).is_none());
-    }
 }

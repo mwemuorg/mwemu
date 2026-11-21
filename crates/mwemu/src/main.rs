@@ -7,7 +7,6 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 use libmwemu::ApiMode;
-use libmwemu::arch::OperatingSystem;
 use libmwemu::emu::Emu;
 use libmwemu::emu_aarch64;
 use libmwemu::emu32;
@@ -142,7 +141,7 @@ fn cli() -> App<'static, 'static> {
         .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation (rejected for PE32/x86 inputs)"))
         .arg(clap_arg!("aarch64", "", "aarch64", "enable AArch64/ARM64 architecture emulation"))
         .arg(clap_arg!("arch", "", "arch", "target architecture: x86, x86_64 (or x64/amd64), aarch64 (or arm64)", "ARCH"))
-        .arg(clap_arg!("sys", "", "sys", "target OS override: windows (or win), linux, macos (or osx/darwin). Defaults to the file format, or Windows for raw code", "OS"))
+        .arg(clap_arg!("sys", "", "sys", "target OS override: windows (or win), linux, macos (or osx/darwin). Autodetected from binary format if omitted", "OS"))
         .arg(clap_arg!("trace_memory", "m", "trace_memory", "trace all the memory accesses read and write."))
         .arg(clap_arg!("flags", "", "flags", "trace the flags hex value in every instruction."))
         .arg(clap_arg!("maps", "M", "maps", "select the memory maps folder", "PATH"))
@@ -476,22 +475,15 @@ fn main() -> process::ExitCode {
         emu.maps.set_banzai(true);
     }
 
-    let target_os = match matches
-        .value_of("sys")
-        .map(str::parse::<OperatingSystem>)
-        .transpose()
-    {
-        Ok(os) => os,
-        Err(error) => {
-            eprintln!("[mwemu] error: {error}");
-            return process::ExitCode::from(1u8);
-        }
-    };
-    let is_non_windows_target = if let Some(os) = target_os {
-        emu.set_os(os);
-        !os.is_windows()
+    // A non-Windows guest (ELF / Mach-O) never touches the Windows system DLLs,
+    // so skip the winver fetch (including the default win11 one) entirely. We ask
+    // libmwemu to classify with the very same detectors `load_code` uses, so a
+    // shellcode whose first bytes happen to look like an ELF isn't misjudged, and
+    // --is_shellcode still forces the Windows shellcode path.
+    let is_non_windows_target = if let Some(sys_str) = matches.value_of("sys") {
+        !matches!(sys_str, "windows" | "win")
     } else {
-        Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"))
+        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"))
     };
 
     // maps
@@ -765,9 +757,7 @@ fn main() -> process::ExitCode {
     // Run the emulation under `catch_unwind` so a panic anywhere in the run
     // still gets the state dump: once the stack has unwound we own `emu`
     // again and can read it safely (no global pointer to a borrowed `Emu`).
-    let outcome = panic::catch_unwind(AssertUnwindSafe(|| {
-        execute(&mut emu, &matches, &filename, target_os)
-    }));
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| execute(&mut emu, &matches, &filename)));
     match outcome {
         Ok(code) => code,
         Err(payload) => {
@@ -881,20 +871,22 @@ fn report_windows_driver(emu: &mut Emu, matches: &ArgMatches) {
 }
 
 /// (script, GDB server, kernel module init, or a plain run).
-fn execute(
-    emu: &mut Emu,
-    matches: &ArgMatches,
-    filename: &str,
-    target_os: Option<OperatingSystem>,
-) -> process::ExitCode {
+fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::ExitCode {
     // load code
     if let Err(e) = emu.load_code(filename) {
         eprintln!("[mwemu] load failed: {}", e);
         return process::ExitCode::FAILURE;
     }
 
-    // Header-based loaders select their own OS. Preserve the explicit runtime override.
-    if let Some(os) = target_os {
+    // --sys: override OS after load_code autodetection
+    if let Some(sys_str) = matches.value_of("sys") {
+        let os: libmwemu::arch::OperatingSystem = match sys_str.parse() {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("[mwemu] error: {}", e);
+                return process::ExitCode::from(1u8);
+            }
+        };
         emu.set_os(os);
     }
 

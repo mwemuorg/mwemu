@@ -17,7 +17,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     }
     log_red!(
         emu,
-        "kernelbase!WideCharToMultiByte cp={} '{}' => {}",
+        "kernelbase!WideCharToMultiByte cp:{} '{}' => {}",
         code_page,
         s,
         slen + 1

@@ -1,0 +1,26 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::emu;
+use crate::winapi::helper;
+use crate::winapi::policy::api_try;
+
+pub fn DuplicateTokenEx(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let existing_token = api_try!(emu, call.arg(emu, 0));
+    let _desired_access = api_try!(emu, call.arg(emu, 1));
+    let _token_attributes = api_try!(emu, call.arg(emu, 2));
+    let _impersonation_level = api_try!(emu, call.arg(emu, 3));
+    let _token_type = api_try!(emu, call.arg(emu, 4));
+    let dup_token_ptr = api_try!(emu, call.arg(emu, 5));
+    let new_token = helper::handler_create("dup_token_ex");
+    if dup_token_ptr != 0 {
+        emu.maps.write_qword(dup_token_ptr, new_token);
+    }
+    log_red!(
+        emu,
+        "advapi32!DuplicateTokenEx src:0x{:x} => 0x{:x}",
+        existing_token,
+        new_token
+    );
+    emu.set_last_error(0);
+    call.set_return(emu, 1);
+}

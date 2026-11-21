@@ -1,46 +1,85 @@
-pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
-    GetPrivateProfileIntA, GetPrivateProfileIntW, GetProfileIntA, GetProfileIntW,
-};
-
-use crate::api::dispatch_api;
-pub use crate::api::windows::registry::{
-    RegCloseKey, RegCreateKeyExA, RegCreateKeyExW, RegOpenKeyA, RegOpenKeyExA, RegOpenKeyExW,
-    RegOpenKeyW, RegSetValueExA, RegSetValueExW,
-};
 use crate::emu::Emu;
-use crate::winapi::common::fallback::unsupported_exports;
 use crate::winapi::winapi32::kernel32;
 
-unsupported_exports!(
-    "kernel32",
-    GetPrivateProfileSectionA,
-    GetPrivateProfileSectionNamesA,
-    GetPrivateProfileSectionNamesW,
-    GetPrivateProfileSectionW,
-    GetPrivateProfileStructA,
-    GetPrivateProfileStructW,
-    GetProfileSectionA,
-    GetProfileSectionW,
-    TermsrvConvertSysRootToUserDir,
-    TermsrvCreateRegEntry,
-    TermsrvDeleteKey,
-    TermsrvDeleteValue,
-    TermsrvGetPreSetValue,
-    TermsrvOpenRegEntry,
-    TermsrvOpenUserClasses,
-    TermsrvRestoreKey,
-    TermsrvSetValueKey,
-    TermsrvSyncUserIniFileExt,
-    WritePrivateProfileSectionA,
-    WritePrivateProfileSectionW,
-    WritePrivateProfileStructA,
-    WritePrivateProfileStructW,
-    WriteProfileSectionA,
-    WriteProfileSectionW,
-);
+mod reg_open_key_ex;
+pub use reg_open_key_ex::{RegOpenKeyExA, RegOpenKeyExW};
+
+mod write_profile_section;
+pub use write_profile_section::{WriteProfileSectionA, WriteProfileSectionW};
+
+mod write_private_profile_struct;
+pub use write_private_profile_struct::{WritePrivateProfileStructA, WritePrivateProfileStructW};
+
+mod write_private_profile_section;
+pub use write_private_profile_section::{WritePrivateProfileSectionA, WritePrivateProfileSectionW};
+
+mod reg_set_value_ex;
+pub use reg_set_value_ex::{RegSetValueExA, RegSetValueExW};
+
+mod reg_open_key;
+pub use reg_open_key::{RegOpenKeyA, RegOpenKeyW};
+
+mod reg_create_key_ex;
+pub use reg_create_key_ex::{RegCreateKeyExA, RegCreateKeyExW};
+
+mod get_profile_section;
+pub use get_profile_section::{GetProfileSectionA, GetProfileSectionW};
+
+mod get_profile_int;
+pub use get_profile_int::{GetProfileIntA, GetProfileIntW};
+
+mod get_private_profile_struct;
+pub use get_private_profile_struct::{GetPrivateProfileStructA, GetPrivateProfileStructW};
+
+mod get_private_profile_section_names;
+pub use get_private_profile_section_names::{
+    GetPrivateProfileSectionNamesA, GetPrivateProfileSectionNamesW,
+};
+
+mod get_private_profile_section;
+pub use get_private_profile_section::{GetPrivateProfileSectionA, GetPrivateProfileSectionW};
+
+mod get_private_profile_int;
+pub use get_private_profile_int::{GetPrivateProfileIntA, GetPrivateProfileIntW};
+
+mod reg_close_key;
+pub use reg_close_key::RegCloseKey;
+
+mod termsrv_convert_sys_root_to_user_dir;
+pub use termsrv_convert_sys_root_to_user_dir::TermsrvConvertSysRootToUserDir;
+
+mod termsrv_create_reg_entry;
+pub use termsrv_create_reg_entry::TermsrvCreateRegEntry;
+
+mod termsrv_delete_key;
+pub use termsrv_delete_key::TermsrvDeleteKey;
+
+mod termsrv_delete_value;
+pub use termsrv_delete_value::TermsrvDeleteValue;
+
+mod termsrv_get_pre_set_value;
+pub use termsrv_get_pre_set_value::TermsrvGetPreSetValue;
+
+mod termsrv_open_reg_entry;
+pub use termsrv_open_reg_entry::TermsrvOpenRegEntry;
+
+mod termsrv_open_user_classes;
+pub use termsrv_open_user_classes::TermsrvOpenUserClasses;
+
+mod termsrv_restore_key;
+pub use termsrv_restore_key::TermsrvRestoreKey;
+
+mod termsrv_set_value_key;
+pub use termsrv_set_value_key::TermsrvSetValueKey;
+
+mod termsrv_sync_user_ini_file;
+pub use termsrv_sync_user_ini_file::TermsrvSyncUserIniFile;
+
+mod termsrv_sync_user_ini_file_ext;
+pub use termsrv_sync_user_ini_file_ext::TermsrvSyncUserIniFileExt;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    dispatch_api!(api, {
+    match api {
         "RegCloseKey" => kernel32::RegCloseKey(emu),
         "RegCreateKeyExA" => kernel32::RegCreateKeyExA(emu),
         "RegCreateKeyExW" => kernel32::RegCreateKeyExW(emu),
@@ -51,10 +90,18 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "RegSetValueExW" => kernel32::RegSetValueExW(emu),
         "GetPrivateProfileIntA" => kernel32::GetPrivateProfileIntA(emu),
         "GetPrivateProfileIntW" => kernel32::GetPrivateProfileIntW(emu),
+        "GetPrivateProfileSectionA" => kernel32::GetPrivateProfileSectionA(emu),
+        "GetPrivateProfileSectionNamesA" => kernel32::GetPrivateProfileSectionNamesA(emu),
+        "GetPrivateProfileSectionNamesW" => kernel32::GetPrivateProfileSectionNamesW(emu),
+        "GetPrivateProfileSectionW" => kernel32::GetPrivateProfileSectionW(emu),
         "GetPrivateProfileStringA" => kernel32::GetPrivateProfileStringA(emu),
         "GetPrivateProfileStringW" => kernel32::GetPrivateProfileStringW(emu),
+        "GetPrivateProfileStructA" => kernel32::GetPrivateProfileStructA(emu),
+        "GetPrivateProfileStructW" => kernel32::GetPrivateProfileStructW(emu),
         "GetProfileIntA" => kernel32::GetProfileIntA(emu),
         "GetProfileIntW" => kernel32::GetProfileIntW(emu),
+        "GetProfileSectionA" => kernel32::GetProfileSectionA(emu),
+        "GetProfileSectionW" => kernel32::GetProfileSectionW(emu),
         "GetProfileStringA" => kernel32::GetProfileStringA(emu),
         "GetProfileStringW" => kernel32::GetProfileStringW(emu),
         "GetSystemRegistryQuota" => kernel32::GetSystemRegistryQuota(emu),
@@ -75,33 +122,60 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "TermsrvSetValueKey" => kernel32::TermsrvSetValueKey(emu),
         "TermsrvSyncUserIniFile" => kernel32::TermsrvSyncUserIniFile(emu),
         "TermsrvSyncUserIniFileExt" => kernel32::TermsrvSyncUserIniFileExt(emu),
+        "WritePrivateProfileSectionA" => kernel32::WritePrivateProfileSectionA(emu),
+        "WritePrivateProfileSectionW" => kernel32::WritePrivateProfileSectionW(emu),
         "WritePrivateProfileStringA" => kernel32::WritePrivateProfileStringA(emu),
         "WritePrivateProfileStringW" => kernel32::WritePrivateProfileStringW(emu),
+        "WritePrivateProfileStructA" => kernel32::WritePrivateProfileStructA(emu),
+        "WritePrivateProfileStructW" => kernel32::WritePrivateProfileStructW(emu),
+        "WriteProfileSectionA" => kernel32::WriteProfileSectionA(emu),
+        "WriteProfileSectionW" => kernel32::WriteProfileSectionW(emu),
         "WriteProfileStringA" => kernel32::WriteProfileStringA(emu),
         "WriteProfileStringW" => kernel32::WriteProfileStringW(emu),
+        "RegCopyTreeW" => kernel32::RegCopyTreeW(emu),
         "RegDeleteKeyExA" => kernel32::RegDeleteKeyExA(emu),
         "RegDeleteKeyExW" => kernel32::RegDeleteKeyExW(emu),
         "RegDeleteTreeA" => kernel32::RegDeleteTreeA(emu),
         "RegDeleteTreeW" => kernel32::RegDeleteTreeW(emu),
         "RegDeleteValueA" => kernel32::RegDeleteValueA(emu),
         "RegDeleteValueW" => kernel32::RegDeleteValueW(emu),
+        "RegDisablePredefinedCacheEx" => kernel32::RegDisablePredefinedCacheEx(emu),
         "RegEnumKeyExA" => kernel32::RegEnumKeyExA(emu),
         "RegEnumKeyExW" => kernel32::RegEnumKeyExW(emu),
         "RegEnumValueA" => kernel32::RegEnumValueA(emu),
         "RegEnumValueW" => kernel32::RegEnumValueW(emu),
         "RegFlushKey" => kernel32::RegFlushKey(emu),
+        "RegGetKeySecurity" => kernel32::RegGetKeySecurity(emu),
         "RegGetValueA" => kernel32::RegGetValueA(emu),
         "RegGetValueW" => kernel32::RegGetValueW(emu),
+        "RegLoadKeyA" => kernel32::RegLoadKeyA(emu),
+        "RegLoadKeyW" => kernel32::RegLoadKeyW(emu),
+        "RegLoadMUIStringA" => kernel32::RegLoadMUIStringA(emu),
+        "RegLoadMUIStringW" => kernel32::RegLoadMUIStringW(emu),
+        "RegNotifyChangeKeyValue" => kernel32::RegNotifyChangeKeyValue(emu),
         "RegOpenCurrentUser" => kernel32::RegOpenCurrentUser(emu),
         "RegOpenKeyExA" => kernel32::RegOpenKeyExA(emu),
+        "RegOpenUserClassesRoot" => kernel32::RegOpenUserClassesRoot(emu),
         "RegQueryInfoKeyA" => kernel32::RegQueryInfoKeyA(emu),
         "RegQueryInfoKeyW" => kernel32::RegQueryInfoKeyW(emu),
         "RegQueryValueExA" => kernel32::RegQueryValueExA(emu),
         "RegQueryValueExW" => kernel32::RegQueryValueExW(emu),
-    },
-        handled(()) => true,
-        fallback => false,
-    )
+        "RegRestoreKeyA" => kernel32::RegRestoreKeyA(emu),
+        "RegRestoreKeyW" => kernel32::RegRestoreKeyW(emu),
+        "RegSaveKeyExA" => kernel32::RegSaveKeyExA(emu),
+        "RegSaveKeyExW" => kernel32::RegSaveKeyExW(emu),
+        "RegSetKeySecurity" => kernel32::RegSetKeySecurity(emu),
+        "RegUnLoadKeyA" => kernel32::RegUnLoadKeyA(emu),
+        "RegUnLoadKeyW" => kernel32::RegUnLoadKeyW(emu),
+        "RegisterBadMemoryNotification" => kernel32::RegisterBadMemoryNotification(emu),
+        "RegisterWaitForSingleObject" => kernel32::RegisterWaitForSingleObject(emu),
+        "RegisterWaitForSingleObjectEx" => kernel32::RegisterWaitForSingleObjectEx(emu),
+        "RegisterWowExec" => kernel32::RegisterWowExec(emu),
+        "TermsrvAppInstallMode" => kernel32::TermsrvAppInstallMode(emu),
+        "TermsrvGetWindowsDirectoryA" => kernel32::TermsrvGetWindowsDirectoryA(emu),
+        "TermsrvGetWindowsDirectoryW" => kernel32::TermsrvGetWindowsDirectoryW(emu),
+        "TermsrvSetKeySecurity" => kernel32::TermsrvSetKeySecurity(emu),
+        _ => return false,
+    }
+    true
 }
-
-unsupported_exports!("kernel32", TermsrvSyncUserIniFile,);

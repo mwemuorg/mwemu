@@ -5,16 +5,13 @@ mwemu can intercept library calls, execute mapped library code, or dispatch dire
 | Surface | Current handling |
 | --- | --- |
 | Windows user-mode library calls | Full or partial handlers first, then the Windows unsupported-call policy below. |
-| Linux/macOS library hooks | Platform handlers and their existing unimplemented-call fallback. Checked frame and memory failures stop emulation. |
+| Linux/macOS library hooks | Platform handlers and their existing unimplemented-call fallback. Checked frame failures stop emulation. |
 | Real mapped libraries | Execute guest instructions when selected by the execution mode. A hook may be bypassed. |
-| Windows syscalls and x64 driver imports | Existing handlers first, then the same Windows policy through separate entry adapters. |
-| Linux/macOS syscalls and kernel routines | Their platform dispatchers and existing policies. |
-
-A Windows import can reach a named handler even when its DLL has no mapped image. For a mapped export, mwemu resolves the address and follows PE forwarders by name or ordinal. The selected execution mode can also run the mapped guest code. See [Kernel-mode emulation](KERNEL.md) for driver imports and module loading.
+| Direct syscalls and kernel routines | Their platform dispatchers and existing policies. Windows API modes do not configure them. |
 
 ## Handler ABI
 
-Inside `libmwemu`, bind the adapter for the current entry, for example `let call = WinApi(Stdcall);`. Read arguments with methods such as `call.arg_u16(emu, 0)` and write the result with `call.set_return(emu, value)`. These adapters are internal. The former public `Emu::kernel_arg` and `Emu::set_kernel_ret` methods have been removed.
+Platform adapters own the calling conventions and use common checked frame access. Windows exposes `WindowsAbi` with `WinApi(convention)` and `WinSyscall` variants. Unix exposes the `UnixApi` adapter. Initialize the required adapter once, for example `let call = WinApi(Stdcall);`. Use its instance methods to read arguments, such as `call.arg_u16(emu, 0)`. Store the result with `call.set_return(emu, value)` and discard callee-owned arguments with `call.cleanup_args(emu, words)`.
 
 For `WinApi`, the function convention is mandatory: `Stdcall`, `Cdecl`, or non-variadic `Thiscall`. Both platforms provide signed/unsigned integer readers from 8 to 64 bits. Windows also provides `arg_f32` and `arg_f64`. Readers return `Result`. The value width does not change the ABI slot stride.
 
@@ -22,40 +19,41 @@ For `WinApi`, the function convention is mandatory: `Stdcall`, `Cdecl`, or non-v
 | --- | --- |
 | `WinApi(convention)` | Windows API hooks after the gateway consumes the return address. x86 indices count DWORD slots, x64 indices count parameter positions. |
 | `WinSyscall` | The existing Windows x64 syscall interception point, with its return address still on the stack. Shared semantics receive the adapter explicitly. |
-| `WinSysenter` | Existing x86 `SYSENTER` entry. EDX points to the fast-call frame, with two return addresses before the DWORD argument slots. |
-| `WinInterrupt` | Existing Windows x86 `INT 0x80` compatibility route. Supports generic results, with no declared argument layout. Argument reads report `UnsupportedConvention`. |
-| `UnixApi` | Linux/macOS function and kernel hooks. Fixed integer arguments use System V AMD64 register and stack slots or the supported AArch64 argument registers. |
-| `LinuxSyscall` | Direct Linux syscalls. The trap selects the x86, x86-64 or AArch64 argument registers. |
+| `UnixApi` | Linux/macOS function hooks using System V AMD64 or the currently supported AAPCS64 register arguments. Not a Unix syscall adapter. |
 
-Kernel dispatch consumes the x64 return slot or obtains the AArch64 link register before calling the handler. A unit-returning handler uses its platform's `api_try!` to record a fault. Internal helpers propagate errors with `?`. Read required arguments before writing outputs, allocating memory or invoking callbacks.
+The common module contains frame access, typed error data, and reusable scalar result storage. It does not dispatch to a platform or expose stdcall cleanup. Platform modules own register and stack placement and select the shared operations they need.
+
+The kernel bridge selects the matching function-hook layout while retaining its own fault policy. Unsupported conventions return an error instead of borrowing another platform's layout.
+
+General Unix ARM64 stack/FP argument classification and direct Unix syscall adapters remain separate work. Integer variadic readers preserve the distinct System V and Darwin layouts.
+
+Windows and Unix handlers each import their platform's `api_try!` macro at a unit-returning boundary. Internal fallible helpers propagate errors with `?`. Decode required arguments before output writes, allocation, cleanup, or callbacks. Diagnostics alone must not determine validity. The kernel bridge retains its existing fallback policy.
 
 Result setters do not complete calls. `cleanup_args(emu, words)` discards callee-owned x86 DWORD slots without reading them. `set_return(emu, value)` only stores the result. Cleanup leaves the stack unchanged for `Cdecl`, native x64/ARM64, and syscall entries. Count stack slots rather than source parameters: an x86 64-bit integer consumes two slots.
 
 `Thiscall` exposes the implicit object at argument index zero (ECX on x86). Explicit x86 stack slots start at index one and cleanup excludes the object. Native x64/ARM64 retain their standard layouts regardless of the source-level convention. Raw register access remains appropriate for CPU contexts and special intrinsic conventions.
 
-## Failures and snapshots
+## Frame failures and snapshots
 
 An unreadable, overflowing, or unsupported argument layout is an emulator frame failure, distinct from a guest API error result. Windows and Unix hook failures stop `run()` with an error and prevent `step()` from advancing. They do not fabricate a return value, guest exception, `LastError`, or `errno`, or mark the process terminated. Decode arguments before side effects. The stop mechanism does not roll back arbitrary handler work already performed.
 
-Windows retains its context in `emu.api_policy.last_outcome`. Unix stores frame diagnostics in `emu.unix_api.fault` and checked memory diagnostics in `emu.unix_api.memory_fault`. Both retain the failing library, symbol, address, entry PC/SP, and thread. Nested Unix calls retain the inner failure context. `clear_outcome()` and `clear_fault()` clear their respective diagnostics. They do not repair the frame or arrange a safe restart.
+Windows retains its context in `emu.api_policy.last_outcome`. Unix stores the failing library, symbol, address, entry PC/SP, thread, and reason in `emu.unix_api.fault`. Nested Unix calls retain the inner failure context. `clear_outcome()` and `clear_fault()` clear their respective diagnostics. They do not repair the frame or arrange a safe restart.
 
-Native snapshots now write V11 and read V11 and released formats V1–V5. Intermediate formats V6–V10 are unsupported. V11 saves per-thread `LastError`, CRT state, guest handles, IPC, registry and environment state, and Unix API faults. Older formats without saved policy restore the strict Windows default.
+Native snapshots use version 5 to retain Windows policy/outcomes and Unix pending faults. Older published native formats remain readable. Formats without saved policy start with strict Windows policy, and formats without Unix fault state start without a Unix stop.
 
 Existing Banzai settings are preserved. Platform API state is separate from the legacy `Config` layout. Serializing `Config` alone does not retain it.
 
 ## Linux and macOS hooks
 
-`UnixApi` models fixed integer arguments in System V AMD64 registers and stack slots. Fixed AArch64 arguments beyond its supported registers, floating-point arguments and aggregates need separate handling. For integer variadic calls, Linux AArch64 uses the remaining argument registers before the stack. Darwin AArch64 takes these arguments from the stack. Formatted output is published only after the required arguments have been read.
+`UnixApi` covers the function-hook boundary, where the return address has already been consumed or obtained from the link register. Ordinary integer readers cover System V AMD64 register/stack arguments and the currently supported ARM64 register arguments. `integer_vararg` separately selects the existing System V or Darwin integer variadic layout: Linux ARM64 uses remaining argument registers before the stack. Darwin ARM64 uses the stack for these variadic arguments. General ARM64 fixed-argument stack packing, floating-point/aggregate classification, and direct syscall adapters are not implemented by these readers.
 
-Linux and macOS retain their existing unknown-library and kernel fallbacks. Unsupported Linux syscalls return `-ENOSYS` after runtime hooks and handlers have had a chance to run. A raw Linux syscall leaves libc `errno` alone. Windows `ApiMode` applies only to Windows calls.
-
-Linux and Darwin string/memory hooks share byte-oriented operations across x64 and AArch64. Bounded operations stop reading at the requested byte count or NUL where required. Checked variants validate destination object sizes. A checked hook that encounters invalid memory or exceeds an object bound records an emulator fault. This path does not deliver a Unix signal. Case-insensitive string comparisons use the existing C-locale profile.
+The shared `printf` formatter accepts a fallible argument reader. Linux/macOS handlers publish formatted output only after it succeeds. An unavailable variadic argument is not replaced with zero. Errors in API argument decoding use Unix fault state independently of Windows `ApiMode`. Unknown Unix symbols retain their existing dispatcher behavior, including zero-return fallbacks. This does not claim a unified unsupported-call policy or a complete libc model.
 
 Tests of library hooks must select the intended route. In particular, Linux real-libc execution can bypass Rust handlers.
 
 ## Windows API policy
 
-Windows DLL dispatch uses existing full or partial handlers first. Unsupported user-mode calls, Windows syscalls, and Windows x64 driver imports use one policy. User-mode routes include unresolved imports, CRT fallback, and TLS initialization. Explicit execution of mapped DLL code retains its existing precedence.
+Windows DLL dispatch uses existing full or partial handlers first. Unsupported user-mode calls use one policy on x86 and x64, including unresolved imports, CRT fallback, and TLS initialization. Explicit execution of mapped DLL code retains its existing precedence.
 
 ### Modes
 
@@ -69,30 +67,23 @@ The default is **`Strict`**. In the CLI, `--banzai` without `--api-mode` or `--s
 
 The CLI accepts `--api-mode strict`, `--api-mode simulate-fail`, or `--api-mode simulate-success`. Rust exposes `ApiMode` through `libmwemu` and selects it with `emu.set_api_mode(...)`. Python uses `emu.set_api_mode("strict")`, `"simulate-fail"`, or `"simulate-success"`.
 
-Simulation applies only after normal dispatch reports an unsupported operation. Existing handlers keep their behavior in every mode, including modeled errors and data results such as `IsDebuggerPresent`. This policy does not yet classify every unsupported branch inside partial handlers.
+Simulation applies only after normal dispatch reports an unsupported operation. Existing handlers keep their behavior in every mode, including modeled errors and data results such as `IsDebuggerPresent`. This policy does not yet classify every unsupported branch inside partial handlers. Direct syscalls and the driver kernel surface remain separate migration work.
 
 ### Declared models
 
-Simulation uses the declared result contract when one exists. It leaves output buffers and guest objects alone. A handler that rejects its input keeps its own error path.
-
-| Example result contract | `SimulateFail` | `SimulateSuccess` |
+| Surface | `SimulateFail` | `SimulateSuccess` |
 | --- | --- | --- |
-| Cataloged `NTSTATUS` call | `STATUS_NOT_IMPLEMENTED` | `STATUS_SUCCESS` |
-| Win32 `BOOL` | `FALSE`, sets `LastError` to `ERROR_CALL_NOT_IMPLEMENTED` | `TRUE`, preserves `LastError` |
-| `HRESULT` | `E_NOTIMPL` | `S_OK` |
-| Direct Win32 status | Returns `ERROR_CALL_NOT_IMPLEMENTED` | Returns zero |
-| Declared `void` call | Leaves the return register alone | Leaves the return register alone |
-| No result model | Returns integer zero if ABI checks pass | Same behavior |
+| `NTSTATUS`-returning Nt/Zw calls in the NT signature catalog | `STATUS_NOT_IMPLEMENTED`, with unchanged output buffers, objects, and `LastError` | `STATUS_SUCCESS`, with unchanged output buffers, objects, scheduler state, and `LastError` |
+| `FileTimeToLocalFileTime` and `LocalFileTimeToFileTime` without a handler | `FALSE` and `LastError` = `ERROR_CALL_NOT_IMPLEMENTED`. No output writes | Convert in a fixed UTC environment by copying the `FILETIME` value to a checked output buffer. Preserve `LastError` |
+| Other unsupported calls | Generic zero result, subject to ABI checks | The same generic zero result, subject to ABI checks |
 
-The return contract also determines the error channel. NT and `HRESULT` models preserve `LastError`. Winsock failure models return the appropriate socket sentinel and set `WSAEOPNOTSUPP`. Some calls have a fixed outcome in both modes. For example, an unsupported message read cannot supply a message.
+Both simulation modes use the entire NT catalog, including user-mode Zw aliases. Failure simulation reports an unsupported operation before executing the API body. Success simulation returns success without implementing that body. Argument validation distinguishes x86 DWORD slots from native parameter positions, and x86 callee cleanup occurs exactly once. x64 retains caller-owned stack space.
 
-### Syscall and kernel entry
+Both simulation modes prefer their declared result model and use the same generic fallback when it is absent. Generic fallback writes zero to the integer return register and preserves output buffers, objects, and `LastError`. Zero may mean success, failure, or a null value depending on the API. This best-effort result does not claim an API implementation.
 
-Windows syscall handlers retain their runtime-hook precedence. Service names come from recognizable Nt export stubs in the loaded guest ntdll. The x64 dispatcher translates those numbers to its existing handler identifiers. It uses the original static profile only when no ntdll image/index or Windows build is selected. Missing or conflicting guest identities must not select an unrelated static handler. Unresolved services remain eligible for generic simulation.
+The UTC conversion model rejects unreadable input, unwritable output, and invalid buffer addresses with a controlled stop before publishing success. An explicit model that fails validation does not retry through the generic fallback. UTC conversion does not use the host time zone.
 
-The x86 `SYSENTER` path uses the loaded x86 service index and checked EDX-based argument access. The Windows `INT 0x80` path retains generic continuation without claiming a native Windows parameter layout. These adapters do not add WoW64 or `INT 0x2e` support. Syscall simulation preserves the stack and leaves the guest stub to return and clean its arguments.
-
-Windows driver imports retain their kernel handlers and exact Nt/Zw names. Missing handlers use the shared result models or generic simulation, without routing through user-mode DLL handlers. An NT signature supplies a status-only fallback, not kernel parameter validation or a complete service implementation. Unknown calls remain listed in `KernelEnv::unimplemented`. Policy stops propagate through `kernel_call`, DriverEntry, and IRP error results. Linux/macOS kernel fallback behavior is unchanged.
+`LastError` is part of each Win32 model, not a global consequence of success or failure. NT result models preserve it. The declared BOOL failure sets it. UTC conversion preserves it on success. Models use the existing emulator error-state helpers. Thread isolation and direct TEB synchronization of that existing state are not implemented by this policy change.
 
 ### API policy and Banzai
 
@@ -110,7 +101,6 @@ A subsystem's signature catalog or explicit model supplies ABI information first
 | Known model in either simulation mode | Apply its failure/success semantics and ABI | Same behavior |
 | x86 call delegated to generic cleanup in either simulation mode | Stop with `BanzaiDisabled` | Use a known cleanup size, otherwise stop with `UnknownCleanup` |
 | Generic x64/AArch64 call in either simulation mode | Return zero without argument cleanup | Same behavior |
-| Windows syscall in either simulation mode | Use its known result model or generic zero, without argument cleanup | Same behavior |
 
 If an unsupported call has only a Banzai cleanup entry, both modes behave alike. `--api-mode simulate-fail --banzai` and `--api-mode simulate-success --banzai` use that cleanup, return zero, and record `SimulatedGeneric`. The modes produce different results only when an explicit result model exists. Banzai's existing instruction-skipping and memory-diagnostic effects remain separate. Selecting an API mode does not change those flags.
 
@@ -122,7 +112,7 @@ Fallback also loads missing defaults on demand, so enabling Banzai after initial
 
 ### Stop and diagnostic contract
 
-`emu.api_policy.last_outcome` records the requested name, library, route, mode and entry context. For syscalls, `call.address` holds the raw service number and `call.pc` the instruction address. For driver imports, the address identifies the import stub. Each completed simulation increments `simulation_count` and records the result and `LastError` action. `SimulatedGeneric` covers both generic zero and declared `void` returns. A `void` outcome has no result value.
+Windows unsupported-call stops follow the execution contract described above. The entry PC, stack pointer, thread, requested name, library, route, mode, and reason are retained in `emu.api_policy.last_outcome`. Completed simulation records its disposition, return value, and `LastError` action, and increments `simulation_count`. `SimulatedGeneric` identifies a universal stub separately from modeled failure or success.
 
 `UnknownCleanup` means x86 cleanup metadata is unavailable or fails subsystem ABI checks. `BanzaiDisabled` means the optional x86 metadata fallback is disabled. Neither reason describes a missing result model.
 
@@ -132,21 +122,8 @@ A pending API stop prevents another run from silently continuing. `clear_outcome
 
 TLS callbacks use the selected policy throughout loading. A callback that stops or fails to return aborts initialization instead of silently proceeding to the entry point.
 
-## Shared partial models
-
-The table summarizes selected models and their limits. Guest layouts still follow the active architecture.
-
-| Area | Behavior and limits |
-| --- | --- |
-| Windows files and objects | Supported Win32 and native operations share guest files, process and token handles, and waitable objects. Pipes and mailslots model local synchronous I/O. |
-| Windows resources and paths | Resource and version queries use loaded images or guest files where supported. Version queries can read an en-US `.mui` sidecar. Known-folder queries use the guest profile. |
-| Windows time and environment | Date and time conversions use a fixed UTC environment. Process variables and the two CRT environments have separate storage. Direct guest writes to environment tables do not update those models. |
-| MSVCRT/UCRT | Startup uses guest arguments. Streams and descriptors use the configured file root. Each runtime tracks thread-local `errno` and random state. Snapshots exclude open host-backed streams. |
-| Winsock | Successful startup calls increment a count. The final cleanup releases the modeled sockets. Local address and event queries work offline. The model refuses TCP connections and supplies no incoming packets. |
-| Unix libraries and Linux I/O | Hooks implement byte-oriented string operations and thread-local `errno`. Linux libc and raw syscalls share pipe and event descriptors. Registering an alternate signal stack does not deliver signals. |
-
 ## Adding or moving handlers
 
-Keep handlers in named functions and let dispatch select a handler or fallback. After a handler records a fault, return to the entry boundary so it can report the fault. Keep related A/W variants together and preserve the invoked export name in traces.
+Keep related variants with their subsystem, connect each implementation through a single module owner, and exercise the actual gateway in tests. Preserve invoked-symbol tracing and distinguish supported behavior from fallback simulation.
 
-Run `make api-modules` after adding or moving sources under `api`, `syscall` or `kernel`. The check compares files on disk with compiler dependencies and separately checks Git ignore rules. Windows API modules also have declaration and re-export checks. Exercise the actual dispatch route in a test to verify reachability.
+For Windows handlers, keep A/W variants in the same module where their contracts agree and run `make api-modules` after adding or moving sources. That compiler-dependency check currently covers Windows API modules. It does not establish Unix or kernel dispatch coverage.

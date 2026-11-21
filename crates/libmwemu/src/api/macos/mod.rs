@@ -1,6 +1,5 @@
 use crate::api::abi::unix::UnixApi;
-use crate::api::{dispatch_api, unix};
-use crate::emu::Emu;
+use crate::api::unix;
 pub mod libc_extra;
 pub mod libsystem;
 pub mod process;
@@ -16,7 +15,7 @@ pub const THREAD_RETURN: &str = "__mwemu_thread_return";
 pub const SENTINELS: &[&str] = &[MAIN_RETURN, THREAD_RETURN];
 
 /// Address of a sentinel, if the sentinel map has been created.
-pub fn sentinel_addr(emu: &Emu, symbol: &str) -> Option<u64> {
+pub fn sentinel_addr(emu: &crate::emu::Emu, symbol: &str) -> Option<u64> {
     let base = emu.maps.get_map_by_name(SENTINEL_MAP)?.get_base();
     let idx = SENTINELS.iter().position(|s| *s == symbol)?;
     Some(base + 4 * idx as u64)
@@ -24,7 +23,7 @@ pub fn sentinel_addr(emu: &Emu, symbol: &str) -> Option<u64> {
 
 /// A sentinel's return value is already in the first argument register, so
 /// each one is just the matching exit call.
-fn sentinel(symbol: &str, emu: &mut Emu) {
+fn sentinel(symbol: &str, emu: &mut crate::emu::Emu) {
     match symbol {
         MAIN_RETURN => libsystem::gateway("_exit", emu),
         THREAD_RETURN => libsystem::gateway("_pthread_exit", emu),
@@ -38,12 +37,13 @@ fn sentinel(symbol: &str, emu: &mut Emu) {
 /// by symbol name.  The section name tells us which dylib the symbol lives in,
 /// but for dispatch purposes all system dylibs route to the same `libsystem`
 /// gateway.
-pub fn gateway(addr: u64, section_name: &str, symbol: &str, emu: &mut Emu) {
+pub fn gateway(addr: u64, section_name: &str, symbol: &str, emu: &mut crate::emu::Emu) {
+    let call = UnixApi;
     if emu.api_stopped() {
         return;
     }
     let entered = unix::enter_gateway(emu, section_name, symbol, addr);
-    dispatch_api!(section_name, {
+    match section_name {
         SENTINEL_MAP => sentinel(symbol, emu),
         s if s.starts_with("libSystem.B.")
             || s.starts_with("libsystem_")
@@ -62,23 +62,21 @@ pub fn gateway(addr: u64, section_name: &str, symbol: &str, emu: &mut Emu) {
             || s.starts_with("libmacho.")
             || s.starts_with("libquarantine.")
             || s.starts_with("libremovefile.")
-            || s.starts_with("libunwind.") => libsystem::gateway(symbol, emu),
-    },
-        handled(()) => (),
-        fallback => unsupported_library(emu, addr, section_name, symbol),
-    );
+            || s.starts_with("libunwind.") =>
+        {
+            libsystem::gateway(symbol, emu)
+        }
+        _ => {
+            log::warn!(
+                "macosapi: unhandled call to {} in {} at 0x{:x}",
+                symbol,
+                section_name,
+                addr
+            );
+            call.set_return(emu, 0);
+        }
+    }
     if entered {
         unix::end_call(emu, None);
     }
-}
-
-fn unsupported_library(emu: &mut Emu, addr: u64, section_name: &str, symbol: &str) {
-    let call = UnixApi;
-    log::warn!(
-        "macosapi: unhandled call to {} in {} at 0x{:x}",
-        symbol,
-        section_name,
-        addr
-    );
-    call.set_return(emu, 0);
 }

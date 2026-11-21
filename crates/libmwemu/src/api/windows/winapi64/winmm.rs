@@ -1,6 +1,22 @@
-use crate::emu::Emu;
-use crate::winapi::libraries;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::windows::common::fallback;
+use crate::emu;
+use crate::winapi::helper;
+use crate::winapi::winapi64::kernel32;
 
-pub fn gateway(address: u64, emu: &mut Emu) -> String {
-    libraries::gateway("winmm", address, emu)
+pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
+    let api = kernel32::guess_api_name(emu, addr);
+    let api = api.split('!').next_back().unwrap_or(&api);
+    match api {
+        "timeGetTime" => timeGetTime(emu),
+        _ => return fallback::unimplemented(addr, api, emu),
+    }
+    String::new()
+}
+
+fn timeGetTime(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    log_red!(emu, "winmm!timeGetTime");
+    helper::advance_tick(emu, 1);
+    call.set_return(emu, emu.tick as u64);
 }

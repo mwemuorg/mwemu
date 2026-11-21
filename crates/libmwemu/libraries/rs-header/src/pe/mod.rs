@@ -7,7 +7,6 @@ mod loader;
 pub mod pe32;
 pub mod pe64;
 pub mod readers;
-pub mod resource;
 pub mod shared;
 pub mod structures;
 

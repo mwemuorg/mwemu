@@ -1,0 +1,33 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::emu;
+use crate::winapi::helper;
+use crate::winapi::policy::api_try;
+
+pub fn GetStockObject(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0));
+    let name = match index {
+        0 => "WHITE_BRUSH",
+        1 => "LTGRAY_BRUSH",
+        2 => "GRAY_BRUSH",
+        3 => "DKGRAY_BRUSH",
+        4 => "BLACK_BRUSH",
+        5 => "NULL_BRUSH",
+        6 => "WHITE_PEN",
+        7 => "BLACK_PEN",
+        8 => "NULL_PEN",
+        10 => "OEM_FIXED_FONT",
+        11 => "ANSI_FIXED_FONT",
+        12 => "ANSI_VAR_FONT",
+        13 => "SYSTEM_FONT",
+        14 => "DEVICE_DEFAULT_FONT",
+        15 => "DEFAULT_PALETTE",
+        16 => "SYSTEM_FIXED_FONT",
+        17 => "DEFAULT_GUI_FONT",
+        18 => "DC_BRUSH",
+        19 => "DC_PEN",
+        _ => "UNKNOWN",
+    };
+    log_red!(emu, "gdi32!GetStockObject index:{} ({})", index, name);
+    call.set_return(emu, helper::handler_create("gdi32://stock_object"));
+}

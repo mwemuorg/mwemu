@@ -11,85 +11,48 @@ use crate::{
 
 impl Emu {
     pub fn veh(&self) -> u64 {
-        self.veh_list().first().copied().unwrap_or(0)
+        match &self.threads[self.current_thread_id].arch {
+            ArchThreadState::X86 { veh, .. } => veh.first().copied().unwrap_or(0),
+            _ => unreachable!("veh() called on aarch64 emu"),
+        }
     }
 
     pub fn veh_list(&self) -> &[u64] {
-        match &self.threads[0].arch {
-            ArchThreadState::X86 { veh, .. } => veh,
-            _ => &[],
+        match &self.threads[self.current_thread_id].arch {
+            ArchThreadState::X86 { veh, .. } => veh.as_slice(),
+            _ => unreachable!("veh_list() called on aarch64 emu"),
         }
     }
 
     pub fn set_veh(&mut self, value: u64) {
-        if let ArchThreadState::X86 { veh, .. } = &mut self.threads[0].arch {
-            veh.clear();
-            self.veh_registration_ids.clear();
-            if value != 0 {
-                veh.push(value);
-                self.veh_registration_ids.push(0);
+        match &mut self.threads[self.current_thread_id].arch {
+            ArchThreadState::X86 { veh, .. } => {
+                veh.clear();
+                if value != 0 {
+                    veh.push(value);
+                }
             }
+            _ => unreachable!("set_veh() called on aarch64 emu"),
         }
     }
 
     pub fn add_veh(&mut self, first: bool, handler: u64) {
-        self.insert_veh(first, handler, 0);
-    }
-
-    fn insert_veh(&mut self, first: bool, handler: u64, id: u32) {
-        if let ArchThreadState::X86 { veh, .. } = &mut self.threads[0].arch {
-            let index = if first { 0 } else { veh.len() };
-            self.veh_registration_ids.resize(veh.len(), 0);
-            veh.insert(index, handler);
-            self.veh_registration_ids.insert(index, id);
+        match &mut self.threads[self.current_thread_id].arch {
+            ArchThreadState::X86 { veh, .. } => {
+                if first {
+                    veh.insert(0, handler);
+                } else {
+                    veh.push(handler);
+                }
+            }
+            _ => unreachable!("add_veh() called on aarch64 emu"),
         }
     }
 
     pub fn remove_veh(&mut self, handler: u64) {
-        while let Some(i) = self.veh_list().iter().position(|&h| h == handler) {
-            self.remove_veh_at(i);
-        }
-    }
-
-    fn remove_veh_at(&mut self, index: usize) {
-        if let ArchThreadState::X86 { veh, .. } = &mut self.threads[0].arch {
-            self.veh_registration_ids.resize(veh.len(), 0);
-            veh.remove(index);
-            self.veh_registration_ids.remove(index);
-        }
-    }
-
-    pub(crate) fn register_veh(&mut self, first: bool, handler: u64) -> u64 {
-        if handler == 0 {
-            return 0;
-        }
-        let Some(id) = self.last_veh_id.checked_add(1) else {
-            return 0;
-        };
-        self.last_veh_id = id;
-        self.insert_veh(first, handler, id);
-        u64::from(id)
-    }
-
-    pub(crate) fn unregister_veh(&mut self, handle: u64) -> bool {
-        if handle == 0 {
-            return false;
-        }
-        let index = self
-            .veh_registration_ids
-            .iter()
-            .position(|&id| u64::from(id) == handle)
-            .or_else(|| {
-                self.veh_list()
-                    .iter()
-                    .zip(&self.veh_registration_ids)
-                    .position(|(&callback, &id)| id == 0 && callback == handle)
-            });
-        if let Some(i) = index {
-            self.remove_veh_at(i);
-            true
-        } else {
-            false
+        match &mut self.threads[self.current_thread_id].arch {
+            ArchThreadState::X86 { veh, .. } => veh.retain(|&h| h != handler),
+            _ => unreachable!("remove_veh() called on aarch64 emu"),
         }
     }
 
@@ -219,49 +182,33 @@ impl Emu {
     /// Resolve an address to its RUNTIME_FUNCTION range via .pdata.
     /// Returns `(begin_va, end_va)` of the function containing `addr`.
     pub fn resolve_function_range(&self, addr: u64) -> Option<(u64, u64)> {
-        let (base, entry) = self.runtime_function_entry(addr)?;
-        let begin = self.maps.read_dword(entry)?;
-        let end = self.maps.read_dword(entry.checked_add(4)?)?;
-        Some((
-            base.checked_add(u64::from(begin))?,
-            base.checked_add(u64::from(end))?,
-        ))
-    }
-
-    pub(crate) fn runtime_function_entry(&self, addr: u64) -> Option<(u64, u64)> {
         let (pe_base, _) = self.maps.find_pe_image_info(addr)?;
-        let e_lfanew = self.maps.read_dword(pe_base.checked_add(0x3C)?)? as u64;
-        let num_rva_sizes = self
-            .maps
-            .read_dword(pe_base.checked_add(e_lfanew + 0x84)?)?;
+        let e_lfanew = self.maps.read_dword(pe_base + 0x3C)? as u64;
+        let num_rva_sizes = self.maps.read_dword(pe_base + e_lfanew + 0x84)?;
         if num_rva_sizes < 4 {
             return None;
         }
-        let exc_dir_rva = self
-            .maps
-            .read_dword(pe_base.checked_add(e_lfanew + 0xA0)?)? as u64;
-        let exc_dir_size = self
-            .maps
-            .read_dword(pe_base.checked_add(e_lfanew + 0xA4)?)? as u64;
+        let exc_dir_rva = self.maps.read_dword(pe_base + e_lfanew + 0xA0)? as u64;
+        let exc_dir_size = self.maps.read_dword(pe_base + e_lfanew + 0xA4)? as u64;
         if exc_dir_rva == 0 || exc_dir_size < 12 {
             return None;
         }
-        let pdata_base = pe_base.checked_add(exc_dir_rva)?;
+        let pdata_base = pe_base + exc_dir_rva;
         let num_entries = exc_dir_size / 12;
-        let addr_rva = u32::try_from(addr.checked_sub(pe_base)?).ok()?;
+        let addr_rva = addr.checked_sub(pe_base)? as u32;
         let mut lo: u64 = 0;
         let mut hi: u64 = num_entries;
         while lo < hi {
             let mid = lo + (hi - lo) / 2;
-            let entry_addr = pdata_base.checked_add(mid * 12)?;
+            let entry_addr = pdata_base + mid * 12;
             let begin = self.maps.read_dword(entry_addr)?;
-            let end = self.maps.read_dword(entry_addr.checked_add(4)?)?;
+            let end = self.maps.read_dword(entry_addr + 4)?;
             if addr_rva < begin {
                 hi = mid;
             } else if addr_rva >= end {
                 lo = mid + 1;
             } else {
-                return Some((pe_base, entry_addr));
+                return Some((pe_base + begin as u64, pe_base + end as u64));
             }
         }
         None
@@ -324,7 +271,7 @@ impl Emu {
         }
     }
 
-    pub(crate) fn dispatch_structured_exception(&mut self, record: &ExceptionRecord) {
+    fn dispatch_structured_exception(&mut self, record: &ExceptionRecord) {
         if self.cfg.is_x64() {
             if let Some(address) = self.find_x64_seh_handler(record.address) {
                 self.call_exception_handler(record, address, HandlerKind::Seh, 0);

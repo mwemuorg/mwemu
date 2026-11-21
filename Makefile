@@ -73,15 +73,21 @@ windows-driver:
 macos-driver:
 	$(MAKE) -C drivers/macos/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
-# Use the release archive as the inventory. Restore missing files on each run.
-ifeq ($(OS),Windows_NT)
-PYTHON ?= python
-else
-PYTHON ?= python3
-endif
+# Sample PE bundle (msgbox, enigma, ...), fetched once from the mwemu release
+# assets. Everything that needs a sample depends on this, so a fresh checkout
+# self-heals instead of running against a missing file (which the loader would
+# otherwise misdetect as shellcode and crash). The file target is the extracted
+# marker; `samples` is a friendly phony alias.
+$(TEST_DIR)/exe64win_msgbox.bin:
+	@echo "[samples] fetching test bundle into $(TEST_DIR)/ from mwemuorg/mwemu releases ..."
+	@if which wget >/dev/null 2>&1; then \
+		wget -q -O test.zip https://github.com/mwemuorg/mwemu/releases/download/maps/test.zip; \
+	else \
+		curl -fsSL -o test.zip https://github.com/mwemuorg/mwemu/releases/download/maps/test.zip; \
+	fi
+	@unzip -o -P mwemuTestSystem test.zip; rm -f test.zip
 
-samples:
-	$(PYTHON) scripts/fetch_samples.py "$(TEST_DIR)"
+samples: $(TEST_DIR)/exe64win_msgbox.bin
 
 # Fetch the Windows DLLs the tests load (maps/windows/{x86,x86_64}/) from
 # Microsoft's symbol server, once and sequentially. The test suite itself never

@@ -2,9 +2,8 @@ use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::buffers::BufferKind;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::trace::input_string;
+use crate::winapi::common::trace;
 use crate::winapi::common::{buffers, memory};
-use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::api_try;
 
 const PREFIX: u64 = 4;
@@ -50,7 +49,7 @@ pub(crate) fn allocate(emu: &mut Emu, source: u64, bytes: u64) -> Option<u64> {
     Some(address)
 }
 
-fn alloc_api(emu: &mut Emu, api: &str, explicit_length: bool, byte_length: bool) {
+pub(crate) fn alloc_api(emu: &mut Emu, explicit_length: bool, byte_length: bool) {
     let call = WinApi(Stdcall);
     let source = api_try!(emu, call.arg(emu, 0));
     let bytes = if explicit_length {
@@ -59,15 +58,6 @@ fn alloc_api(emu: &mut Emu, api: &str, explicit_length: bool, byte_length: bool)
     } else {
         string_bytes(emu, source)
     };
-    if explicit_length {
-        log_red!(emu, "oleaut32!{api} source={source:#x} bytes={bytes:?}");
-    } else {
-        log_red!(
-            emu,
-            "oleaut32!{api} source={}",
-            input_string(emu, source, Encoding::Wide)
-        );
-    }
     let value = if !explicit_length && source == 0 {
         0
     } else {
@@ -77,27 +67,26 @@ fn alloc_api(emu: &mut Emu, api: &str, explicit_length: bool, byte_length: bool)
     call.cleanup_args(emu, if explicit_length { 2 } else { 1 });
 }
 
-pub fn SysFreeString(emu: &mut Emu) {
+pub(crate) fn free_api(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let address = api_try!(emu, call.arg(emu, 0));
-    log_red!(emu, "oleaut32!SysFreeString bstr={address:#x}");
     buffers::free(emu, address, BufferKind::Bstr);
+    call.set_return(emu, 0);
     call.cleanup_args(emu, 1);
 }
 
-fn length_api(emu: &mut Emu, api: &str, bytes: bool) {
+pub(crate) fn length_api(emu: &mut Emu, bytes: bool) {
     let call = WinApi(Stdcall);
     let address = api_try!(emu, call.arg(emu, 0));
     let size = address
         .checked_sub(PREFIX)
         .and_then(|p| emu.maps.read_dword(p))
         .unwrap_or(0) as u64;
-    log_red!(emu, "oleaut32!{api} bstr={address:#x} byte_length={size}");
     call.set_return(emu, if bytes { size } else { size / 2 });
     call.cleanup_args(emu, 1);
 }
 
-fn realloc_api(emu: &mut Emu, api: &str, explicit_length: bool) {
+pub(crate) fn realloc_api(emu: &mut Emu, explicit_length: bool) {
     let call = WinApi(Stdcall);
     let output = api_try!(emu, call.arg(emu, 0));
     let source = api_try!(emu, call.arg(emu, 1));
@@ -106,10 +95,6 @@ fn realloc_api(emu: &mut Emu, api: &str, explicit_length: bool) {
     } else {
         string_bytes(emu, source)
     };
-    log_red!(
-        emu,
-        "oleaut32!{api} output={output:#x} source={source:#x} bytes={bytes:?}"
-    );
     let value = (|| {
         if !memory::writable_pointer(emu, output) {
             return None;
@@ -118,15 +103,8 @@ fn realloc_api(emu: &mut Emu, api: &str, explicit_length: bool) {
         if old != 0 && buffers::size(emu, old, BufferKind::Bstr).is_none() {
             return None;
         }
-        let new = if !explicit_length && source == 0 {
-            0
-        } else {
-            allocate(emu, source, bytes?)?
-        };
-        if !memory::write_pointer(emu, output, new) {
-            buffers::free(emu, new, BufferKind::Bstr);
-            return None;
-        }
+        let new = allocate(emu, source, bytes?)?;
+        memory::write_pointer(emu, output, new);
         buffers::free(emu, old, BufferKind::Bstr);
         Some(1)
     })()
@@ -135,30 +113,18 @@ fn realloc_api(emu: &mut Emu, api: &str, explicit_length: bool) {
     call.cleanup_args(emu, if explicit_length { 3 } else { 2 });
 }
 
-pub fn SysAllocString(emu: &mut Emu) {
-    alloc_api(emu, "SysAllocString", false, false);
-}
-
-pub fn SysAllocStringByteLen(emu: &mut Emu) {
-    alloc_api(emu, "SysAllocStringByteLen", true, true);
-}
-
-pub fn SysAllocStringLen(emu: &mut Emu) {
-    alloc_api(emu, "SysAllocStringLen", true, false);
-}
-
-pub fn SysReAllocString(emu: &mut Emu) {
-    realloc_api(emu, "SysReAllocString", false);
-}
-
-pub fn SysReAllocStringLen(emu: &mut Emu) {
-    realloc_api(emu, "SysReAllocStringLen", true);
-}
-
-pub fn SysStringByteLen(emu: &mut Emu) {
-    length_api(emu, "SysStringByteLen", true);
-}
-
-pub fn SysStringLen(emu: &mut Emu) {
-    length_api(emu, "SysStringLen", false);
+pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
+    let (handler, parameters, returns_value): (fn(&mut Emu), &str, bool) = match api {
+        "SysAllocString" => (|emu| alloc_api(emu, false, false), "source", true),
+        "SysAllocStringLen" => (|emu| alloc_api(emu, true, false), "source length", true),
+        "SysAllocStringByteLen" => (|emu| alloc_api(emu, true, true), "source bytes", true),
+        "SysFreeString" => (free_api, "string", false),
+        "SysStringLen" => (|emu| length_api(emu, false), "string", true),
+        "SysStringByteLen" => (|emu| length_api(emu, true), "string", true),
+        "SysReAllocString" => (|emu| realloc_api(emu, false), "output source", true),
+        "SysReAllocStringLen" => (|emu| realloc_api(emu, true), "output source length", true),
+        _ => return false,
+    };
+    trace::api(emu, api, parameters, returns_value, handler);
+    true
 }

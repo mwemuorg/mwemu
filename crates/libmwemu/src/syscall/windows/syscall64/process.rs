@@ -1,20 +1,476 @@
+use crate::windows::constants::errors::*;
+use crate::windows::constants::process::*;
+use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
-use crate::api::abi::windows::WindowsAbi::WinSyscall;
-use crate::api::windows::common::process;
 use crate::emu::Emu;
-use crate::winapi::libraries::kernel32::file_time::nt_performance;
-use crate::windows::constants::errors::*;
-use crate::windows::constants::syscalls::*;
+
+use crate::windows::structures::ProcessBasicInformation64;
+
+fn is_current_process_handle(h: u64) -> bool {
+    h == !0 || h == 0xffff_ffff_ffff_fffe
+}
+
+/// `NtAccessCheck` — syscall 0x0.  x64: RCX `SecurityDescriptor`, RDX `ClientToken`,
+/// R8 `DesiredAccess`, R9 `GenericMapping`, then `[rsp+0x28]` `PrivilegeSet`,
+/// `[rsp+0x30]` `PrivilegeSetLength`, `[rsp+0x38]` `GrantedAccess`, `[rsp+0x40]` `AccessStatus`.
+///
+/// Stub: grant the requested access; ntdll uses this during loader security checks.
+pub fn nt_access_check(emu: &mut Emu) {
+    let _security_descriptor = emu.regs().rcx;
+    let _client_token = emu.regs().rdx;
+    let desired_access = emu.regs().r8 as u32;
+    let _generic_mapping = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let privilege_set = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+    let privilege_set_length_ptr = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
+    let granted_access_ptr = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
+    let access_status_ptr = emu.maps.read_qword(rsp + 0x40).unwrap_or(0);
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtAccessCheck desired_access: 0x{:x}, granted_out: 0x{:x}, status_out: 0x{:x}",
+        WIN64_NTACCESSCHECK,
+        desired_access,
+        granted_access_ptr,
+        access_status_ptr
+    );
+
+    if granted_access_ptr == 0 || access_status_ptr == 0 {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
+    if !emu.maps.is_mapped(granted_access_ptr) || !emu.maps.is_mapped(access_status_ptr) {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
+    }
+    let _ = emu.maps.write_dword(granted_access_ptr, desired_access);
+    let _ = emu
+        .maps
+        .write_dword(access_status_ptr, STATUS_SUCCESS as u32);
+    if privilege_set_length_ptr != 0 && emu.maps.is_mapped(privilege_set_length_ptr) {
+        let len = emu.maps.read_dword(privilege_set_length_ptr).unwrap_or(0) as usize;
+        if len > 0 && privilege_set != 0 && emu.maps.is_mapped(privilege_set) {
+            let cap = len.min(0x1000);
+            emu.maps.memset(privilege_set, 0, cap);
+        }
+        let _ = emu.maps.write_dword(privilege_set_length_ptr, 0);
+    }
+
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}
+
+/// `NtQueryInformationProcess` — x64: RCX..R9 + 5th arg (`ReturnLength`) at `[rsp+0x28]`.
+pub fn nt_query_information_process(emu: &mut Emu) {
+    let process_handle = emu.regs().rcx;
+    let process_information_class = emu.regs().rdx;
+    let process_information = emu.regs().r8;
+    let process_information_length = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let return_length_ptr = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtQueryInformationProcess process_handle: 0x{:x}, process_information_class: 0x{:x}, process_information: 0x{:x}, process_information_length: 0x{:x}, return_length_ptr: 0x{:x}",
+        WIN64_NTQUERYINFORMATIONPROCESS,
+        process_handle,
+        process_information_class,
+        process_information,
+        process_information_length,
+        return_length_ptr
+    );
+
+    if process_information_class == PROCESS_INFORMATION_CLASS_PROCESS_BASIC_INFORMATION {
+        if process_information == 0 {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+
+        if !emu.maps.is_mapped(process_information) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+
+        if process_information_length < ProcessBasicInformation64::size() {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+
+        let peb_base = emu.maps.get_mem("peb").get_base();
+        let process_info = ProcessBasicInformation64 {
+            Reserved1: 0,
+            PebBaseAddress: peb_base,
+            Reserved2: [0, 0],
+            UniqueProcessId: 4,
+            Reserved3: 0,
+        };
+        process_info.save(process_information, &mut emu.maps);
+
+        if return_length_ptr != 0
+            && !emu
+                .maps
+                .write_qword(return_length_ptr, ProcessBasicInformation64::size())
+        {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    if process_information_class == PROCESS_INFORMATION_CLASS_PROCESS_COOKIE {
+        // Used by ntdll init paths; output is a 32-bit cookie (see SDK / `ProcessCookie`).
+        if process_information == 0 {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if process_information_length < 4 {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.is_mapped(process_information) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.write_dword(process_information, 0x01234567) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if return_length_ptr != 0 && !emu.maps.write_dword(return_length_ptr, 4) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    if process_information_class == PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_PORT {
+        if process_information_length < 8 {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.is_mapped(process_information) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.write_qword(process_information, 0) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if return_length_ptr != 0 && !emu.maps.write_qword(return_length_ptr, 8) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    // ProcessWow64Information (0x25): returns ULONG_PTR = 0 for native 64-bit processes.
+    if process_information_class == 0x25 {
+        if process_information_length < 8
+            || process_information == 0
+            || !emu.maps.is_mapped(process_information)
+        {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        let _ = emu.maps.write_qword(process_information, 0);
+        if return_length_ptr != 0 {
+            let _ = emu.maps.write_dword(return_length_ptr, 8);
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    // ProcessImageFileName (0x1b): return a UNICODE_STRING with a fake path.
+    if process_information_class == 0x1b {
+        // Minimum buffer: UNICODE_STRING header (8 bytes on x64: Length+MaxLength+Buffer ptr = actually
+        // it is 4+4+8=16 bytes on x64) + the string data. Return STATUS_INFO_LENGTH_MISMATCH if too small.
+        const HDR: u32 = 16; // sizeof(UNICODE_STRING) on x64
+        if process_information_length < HDR as u64 {
+            if return_length_ptr != 0 && emu.maps.is_mapped(return_length_ptr) {
+                let _ = emu.maps.write_dword(return_length_ptr, HDR);
+            }
+            emu.regs_mut().rax = STATUS_INFO_LENGTH_MISMATCH;
+            return;
+        }
+        if process_information == 0 || !emu.maps.is_mapped(process_information) {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        // Write an empty UNICODE_STRING (Length=0, MaxLength=0, Buffer=0).
+        let _ = emu.maps.write_word(process_information, 0);
+        let _ = emu.maps.write_word(process_information + 2, 0);
+        let _ = emu.maps.write_qword(process_information + 8, 0);
+        if return_length_ptr != 0 && emu.maps.is_mapped(return_length_ptr) {
+            let _ = emu.maps.write_dword(return_length_ptr, HDR);
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+}
 
 /// `NtQueryPerformanceCounter` — RCX = counter (PLARGE_INTEGER), RDX = frequency (PLARGE_INTEGER, optional).
 /// Matches the usual x64 syscall stub used from `kernelbase!QueryPerformanceCounter` → ntdll.
 pub fn nt_query_performance_counter(emu: &mut Emu) {
-    nt_performance(emu, WinSyscall);
+    let counter_ptr = emu.regs().rcx;
+    let freq_ptr = emu.regs().rdx;
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtQueryPerformanceCounter counter: 0x{:x} freq: 0x{:x}",
+        WIN64_NTQUERYPERFORMANCECOUNTER,
+        counter_ptr,
+        freq_ptr
+    );
+
+    if counter_ptr == 0 {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
+    if !emu.maps.is_mapped(counter_ptr) {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
+    }
+
+    let counter_value = (emu.tick as u64).saturating_mul(1000);
+    if !emu.maps.write_qword(counter_ptr, counter_value) {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
+    }
+
+    if freq_ptr != 0 {
+        if !emu.maps.is_mapped(freq_ptr) {
+            emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+            return;
+        }
+        // Fake ~10 MHz; order of magnitude typical for QPC frequency on Windows.
+        if !emu.maps.write_qword(freq_ptr, 10_000_000) {
+            emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+            return;
+        }
+    }
+
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
+/// `NtQueryInformationThread` — x64: 5th arg at `[rsp+0x28]`.
 pub fn nt_query_information_thread(emu: &mut Emu) {
-    process::query_information_thread(emu, WinSyscall);
+    let _thread_handle = emu.regs().rcx;
+    let thread_class = emu.regs().rdx;
+    let thread_info = emu.regs().r8;
+    let thread_info_len = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let return_length_ptr = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtQueryInformationThread class: 0x{:x}, out: 0x{:x}, len: 0x{:x}",
+        WIN64_NTQUERYINFORMATIONTHREAD,
+        thread_class,
+        thread_info,
+        thread_info_len
+    );
+
+    if thread_info == 0 && thread_info_len > 0 {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
+
+    if thread_class == THREAD_INFORMATION_CLASS_THREAD_BASIC_INFORMATION {
+        const TBI_SIZE: u64 = 48;
+        if thread_info_len < TBI_SIZE {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.is_mapped(thread_info) {
+            emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+            return;
+        }
+        for i in 0..TBI_SIZE {
+            let _ = emu.maps.write_byte(thread_info + i, 0);
+        }
+        let teb_base = emu.maps.get_mem("teb").get_base();
+        let _ = emu.maps.write_qword(thread_info + 8, teb_base);
+        // ClientId.UniqueProcess and .UniqueThread must be non-zero;
+        // ntdll may dereference them when resolving thread/process context.
+        let _ = emu.maps.write_qword(thread_info + 0x10, 0x1000); // fake PID
+        let _ = emu.maps.write_qword(thread_info + 0x18, 0x1004); // fake TID
+        if return_length_ptr != 0 {
+            let _ = emu.maps.write_qword(return_length_ptr, TBI_SIZE);
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    if thread_class == THREAD_INFORMATION_CLASS_THREAD_QUERY_SET_WIN32_START_ADDRESS {
+        if thread_info_len < 8 {
+            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+            return;
+        }
+        if !emu.maps.is_mapped(thread_info) {
+            emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+            return;
+        }
+        let start = emu.regs().rip;
+        let _ = emu.maps.write_qword(thread_info, start);
+        if return_length_ptr != 0 {
+            let _ = emu.maps.write_qword(return_length_ptr, 8);
+        }
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
+
+    emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+}
+
+/// `NtSetInformationProcess` — x64: four arguments in RCX..R9.
+pub fn nt_set_information_process(emu: &mut Emu) {
+    let process_handle = emu.regs().rcx;
+    let class = emu.regs().rdx;
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtSetInformationProcess h: 0x{:x} class: 0x{:x}",
+        WIN64_NTSETINFORMATIONPROCESS,
+        process_handle,
+        class
+    );
+
+    if !is_current_process_handle(process_handle) {
+        emu.regs_mut().rax = STATUS_ACCESS_DENIED;
+        return;
+    }
+
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}
+
+/// `NtSetInformationThread` — x64: four arguments in RCX..R9.
+pub fn nt_set_information_thread(emu: &mut Emu) {
+    let thread_handle = emu.regs().rcx;
+    let class = emu.regs().rdx;
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtSetInformationThread h: 0x{:x} class: 0x{:x}",
+        WIN64_NTSETINFORMATIONTHREAD,
+        thread_handle,
+        class
+    );
+
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}
+
+/// `NtOpenProcess` — x64: PHANDLE, ACCESS_MASK, OBJECT_ATTRIBUTES, CLIENT_ID in RCX..R9.
+pub fn nt_open_process(emu: &mut Emu) {
+    let handle_out = emu.regs().rcx;
+    let _desired_access = emu.regs().rdx;
+    let _obj_attr = emu.regs().r8;
+    let _client_id = emu.regs().r9;
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtOpenProcess out: 0x{:x}",
+        WIN64_NTOPENPROCESS,
+        handle_out
+    );
+
+    if handle_out == 0 {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
+
+    let fake = 0x4u64;
+    if emu.maps.write_qword(handle_out, fake) {
+        emu.regs_mut().rax = STATUS_SUCCESS;
+    } else {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+    }
+}
+
+/// `NtRaiseHardError` — CSR / hard-error dialog path (no real session in emulation).
+/// x64: RCX=`ErrorStatus`, RDX=`NumberOfParameters`, R8=`UnicodeStringParameterMask`,
+/// R9=`Parameters`, `[rsp+0x28]`=`ValidResponseOptions`, `[rsp+0x30]`=`Response` (PULONG).
+///
+/// Writes **ResponseOk (6)** to `*Response` when the pointer is mapped; returns success so ntdll
+/// can continue instead of wedging on an unimplemented syscall.
+pub fn nt_raise_hard_error(emu: &mut Emu) {
+    let error_status = emu.regs().rcx as u32;
+    let num_params = emu.regs().rdx as u32;
+    let unicode_mask = emu.regs().r8 as u32;
+    let parameters = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let valid_options = emu.maps.read_dword(rsp + 0x28).unwrap_or(0);
+    let response_ptr = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
+
+    let status_tag = if error_status == STATUS_APP_INIT_FAILURE as u32 {
+        " STATUS_APP_INIT_FAILURE"
+    } else {
+        ""
+    };
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtRaiseHardError status: 0x{:x}{}, nparams: {}, umask: 0x{:x}, params: 0x{:x}, options: 0x{:x}, response: 0x{:x} (stub OK)",
+        WIN64_NTRAISEHARDERROR,
+        error_status,
+        status_tag,
+        num_params,
+        unicode_mask,
+        parameters,
+        valid_options,
+        response_ptr
+    );
+
+    // For diagnostic purposes, dump each Parameter. If `UnicodeStringParameterMask`
+    // has bit N set, parameter N is a `PUNICODE_STRING`; otherwise it is a ULONG_PTR.
+    if num_params > 0 && parameters != 0 && emu.maps.is_mapped(parameters) {
+        for i in 0..num_params.min(4) {
+            let param_addr = parameters + (i as u64) * 8;
+            let pv = emu.maps.read_qword(param_addr).unwrap_or(0);
+            if (unicode_mask >> i) & 1 == 1 {
+                // PUNICODE_STRING — read Buffer + Length and dump the wide string.
+                if pv != 0 && emu.maps.is_mapped(pv) {
+                    let len = emu.maps.read_word(pv).unwrap_or(0) as u64;
+                    let bufp = emu.maps.read_qword(pv + 8).unwrap_or(0);
+                    let mut s = String::new();
+                    let mut j = 0u64;
+                    while j < len.min(256) && bufp != 0 {
+                        let w = emu.maps.read_word(bufp + j).unwrap_or(0);
+                        if w == 0 {
+                            break;
+                        }
+                        s.push(char::from_u32(w as u32).unwrap_or('?'));
+                        j += 2;
+                    }
+                    log_orange!(
+                        emu,
+                        "    NtRaiseHardError param[{}] = UNICODE_STRING@0x{:x} (\"{}\")",
+                        i,
+                        pv,
+                        s,
+                    );
+                } else {
+                    log_orange!(
+                        emu,
+                        "    NtRaiseHardError param[{}] = UNICODE_STRING@0x{:x} (unmapped)",
+                        i,
+                        pv,
+                    );
+                }
+            } else {
+                log_orange!(emu, "    NtRaiseHardError param[{}] = 0x{:x}", i, pv,);
+            }
+        }
+    }
+
+    const HARDERROR_RESPONSE_OK: u32 = 6;
+    if response_ptr != 0 && emu.maps.is_mapped(response_ptr) {
+        let _ = emu.maps.write_dword(response_ptr, HARDERROR_RESPONSE_OK);
+    }
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 /// `NtTerminateProcess` — x64: ProcessHandle, ExitStatus.
@@ -24,7 +480,7 @@ pub fn nt_terminate_process(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtTerminateProcess handle=0x{:x} status=0x{:x}",
+        "syscall 0x{:x}: NtTerminateProcess h: 0x{:x} status: 0x{:x}",
         WIN64_NTTERMINATEPROCESS,
         process_handle,
         exit_status
@@ -64,7 +520,7 @@ pub fn nt_raise_exception(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtRaiseException record=0x{:x}, ctx=0x{:x}, first={}, code=0x{:x}",
+        "syscall 0x{:x}: NtRaiseException record: 0x{:x}, ctx: 0x{:x}, first: {}, code: 0x{:x}",
         WIN64_NTRAISEEXCEPTION,
         exception_record,
         context_ptr,
@@ -145,7 +601,7 @@ pub fn nt_query_security_attributes_token(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtQuerySecurityAttributesToken handle=0x{:x} num_attrs={} buf=0x{:x} len={}",
+        "syscall 0x{:x}: NtQuerySecurityAttributesToken h: 0x{:x} num_attrs: {} buf: 0x{:x} len: {}",
         WIN64_NTQUERYSECURITYATTRIBUTESTOKEN,
         token_handle,
         num_attrs,
@@ -180,6 +636,39 @@ pub fn nt_query_security_attributes_token(emu: &mut Emu) {
     let _ = emu.maps.write_word(buffer + 2, 0); // Reserved
     let _ = emu.maps.write_dword(buffer + 4, 0); // AttributeCount
     let _ = emu.maps.write_qword(buffer + 8, 0); // pAttributeV1
+
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}
+
+/// `NtCreateThreadEx` — syscall 0xc9.
+/// x64: RCX=`ThreadHandle` (PHANDLE out), RDX=`DesiredAccess`, R8=`ObjectAttributes`,
+///      R9=`ProcessHandle`, `[rsp+0x28]`=`StartRoutine`, `[rsp+0x30]`=`Argument`,
+///      `[rsp+0x38]`=`CreateFlags`, `[rsp+0x40]`=`ZeroBits`, `[rsp+0x48]`=`StackSize`,
+///      `[rsp+0x50]`=`MaxStackSize`, `[rsp+0x58]`=`AttributeList`.
+///
+/// Stub: writes a fake thread handle to *ThreadHandle and returns STATUS_SUCCESS.
+/// The emulator runs single-threaded so no real thread is created.
+pub fn nt_create_thread_ex(emu: &mut Emu) {
+    let thread_handle_ptr = emu.regs().rcx;
+    let _desired_access = emu.regs().rdx;
+    let _process_handle = emu.regs().r9;
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtCreateThreadEx handle_out: 0x{:x} process: 0x{:x}",
+        WIN64_NTCREATETHREADEX,
+        thread_handle_ptr,
+        _process_handle,
+    );
+
+    if thread_handle_ptr == 0 || !emu.maps.is_mapped(thread_handle_ptr) {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
+
+    // Write a synthetic handle value (same scheme used by NtCreateEvent etc.).
+    let h = crate::syscall::windows::syscall64::sync::next_handle();
+    let _ = emu.maps.write_qword(thread_handle_ptr, h);
 
     emu.regs_mut().rax = STATUS_SUCCESS;
 }
@@ -268,6 +757,39 @@ pub fn nt_continue(emu: &mut Emu) {
     emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
+/// `NtDuplicateObject` — syscall 0x3c.
+/// RCX=SourceProcessHandle, RDX=SourceHandle, R8=TargetProcessHandle,
+/// R9=TargetHandle (PHANDLE, optional out), [rsp+0x28]=DesiredAccess,
+/// [rsp+0x30]=HandleAttributes, [rsp+0x38]=Options.
+///
+/// If TargetHandle is non-null, write a fresh fake handle to it.
+pub fn nt_duplicate_object(emu: &mut Emu) {
+    let source_process = emu.regs().rcx;
+    let source_handle = emu.regs().rdx;
+    let _target_process = emu.regs().r8;
+    let target_handle_out = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let desired_access = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+    let options = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtDuplicateObject src_proc: 0x{:x}, src_handle: 0x{:x}, target_out: 0x{:x}, access: 0x{:x}, opts: 0x{:x}",
+        WIN64_NTDUPLICATEOBJECT,
+        source_process,
+        source_handle,
+        target_handle_out,
+        desired_access,
+        options,
+    );
+
+    if target_handle_out != 0 && emu.maps.is_mapped(target_handle_out) {
+        let h = super::sync::next_handle();
+        let _ = emu.maps.write_qword(target_handle_out, h);
+    }
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}
+
 /// `NtCreateProfileEx` — x64 syscall 0xc3.
 ///
 /// Creates a profiling object. Stub: returns STATUS_NOT_SUPPORTED.
@@ -277,14 +799,10 @@ pub fn nt_create_profile_ex(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtCreateProfileEx out=0x{:x}",
+        "syscall 0x{:x}: NtCreateProfileEx out: 0x{:x}",
         WIN64_NTCREATEPROFILEEX,
         profile_handle,
     );
 
     emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
-}
-
-pub fn nt_query_information_process(emu: &mut Emu) {
-    process::query_information_process(emu, WinSyscall);
 }

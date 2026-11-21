@@ -1,17 +1,4 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
-use crate::api::abi::windows::WindowsAbi::WinSyscall;
-use crate::api::windows::common::{handles, wait};
-use crate::api::windows::policy;
 use crate::emu::Emu;
-use crate::emu::winver::{MACHINE_AMD64, ensure_dll};
-use crate::syscall::windows;
-use crate::syscall::windows::syscall64::memory::{
-    read_object_attributes_name, read_object_attributes_root_directory,
-};
-use crate::syscall::windows::syscall64::sync::next_handle;
-use crate::winapi::registry::native;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::syscalls::*;
@@ -23,7 +10,6 @@ mod process;
 mod registry;
 mod sync;
 mod system;
-pub(crate) use system::query_system_information;
 
 /// Resolve a system DLL `basename` (lowercase, e.g. "kernelbase.dll") to a host
 /// file inside the maps folder. When `--winver` is active and the file isn't
@@ -43,7 +29,12 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
     {
         let cache = std::path::Path::new(&emu.cfg.maps_folder);
         // syscall64 is the x64 Windows path.
-        match ensure_dll(cache, &build, basename, MACHINE_AMD64) {
+        match crate::emu::winver::ensure_dll(
+            cache,
+            &build,
+            basename,
+            crate::emu::winver::MACHINE_AMD64,
+        ) {
             Ok(path) => return Some(path),
             Err(e) => log::trace!("--winver: {} not fetched: {}", basename, e),
         }
@@ -51,23 +42,152 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
     None
 }
 
-/// Translate loaded ntdll service numbers to the static x64 handler identifiers.
+/// Build a translation table from the syscall numbers the currently-loaded
+/// ntdll actually emits → the "canonical" numbers our dispatcher matches on
+/// (the `WIN64_NT*` constants, which mirror an older Windows build).
+///
+/// We scan every `Nt*` export in `ntdll.pe` for the standard stub prologue
+/// `4c 8b d1 b8 <imm32>` (mov r10, rcx; mov eax, imm32). For each match, if
+/// the same name maps to a constant our dispatcher recognises, we record
+/// the mapping. `gateway()` then translates the incoming `nr` via this map
+/// so cross-build ntdlls Just Work without rewriting every `WIN64_*` const.
 pub fn build_syscall_translation_table(emu: &mut Emu) {
-    // Build the inverse once. Some historical numbers are aliases; the last entry is the canonical one.
-    static NUMBERS_BY_NAME: LazyLock<HashMap<String, u64>> = LazyLock::new(|| {
-        (0..=WIN64_NTWAITLOWEVENTPAIR)
-            .map(|number| (what_syscall(number), number))
-            .collect()
-    });
-    let name_map = windows::index_syscall_names(emu);
-    let map: HashMap<u64, u64> = name_map
-        .iter()
-        .filter_map(|(&number, name)| {
-            NUMBERS_BY_NAME
-                .get(name.as_str())
-                .map(|&canonical| (number, canonical))
-        })
-        .collect();
+    let ntdll_pe = match emu.maps.get_map_by_name("ntdll.pe") {
+        Some(m) => m,
+        None => return,
+    };
+    let base = ntdll_pe.get_base();
+    let pe_off = match emu.maps.read_dword(base + 0x3c) {
+        Some(v) => v as u64,
+        None => return,
+    };
+    let exp_rva = emu.maps.read_dword(base + pe_off + 0x88).unwrap_or(0) as u64;
+    if exp_rva == 0 {
+        return;
+    }
+    let exp = base + exp_rva;
+    let nname = emu.maps.read_dword(exp + 0x18).unwrap_or(0) as u64;
+    let aon = base + emu.maps.read_dword(exp + 0x20).unwrap_or(0) as u64;
+    let aono = base + emu.maps.read_dword(exp + 0x24).unwrap_or(0) as u64;
+
+    // Canonical-name → canonical-number table (a subset matching the
+    // syscalls our `gateway()` dispatches and the syscalls we observe
+    // in LdrInit). Add entries here whenever you introduce a new handler.
+    let canonical: &[(&str, u64)] = &[
+        ("NtAccessCheck", WIN64_NTACCESSCHECK),
+        ("NtAllocateVirtualMemory", WIN64_NTALLOCATEVIRTUALMEMORY),
+        ("NtAllocateVirtualMemoryEx", WIN64_NTALLOCATEVIRTUALMEMORYEX),
+        ("NtFreeVirtualMemory", WIN64_NTFREEVIRTUALMEMORY),
+        ("NtProtectVirtualMemory", WIN64_NTPROTECTVIRTUALMEMORY),
+        ("NtQueryVirtualMemory", WIN64_NTQUERYVIRTUALMEMORY),
+        ("NtReadVirtualMemory", WIN64_NTREADVIRTUALMEMORY),
+        ("NtWriteVirtualMemory", WIN64_NTWRITEVIRTUALMEMORY),
+        ("NtCreateSection", WIN64_NTCREATESECTION),
+        ("NtOpenSection", WIN64_NTOPENSECTION),
+        ("NtMapViewOfSection", WIN64_NTMAPVIEWOFSECTION),
+        ("NtUnmapViewOfSection", WIN64_NTUNMAPVIEWOFSECTION),
+        ("NtQuerySystemInformation", WIN64_NTQUERYSYSTEMINFORMATION),
+        ("NtQueryInformationProcess", WIN64_NTQUERYINFORMATIONPROCESS),
+        ("NtQueryInformationThread", WIN64_NTQUERYINFORMATIONTHREAD),
+        ("NtSetInformationProcess", WIN64_NTSETINFORMATIONPROCESS),
+        ("NtSetInformationThread", WIN64_NTSETINFORMATIONTHREAD),
+        ("NtOpenProcess", WIN64_NTOPENPROCESS),
+        ("NtDuplicateObject", WIN64_NTDUPLICATEOBJECT),
+        ("NtTerminateProcess", WIN64_NTTERMINATEPROCESS),
+        ("NtQueryPerformanceCounter", WIN64_NTQUERYPERFORMANCECOUNTER),
+        ("NtCreateEvent", WIN64_NTCREATEEVENT),
+        ("NtSetEvent", WIN64_NTSETEVENT),
+        ("NtClose", WIN64_NTCLOSE),
+        ("NtOpenKey", WIN64_NTOPENKEY),
+        ("NtQueryValueKey", WIN64_NTQUERYVALUEKEY),
+        ("NtRaiseException", WIN64_NTRAISEEXCEPTION),
+        ("NtContinue", WIN64_NTCONTINUE),
+        ("NtQueryAttributesFile", WIN64_NTQUERYATTRIBUTESFILE),
+        ("NtOpenFile", WIN64_NTOPENFILE),
+        ("NtCreateFile", WIN64_NTCREATEFILE),
+        ("NtDeviceIoControlFile", WIN64_NTDEVICEIOCONTROLFILE),
+        ("NtCreateIoCompletion", WIN64_NTCREATEIOCOMPLETION),
+        (
+            "NtCreateWaitCompletionPacket",
+            WIN64_NTCREATEWAITCOMPLETIONPACKET,
+        ),
+        ("NtCreateWorkerFactory", WIN64_NTCREATEWORKERFACTORY),
+        (
+            "NtSetInformationWorkerFactory",
+            WIN64_NTSETINFORMATIONWORKERFACTORY,
+        ),
+        ("NtShutdownWorkerFactory", WIN64_NTSHUTDOWNWORKERFACTORY),
+        ("NtQueryWnfStateData", WIN64_NTQUERYWNFSTATEDATA),
+        ("NtOpenDirectoryObject", WIN64_NTOPENDIRECTORYOBJECT),
+        ("NtOpenSymbolicLinkObject", WIN64_NTOPENSYMBOLICLINKOBJECT),
+        ("NtQuerySymbolicLinkObject", WIN64_NTQUERYSYMBOLICLINKOBJECT),
+        ("NtAlpcConnectPort", WIN64_NTALPCCONNECTPORT),
+        ("NtAlpcSendWaitReceivePort", WIN64_NTALPCSENDWAITRECEIVEPORT),
+        ("NtTraceEvent", WIN64_NTTRACEEVENT),
+        ("NtOpenEvent", WIN64_NTOPENEVENT),
+        ("NtWaitForSingleObject", WIN64_NTWAITFORSINGLEOBJECT),
+        ("NtApphelpCacheControl", WIN64_NTAPPHELPCACHECONTROL),
+        ("NtAreMappedFilesTheSame", WIN64_NTAREMAPPEDFILESTHESAME),
+        (
+            "NtQueryQuotaInformationFile",
+            WIN64_NTQUERYQUOTAINFORMATIONFILE,
+        ),
+        (
+            "NtQuerySystemEnvironmentValueEx",
+            WIN64_NTQUERYSYSTEMENVIRONMENTVALUEEX,
+        ),
+        ("NtRaiseHardError", WIN64_NTRAISEHARDERROR),
+        ("NtRaiseException", WIN64_NTRAISEEXCEPTION),
+    ];
+    let by_name: std::collections::HashMap<&'static str, u64> = canonical.iter().copied().collect();
+
+    let mut map = std::collections::HashMap::new();
+    let mut name_map = std::collections::HashMap::new();
+    for i in 0..nname {
+        let nrva = emu.maps.read_dword(aon + i * 4).unwrap_or(0) as u64;
+        if nrva == 0 {
+            continue;
+        }
+        let mut name = String::new();
+        let mut k = 0u64;
+        while k < 128 {
+            let b = emu.maps.read_byte(base + nrva + k).unwrap_or(0);
+            if b == 0 {
+                break;
+            }
+            name.push(b as char);
+            k += 1;
+        }
+        if !name.starts_with("Nt") {
+            continue;
+        }
+        let ord = emu.maps.read_word(aono + i * 2).unwrap_or(0) as u64;
+        let aof_rva = emu.maps.read_dword(exp + 0x1c).unwrap_or(0) as u64;
+        let fn_rva = emu.maps.read_dword(base + aof_rva + ord * 4).unwrap_or(0) as u64;
+        if fn_rva == 0 {
+            continue;
+        }
+        // Stub prologue: 4c 8b d1 b8 <imm32>
+        if emu.maps.read_byte(base + fn_rva).unwrap_or(0) != 0x4c {
+            continue;
+        }
+        if emu.maps.read_byte(base + fn_rva + 1).unwrap_or(0) != 0x8b {
+            continue;
+        }
+        if emu.maps.read_byte(base + fn_rva + 2).unwrap_or(0) != 0xd1 {
+            continue;
+        }
+        if emu.maps.read_byte(base + fn_rva + 3).unwrap_or(0) != 0xb8 {
+            continue;
+        }
+        let real_nr = emu.maps.read_dword(base + fn_rva + 4).unwrap_or(0) as u64;
+        name_map.insert(real_nr, name.clone());
+        if let Some(&canonical_nr) = by_name.get(name.as_str())
+            && real_nr != canonical_nr
+        {
+            map.insert(real_nr, canonical_nr);
+        }
+    }
     log::trace!(
         "syscall translation table built: {} entries (real_nr → canonical), {} names indexed (from loaded ntdll)",
         map.len(),
@@ -78,45 +198,37 @@ pub fn build_syscall_translation_table(emu: &mut Emu) {
 }
 
 pub fn gateway(emu: &mut Emu) {
-    let number = emu.regs().get_eax();
-    let name = emu.syscall_name_by_real.get(&number).cloned();
-    let canonical = emu.syscall_number_map.get(&number).copied().or_else(|| {
-        if let Some(name) = name.as_ref() {
-            (what_syscall(number) == *name).then_some(number)
-        } else if emu.syscall_name_by_real.is_empty()
-            && emu.cfg.winver.is_none()
-            && emu.maps.get_map_by_name("ntdll.pe").is_none()
-            && emu.export_indexes.get_by_name("ntdll").is_none()
-        {
-            // Preserve the original static profile when no guest ntdll is loaded.
-            Some(number)
-        } else {
-            None
-        }
-    });
-    let name = name.unwrap_or_else(|| {
-        canonical
-            .map(what_syscall)
-            .unwrap_or_else(|| format!("syscall 0x{number:x}"))
-    });
-    windows::dispatch(emu, number, &name, |emu| {
-        if handles::dispatch_nt(&name, emu, WinSyscall) || wait::dispatch_nt(&name, emu, WinSyscall)
-        {
+    let real_nr = emu.regs().rax;
+    if !emu.call_syscall_hook(real_nr) {
+        return;
+    }
+    let mut nr = real_nr;
+    // Translate the syscall number coming from the loaded ntdll to the
+    // canonical number our dispatcher matches against.
+    if let Some(&translated) = emu.syscall_number_map.get(&nr) {
+        nr = translated;
+    } else if let Some(real_name) = emu.syscall_name_by_real.get(&real_nr) {
+        // No translation. Verify the real-name from the loaded ntdll matches
+        // what our static `what_syscall()` would say — if they differ, the
+        // dispatcher would route this syscall to the wrong handler (e.g.
+        // Win2022's 0x133 is `NtOpenSymbolicLinkObject` but our constant
+        // `WIN64_NTOPENPROCESSTOKEN = 0x133` from an older build). Tag it
+        // as unimplemented under its true name to avoid silent misroute.
+        let canonical_name = what_syscall(real_nr);
+        if &canonical_name != real_name {
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: {} (unimplemented; static table would have misrouted as {})",
+                real_nr,
+                real_name,
+                canonical_name,
+            );
+            emu.regs_mut().rax = STATUS_NOT_IMPLEMENTED;
             return;
         }
-        if let Some(canonical) = canonical {
-            dispatch(emu, canonical, number);
-        } else {
-            policy::unsupported_with_abi(emu, "ntdll", &name, emu.pc(), WinSyscall);
-        }
-    });
-}
-
-fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
+    }
     match nr {
-        WIN64_NTACCESSCHECK => {
-            policy::unsupported_with_abi(emu, "ntdll", "NtAccessCheck", emu.pc(), WinSyscall)
-        }
+        WIN64_NTACCESSCHECK => process::nt_access_check(emu),
         WIN64_NTALLOCATEVIRTUALMEMORY => memory::nt_allocate_virtual_memory(emu),
         WIN64_NTALLOCATEVIRTUALMEMORYEX => memory::nt_allocate_virtual_memory_ex(emu),
         WIN64_NTFREEVIRTUALMEMORY => memory::nt_free_virtual_memory(emu),
@@ -131,21 +243,69 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         WIN64_NTQUERYSYSTEMINFORMATION => system::nt_query_system_information(emu),
         WIN64_NTQUERYINFORMATIONPROCESS => process::nt_query_information_process(emu),
         WIN64_NTQUERYINFORMATIONTHREAD => process::nt_query_information_thread(emu),
+        WIN64_NTSETINFORMATIONPROCESS => process::nt_set_information_process(emu),
+        WIN64_NTSETINFORMATIONTHREAD => process::nt_set_information_thread(emu),
+        WIN64_NTOPENPROCESS => process::nt_open_process(emu),
+        WIN64_NTDUPLICATEOBJECT => process::nt_duplicate_object(emu),
         WIN64_NTTERMINATEPROCESS => process::nt_terminate_process(emu),
         WIN64_NTQUERYPERFORMANCECOUNTER => process::nt_query_performance_counter(emu),
-        WIN64_NTOPENKEY => native::open_key(emu, WinSyscall, false),
-        WIN64_NTOPENKEYEX => native::open_key(emu, WinSyscall, true),
-        WIN64_NTQUERYVALUEKEY => native::query_value(emu, WinSyscall),
+        WIN64_NTCREATEEVENT => sync::nt_create_event(emu),
+        WIN64_NTSETEVENT => sync::nt_set_event(emu),
+        WIN64_NTCLOSE => sync::nt_close(emu),
+        WIN64_NTOPENKEY => registry::nt_open_key(emu),
+        WIN64_NTQUERYOPENSUBKEYSEX => registry::nt_query_open_subkeys_ex(emu),
+        WIN64_NTOPENKEYEX => registry::nt_open_key_ex(emu),
+        WIN64_NTOPENKEYTRANSACTED => registry::nt_open_key_transacted(emu),
+        WIN64_NTOPENKEYTRANSACTEDEX => registry::nt_open_key_transacted_ex(emu),
+        WIN64_NTQUERYVALUEKEY => registry::nt_query_value_key(emu),
+        WIN64_NTQUERYMULTIPLEVALUEKEY => registry::nt_query_multiple_value_key(emu),
         WIN64_NTOPENDIRECTORYOBJECT => registry::nt_open_directory_object(emu),
+        WIN64_NTCREATEDIRECTORYOBJECT => registry::nt_create_directory_object(emu),
         WIN64_NTOPENSYMBOLICLINKOBJECT => registry::nt_open_symbolic_link_object(emu),
         WIN64_NTQUERYSYMBOLICLINKOBJECT => registry::nt_query_symbolic_link_object(emu),
+        WIN64_NTMANAGEHOTPATCH => system::nt_manage_hot_patch(emu),
         WIN64_NTQUERYDEBUGFILTERSTATE => system::nt_query_debug_filter_state(emu),
+        WIN64_NTTRACEEVENT => system::nt_trace_event(emu),
+        WIN64_NTQUERYIOCOMPLETION => system::nt_query_io_completion(emu),
         WIN64_NTRAISEEXCEPTION => process::nt_raise_exception(emu),
+        WIN64_NTRAISEHARDERROR => process::nt_raise_hard_error(emu),
+        WIN64_NTWAITFORALERTBYTHREADID => sync::nt_wait_for_alert_by_thread_id(emu),
         WIN64_NTQUERYSECURITYATTRIBUTESTOKEN => process::nt_query_security_attributes_token(emu),
+        WIN64_NTALLOCATEUSERPHYSICALPAGESEX => memory::nt_allocate_user_physical_pages_ex(emu),
+        WIN64_NTQUERYINFORMATIONTRANSACTIONMANAGER => {
+            system::nt_query_information_transaction_manager(emu)
+        }
+        WIN64_NTCREATETHREADEX => process::nt_create_thread_ex(emu),
         WIN64_NTCONTINUE => process::nt_continue(emu),
+        WIN64_NTCREATETIMER2 => sync::nt_create_timer2(emu),
+        WIN64_NTOPENEVENT => sync::nt_open_event(emu),
+        WIN64_NTWAITFORSINGLEOBJECT => sync::nt_wait_for_single_object(emu),
+        WIN64_NTALPCACCEPTCONNECTPORT => sync::nt_alpc_accept_connect_port(emu),
         WIN64_NTCREATEPROFILEEX => process::nt_create_profile_ex(emu),
+        WIN64_NTALPCCANCELMESSAGE => alpc::nt_alpc_cancel_message(emu),
         WIN64_NTALPCCONNECTPORT => alpc::nt_alpc_connect_port(emu),
+        WIN64_NTALPCCONNECTPORTEX => alpc::nt_alpc_connect_port_ex(emu),
+        WIN64_NTALPCCREATEPORT => alpc::nt_alpc_create_port(emu),
+        WIN64_NTALPCCREATEPORTSECTION => alpc::nt_alpc_create_port_section(emu),
+        WIN64_NTALPCCREATERESOURCERESERVE => alpc::nt_alpc_create_resource_reserve(emu),
+        WIN64_NTALPCCREATESECTIONVIEW => alpc::nt_alpc_create_section_view(emu),
+        WIN64_NTALPCCREATESECURITYCONTEXT => alpc::nt_alpc_create_security_context(emu),
+        WIN64_NTALPCDELETEPORTSECTION => alpc::nt_alpc_delete_port_section(emu),
+        WIN64_NTALPCDELETERESOURCERESERVE => alpc::nt_alpc_delete_resource_reserve(emu),
+        WIN64_NTALPCDELETESECTIONVIEW => alpc::nt_alpc_delete_section_view(emu),
+        WIN64_NTALPCDELETESECURITYCONTEXT => alpc::nt_alpc_delete_security_context(emu),
+        WIN64_NTALPCDISCONNECTPORT => alpc::nt_alpc_disconnect_port(emu),
+        WIN64_NTALPCIMPERSONATECLIENTCONTAINEROFPORT => {
+            alpc::nt_alpc_impersonate_client_container_of_port(emu)
+        }
+        WIN64_NTALPCIMPERSONATECLIENTOFPORT => alpc::nt_alpc_impersonate_client_of_port(emu),
+        WIN64_NTALPCOPENSENDERPROCESS => alpc::nt_alpc_open_sender_process(emu),
+        WIN64_NTALPCOPENSENDERTHREAD => alpc::nt_alpc_open_sender_thread(emu),
+        WIN64_NTALPCQUERYINFORMATION => alpc::nt_alpc_query_information(emu),
+        WIN64_NTALPCQUERYINFORMATIONMESSAGE => alpc::nt_alpc_query_information_message(emu),
+        WIN64_NTALPCREVOKESECURITYCONTEXT => alpc::nt_alpc_revoke_security_context(emu),
         WIN64_NTALPCSENDWAITRECEIVEPORT => alpc::nt_alpc_send_wait_receive_port(emu),
+        WIN64_NTALPCSETINFORMATION => alpc::nt_alpc_set_information(emu),
         // `NtInitializeNlsFiles` (0x108): map `locale.nls` so ntdll's
         // `RtlInitNlsTables` gets the real Unicode upcase/casing tables.
         // Without this, every byte→wide conversion in the loader yields zeros
@@ -167,7 +327,9 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         WIN64_NTQUERYATTRIBUTESFILE => {
             let obj_attr = emu.regs().rcx;
             let file_info_ptr = emu.regs().rdx;
-            let nt_name = read_object_attributes_name(emu, obj_attr);
+            let nt_name = crate::syscall::windows::syscall64::memory::read_object_attributes_name(
+                emu, obj_attr,
+            );
             // Extract the filename (last path segment) from the NT path.
             let basename = nt_name
                 .rsplit(['\\', '/'])
@@ -210,7 +372,67 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             }
         }
         0x8e | 0x90 => memory::nt_are_mapped_files_the_same(emu),
-        WIN64_NTCONNECTPORT => alpc::nt_connect_port(emu),
+        // `NtConnectPort` (0xa4): the CSR client (`CsrClientConnectToServer`,
+        // called from kernelbase's DLL init) connects to the CSRSS API port.
+        // There is no CSRSS to talk to, but the connect MUST succeed — returning
+        // STATUS_NOT_IMPLEMENTED makes kernelbase's DllMain return FALSE and
+        // ntdll aborts process init with STATUS_DLL_INIT_FAILED. We fake a
+        // connected port: hand back a port handle and map the shared-memory view
+        // the client passed in via its PORT_VIEW, filling ViewBase so the
+        // client's `CsrPortHeap` / remote-delta arithmetic stays self-consistent.
+        // PORT_VIEW layout: {Length@0, SectionHandle@8, SectionOffset@0x10,
+        // ViewSize@0x18, ViewBase@0x20, ViewRemoteBase@0x28}.
+        0xa4 => {
+            let port_handle_ptr = emu.regs().rcx;
+            let client_view_ptr = emu.regs().r9;
+            let rsp = emu.regs().rsp;
+            // arg6 (MaxMessageLength, PULONG out) sits at [rsp+0x30] in the
+            // syscall stack frame; the slot holds the caller's pointer.
+            let max_msg_ptr = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
+
+            let h = crate::syscall::windows::syscall64::sync::next_handle();
+            if port_handle_ptr != 0 && emu.maps.is_mapped(port_handle_ptr) {
+                let _ = emu.maps.write_qword(port_handle_ptr, h);
+            }
+
+            let mut view_base = 0u64;
+            if client_view_ptr != 0 && emu.maps.is_mapped(client_view_ptr) {
+                let req = emu.maps.read_qword(client_view_ptr + 0x18).unwrap_or(0);
+                // Clamp to a sane window; the client only needs a scratch heap
+                // for CSR messages it will never actually send here.
+                let size = if req == 0 || req > 0x0010_0000 {
+                    0x0001_0000
+                } else {
+                    req
+                };
+                let base = emu.maps.lib64_alloc(size).unwrap_or(0);
+                if base != 0 {
+                    let perm = crate::maps::mem64::Permission::from_flags(true, true, false);
+                    let _ =
+                        emu.maps
+                            .create_map(&format!("csr_port_view_{:x}", h), base, size, perm);
+                    // ViewRemoteBase == ViewBase → remote delta 0, which is fine
+                    // in our single address space (no separate CSR server view).
+                    let _ = emu.maps.write_qword(client_view_ptr + 0x20, base);
+                    let _ = emu.maps.write_qword(client_view_ptr + 0x28, base);
+                    view_base = base;
+                }
+            }
+
+            if max_msg_ptr != 0 && emu.maps.is_mapped(max_msg_ptr) {
+                // LPC/ALPC default maximum message length.
+                let _ = emu.maps.write_dword(max_msg_ptr, 0x148);
+            }
+
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtConnectPort → fake CSR port handle 0x{:x}, view 0x{:x} (SUCCESS)",
+                nr,
+                h,
+                view_base,
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
         // `NtQuerySystemEnvironmentValueEx` (0x16d): newer ntdll enumerates
         // UEFI variables during init. NOT_IMPLEMENTED and VARIABLE_NOT_FOUND
         // both cause a tight retry loop (~3K iterations). Return SUCCESS with
@@ -226,6 +448,23 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             log_orange!(
                 emu,
                 "syscall 0x{:x}: NtQuerySystemEnvironmentValueEx (stub → SUCCESS, len=0)",
+                nr
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
+        // `NtOpenProcessToken` (0x133): return SUCCESS with a fake handle to
+        // bypass ntdll's bail path. (Empirically the loops downstream are
+        // caused by other unstubbed token-using syscalls; we want to see
+        // which ones surface next.)
+        0x133 => {
+            let token_handle_out = emu.regs().r8;
+            if token_handle_out != 0 && emu.maps.is_mapped(token_handle_out) {
+                let h = crate::syscall::windows::syscall64::sync::next_handle();
+                let _ = emu.maps.write_qword(token_handle_out, h);
+            }
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtOpenProcessToken (stub → SUCCESS, fake handle)",
                 nr
             );
             emu.regs_mut().rax = STATUS_SUCCESS;
@@ -329,7 +568,9 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             let file_handle_out = emu.regs().rcx;
             let obj_attr = emu.regs().r8;
             let io_status_block = emu.regs().r9;
-            let nt_name = read_object_attributes_name(emu, obj_attr);
+            let nt_name = crate::syscall::windows::syscall64::memory::read_object_attributes_name(
+                emu, obj_attr,
+            );
             let basename = nt_name
                 .rsplit(['\\', '/'])
                 .next()
@@ -337,7 +578,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 .to_lowercase();
             let exists = resolve_maps_dll(emu, &basename).is_some();
             if exists {
-                let h = next_handle();
+                let h = crate::syscall::windows::syscall64::sync::next_handle();
                 if file_handle_out != 0 && emu.maps.is_mapped(file_handle_out) {
                     let _ = emu.maps.write_qword(file_handle_out, h);
                 }
@@ -379,7 +620,9 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             let file_handle_out = emu.regs().rcx;
             let obj_attr = emu.regs().r8;
             let io_status_block = emu.regs().r9;
-            let nt_name = read_object_attributes_name(emu, obj_attr);
+            let nt_name = crate::syscall::windows::syscall64::memory::read_object_attributes_name(
+                emu, obj_attr,
+            );
             let basename = nt_name
                 .rsplit(['\\', '/'])
                 .next()
@@ -397,12 +640,15 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             // `\Output`. These carry no "condrv" in their ObjectName, so detect
             // them by their RootDirectory being a handle we already tagged as a
             // console object.
-            let root_dir = read_object_attributes_root_directory(emu, obj_attr);
+            let root_dir =
+                crate::syscall::windows::syscall64::memory::read_object_attributes_root_directory(
+                    emu, obj_attr,
+                );
             let is_console = nt_name.to_lowercase().contains("condrv")
                 || (root_dir != 0 && emu.console_handles.contains(&root_dir));
             let exists = is_console || resolve_maps_dll(emu, &basename).is_some();
             if exists {
-                let h = next_handle();
+                let h = crate::syscall::windows::syscall64::sync::next_handle();
                 if file_handle_out != 0 && emu.maps.is_mapped(file_handle_out) {
                     let _ = emu.maps.write_qword(file_handle_out, h);
                 }
@@ -501,13 +747,13 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             if handle_out == 0 || !emu.maps.is_mapped(handle_out) {
                 emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
             } else {
-                let h = next_handle();
+                let h = crate::syscall::windows::syscall64::sync::next_handle();
                 let _ = emu.maps.write_qword(handle_out, h);
                 log_orange!(
                     emu,
-                    "syscall 0x{:x}: {} out=0x{:x} → handle 0x{:x} (stub → SUCCESS)",
+                    "syscall 0x{:x}: {} out: 0x{:x} → handle 0x{:x} (stub → SUCCESS)",
                     nr,
-                    what_syscall(nr),
+                    what_syscall(real_nr),
                     handle_out,
                     h,
                 );
@@ -525,11 +771,98 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu,
                 "syscall 0x{:x}: {} (stub → SUCCESS)",
                 nr,
-                what_syscall(nr),
+                what_syscall(real_nr),
             );
             emu.regs_mut().rax = STATUS_SUCCESS;
         }
-        WIN64_NTQUERYWNFSTATEDATA => registry::query_wnf_state_data(emu),
+        // `NtQueryWnfStateData` (0x170): the loader / kernelbase poll WNF
+        // (Windows Notification Facility) state names during init (feature
+        // flags, telemetry opt-in, etc.). Returning STATUS_NOT_IMPLEMENTED left
+        // them retrying. Report an empty, stable state (ChangeStamp=0, 0 bytes)
+        // with SUCCESS so callers treat the state as "present but empty/default"
+        // and move on.
+        // Args: rcx=StateName*, rdx=TypeId, r8=ExplicitScope, r9=ChangeStamp*(out),
+        //       [rsp+0x28]=Buffer(out), [rsp+0x30]=BufferSize*(in/out).
+        WIN64_NTQUERYWNFSTATEDATA => {
+            let state_name_ptr = emu.regs().rcx;
+            let change_stamp_ptr = emu.regs().r9;
+            let rsp = emu.regs().rsp;
+            let buffer = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
+            let bufsize_ptr = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
+            let state_name = if state_name_ptr != 0 {
+                emu.maps.read_qword(state_name_ptr).unwrap_or(0)
+            } else {
+                0
+            };
+            let in_size = if bufsize_ptr != 0 && emu.maps.is_mapped(bufsize_ptr) {
+                emu.maps.read_dword(bufsize_ptr).unwrap_or(0)
+            } else {
+                0
+            };
+            if change_stamp_ptr != 0 && emu.maps.is_mapped(change_stamp_ptr) {
+                let _ = emu.maps.write_dword(change_stamp_ptr, 0);
+            }
+            if bufsize_ptr != 0 && emu.maps.is_mapped(bufsize_ptr) {
+                let _ = emu.maps.write_dword(bufsize_ptr, 0);
+            }
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtQueryWnfStateData state=0x{:x} buf=0x{:x} in_size=0x{:x} (stub → SUCCESS, empty)",
+                nr,
+                state_name,
+                buffer,
+                in_size,
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
+        // `NtSetWnfProcessNotificationEvent` (0x1c5): Win11's ntdll registers a
+        // per-process event the kernel signals on any subscribed WNF state
+        // change (`RtlpInitializeWnf` / the thread-pool WNF subscription path).
+        // Returning STATUS_NOT_IMPLEMENTED made the caller treat the
+        // subscription as failed and busy-retry the whole dance (query WNF →
+        // create event → create wait-completion-packet → set-notify → tear
+        // down) forever — the WorkerFactory churn visible during init. Win2022's
+        // ntdll doesn't take this path, which is why only Win11 hangs here.
+        // Report SUCCESS so the subscription "registers" and init continues; we
+        // never signal the event, which is fine — no subscribed state changes.
+        WIN64_NTSETWNFPROCESSNOTIFICATIONEVENT => {
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtSetWnfProcessNotificationEvent (stub → SUCCESS)",
+                real_nr,
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
+        // `NtSubscribeWnfStateChange` (0x1cd) / `NtUnsubscribeWnfStateChange`
+        // (0x1e0): Win11's `RtlSubscribeWnfStateChangeNotification` (reached
+        // from `RtlRegisterFeatureConfigurationChangeNotification` during init)
+        // subscribes to the feature-configuration-change WNF state. The outer
+        // registration retries the whole subscribe in a tight loop until it
+        // returns success, so STATUS_NOT_IMPLEMENTED hung here. Report SUCCESS
+        // (and hand back a non-zero SubscriptionId for subscribe so the caller
+        // doesn't treat 0 as "not subscribed"); we never deliver a change
+        // notification, which is correct — the state never changes.
+        WIN64_NTSUBSCRIBEWNFSTATECHANGE => {
+            // rcx=StateName*, rdx=ChangeStamp, r8=EventFilter, r9=SubscriptionId*(out)
+            let subscription_id_ptr = emu.regs().r9;
+            if subscription_id_ptr != 0 && emu.maps.is_mapped(subscription_id_ptr) {
+                let _ = emu.maps.write_qword(subscription_id_ptr, 1);
+            }
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtSubscribeWnfStateChange (stub → SUCCESS)",
+                real_nr,
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
+        WIN64_NTUNSUBSCRIBEWNFSTATECHANGE => {
+            log_orange!(
+                emu,
+                "syscall 0x{:x}: NtUnsubscribeWnfStateChange (stub → SUCCESS)",
+                real_nr,
+            );
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
         // `NtApphelpCacheControl` (0x4c): kernel32/kernelbase consult the
         // app-compat shim cache during process start (`BasepCheckBadapp`,
         // `BasepCheckAppCompat`, etc.). STATUS_NOT_SUPPORTED tells callers
@@ -562,7 +895,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             let handle_out = emu.regs().r9;
             log_orange!(
                 emu,
-                "syscall 0x{:x}: NtOpenThreadToken thread=0x{:x} access=0x{:x} self={} out=0x{:x} (stub → NO_TOKEN)",
+                "syscall 0x{:x}: NtOpenThreadToken thread: 0x{:x} access: 0x{:x} self: {} out: 0x{:x} (stub → NO_TOKEN)",
                 real_nr,
                 thread_handle,
                 access,
@@ -577,7 +910,18 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             emu.regs_mut().rax = STATUS_NO_TOKEN;
         }
         _ => {
-            policy::unsupported_with_abi(emu, "ntdll", "", emu.pc(), WinSyscall);
+            // Prefer the syscall name we extracted from the loaded ntdll
+            // (matches the actual build), falling back to the static table
+            // for older builds where the dispatch covers without translation.
+            let name = emu
+                .syscall_name_by_real
+                .get(&real_nr)
+                .cloned()
+                .unwrap_or_else(|| what_syscall(real_nr));
+            log_orange!(emu, "syscall 0x{:x}: {} (unimplemented)", real_nr, name,);
+            // Return STATUS_NOT_IMPLEMENTED so callers using `test eax,eax; js` take
+            // the error path instead of processing an uninitialized output buffer.
+            emu.regs_mut().rax = STATUS_NOT_IMPLEMENTED;
         }
     }
 }

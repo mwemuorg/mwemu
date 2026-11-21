@@ -20,15 +20,3 @@ pub(crate) fn unimplemented(addr: impl Into<u64>, api: &str, emu: &mut Emu) -> S
         String::new()
     }
 }
-
-/// Keep public Rust entry points for exports handled by the Windows API policy.
-macro_rules! unsupported_exports {
-    ($dll:literal, $($name:ident),+ $(,)?) => {
-        $(
-            pub fn $name(emu: &mut $crate::emu::Emu) {
-                $crate::winapi::policy::unsupported(emu, $dll, stringify!($name), emu.pc());
-            }
-        )+
-    };
-}
-pub(crate) use unsupported_exports;

@@ -15,7 +15,6 @@ use std::collections::HashMap;
 use rs_header::pe::PeLoader;
 use rs_header::pe::pe32::{DelayLoadDirectory, PE32};
 use rs_header::pe::pe64::PE64;
-use rs_header::pe::shared::{IMAGE_REL_BASED_DIR64, IMAGE_REL_BASED_HIGHLOW};
 
 /// Minimal in-memory PeLoader: records writes and hands out fake, stable
 /// addresses for resolved imports.
@@ -178,9 +177,9 @@ fn build_synthetic_pe32_with_reloc(original_val: u32) -> Vec<u8> {
         .copy_from_slice(&RELOC_RVA.to_le_bytes());
     raw[SECTION_RAW_PTR as usize + 4..SECTION_RAW_PTR as usize + 8]
         .copy_from_slice(&RELOC_BLOCK_SIZE.to_le_bytes());
-    let relocation = (IMAGE_REL_BASED_HIGHLOW << 12) | (RELOC_TARGET_RVA - RELOC_RVA) as u16;
+    // entry 0: HIGHLOW at offset 0x30 of page 0x2000 -> target RVA 0x2030
     raw[SECTION_RAW_PTR as usize + 8..SECTION_RAW_PTR as usize + 10]
-        .copy_from_slice(&relocation.to_le_bytes());
+        .copy_from_slice(&0x3030u16.to_le_bytes());
     // entry 1: ABSOLUTE padding (must be skipped)
     raw[SECTION_RAW_PTR as usize + 10..SECTION_RAW_PTR as usize + 12]
         .copy_from_slice(&0x0000u16.to_le_bytes());
@@ -1140,6 +1139,7 @@ fn named_imports_in_headers_bind_with_aligned_image_offsets() {
 fn pe64_relocations_follow_image_layout_and_directory_bounds() {
     const ORIGINAL: u64 = 0x180001234;
     const TARGET: u32 = 0x300;
+    const DIR64: u16 = 10 << 12;
     for pointer_delta in [0, 1] {
         let (mut pe, mut raw, _) = build_synthetic_pe64_with_ordinal_iat(0);
         let directory = &mut pe.opt.data_directory[5];
@@ -1149,8 +1149,7 @@ fn pe64_relocations_follow_image_layout_and_directory_bounds() {
         pe.sect_hdr[0].pointer_to_raw_data += pointer_delta;
         raw[offset..offset + 12].fill(0);
         raw[offset + 4..offset + 8].copy_from_slice(&12u32.to_le_bytes());
-        let relocation = (IMAGE_REL_BASED_DIR64 << 12) | TARGET as u16;
-        raw[offset + 8..offset + 10].copy_from_slice(&relocation.to_le_bytes());
+        raw[offset + 8..offset + 10].copy_from_slice(&(DIR64 | TARGET as u16).to_le_bytes());
         raw[TARGET as usize..TARGET as usize + 8].copy_from_slice(&ORIGINAL.to_le_bytes());
         let base = pe.opt.image_base + 0x10000;
         let mut mock = Mock::new();

@@ -3,7 +3,7 @@ use crate::api::abi::unix::UnixApi;
 use crate::api::abi::unix::VariadicConvention;
 use crate::api::abi::windows::{
     CallingConvention::{Cdecl, Stdcall, Thiscall},
-    WindowsAbi::{WinApi, WinInterrupt, WinSyscall, WinSysenter},
+    WindowsAbi::{WinApi, WinSyscall},
 };
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
@@ -436,38 +436,4 @@ fn unix_integer_varargs_follow_platform_register_and_stack_layouts() {
         assert_eq!(error.fault, ArgumentFault::Unreadable);
         assert_eq!(error.index, 7);
     }
-}
-
-#[test]
-fn sysenter_arguments_use_edx_and_leave_both_return_addresses() {
-    let mut emu = emu32();
-    let call = WinSysenter;
-    emu.set_sp(STACK + 0x1000);
-    emu.regs_mut().rdx = STACK;
-    map_bytes(&mut emu, STACK, &[0xcc; 2 * DWORD_BYTES as usize], false);
-    map_bytes(
-        &mut emu,
-        STACK + 2 * DWORD_BYTES,
-        &VALUE.to_le_bytes(),
-        true,
-    );
-    assert_eq!(call.arg_u32(&emu, 0), Ok(VALUE as u32));
-    assert_eq!(call.arg_u64(&emu, 0), Ok(VALUE));
-    let stack = emu.sp();
-    call.cleanup_args(&mut emu, 2);
-    assert_eq!(emu.sp(), stack);
-    assert_eq!(emu.maps.read_dword(STACK), Some(0xcccccccc));
-    emu.regs_mut().rdx = u32::MAX as u64;
-    assert_eq!(
-        call.arg(&emu, 0).unwrap_err().fault,
-        ArgumentFault::AddressOverflow
-    );
-    assert_eq!(
-        WinInterrupt.arg(&emu, 0).unwrap_err().fault,
-        ArgumentFault::UnsupportedConvention
-    );
-    assert_eq!(
-        call.arg(&emu64(), 0).unwrap_err().fault,
-        ArgumentFault::UnsupportedConvention
-    );
 }

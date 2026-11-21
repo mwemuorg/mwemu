@@ -1,60 +1,116 @@
-use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-pub use crate::api::windows::libraries::kernel32::filesystem::{
-    CreateFileMappingA, CreateFileMappingW, DeviceIoControl, FindClose, GetCurrentDirectoryA,
-    GetCurrentDirectoryW, GetFileAttributesA, GetFileAttributesExA, GetFileAttributesExW,
-    GetFileAttributesW, GetSystemDirectoryA, GetSystemDirectoryW, GetTempPathA, GetTempPathW,
-    GetWindowsDirectoryA, GetWindowsDirectoryW,
+mod set_file_attributes;
+pub use set_file_attributes::{SetFileAttributesA, SetFileAttributesW};
+
+mod remove_directory;
+pub use remove_directory::{RemoveDirectoryA, RemoveDirectoryW};
+
+mod move_file;
+pub use move_file::{MoveFileA, MoveFileW};
+
+mod get_windows_directory;
+pub use get_windows_directory::{GetWindowsDirectoryA, GetWindowsDirectoryW};
+
+mod get_temp_path;
+pub use get_temp_path::{GetTempPathA, GetTempPathW};
+
+mod get_system_directory;
+pub use get_system_directory::{GetSystemDirectoryA, GetSystemDirectoryW};
+
+mod get_full_path_name;
+pub use get_full_path_name::{GetFullPathNameA, GetFullPathNameW};
+
+mod get_file_attributes;
+pub use get_file_attributes::{GetFileAttributesA, GetFileAttributesW};
+
+mod get_drive_type;
+pub use get_drive_type::{GetDriveTypeA, GetDriveTypeW};
+
+mod get_disk_free_space_ex;
+pub use get_disk_free_space_ex::{GetDiskFreeSpaceExA, GetDiskFreeSpaceExW};
+
+mod get_current_directory;
+pub use get_current_directory::{GetCurrentDirectoryA, GetCurrentDirectoryW};
+
+mod get_command_line;
+pub use get_command_line::{GetCommandLineA, GetCommandLineW};
+
+mod find_next_file;
+pub use find_next_file::{FindNextFileA, FindNextFileW};
+
+mod find_first_file;
+pub use find_first_file::{FindFirstFileA, FindFirstFileW};
+
+mod delete_file;
+pub use delete_file::{DeleteFileA, DeleteFileW};
+
+mod create_named_pipe;
+pub use create_named_pipe::{CreateNamedPipeA, CreateNamedPipeW};
+
+mod create_file_mapping;
+pub use create_file_mapping::{CreateFileMappingA, CreateFileMappingW};
+
+mod create_directory;
+pub use create_directory::{CreateDirectoryA, CreateDirectoryW};
+
+mod copy_file;
+pub use copy_file::{CopyFileA, CopyFileW};
+
+mod volume;
+pub use volume::{
+    GetVolumeInformationA, GetVolumeInformationW, GetVolumePathNameA, GetVolumePathNameW,
 };
 
-use crate::winapi::common::files::file_entry_points;
+mod file_time;
+pub use file_time::{GetFileTime, SetFileTime};
 
-file_entry_points!(
-    "kernel32",
-    CopyFileA,
-    CopyFileW,
-    CreateDirectoryA,
-    CreateDirectoryW,
-    DeleteFileA,
-    DeleteFileW,
-    FindFirstFileA,
-    FindFirstFileExA,
-    FindFirstFileExW,
-    FindFirstFileW,
-    FindNextFileA,
-    FindNextFileW,
-    GetDiskFreeSpaceExA,
-    GetDiskFreeSpaceExW,
-    GetDriveTypeA,
-    GetDriveTypeW,
-    GetFileType,
-    GetLogicalDrives,
-    GetVolumeInformationA,
-    GetVolumeInformationW,
-    GetVolumePathNameA,
-    GetVolumePathNameW,
-    MoveFileA,
-    MoveFileW,
-    QueryDosDeviceA,
-    QueryDosDeviceW,
-    RemoveDirectoryA,
-    RemoveDirectoryW,
-    SetFileAttributesA,
-    SetFileAttributesW,
-);
+mod query_dos_device;
+pub use query_dos_device::{QueryDosDeviceA, QueryDosDeviceW};
 
-pub use crate::winapi::common::crt_arguments::{GetCommandLineA, GetCommandLineW};
+mod are_file_api_is_ansi;
+pub use are_file_api_is_ansi::AreFileApiIsAnsi;
 
-pub use crate::winapi::libraries::kernel32::{
-    GetSystemTimeAsFileTime, GetSystemTimePreciseAsFileTime,
-};
+mod connect_named_pipe;
+pub use connect_named_pipe::ConnectNamedPipe;
+
+mod disconnect_named_pipe;
+pub use disconnect_named_pipe::DisconnectNamedPipe;
+
+mod file_time_to_system_time;
+pub use file_time_to_system_time::FileTimeToSystemTime;
+
+mod find_close;
+pub use find_close::FindClose;
+
+mod find_first_file_ex;
+pub use find_first_file_ex::{FindFirstFileExA, FindFirstFileExW};
+
+mod get_file_type;
+pub use get_file_type::GetFileType;
+
+mod get_logical_drives;
+pub use get_logical_drives::GetLogicalDrives;
+
+mod get_system_time_as_file_time;
+pub use get_system_time_as_file_time::GetSystemTimeAsFileTime;
+
+mod get_system_time_precise_as_file_time;
+pub use get_system_time_precise_as_file_time::GetSystemTimePreciseAsFileTime;
+
+mod device_io_control;
+pub use device_io_control::DeviceIoControl;
+
+mod system_time_to_file_time;
+pub use system_time_to_file_time::SystemTimeToFileTime;
 
 mod GetFileSize;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    dispatch_api!(api, {
+    match api {
+        "AreFileApiIsAnsi" | "AreFileApisANSI" => kernel32::AreFileApiIsAnsi(emu),
+        "ConnectNamedPipe" => kernel32::ConnectNamedPipe(emu),
         "DeleteFileA" => kernel32::DeleteFileA(emu),
         "DeleteFileW" => kernel32::DeleteFileW(emu),
         "CopyFileA" => kernel32::CopyFileA(emu),
@@ -63,6 +119,9 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "CreateDirectoryW" => kernel32::CreateDirectoryW(emu),
         "CreateFileMappingA" => kernel32::CreateFileMappingA(emu),
         "CreateFileMappingW" => kernel32::CreateFileMappingW(emu),
+        "CreateNamedPipeA" => kernel32::CreateNamedPipeA(emu),
+        "CreateNamedPipeW" => kernel32::CreateNamedPipeW(emu),
+        "DisconnectNamedPipe" => kernel32::DisconnectNamedPipe(emu),
         "FindClose" => kernel32::FindClose(emu),
         "FindFirstFileA" => kernel32::FindFirstFileA(emu),
         "FindFirstFileExA" => kernel32::FindFirstFileExA(emu),
@@ -80,9 +139,9 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetCurrentDirectoryW" => kernel32::GetCurrentDirectoryW(emu),
         "GetFileAttributesA" => kernel32::GetFileAttributesA(emu),
         "GetFileAttributesW" => kernel32::GetFileAttributesW(emu),
-        "GetFileAttributesExA" => kernel32::GetFileAttributesExA(emu),
-        "GetFileAttributesExW" => kernel32::GetFileAttributesExW(emu),
         "GetFileType" => kernel32::GetFileType(emu),
+        "GetFullPathNameA" => kernel32::GetFullPathNameA(emu),
+        "GetFullPathNameW" => kernel32::GetFullPathNameW(emu),
         "GetLogicalDrives" => kernel32::GetLogicalDrives(emu),
         "GetSystemDirectoryA" => kernel32::GetSystemDirectoryA(emu),
         "GetSystemDirectoryW" => kernel32::GetSystemDirectoryW(emu),
@@ -115,10 +174,10 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "MoveFileExW" => kernel32::MoveFileExW(emu),
         "LockFile" => kernel32::LockFile(emu),
         "UnlockFile" => kernel32::UnlockFile(emu),
+        "CreatePipe" => kernel32::CreatePipe(emu),
         "GetSystemWindowsDirectoryA" => kernel32::GetSystemWindowsDirectoryA(emu),
         "GetSystemWindowsDirectoryW" => kernel32::GetSystemWindowsDirectoryW(emu),
-    },
-        handled(()) => true,
-        fallback => false,
-    )
+        _ => return false,
+    }
+    true
 }

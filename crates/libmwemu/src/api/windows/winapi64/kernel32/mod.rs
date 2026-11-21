@@ -1,54 +1,11 @@
-pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
-    CompareStringOrdinal, DeleteCriticalSection, FlsFree, GetActiveProcessorCount,
-    GetCurrentPackagePath, GetDateFormatA, GetDateFormatW, GetLocaleInfoEx,
-    GetMaximumProcessorCount, GetProcessWorkingSetSize, GetStringTypeA, GetStringTypeW,
-    GetTimeFormatA, GetTimeFormatW, GetUserDefaultUILanguage, GlobalDeleteAtom, GlobalFindAtomA,
-    GlobalFindAtomW, GlobalFlags, GlobalGetAtomNameA, GlobalGetAtomNameW,
-    InitializeConditionVariable, IsValidCodePage, LCMapStringA, LCMapStringW, SetHandleCount,
-    SetLocaleInfoA, SetLocaleInfoW, SleepConditionVariableCS, SleepConditionVariableSRW, SleepEx,
-    VerifyVersionInfoA, VerifyVersionInfoW,
-};
-
 use crate::api::windows::common::fallback;
+use crate::api::windows::common::memory as memory_api;
 use crate::emu;
-use crate::winapi::common::fallback::unsupported_exports;
-use crate::winapi::common::wait::public_wait_handlers;
-use crate::winapi::libraries::kernel32::dispatch_shared;
-pub use crate::winapi::libraries::unsupported::kernel32::Beep;
+use crate::winapi::common::heap as heap_api;
+use crate::winapi::common::memory_ops;
+use crate::winapi::common::sections;
+use crate::winapi::common::{files, handles, modules, strings};
 use crate::winapi::winapi64::ntdll;
-
-pub use crate::api::windows::common::threads::SuspendThread;
-pub use crate::api::windows::libraries::kernel32::misc::*;
-
-pub use crate::api::windows::libraries::kernel32::filesystem::{
-    GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW,
-};
-pub use crate::api::windows::libraries::kernel32::process_thread::SetThreadContext;
-pub use crate::api::windows::libraries::kernel32::strings_nls::{lstrcmpA, lstrcmpW};
-pub use crate::api::windows::libraries::kernel32::system::GetOEMCP;
-pub use crate::api::windows::libraries::kernel32::{
-    CompareFileTime, DosDateTimeToFileTime, EtwEventEnabled, FileTimeToDosDateTime,
-    FileTimeToLocalFileTime, FileTimeToSystemTime, LocalFileTimeToFileTime, SystemTimeToFileTime,
-    VerSetConditionMask,
-};
-
-use crate::winapi::common::files::file_entry_points;
-
-file_entry_points!(
-    "kernel32",
-    CopyFileExA,
-    CopyFileExW,
-    GetLongPathNameA,
-    GetLongPathNameW,
-    GetShortPathNameA,
-    GetShortPathNameW,
-    LockFile,
-    MoveFileExA,
-    MoveFileExW,
-    SearchPathA,
-    SearchPathW,
-    UnlockFile,
-);
 
 mod console;
 mod filesystem;
@@ -72,6 +29,33 @@ pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
 
+mod search_path;
+pub use search_path::{SearchPathA, SearchPathW};
+
+mod open_mutex;
+pub use open_mutex::{OpenMutexA, OpenMutexW};
+
+mod move_file_ex;
+pub use move_file_ex::{MoveFileExA, MoveFileExW};
+
+mod global_get_atom_name;
+pub use global_get_atom_name::{GlobalGetAtomNameA, GlobalGetAtomNameW};
+
+mod global_find_atom;
+pub use global_find_atom::{GlobalFindAtomA, GlobalFindAtomW};
+
+mod get_system_windows_directory;
+pub use get_system_windows_directory::{GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW};
+
+mod get_string_type;
+pub use get_string_type::{GetStringTypeA, GetStringTypeW};
+
+mod get_short_path_name;
+pub use get_short_path_name::{GetShortPathNameA, GetShortPathNameW};
+
+mod get_long_path_name;
+pub use get_long_path_name::{GetLongPathNameA, GetLongPathNameW};
+
 mod appcompat;
 
 mod diagnostics;
@@ -83,6 +67,7 @@ mod loader;
 mod objects;
 
 mod resolver;
+mod state;
 
 mod time_date;
 
@@ -92,6 +77,8 @@ pub use resolver::{
     dump_module_iat, guess_api_name, resolve_api_addr_to_name, resolve_api_name,
     resolve_api_name_in_module, search_api_name,
 };
+mod etw_event_enabled;
+pub use etw_event_enabled::EtwEventEnabled;
 mod etw_event_register;
 pub use etw_event_register::EtwEventRegister;
 mod etw_event_set_information;
@@ -100,11 +87,49 @@ mod etw_event_write_transfer;
 pub use etw_event_write_transfer::EtwEventWriteTransfer;
 mod rtl_exit_user_process;
 pub use rtl_exit_user_process::RtlExitUserProcess;
+mod fls_free;
+pub use fls_free::FlsFree;
+mod get_current_package_path;
+pub use get_current_package_path::GetCurrentPackagePath;
+mod is_valid_code_page;
+pub use is_valid_code_page::IsValidCodePage;
+mod lc_map_string;
+pub use lc_map_string::{LCMapStringA, LCMapStringW};
+mod set_event;
+pub use set_event::SetEvent;
+mod set_handle_count;
+pub use set_handle_count::SetHandleCount;
+mod verify_version_info;
+pub use verify_version_info::{VerifyVersionInfoA, VerifyVersionInfoW};
+mod ver_set_condition_mask;
+pub use ver_set_condition_mask::VerSetConditionMask;
+mod lstrcmp;
+pub use lstrcmp::{lstrcmpA, lstrcmpW};
 
+mod compare_string_ordinal;
+pub use compare_string_ordinal::CompareStringOrdinal;
+mod get_oemcp_2;
+pub use get_oemcp_2::GetOEMCP;
 mod virtual_query;
 pub use virtual_query::VirtualQuery;
 mod virtual_query_ex;
 pub use virtual_query_ex::VirtualQueryEx;
+mod copy_file_ex;
+pub use copy_file_ex::{CopyFileExA, CopyFileExW};
+mod lock_file;
+pub use lock_file::LockFile;
+mod unlock_file;
+pub use unlock_file::UnlockFile;
+mod create_pipe;
+pub use create_pipe::CreatePipe;
+mod create_semaphore;
+pub use create_semaphore::{CreateSemaphoreA, CreateSemaphoreW};
+mod create_semaphore_ex;
+pub use create_semaphore_ex::{CreateSemaphoreExA, CreateSemaphoreExW};
+mod create_waitable_timer;
+pub use create_waitable_timer::{CreateWaitableTimerA, CreateWaitableTimerW};
+mod create_waitable_timer_ex;
+pub use create_waitable_timer_ex::{CreateWaitableTimerExA, CreateWaitableTimerExW};
 mod interlocked_increment;
 pub use interlocked_increment::InterlockedIncrement;
 mod interlocked_decrement;
@@ -113,21 +138,88 @@ mod interlocked_exchange;
 pub use interlocked_exchange::InterlockedExchange;
 mod interlocked_compare_exchange;
 pub use interlocked_compare_exchange::InterlockedCompareExchange;
+mod delete_critical_section;
+pub use delete_critical_section::DeleteCriticalSection;
+mod initialize_condition_variable;
+pub use initialize_condition_variable::InitializeConditionVariable;
 mod wake_condition_variable;
 pub use wake_condition_variable::WakeConditionVariable;
+mod sleep_condition_variable_srw;
+pub use sleep_condition_variable_srw::SleepConditionVariableSRW;
+mod sleep_condition_variable_cs;
+pub use sleep_condition_variable_cs::SleepConditionVariableCS;
+mod sleep_ex;
+pub use sleep_ex::SleepEx;
+mod wait_for_single_object_ex;
+pub use wait_for_single_object_ex::WaitForSingleObjectEx;
+mod wait_for_multiple_objects_ex;
+pub use wait_for_multiple_objects_ex::WaitForMultipleObjectsEx;
+mod get_exit_code_process;
+pub use get_exit_code_process::GetExitCodeProcess;
+mod get_exit_code_thread;
+pub use get_exit_code_thread::GetExitCodeThread;
+mod get_process_id;
+pub use get_process_id::GetProcessId;
+mod set_thread_affinity_mask;
+pub use set_thread_affinity_mask::SetThreadAffinityMask;
+mod set_process_affinity_mask;
+pub use set_process_affinity_mask::SetProcessAffinityMask;
+mod get_active_processor_count;
+pub use get_active_processor_count::GetActiveProcessorCount;
+mod get_maximum_processor_count;
+pub use get_maximum_processor_count::GetMaximumProcessorCount;
+mod get_process_working_set_size;
+pub use get_process_working_set_size::GetProcessWorkingSetSize;
+mod set_process_working_set_size;
+pub use set_process_working_set_size::SetProcessWorkingSetSize;
+mod set_thread_context;
+pub use set_thread_context::SetThreadContext;
+mod suspend_thread;
+pub use suspend_thread::SuspendThread;
+mod get_user_default_ui_language_2;
+pub use get_user_default_ui_language_2::GetUserDefaultUILanguage;
+mod set_locale_info;
+pub use set_locale_info::{SetLocaleInfoA, SetLocaleInfoW};
+mod get_locale_info_ex;
+pub use get_locale_info_ex::GetLocaleInfoEx;
+mod get_date_format;
+pub use get_date_format::{GetDateFormatA, GetDateFormatW};
+mod get_time_format;
+pub use get_time_format::{GetTimeFormatA, GetTimeFormatW};
+mod global_delete_atom;
+pub use global_delete_atom::GlobalDeleteAtom;
+mod global_flags;
+pub use global_flags::GlobalFlags;
+mod global_size;
+pub use global_size::GlobalSize;
 mod global_re_alloc;
 pub use global_re_alloc::GlobalReAlloc;
-
-public_wait_handlers!();
+mod beep;
+pub use beep::Beep;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
-    let api = api.rsplit('!').next().unwrap_or(&api);
-    gateway_by_name(addr, api, emu)
-}
-
-pub(super) fn gateway_by_name(addr: u64, api: &str, emu: &mut emu::Emu) -> String {
-    if dispatch_shared(api, "kernel32", emu) {
+    let api = api.split("!").last().unwrap_or(&api);
+    if super::registry::gateway(api, emu) {
+        return String::new();
+    }
+    if sections::dispatch(api, emu) {
+        return String::new();
+    }
+    if memory_ops::dispatch(api, emu) {
+        return String::new();
+    }
+    if heap_api::dispatch(api, emu) {
+        return String::new();
+    }
+    if memory_api::dispatch(api, emu) {
+        return String::new();
+    }
+    if modules::dispatch(api, "kernel32", emu)
+        || files::dispatch(api, "kernel32", emu)
+        || strings::dispatch(api, "kernel32", emu)
+        || handles::dispatch(api, "kernel32", emu)
+    {
         return String::new();
     }
     if appcompat::dispatch(api, addr, emu)
@@ -152,10 +244,3 @@ pub(super) fn gateway_by_name(addr: u64, api: &str, emu: &mut emu::Emu) -> Strin
     }
     fallback::unimplemented(addr, api, emu)
 }
-
-unsupported_exports!(
-    "kernel32",
-    SetProcessAffinityMask,
-    SetProcessWorkingSetSize,
-    SetThreadAffinityMask,
-);

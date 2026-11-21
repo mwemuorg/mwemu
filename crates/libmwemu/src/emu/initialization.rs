@@ -4,29 +4,22 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
-use fast_log::appender::{Command, FastLogRecord, RecordFormat};
-
 use crate::api::unix::ApiState;
-use crate::api::windows::export_index::ExportIndexRegistry;
 use crate::api::windows::policy::ApiPolicy;
-use crate::arch::aarch64::regs::RegsAarch64;
-use crate::arch::{Arch, OperatingSystem};
-use crate::emu::object_handle::{HandleManagement, HeapHandle};
 use crate::emu::{Emu, InstructionState, LastOp};
 use crate::err::MwemuError;
-use crate::maps::heap_allocation::O1Heap;
 use crate::maps::mem64::Permission;
-use crate::syscall::windows::{index_syscall_names, syscall64};
-use crate::threading::context::ArchThreadState;
-use crate::threading::process::ProcessTable;
-use crate::winapi::common::crt_stdio::CrtIoState;
-use crate::winapi::common::winsock::sockets::SocketState;
 use crate::windows::peb::{peb32, peb64};
 use crate::{
     api::banzai::Banzai, config::Config, debug::breakpoint::Breakpoints, hooks::Hooks, maps::Maps,
     threading::context::ThreadContext, threading::global_locks::GlobalLocks, utils::colors::Colors,
-    winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures,
 };
+use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures};
+
+use crate::api::windows::export_index::ExportIndexRegistry;
+use crate::emu::object_handle::{HandleManagement, HeapHandle};
+use crate::maps::heap_allocation::O1Heap;
+use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 
 pub struct CustomLogFormat;
 impl RecordFormat for CustomLogFormat {
@@ -49,13 +42,13 @@ impl CustomLogFormat {
 
 impl Default for Emu {
     fn default() -> Self {
-        Emu::new(Arch::X86)
+        Emu::new(crate::arch::Arch::X86)
     }
 }
 
 impl Emu {
     /// Create a new emulator for the given architecture.
-    pub fn new(arch: Arch) -> Emu {
+    pub fn new(arch: crate::arch::Arch) -> Emu {
         let instruction_state = InstructionState::default();
         let mut cfg = Config::new();
         cfg.arch = arch;
@@ -78,27 +71,6 @@ impl Emu {
             force_break: false,
             api_policy: ApiPolicy::default(),
             unix_api: ApiState::default(),
-            crt_io: CrtIoState::default(),
-            sockets: SocketState::default(),
-            oem_file_names: false,
-            process_error_mode: 0,
-            ipc: Default::default(),
-            priorities: Default::default(),
-            last_luid: 0x10000,
-            atom_tables: Default::default(),
-            profiles: Default::default(),
-            console_cursor: Default::default(),
-            windows_tls_slots: Vec::new(),
-            windows_fls_slots: Vec::new(),
-            veh_registration_ids: Vec::new(),
-            last_veh_id: 0,
-            app_user_model_id: Vec::new(),
-            registry: Default::default(),
-            guest_windows: Default::default(),
-            com_apartments: Default::default(),
-            keyboard_state: Default::default(),
-            environment: None,
-            crt_environments: Default::default(),
             process_terminated: false,
             call_depth: 0,
             host_call_return: None,
@@ -116,7 +88,7 @@ impl Emu {
             run_until_ret: false,
             running_script: true,
             banzai: Banzai::new(),
-            os: OperatingSystem::Windows,
+            os: crate::arch::OperatingSystem::Windows,
             now: Instant::now(),
             skip_apicall: false,
             its_apicall: None,
@@ -152,7 +124,7 @@ impl Emu {
             threads: vec![ThreadContext::new(0x1000, arch)],
             current_thread_id: 0,
             global_locks: GlobalLocks::new(),
-            processes: ProcessTable::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             definitions: HashMap::new(),
             stored_contexts: HashMap::new(),
             entropy: 0.0,
@@ -406,7 +378,7 @@ impl Emu {
             self.instruction_state = InstructionState::default();
             if matches!(
                 self.threads[self.current_thread_id].arch,
-                ArchThreadState::X86 { .. }
+                crate::threading::context::ArchThreadState::X86 { .. }
             ) {
                 let id = self.threads[self.current_thread_id].id;
                 self.threads[self.current_thread_id] = ThreadContext::new(id, self.cfg.arch);
@@ -417,7 +389,7 @@ impl Emu {
         if self.cfg.is_aarch64() {
             // AArch64: zero all registers; no x86 flags to clear.
             if clear_registers {
-                *self.regs_aarch64_mut() = RegsAarch64::new();
+                *self.regs_aarch64_mut() = crate::arch::aarch64::regs::RegsAarch64::new();
             }
             self.regs_aarch64_mut().pc = self.cfg.entry_point;
         } else {
@@ -590,7 +562,7 @@ impl Emu {
         if self.cfg.arch.is_aarch64()
             && matches!(
                 self.threads[self.current_thread_id].arch,
-                ArchThreadState::X86 { .. }
+                crate::threading::context::ArchThreadState::X86 { .. }
             )
         {
             let id = self.threads[self.current_thread_id].id;
@@ -616,7 +588,7 @@ impl Emu {
         // Ensure thread context is aarch64
         if matches!(
             self.threads[self.current_thread_id].arch,
-            ArchThreadState::X86 { .. }
+            crate::threading::context::ArchThreadState::X86 { .. }
         ) {
             let id = self.threads[self.current_thread_id].id;
             self.threads[self.current_thread_id] = ThreadContext::new(id, self.cfg.arch);
@@ -763,12 +735,12 @@ impl Emu {
 
     /// Initialize macOS aarch64 simulation for Mach-O loading.
     pub fn init_macos_aarch64(&mut self) {
-        self.os = OperatingSystem::MacOS;
+        self.os = crate::arch::OperatingSystem::MacOS;
 
         // Ensure thread context is aarch64
         if matches!(
             self.threads[self.current_thread_id].arch,
-            ArchThreadState::X86 { .. }
+            crate::threading::context::ArchThreadState::X86 { .. }
         ) {
             let id = self.threads[self.current_thread_id].id;
             self.threads[self.current_thread_id] = ThreadContext::new(id, self.cfg.arch);
@@ -779,14 +751,14 @@ impl Emu {
 
     /// Initialize macOS x86_64 simulation for Mach-O loading.
     pub fn init_macos64(&mut self) {
-        self.os = OperatingSystem::MacOS;
+        self.os = crate::arch::OperatingSystem::MacOS;
         self.maps.is_64bits = true;
 
         // Mach-O front-door loading can switch the emulator from an earlier
         // AArch64 session, so restore the x86 thread/register state explicitly.
         if matches!(
             self.threads[self.current_thread_id].arch,
-            ArchThreadState::AArch64 { .. }
+            crate::threading::context::ArchThreadState::AArch64 { .. }
         ) {
             let id = self.threads[self.current_thread_id].id;
             self.threads[self.current_thread_id] = ThreadContext::new(id, self.cfg.arch);
@@ -928,7 +900,6 @@ impl Emu {
         peb32::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
         winapi32::kernel32::load_library(self, "ntdll.dll");
-        self.syscall_name_by_real = index_syscall_names(self);
         let ntdll_base = self
             .maps
             .get_map_by_name("ntdll.pe")
@@ -1069,7 +1040,7 @@ impl Emu {
             // NtQuerySystemEnvironmentValueEx) and silently misroutes —
             // RtlRaiseException then returns "0" instead of dispatching the
             // exception, leading to a RtlRaiseStatus(0) recursion.
-            syscall64::build_syscall_translation_table(self);
+            crate::syscall::windows::syscall64::build_syscall_translation_table(self);
 
             // Pre-map kernel32 and kernelbase even though modern ntdll
             // clears the legacy `InMemoryOrderModuleList` during init —
@@ -1445,7 +1416,6 @@ impl Emu {
         }
         log::debug!("win32 64bits base libs ok.");
 
-        syscall64::build_syscall_translation_table(self);
         let ntdll_base = self.maps.get_mem("ntdll.pe").get_base();
         peb64::update_peb_image_base(self, ntdll_base);
 

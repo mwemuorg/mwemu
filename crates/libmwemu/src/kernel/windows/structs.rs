@@ -287,7 +287,3 @@ pub const RTL_PM_IMAGE_SIZE: u64 = 0x18;
 pub const RTL_PM_LOAD_COUNT: u64 = 0x24;
 pub const RTL_PM_OFFSET_TO_FILE_NAME: u64 = 0x26;
 pub const RTL_PM_FULL_PATH_NAME: u64 = 0x28;
-
-// Registry key dispositions.
-pub const REG_CREATED_NEW_KEY: u32 = 1;
-pub const REG_OPENED_EXISTING_KEY: u32 = 2;

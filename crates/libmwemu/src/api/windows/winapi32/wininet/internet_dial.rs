@@ -1,0 +1,31 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::emu;
+use crate::winapi::policy::api_try;
+
+pub fn InternetDial(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let a0 = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let a1 = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    log_red!(emu, "wininet!InternetDial arg0:0x{:x} arg1:0x{:x}", a0, a1);
+    emu.set_last_error(0);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 5);
+}
+
+pub fn InternetDialA(emu: &mut emu::Emu) {
+    internet_dial(emu, "InternetDialA");
+}
+
+fn internet_dial(emu: &mut emu::Emu, api: &str) {
+    let call = WinApi(Stdcall);
+    let a0 = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let a1 = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    log_red!(emu, "wininet!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
+    emu.set_last_error(0);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 5);
+}
+
+pub fn InternetDialW(emu: &mut emu::Emu) {
+    internet_dial(emu, "InternetDialW");
+}

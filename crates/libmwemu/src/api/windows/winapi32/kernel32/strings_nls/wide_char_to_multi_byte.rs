@@ -29,7 +29,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     if mbytestr_ptr == 0 || mbytestr_sz == 0 {
         log_red!(
             emu,
-            "kernel32!WideCharToMultiByte size={}->{} ={}",
+            "kernel32!WideCharToMultiByte sz:{}->{} ={}",
             wstr_sz,
             mbytestr_sz,
             wchar_count
@@ -48,7 +48,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "kernel32!WideCharToMultiByte size={}->{} ={}",
+        "kernel32!WideCharToMultiByte sz:{}->{} ={}",
         wstr_sz,
         mbytestr_sz,
         write_count

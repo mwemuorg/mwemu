@@ -1,11 +1,12 @@
 use super::PE32;
 use crate::pe::loader::PeLoader;
 use crate::pe::readers::{read_u16_le, read_u32_le};
-use crate::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, IMAGE_REL_BASED_HIGHLOW};
+use crate::pe::shared::IMAGE_DIRECTORY_ENTRY_BASERELOC;
 
 const BLOCK_HEADER_SIZE: usize = 8;
 const RELOCATION_OFFSET_MASK: u16 = 0x0fff;
 const RELOCATION_TYPE_SHIFT: u32 = 12;
+const RELOCATION_HIGHLOW: u16 = 3;
 
 impl PE32 {
     /// Rebase initialized image values through the same layout used to map them.
@@ -36,7 +37,7 @@ impl PE32 {
             }
             for entry in blocks[BLOCK_HEADER_SIZE..size].chunks_exact(size_of::<u16>()) {
                 let entry = read_u16_le(entry, 0);
-                if entry >> RELOCATION_TYPE_SHIFT != IMAGE_REL_BASED_HIGHLOW {
+                if entry >> RELOCATION_TYPE_SHIFT != RELOCATION_HIGHLOW {
                     continue;
                 }
                 let Some(rva) = page.checked_add((entry & RELOCATION_OFFSET_MASK) as u32) else {

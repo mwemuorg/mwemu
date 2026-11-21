@@ -76,8 +76,10 @@ impl Emu {
 
     /// Classify a target the way `load_code` will, reporting whether it is a
     /// non-Windows guest (ELF or Mach-O) that needs no Windows system DLLs.
-    /// Raw files have no OS marker and default to Windows unless the caller selects an OS.
-    /// `force_shellcode` skips header detection.
+    /// Shellcode is, by definition, "none of the known formats" — it takes the
+    /// Windows path, so this returns false for it (and for PE). Uses the very
+    /// same detectors as `load_code`, so the two never drift. `force_shellcode`
+    /// mirrors `--is_shellcode`: it forces the Windows shellcode path.
     pub fn is_non_windows_file(filename: &str, force_shellcode: bool) -> bool {
         if force_shellcode {
             return false;
@@ -124,8 +126,8 @@ impl Emu {
     /// emulator.
     ///
     /// The format is auto-detected from the file header and handed to the
-    /// loader for that format. For raw files, choose the architecture at construction
-    /// and call `set_os` before loading a non-Windows guest.
+    /// loader for that format. For shellcode, the architecture must match the
+    /// emulator (use `emu32()` or `emu64()`).
     pub fn load_code(&mut self, filename: &str) -> Result<(), MwemuError> {
         self.filename = filename.to_string();
         self.cfg.filename = self.filename.clone();

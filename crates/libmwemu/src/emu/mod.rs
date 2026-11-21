@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs::File,
@@ -7,14 +6,6 @@ use std::{
 };
 
 use iced_x86::Formatter as _;
-
-use crate::api::macos::libsystem::FtsState;
-use crate::kernel::KernelEnv;
-use crate::threading::process::ProcessTable;
-use crate::winapi::common::handles::ConsoleCursor;
-use crate::winapi::common::process::Priorities;
-use crate::winapi::libraries::kernel32::atoms::AtomTables;
-use crate::winapi::profile_store::ProfileStore;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LastOp {
@@ -37,24 +28,12 @@ impl LastOp {
 
 pub use crate::emu::loaders::{MappedPe64, PeLoadInfo};
 
-use rs_header::elf::{elf32::Elf32, elf64::Elf64};
-use rs_header::pe::{pe32::PE32, pe64::PE64};
-
 use crate::api::unix::ApiState;
-use crate::api::windows::export_index::ExportIndexRegistry;
 use crate::api::windows::policy::ApiPolicy;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::object_handle::HandleManagement;
 use crate::maps::heap_allocation::O1Heap;
-use crate::winapi::common::crt_environment::CrtEnvironment;
-use crate::winapi::common::crt_stdio::CrtIoState;
-use crate::winapi::common::ipc::IpcState;
-use crate::winapi::common::winsock::sockets::SocketState;
-use crate::winapi::environment_store::Environment;
-use crate::winapi::libraries::ole32::runtime::Apartment;
-use crate::winapi::registry_store::Registry;
-use crate::winapi::window_table::WindowTable;
 use crate::{
     api::banzai::Banzai,
     arch::OperatingSystem,
@@ -67,8 +46,12 @@ use crate::{
     threading::context::ThreadContext,
     threading::global_locks::GlobalLocks,
     utils::colors::Colors,
-    windows::structures::{MemoryOperation, TEB, TEB64},
+    windows::structures::MemoryOperation,
 };
+use rs_header::elf::{elf32::Elf32, elf64::Elf64};
+use rs_header::pe::{pe32::PE32, pe64::PE64};
+
+use crate::api::windows::export_index::ExportIndexRegistry;
 
 /// One resolved call recorded while `cfg.trace_calls` is on (see
 /// `engine/instructions/call.rs`). Only calls whose target resolves to a
@@ -180,27 +163,6 @@ pub struct Emu {
     pub(crate) force_break: bool, // set by breakpoints, memory violations, etc. to stop execution
     pub api_policy: ApiPolicy,
     pub unix_api: ApiState,
-    pub(crate) crt_io: CrtIoState,
-    pub(crate) sockets: SocketState,
-    pub(crate) oem_file_names: bool,
-    pub(crate) process_error_mode: u32,
-    pub(crate) ipc: IpcState,
-    pub(crate) priorities: Priorities,
-    pub(crate) last_luid: u64,
-    pub(crate) atom_tables: AtomTables,
-    pub(crate) profiles: ProfileStore,
-    pub(crate) console_cursor: ConsoleCursor,
-    pub(crate) windows_tls_slots: Vec<bool>,
-    pub(crate) windows_fls_slots: Vec<bool>,
-    pub(crate) veh_registration_ids: Vec<u32>,
-    pub(crate) last_veh_id: u32,
-    pub(crate) app_user_model_id: Vec<u16>,
-    pub(crate) registry: Registry,
-    pub(crate) com_apartments: BTreeMap<u64, Apartment>,
-    pub(crate) keyboard_state: BTreeMap<u64, Vec<u8>>,
-    pub(crate) guest_windows: WindowTable,
-    pub(crate) environment: Option<Environment>,
-    pub(crate) crt_environments: [CrtEnvironment; 2],
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
     pub(crate) call_depth: u32,   // nesting depth of host-initiated calls
     pub(crate) host_call_return: Option<u64>, // active x86 host-call return target, including unmapped sentinels
@@ -226,7 +188,7 @@ pub struct Emu {
     // --- Kernel-mode (driver) emulation ---
     /// Present once a driver is loaded: the emulated kernel's address-space
     /// plan, API stubs, allocator ledger and memory-safety findings.
-    pub kernel: Option<Box<KernelEnv>>,
+    pub kernel: Option<Box<crate::kernel::KernelEnv>>,
     /// Fast gate for the per-access lifetime checks. Only true while a driver
     /// is loaded, so the ordinary user-mode paths pay one predictable branch.
     pub(crate) kernel_guard: bool,
@@ -243,7 +205,7 @@ pub struct Emu {
     pub(crate) main_thread_cont: u64,    // main thread continuation/return address
     pub(crate) gateway_return: u64,      // return address from API gateway trampoline
     pub(crate) global_locks: GlobalLocks, // critical section/mutex tracking
-    pub(crate) processes: ProcessTable,  // Unix pid identity, fork() frames and unreaped children
+    pub(crate) processes: crate::threading::process::ProcessTable, // Unix pid identity, fork() frames and unreaped children
 
     // --- API call interception ---
     pub hooks: Hooks,              // registered pre/post-instruction callback hooks
@@ -284,7 +246,7 @@ pub struct Emu {
     pub(crate) file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
     pub(crate) section_view_dll: HashMap<u64, String>, // section_view base → DLL filename; used by NtAreMappedFilesTheSame to compare views from the same file
     pub(crate) validated_knowndlls: HashSet<String>, // DLLs that passed AreMappedFilesTheSame — NtQueryAttributesFile returns NOT_FOUND for these on subsequent calls
-    pub(crate) fts_handles: HashMap<u64, FtsState>,  // macOS FTS traversal state
+    pub(crate) fts_handles: HashMap<u64, crate::api::macos::libsystem::FtsState>, // macOS FTS traversal state
     pub(crate) getopt_char_index: usize, // position within current argv element for grouped flags (-la)
     pub emulated_stdout: Vec<u8>,        // buffered stdout output from emulated program
     pub(crate) syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.
@@ -330,61 +292,23 @@ impl Emu {
         use rand::RngCore as _;
         self.rng.next_u64()
     }
-
-    pub(crate) fn fill_random(&mut self, address: u64, length: u64) -> bool {
-        if length == 0 {
-            return true;
-        }
-        if address == 0 || !self.maps.validate_write_range(address, length) {
-            return false;
-        }
-        let mut written = 0;
-        while written < length {
-            let bytes = self.random_u64().to_le_bytes();
-            let count = (length - written).min(bytes.len() as u64);
-            if !self
-                .maps
-                .write_bytes(address + written, &bytes[..count as usize])
-            {
-                return false;
-            }
-            written += count;
-        }
-        true
-    }
 }
 
 // --- Win32 last-error helpers ---
 impl Emu {
     /// Set the Win32 last-error code (GetLastError / SetLastError).
     pub fn set_last_error(&mut self, code: u64) {
-        let code = code as u32;
-        self.last_error = code as u64;
-        self.current_thread_mut().windows.last_error = code;
-        if let Some(address) = self.last_error_address() {
-            self.maps.write_dword(address, code);
-        }
+        self.last_error = code;
     }
 
     /// Get the Win32 last-error code.
     pub fn get_last_error(&self) -> u64 {
-        self.last_error_address()
-            .and_then(|address| self.maps.read_dword(address))
-            .unwrap_or(self.current_thread().windows.last_error) as u64
-    }
-
-    fn last_error_address(&self) -> Option<u64> {
-        let offset = if self.cfg.arch.is_64bits() {
-            TEB64::LAST_ERROR_VALUE_OFFSET
-        } else {
-            TEB::LAST_ERROR_VALUE_OFFSET
-        };
-        self.windows_teb()?.checked_add(offset)
+        self.last_error
     }
 
     /// Reset the Win32 last-error code to zero.
     pub fn clear_last_error(&mut self) {
-        self.set_last_error(0);
+        self.last_error = 0;
     }
 }
 

@@ -3,30 +3,22 @@ use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 use crate::api::abi::ArgumentFault;
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
-use crate::api::dispatch_api;
-use crate::api::windows::common::{memory as memory_api, nt_api, trace};
+use crate::api::windows::common::{memory as memory_api, nt_api};
 use crate::api::windows::policy::{
     self, ApiDisposition, ApiMode, ApiPolicy, ApiRoute, ApiStopReason,
 };
-use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::serialization::Serialization;
-use crate::syscall::linux::constants::errors::ENOSYS;
-use crate::syscall::windows::{index_syscall_names, syscall64};
 use crate::tests::helpers::{
-    call_winapi32, call_winapi64, invoke_winapi_export, prepare_winapi, register_export_module,
-    setup, win32_maps_folder,
+    call_winapi32, call_winapi64, register_export_module, setup, win32_maps_folder,
 };
-use crate::winapi::environment_store::Encoding;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::errors::*;
-use crate::windows::constants::memory::{LIBS64_MIN, MEM_COMMIT, MEM_RESERVE};
+use crate::windows::constants::memory::LIBS64_MIN;
+use crate::windows::constants::memory::{MEM_COMMIT, MEM_RESERVE};
 use crate::windows::constants::process::NT_CURRENT_PROCESS;
-use crate::windows::constants::syscalls::{
-    WIN64_NTACCESSCHECK, WIN64_NTAREMAPPEDFILESTHESAME, WIN64_NTCLOSE, WIN64_NTQUERYIOCOMPLETION,
-};
 use crate::windows::constants::system::{FALSE, TRUE};
 use crate::{emu_aarch64, emu32, emu64};
 
@@ -80,48 +72,6 @@ fn gateway(emu: &mut Emu, module: &str) {
 }
 
 #[test]
-fn trace_strings_handle_unmapped_memory_and_escaped_text() {
-    let (mut emu, base) = prepare_winapi(false);
-    emu.maps.write_wide_string(base, "one\ntwo");
-    assert_eq!(
-        trace::input_string(&emu, base, Encoding::Wide),
-        r#""one\ntwo""#
-    );
-    emu.maps.write_bytes(base, &[0x80, 0]);
-    assert_eq!(trace::input_string(&emu, base, Encoding::Ansi), "\"€\"");
-    assert_eq!(trace::input_string(&emu, 0, Encoding::Wide), "NULL");
-    assert!(trace::input_string(&emu, u64::MAX, Encoding::Wide).contains("unreadable"));
-    emu.maps.write_string(base, &"a".repeat(256));
-    assert!(trace::input_string(&emu, base, Encoding::Ansi).ends_with('…'));
-    assert!(!emu.api_policy.stopped());
-}
-
-#[test]
-fn one_argument_handlers_can_use_the_last_stack_slot() {
-    let (mut emu, _) = prepare_winapi(false);
-    emu.set_api_mode(ApiMode::SimulateFail);
-    let base = emu.maps.alloc(PAGE_SIZE).unwrap();
-    emu.maps
-        .create_map("argument_frame", base, PAGE_SIZE, Permission::READ_WRITE)
-        .unwrap();
-    let end = base + PAGE_SIZE;
-    let sp = end - size_of::<u32>() as u64;
-    assert!(emu.maps.write_dword(sp, 0));
-    assert!(emu.maps.read_dword(end).is_none());
-    for (library, name) in [
-        ("advapi32.dll", "GetSecurityDescriptorLength"),
-        ("advapi32.dll", "ImpersonateNamedPipeClient"),
-        ("shell32.dll", "SHRestricted"),
-        ("advapi32.dll", "LsaClearAuditLog"),
-    ] {
-        emu.set_sp(sp);
-        invoke_winapi_export(&mut emu, library, name);
-        assert!(!emu.api_policy.stopped(), "{name}");
-        assert_eq!(emu.sp(), end, "{name}");
-    }
-}
-
-#[test]
 fn nt_fallback_preserves_guest_stack() {
     for is64 in [false, true] {
         for (name, words) in [
@@ -129,7 +79,7 @@ fn nt_fallback_preserves_guest_stack() {
             ("SetInformationProcess", 4),
             ("SetSystemEnvironmentValueEx", 5),
             ("CreateUserProcess", 11),
-            ("SetSystemTime", 2),
+            ("SetEvent", 2),
             ("AccessCheckByTypeResultListAndAuditAlarmByHandle", 17),
         ] {
             for prefix in ["Nt", "Zw"] {
@@ -214,23 +164,22 @@ fn nt_dispatch_preserves_handlers_and_forwarding() {
             for api in ["NtQueryInformationProcess", "ZwQueryInformationProcess"] {
                 let mut emu = emulator(is64, module, api);
                 let sp = emu.regs().rsp;
-                let size = if is64 { 48 } else { 24 };
                 emu.maps.write_dword(DATA, MARKER);
                 if is64 {
                     emu.regs_mut().rcx = u64::MAX;
                     emu.regs_mut().rdx = 0;
                     emu.regs_mut().r8 = DATA;
-                    emu.regs_mut().r9 = size as u64;
+                    emu.regs_mut().r9 = 48;
                     emu.maps.write_qword(sp + 0x20, DATA + 0x100);
                 } else {
-                    for value in [(DATA + 0x100) as u32, size, DATA as u32, 0, u32::MAX] {
+                    for value in [(DATA + 0x100) as u32, 48, DATA as u32, 0, u32::MAX] {
                         emu.stack_push32(value);
                     }
                 }
                 gateway(&mut emu, module);
                 assert_eq!(emu.regs().rax, STATUS_SUCCESS);
-                assert_eq!(emu.maps.read_dword(DATA), Some(STATUS_PENDING as u32));
-                assert_eq!(emu.maps.read_dword(DATA + 0x100), Some(size));
+                assert_eq!(emu.maps.read_dword(DATA), Some(0));
+                assert_eq!(emu.maps.read_dword(DATA + 0x100), Some(48));
                 assert_eq!(emu.regs().rsp, sp);
                 assert!(!emu.process_terminated);
             }
@@ -654,47 +603,6 @@ fn invalid_return_frame_stops_before_dispatch() {
 }
 
 #[test]
-fn named_system_imports_work_without_module_exports() {
-    for is64 in [false, true] {
-        let (mut emu, data) = prepare_winapi(is64);
-        emu.set_api_mode(ApiMode::Strict);
-        let invoke = |emu: &mut Emu, dll: &str, name: &str, args: &[u64]| {
-            if is64 {
-                call_winapi64(
-                    emu,
-                    |emu| winapi64::gateway_by_import(emu, dll, name, DATA),
-                    args,
-                )
-            } else {
-                u64::from(call_winapi32(
-                    emu,
-                    |emu| winapi32::gateway_by_import(emu, dll, name, DATA as u32),
-                    &args.iter().map(|arg| *arg as u32).collect::<Vec<_>>(),
-                ))
-            }
-        };
-        for library in ["kernel32.dll", "kernelbase.dll"] {
-            emu.set_last_error(ERROR_ACCESS_DENIED);
-            assert_eq!(
-                invoke(&mut emu, library, "GetLastError", &[]),
-                ERROR_ACCESS_DENIED
-            );
-            emu.maps.fill_range(data, 0xcc, 24);
-            assert_eq!(invoke(&mut emu, library, "GetCPInfo", &[932, data]), 1);
-            assert_eq!(emu.maps.read_dword(data), Some(2));
-            assert_eq!(emu.maps.read_word(data + 6), Some(0x9f81));
-            assert_eq!(emu.maps.read_word(data + 18), Some(0xcccc));
-            assert_eq!(invoke(&mut emu, library, "IsValidCodePage", &[0]), 0);
-            assert!(!emu.api_policy.stopped());
-        }
-        emu.maps.write_dword(data, u32::MAX);
-        invoke(&mut emu, "ntdll.dll", "RtlZeroMemory", &[data, 2]);
-        assert_eq!(emu.maps.read_dword(data), Some(0xffff0000));
-        assert!(!emu.api_policy.stopped());
-    }
-}
-
-#[test]
 fn aarch64_policy_uses_link_register_and_x0() {
     for mode in [
         ApiMode::Strict,
@@ -851,6 +759,103 @@ fn success_nt_fallback_uses_catalog_and_preserves_outputs() {
 }
 
 #[test]
+fn win32_simulation_updates_last_error_only_for_failure() {
+    const FILE_TIME: u64 = 0x01da_1234_5678_9abc;
+    const OUTPUT: u64 = DATA + 0x100;
+    for api in ["FileTimeToLocalFileTime", "LocalFileTimeToFileTime"] {
+        for mode in [
+            ApiMode::Strict,
+            ApiMode::SimulateFail,
+            ApiMode::SimulateSuccess,
+        ] {
+            // These kernel32 exports have no x64 handler; exercise actual dispatch.
+            let mut emu = emulator(true, "kernel32", api);
+            emu.set_api_mode(mode);
+            emu.set_last_error(MARKER as u64);
+            emu.maps.write_qword(DATA, FILE_TIME);
+            emu.maps.write_qword(OUTPUT - 8, MARKER as u64);
+            emu.maps.write_qword(OUTPUT, MARKER as u64);
+            emu.maps.write_qword(OUTPUT + 8, MARKER as u64);
+            emu.regs_mut().rax = MARKER as u64;
+            let sp = emu.sp();
+            let result = call_winapi64(&mut emu, |emu| gateway(emu, "kernel32"), &[DATA, OUTPUT]);
+            let (expected, output, error, disposition) = match mode {
+                ApiMode::Strict => (
+                    MARKER as u64,
+                    MARKER as u64,
+                    MARKER as u64,
+                    ApiDisposition::Stopped(ApiStopReason::StrictPolicy),
+                ),
+                ApiMode::SimulateFail => (
+                    FALSE,
+                    MARKER as u64,
+                    ERROR_CALL_NOT_IMPLEMENTED,
+                    ApiDisposition::SimulatedFailure,
+                ),
+                ApiMode::SimulateSuccess => (
+                    TRUE,
+                    FILE_TIME,
+                    MARKER as u64,
+                    ApiDisposition::SimulatedSuccess,
+                ),
+            };
+            assert_eq!(result, expected, "{api}: {mode:?}");
+            assert_eq!(emu.sp(), sp);
+            assert_eq!(emu.maps.read_qword(OUTPUT), Some(output));
+            assert_eq!(emu.maps.read_qword(DATA), Some(FILE_TIME));
+            assert_eq!(emu.maps.read_qword(OUTPUT - 8), Some(MARKER as u64));
+            assert_eq!(emu.maps.read_qword(OUTPUT + 8), Some(MARKER as u64));
+            assert_eq!(emu.get_last_error(), error);
+            let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+            assert_eq!(outcome.disposition, disposition);
+            assert_eq!(
+                outcome.last_error,
+                (mode == ApiMode::SimulateFail).then_some(ERROR_CALL_NOT_IMPLEMENTED)
+            );
+        }
+    }
+}
+
+#[test]
+fn success_output_faults_do_not_publish_success() {
+    for (label, input, output) in [
+        ("null input", 0, DATA + 0x100),
+        ("unmapped input", DATA + 0x2000, DATA + 0x100),
+        ("truncated input", DATA + 0xffc, DATA + 0x100),
+        ("null output", DATA, 0),
+        ("truncated output", DATA, DATA + 0xffc),
+        ("overflowing output", DATA, u64::MAX - 3),
+        ("same buffer", DATA, DATA),
+        ("read-only output", DATA, CODE),
+    ] {
+        let mut emu = emulator(true, "kernel32", "FileTimeToLocalFileTime");
+        emu.set_api_mode(ApiMode::SimulateSuccess);
+        emu.maps.write_qword(DATA, MARKER as u64);
+        emu.maps.write_qword(DATA + 0x100, MARKER as u64);
+        emu.maps.write_dword(DATA + 0xffc, MARKER);
+        emu.maps
+            .get_mem_by_addr_mut(CODE)
+            .unwrap()
+            .set_permission(Permission::READ);
+        emu.set_last_error(MARKER as u64);
+        emu.regs_mut().rax = MARKER as u64;
+        let sp = emu.sp();
+        call_winapi64(&mut emu, |emu| gateway(emu, "kernel32"), &[input, output]);
+        assert_eq!(
+            emu.api_policy.last_outcome.as_ref().unwrap().disposition,
+            ApiDisposition::Stopped(ApiStopReason::InvalidMemory),
+            "{label}"
+        );
+        assert_eq!(emu.regs().rax, MARKER as u64);
+        assert_eq!(emu.sp(), sp);
+        assert_eq!(emu.get_last_error(), MARKER as u64);
+        assert_eq!(emu.maps.read_qword(DATA + 0x100), Some(MARKER as u64));
+        assert_eq!(emu.maps.read_dword(DATA + 0xffc), Some(MARKER));
+        assert_eq!(emu.api_policy.simulation_count, 0);
+    }
+}
+
+#[test]
 fn data_returning_handlers_keep_priority_in_all_modes() {
     for is64 in [false, true] {
         let mut emu = emulator(is64, "kernel32", "IsDebuggerPresent");
@@ -880,18 +885,14 @@ fn data_returning_handlers_keep_priority_in_all_modes() {
 fn all_simulation_outcomes_survive_snapshots() {
     for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
         for (library, api) in [
-            ("user32", "GetScrollInfo"),
-            ("unsupported_fixture", "SHGetFolderPathW"),
+            ("kernel32", "FileTimeToLocalFileTime"),
+            ("shfolder", "SHGetFolderPathW"),
         ] {
             let mut emu = emulator(true, library, api);
             emu.set_api_mode(mode);
             emu.maps.write_qword(DATA, MARKER as u64);
-            call_winapi64(
-                &mut emu,
-                |emu| gateway(emu, library),
-                &[DATA, DATA + 0x100, DATA],
-            );
-            if library == "unsupported_fixture" {
+            call_winapi64(&mut emu, |emu| gateway(emu, library), &[DATA, DATA + 0x100]);
+            if library == "shfolder" {
                 assert_eq!(
                     emu.api_policy.last_outcome.as_ref().unwrap().disposition,
                     ApiDisposition::SimulatedGeneric
@@ -914,13 +915,13 @@ fn all_simulation_outcomes_survive_snapshots() {
 }
 
 #[test]
-fn generic_fallback_returns_to_guest_without_output_writes() {
+fn shfolder_generic_fallback_returns_to_guest_without_output_writes() {
     const PATH_LOW_DWORD: u32 = 0x5556_5758;
     const PATH_MARKER: u64 = 0x5152_5354_0000_0000 | PATH_LOW_DWORD as u64;
     const ARGUMENTS: [u32; 5] = [0, 0, 0, 0, DATA as u32];
     for (is64, banzai) in [(false, true), (true, false), (true, true)] {
         for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
-            let mut emu = emulator(is64, "unsupported_fixture", "SHGetFolderPathW");
+            let mut emu = emulator(is64, "shfolder", "SHGetFolderPathW");
             emu.set_api_mode(mode);
             emu.cfg.skip_unimplemented = banzai;
             if !is64 {
@@ -968,7 +969,7 @@ fn generic_fallback_returns_to_guest_without_output_writes() {
             assert_eq!(emu.cfg.skip_unimplemented, banzai);
             assert_eq!(emu.api_mode(), mode);
             let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-            assert_eq!(outcome.call.library, "unsupported_fixture");
+            assert_eq!(outcome.call.library, "shfolder");
             assert_eq!(outcome.call.name, "SHGetFolderPathW");
             assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
         }
@@ -978,14 +979,14 @@ fn generic_fallback_returns_to_guest_without_output_writes() {
 #[test]
 fn simulation_loads_banzai_defaults_without_replacing_overrides() {
     for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
-        let mut emu = emulator(false, "unsupported_fixture", "SHGetFolderPathW");
+        let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
         emu.cfg.maps_folder = win32_maps_folder();
         // Select the mode after the emulator and its call frame already exist.
         emu.set_api_mode(mode);
         emu.cfg.skip_unimplemented = true;
         emu.banzai_add("MessageBoxW", 2);
         let sp = emu.sp();
-        let result = call_winapi32(&mut emu, |emu| gateway(emu, "unsupported_fixture"), &[0; 5]);
+        let result = call_winapi32(&mut emu, |emu| gateway(emu, "shfolder"), &[0; 5]);
         assert_eq!(result, 0);
         assert_eq!(emu.api_policy.simulation_count, 1);
         assert_eq!(emu.sp(), sp);
@@ -1000,14 +1001,14 @@ fn simulation_loads_banzai_defaults_without_replacing_overrides() {
 fn simulation_rejects_invalid_x86_cleanup_frames() {
     for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
         for (words, sp) in [(2, DATA + 0x1000 - 4), (2, u32::MAX as u64 - 3)] {
-            let mut emu = emulator(false, "unsupported_fixture", "SHGetFolderPathW");
+            let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
             emu.set_api_mode(mode);
             emu.cfg.skip_unimplemented = true;
             emu.banzai_add("SHGetFolderPathW", words);
             emu.set_sp(sp);
             emu.regs_mut().rax = MARKER as u64;
             emu.set_last_error(MARKER as u64);
-            gateway(&mut emu, "unsupported_fixture");
+            gateway(&mut emu, "shfolder");
             assert_eq!(
                 emu.api_policy.last_outcome.as_ref().unwrap().disposition,
                 ApiDisposition::Stopped(ApiStopReason::InvalidFrame)
@@ -1023,13 +1024,13 @@ fn simulation_rejects_invalid_x86_cleanup_frames() {
 #[test]
 fn simulation_preserves_rejected_x86_cleanup_overrides() {
     for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
-        let mut emu = emulator(false, "unsupported_fixture", "SHGetFolderPathW");
+        let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
         emu.cfg.maps_folder = win32_maps_folder();
         emu.set_api_mode(mode);
         emu.cfg.skip_unimplemented = true;
         emu.banzai_add("SHGetFolderPathW", -1);
         let sp = emu.sp();
-        gateway(&mut emu, "unsupported_fixture");
+        gateway(&mut emu, "shfolder");
         assert_eq!(
             emu.api_policy.last_outcome.as_ref().unwrap().disposition,
             ApiDisposition::Stopped(ApiStopReason::UnknownCleanup)
@@ -1094,24 +1095,6 @@ fn checked_arguments_stop_before_winapi_effects() {
             assert_eq!(emu.regs().rax, MARKER as u64);
             assert_eq!(emu.get_last_error(), MARKER as u64);
         }
-    }
-}
-
-#[test]
-fn variadic_trace_exports_leave_x86_arguments_to_the_caller() {
-    let words = [0x10, 0x20, 0, 0, 4, 0];
-    for library in ["advapi32.dll", "kernelbase.dll"] {
-        let (mut emu, _) = prepare_winapi(false);
-        emu.set_api_mode(ApiMode::SimulateFail);
-        let top = emu.sp();
-        let result = call_winapi32(
-            &mut emu,
-            |emu| invoke_winapi_export(emu, library, "TraceMessage"),
-            &words,
-        );
-        assert!(!emu.api_policy.stopped(), "{library}");
-        assert_eq!(result, ERROR_CALL_NOT_IMPLEMENTED as u32, "{library}");
-        assert_eq!(emu.sp(), top - size_of_val(&words) as u64, "{library}");
     }
 }
 
@@ -1225,904 +1208,4 @@ fn checked_syscall_arguments_record_the_syscall_frame() {
         emu.api_policy.last_outcome
     );
     assert!(restored.api_policy.stopped());
-}
-
-#[test]
-fn unknown_windows_syscalls_obey_policy_at_instruction_entry() {
-    let entries: &[(&str, bool, &[u8], u64)] = &[
-        ("syscall", true, &[0x0f, 0x05], 0xffff),
-        ("sysenter", false, &[0x0f, 0x34], 0xffff),
-        ("old sysenter placeholder", false, &[0x0f, 0x34], 0x10f),
-        ("int80 compatibility", false, &[0xcd, 0x80], 0xffff),
-    ];
-    for &(name, is64, instruction, number) in entries {
-        let mut emu = emulator(is64, "ntdll", "unused_export");
-        for mode in [
-            ApiMode::Strict,
-            ApiMode::SimulateFail,
-            ApiMode::SimulateSuccess,
-        ] {
-            emu.api_policy.clear_outcome();
-            emu.set_api_mode(mode);
-            emu.set_pc(CODE);
-            emu.regs_mut().rax = number;
-            emu.regs_mut().rbx = MARKER as u64;
-            emu.set_last_error(MARKER as u64);
-            let stack = emu.sp();
-            let calls = emu.call_stack().clone();
-            assert!(emu.maps.write_bytes(CODE, instruction));
-            // inc ebx; nop. Strict must stop before the caller continues.
-            assert!(emu.maps.write_bytes(CODE + 2, &[0xff, 0xc3, 0x90]));
-            let result = emu.run(Some(CODE + 4));
-            assert_eq!(result.is_err(), mode == ApiMode::Strict, "{name}: {mode:?}");
-            assert_eq!(emu.sp(), stack, "{name}: {mode:?}");
-            assert_eq!(emu.call_stack(), &calls);
-            assert_eq!(emu.get_last_error(), MARKER as u64);
-            let outcome = emu
-                .api_policy
-                .last_outcome
-                .as_ref()
-                .expect("syscall outcome");
-            assert_eq!(outcome.call.route, ApiRoute::Syscall);
-            assert_eq!(outcome.call.pc, CODE);
-            assert_eq!(outcome.call.stack_pointer, stack);
-            if mode == ApiMode::Strict {
-                assert_eq!(emu.pc(), CODE);
-                assert_eq!(emu.regs().rax, number);
-                assert_eq!(emu.regs().rbx, MARKER as u64);
-            } else {
-                assert_eq!(emu.regs().rax, 0);
-                assert_eq!(emu.regs().rbx, (MARKER + 1) as u64);
-                assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
-            }
-        }
-    }
-}
-
-const UNKNOWN_SERVICE: u64 = 0xffff;
-
-#[test]
-fn named_syscalls_use_nt_results_without_function_cleanup() {
-    for is64 in [false, true] {
-        let mut emu = emulator(is64, "ntdll", "unused_export");
-        let instruction = if is64 { [0x0f, 0x05] } else { [0x0f, 0x34] };
-        emu.syscall_name_by_real
-            .insert(UNKNOWN_SERVICE, "NtQueryInformationAtom".into());
-        for banzai in [false, true] {
-            for (mode, expected, disposition) in [
-                (
-                    ApiMode::SimulateFail,
-                    STATUS_NOT_IMPLEMENTED,
-                    ApiDisposition::SimulatedFailure,
-                ),
-                (
-                    ApiMode::SimulateSuccess,
-                    STATUS_SUCCESS,
-                    ApiDisposition::SimulatedSuccess,
-                ),
-            ] {
-                emu.api_policy.clear_outcome();
-                emu.set_api_mode(mode);
-                emu.cfg.skip_unimplemented = banzai;
-                emu.set_pc(CODE);
-                emu.regs_mut().rax = UNKNOWN_SERVICE;
-                emu.regs_mut().rdx = emu.sp();
-                emu.set_last_error(MARKER as u64);
-                assert!(emu.maps.write_bytes(CODE, &instruction));
-                let stack = emu.sp();
-                let bytes = emu.maps.read_bytes(stack, 64).to_vec();
-                assert!(emu.run(Some(CODE + 2)).is_ok());
-                assert_eq!(emu.regs().rax, expected);
-                assert_eq!(emu.sp(), stack);
-                assert_eq!(emu.maps.read_bytes(stack, 64), bytes);
-                assert_eq!(emu.get_last_error(), MARKER as u64);
-                let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-                assert_eq!(outcome.call.name, "NtQueryInformationAtom");
-                assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
-                assert_eq!(outcome.disposition, disposition);
-                assert!(emu.api_policy.entry.is_none());
-            }
-        }
-    }
-}
-
-#[test]
-fn syscall_hooks_keep_priority_and_outer_call_context() {
-    for (is64, instruction) in [
-        (true, [0x0f, 0x05]),
-        (false, [0x0f, 0x34]),
-        (false, [0xcd, 0x80]),
-    ] {
-        let mut emu = emulator(is64, "ntdll", "unused_export");
-        emu.set_api_mode(ApiMode::Strict);
-        emu.set_pc(CODE);
-        emu.regs_mut().rax = UNKNOWN_SERVICE;
-        emu.regs_mut().rbx = 0;
-        policy::begin_call(&mut emu, "kernel32", "outer", MODULE64, ApiRoute::Address);
-        let outer = emu.api_policy.entry.clone();
-        emu.set_hook_on_syscall(|emu, number| {
-            assert_eq!(number, UNKNOWN_SERVICE);
-            emu.regs_mut().rax = MARKER as u64;
-            emu.regs_mut().rbx += 1;
-            false
-        });
-        assert!(emu.maps.write_bytes(CODE, &instruction));
-        assert!(emu.run(Some(CODE + 2)).is_ok());
-        assert_eq!(emu.regs().rax, MARKER as u64);
-        assert_eq!(emu.regs().rbx, 1);
-        assert_eq!(emu.api_policy.entry, outer);
-        assert!(emu.api_policy.last_outcome.is_none());
-    }
-}
-
-#[test]
-fn syscall_frame_faults_stop_step_and_survive_snapshots() {
-    for is64 in [false, true] {
-        let mut emu = emulator(is64, "ntdll", "unused_export");
-        let instruction = if is64 { [0x0f, 0x05] } else { [0x0f, 0x34] };
-        emu.syscall_name_by_real
-            .insert(UNKNOWN_SERVICE, "NtQueryInformationAtom".into());
-        emu.set_api_mode(ApiMode::SimulateSuccess);
-        emu.set_pc(CODE);
-        emu.regs_mut().rax = UNKNOWN_SERVICE;
-        // The required stack argument is outside every map.
-        let stack = DATA + PAGE_SIZE;
-        emu.set_sp(stack);
-        emu.regs_mut().rdx = stack;
-        assert!(emu.maps.write_bytes(CODE, &instruction));
-        assert!(!emu.step());
-        assert_eq!(emu.sp(), stack);
-        assert_eq!(emu.pc(), CODE);
-        assert_eq!(emu.regs().rax, UNKNOWN_SERVICE);
-        let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-        assert_eq!(outcome.call.name, "NtQueryInformationAtom");
-        assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
-        assert_eq!(
-            outcome.disposition,
-            ApiDisposition::Stopped(ApiStopReason::InvalidFrame)
-        );
-        let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
-        assert_eq!(
-            restored.api_policy.last_outcome,
-            emu.api_policy.last_outcome
-        );
-        assert!(restored.run(None).is_err());
-    }
-}
-
-#[test]
-fn loaded_syscall_identity_prevents_static_profile_misrouting() {
-    let mut emu = emulator(true, "ntdll", "unused_export");
-    emu.set_api_mode(ApiMode::SimulateFail);
-    emu.set_pc(CODE);
-    emu.syscall_name_by_real
-        .insert(WIN64_NTCLOSE, "NtQueryInformationAtom".into());
-    emu.regs_mut().rax = WIN64_NTCLOSE;
-    syscall64::gateway(&mut emu);
-    assert_eq!(emu.regs().rax, STATUS_NOT_IMPLEMENTED);
-    assert_eq!(
-        emu.api_policy.last_outcome.as_ref().unwrap().call.name,
-        "NtQueryInformationAtom"
-    );
-
-    emu.api_policy.clear_outcome();
-    emu.regs_mut().rax = UNKNOWN_SERVICE;
-    syscall64::gateway(&mut emu);
-    let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-    assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
-    assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
-    assert_eq!(outcome.call.name, "syscall 0xffff");
-
-    emu.api_policy.clear_outcome();
-    emu.set_api_mode(ApiMode::Strict);
-    emu.syscall_name_by_real
-        .insert(UNKNOWN_SERVICE, "NtClose".into());
-    emu.syscall_number_map
-        .insert(UNKNOWN_SERVICE, WIN64_NTCLOSE);
-    emu.regs_mut().rax = UNKNOWN_SERVICE;
-    syscall64::gateway(&mut emu);
-    assert!(emu.api_policy.last_outcome.is_none());
-}
-
-#[test]
-fn strict_syscall_stop_reaches_threaded_execution() {
-    let mut emu = emulator(true, "ntdll", "unused_export");
-    emu.cfg.enable_threading = true;
-    emu.set_pc(CODE);
-    emu.regs_mut().rax = UNKNOWN_SERVICE;
-    assert!(emu.maps.write_bytes(CODE, &[0x0f, 0x05, 0x90]));
-    assert!(emu.run(Some(CODE + 2)).is_err());
-    assert_eq!(emu.pc(), CODE);
-    assert!(emu.api_policy.stopped());
-}
-
-#[test]
-fn loaded_service_numbers_resolve_even_when_the_windows_build_renumbers_a_call() {
-    for (name, canonical) in [
-        ("NtQueryIoCompletion", Some(WIN64_NTQUERYIOCOMPLETION)),
-        (
-            "NtAreMappedFilesTheSame",
-            Some(WIN64_NTAREMAPPEDFILESTHESAME),
-        ),
-        ("NtFutureService", None),
-    ] {
-        let mut emu = emulator(true, "ntdll", name);
-        let mut stub = vec![0x4c, 0x8b, 0xd1, 0xb8];
-        stub.extend_from_slice(&(UNKNOWN_SERVICE as u32).to_le_bytes());
-        assert!(emu.maps.write_bytes(MODULE64 + 0x100, &stub));
-        syscall64::build_syscall_translation_table(&mut emu);
-        assert_eq!(
-            emu.syscall_name_by_real
-                .get(&UNKNOWN_SERVICE)
-                .map(String::as_str),
-            Some(name)
-        );
-        assert_eq!(
-            emu.syscall_number_map.get(&UNKNOWN_SERVICE).copied(),
-            canonical
-        );
-    }
-}
-
-#[test]
-fn service_names_come_from_guest_exports() {
-    for is64 in [false, true] {
-        let mut emu = emulator(is64, "ntdll", "NtQueryInformationAtom");
-        let address = if is64 { MODULE64 } else { MODULE } + 0x100;
-        let mut stub = if is64 {
-            vec![0x4c, 0x8b, 0xd1, 0xb8]
-        } else {
-            vec![0xb8]
-        };
-        stub.extend_from_slice(&(UNKNOWN_SERVICE as u32).to_le_bytes());
-        assert!(emu.maps.write_bytes(address, &stub));
-        if is64 {
-            syscall64::build_syscall_translation_table(&mut emu);
-        } else {
-            emu.syscall_name_by_real = index_syscall_names(&emu);
-        }
-        assert_eq!(
-            emu.syscall_name_by_real
-                .get(&UNKNOWN_SERVICE)
-                .map(String::as_str),
-            Some("NtQueryInformationAtom")
-        );
-        assert!(emu.maps.write_byte(address, 0xc3));
-        assert!(index_syscall_names(&emu).is_empty());
-    }
-}
-
-#[test]
-fn sysenter_simulation_returns_through_the_guest_stub() {
-    let mut emu = emulator(false, "ntdll", "unused_export");
-    emu.syscall_name_by_real
-        .insert(UNKNOWN_SERVICE, "NtDeleteAtom".into());
-    // mov eax, number; call fast_stub; ret 4; fast_stub: mov edx, esp; sysenter; ret.
-    let mut code = vec![0xb8];
-    code.extend_from_slice(&(UNKNOWN_SERVICE as u32).to_le_bytes());
-    code.extend_from_slice(&[0xe8, 3, 0, 0, 0, 0xc2, 4, 0, 0x8b, 0xd4, 0x0f, 0x34, 0xc3]);
-    assert!(emu.maps.write_bytes(CODE, &code));
-    for (mode, expected) in [
-        (ApiMode::SimulateFail, STATUS_NOT_IMPLEMENTED),
-        (ApiMode::SimulateSuccess, STATUS_SUCCESS),
-    ] {
-        emu.api_policy.clear_outcome();
-        emu.set_api_mode(mode);
-        emu.set_pc(CODE + 0x100);
-        let stack = emu.sp();
-        assert_eq!(emu.call32(CODE, &[0]).unwrap(), expected as u32);
-        assert_eq!(emu.sp(), stack);
-        assert_eq!(emu.pc(), CODE + 0x100);
-        assert_eq!(
-            emu.api_policy.last_outcome.as_ref().unwrap().call.name,
-            "NtDeleteAtom"
-        );
-    }
-}
-
-#[test]
-fn linux_unknown_and_trace_only_syscalls_return_enosys() {
-    const UNKNOWN_SYSCALL: u64 = 1_000_000;
-    const FIRST_ARGUMENT: u64 = 0x1234;
-    for (arch, instruction) in [
-        (Arch::X86, &[0xcd, 0x80][..]),                 // int 0x80
-        (Arch::X86_64, &[0x0f, 0x05][..]),              // syscall
-        (Arch::Aarch64, &[0x01, 0x00, 0x00, 0xd4][..]), // svc #0
-    ] {
-        let mut emu = Emu::new(arch);
-        emu.disable_ctrlc();
-        emu.cfg.console_enabled = false;
-        emu.running_script = true;
-        emu.os = OperatingSystem::Linux;
-        emu.maps
-            .create_map(
-                "linux.syscall",
-                CODE,
-                PAGE_SIZE,
-                Permission::READ_WRITE_EXECUTE,
-            )
-            .unwrap();
-        assert!(emu.maps.write_bytes(CODE, instruction));
-        let numbers: &[(&str, u64)] = match arch {
-            Arch::X86 => &[
-                ("unknown", UNKNOWN_SYSCALL),
-                ("creat", 8),
-                ("execve", 11),
-                ("chdir", 12),
-                ("lseek", 19),
-                ("mount", 21),
-                ("mprotect", 125),
-            ],
-            Arch::X86_64 => &[
-                ("unknown", UNKNOWN_SYSCALL),
-                ("chdir", 80),
-                ("chmod", 90),
-                ("mremap", 25),
-                ("dup", 32),
-                ("dup2", 33),
-                ("fork", 57),
-                ("kill", 62),
-                ("restart_syscall", 219),
-            ],
-            Arch::Aarch64 => &[("unknown", UNKNOWN_SYSCALL), ("mremap", 216)],
-        };
-        for &(name, number) in numbers {
-            emu.set_pc(CODE);
-            if arch.is_aarch64() {
-                emu.regs_aarch64_mut().x[8] = number;
-                emu.regs_aarch64_mut().x[0] = FIRST_ARGUMENT;
-            } else {
-                emu.regs_mut().rax = number;
-                emu.regs_mut().rbx = FIRST_ARGUMENT;
-                emu.regs_mut().rdi = FIRST_ARGUMENT;
-            }
-            assert!(emu.step());
-            let result = if arch.is_aarch64() {
-                emu.regs_aarch64().x[0]
-            } else if arch.is_64bits() {
-                emu.regs().rax
-            } else {
-                emu.regs().get_eax()
-            };
-            let expected = if arch.is_64bits() {
-                ENOSYS
-            } else {
-                ENOSYS as u32 as u64
-            };
-            assert_eq!(result, expected, "{arch:?} {name}");
-            assert_eq!(emu.pc(), CODE + instruction.len() as u64);
-        }
-    }
-}
-
-#[test]
-fn linux_syscall_hooks_keep_priority_over_unknown_fallback() {
-    const UNKNOWN_SYSCALL: u64 = 1_000_000;
-    const HOOK_RESULT: u64 = 0x5678;
-    for (arch, instruction) in [
-        (Arch::X86, &[0xcd, 0x80][..]),
-        (Arch::X86_64, &[0x0f, 0x05][..]),
-        (Arch::Aarch64, &[0x01, 0x00, 0x00, 0xd4][..]),
-    ] {
-        let mut emu = Emu::new(arch);
-        emu.disable_ctrlc();
-        emu.cfg.console_enabled = false;
-        emu.os = OperatingSystem::Linux;
-        emu.maps
-            .create_map(
-                "linux.syscall.hook",
-                CODE,
-                PAGE_SIZE,
-                Permission::READ_WRITE_EXECUTE,
-            )
-            .unwrap();
-        assert!(emu.maps.write_bytes(CODE, instruction));
-        emu.set_pc(CODE);
-        if arch.is_aarch64() {
-            emu.regs_aarch64_mut().x[8] = UNKNOWN_SYSCALL;
-        } else {
-            emu.regs_mut().rax = UNKNOWN_SYSCALL;
-        }
-        emu.hooks.on_syscall(move |emu, number| {
-            assert_eq!(number, UNKNOWN_SYSCALL);
-            if arch.is_aarch64() {
-                emu.regs_aarch64_mut().x[0] = HOOK_RESULT;
-            } else {
-                emu.regs_mut().rax = HOOK_RESULT;
-            }
-            false
-        });
-        assert!(emu.step());
-        let result = if arch.is_aarch64() {
-            emu.regs_aarch64().x[0]
-        } else {
-            emu.regs().rax
-        };
-        assert_eq!(result, HOOK_RESULT, "{arch:?}");
-        assert_eq!(emu.pc(), CODE + instruction.len() as u64);
-    }
-}
-
-#[test]
-fn dispatch_keeps_handler_errors_out_of_fallback() {
-    fn handler(
-        events: &mut Vec<&'static str>,
-        outcome: Result<(), &'static str>,
-    ) -> Result<(), &'static str> {
-        events.push("handler");
-        outcome
-    }
-
-    fn execute(name: &str, events: &mut Vec<&'static str>) -> Result<bool, &'static str> {
-        let handled: Result<bool, &'static str> = dispatch_api!(name, {
-            "success" | "alias" => handler(events, Ok(())),
-            "error" => handler(events, Err("unreadable argument")),
-        },
-            handled(result) => {
-                result?;
-                events.push("completed");
-                Ok(true)
-            },
-            fallback => {
-                events.push("fallback");
-                Ok(false)
-            },
-        );
-        let handled = handled?;
-        events.push("after dispatch");
-        Ok(handled)
-    }
-
-    for name in ["success", "alias"] {
-        let mut events = Vec::new();
-        assert_eq!(execute(name, &mut events), Ok(true));
-        assert_eq!(events, ["handler", "completed", "after dispatch"]);
-    }
-    let mut events = Vec::new();
-    assert_eq!(execute("error", &mut events), Err("unreadable argument"));
-    assert_eq!(events, ["handler"]);
-
-    events.clear();
-    assert_eq!(execute("unknown", &mut events), Ok(false));
-    assert_eq!(events, ["fallback", "after dispatch"]);
-}
-
-#[test]
-fn dispatch_preserves_guard_order_and_evaluates_the_selector_once() {
-    for (name, expected, expected_guards) in [
-        ("partial_exact", "exact", 0),
-        ("partial_other", "partial", 1),
-        ("unknown", "fallback", 1),
-    ] {
-        let mut selections = 0;
-        let mut guards = 0;
-        let result = dispatch_api!({
-            selections += 1;
-            name
-        }, {
-            "partial_exact" => "exact",
-            symbol if {
-                guards += 1;
-                symbol.starts_with("partial_")
-            } => "partial",
-        },
-            handled(value) => value,
-            fallback => "fallback",
-        );
-        assert_eq!(result, expected, "{name}");
-        assert_eq!(selections, 1, "{name}");
-        assert_eq!(guards, expected_guards, "{name}");
-    }
-}
-
-#[derive(Clone, Copy)]
-enum UnsupportedResult {
-    Win32Status,
-    NtStatus,
-    Hresult,
-    Win32Bool,
-}
-
-const UNSUPPORTED_OPERATIONS: &[(&str, &str, usize, UnsupportedResult)] = &[
-    (
-        "advapi32",
-        "BaseRegCreateKey",
-        8,
-        UnsupportedResult::Win32Status,
-    ),
-    (
-        "advapi32",
-        "LsaRemoveAccountRights",
-        5,
-        UnsupportedResult::NtStatus,
-    ),
-    (
-        "advapi32",
-        "AccessCheckAndAuditAlarmA",
-        11,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "advapi32",
-        "AccessCheckAndAuditAlarmW",
-        11,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "advapi32",
-        "ChangeServiceConfigW",
-        11,
-        UnsupportedResult::Win32Bool,
-    ),
-    ("shell32", "DllGetVersion", 1, UnsupportedResult::Hresult),
-    (
-        "crypt32",
-        "CryptSIPRemoveProvider",
-        1,
-        UnsupportedResult::Win32Bool,
-    ),
-    ("ole32", "CoMarshalInterface", 6, UnsupportedResult::Hresult),
-    (
-        "ole32",
-        "CoGetMarshalSizeMax",
-        6,
-        UnsupportedResult::Hresult,
-    ),
-    (
-        "ole32",
-        "OleConvertOLESTREAMToIStorageEx",
-        7,
-        UnsupportedResult::Hresult,
-    ),
-    (
-        "ole32",
-        "OleConvertOLESTREAMToIStorageEx2",
-        10,
-        UnsupportedResult::Hresult,
-    ),
-    (
-        "crypt32",
-        "CertVerifyRevocation",
-        7,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "crypt32",
-        "CryptDecodeObject",
-        7,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "crypt32",
-        "CryptDecodeObjectEx",
-        8,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "crypt32",
-        "CryptSIPCreateIndirectData",
-        3,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "wintrust",
-        "CryptSIPCreateIndirectData",
-        3,
-        UnsupportedResult::Win32Bool,
-    ),
-    ("crypt32", "CryptSIPLoad", 3, UnsupportedResult::Win32Bool),
-    ("oleaut32", "VarDecMul", 3, UnsupportedResult::Hresult),
-    (
-        "shell32",
-        "SHGetInstanceExplorer",
-        1,
-        UnsupportedResult::Hresult,
-    ),
-    ("advapi32", "AccessCheck", 8, UnsupportedResult::Win32Bool),
-    ("kernelbase", "AccessCheck", 8, UnsupportedResult::Win32Bool),
-    ("advapi32", "LsaOpenPolicy", 4, UnsupportedResult::NtStatus),
-    ("user32", "GetPointerInfo", 2, UnsupportedResult::Win32Bool),
-    (
-        "crypt32",
-        "CryptUnprotectMemory",
-        3,
-        UnsupportedResult::Win32Bool,
-    ),
-    (
-        "wininet",
-        "HttpWebSocketReceive",
-        5,
-        UnsupportedResult::Win32Bool,
-    ),
-    ("user32", "GetScrollInfo", 3, UnsupportedResult::Win32Bool),
-    ("kernel32", "LockFileEx", 6, UnsupportedResult::Win32Bool),
-    ("kernelbase", "LockFileEx", 6, UnsupportedResult::Win32Bool),
-];
-
-#[test]
-fn unsupported_operations_use_policy_instead_of_success_handlers() {
-    for is64 in [false, true] {
-        for &(library, name, arguments, contract) in UNSUPPORTED_OPERATIONS {
-            let mut emu = emulator(is64, library, name);
-            let sp = emu.sp();
-            for mode in [
-                ApiMode::Strict,
-                ApiMode::SimulateFail,
-                ApiMode::SimulateSuccess,
-            ] {
-                emu.api_policy.clear_outcome();
-                emu.set_api_mode(mode);
-                emu.set_sp(sp);
-                emu.cfg.skip_unimplemented = false;
-                emu.set_last_error(MARKER as u64);
-                emu.regs_mut().rax = MARKER as u64;
-                emu.maps.write_qword(DATA, MARKER as u64);
-                let count = emu.api_policy.simulation_count;
-                if is64 {
-                    call_winapi64(
-                        &mut emu,
-                        |emu| gateway(emu, library),
-                        &vec![DATA; arguments],
-                    );
-                } else {
-                    call_winapi32(
-                        &mut emu,
-                        |emu| gateway(emu, library),
-                        &vec![DATA as u32; arguments],
-                    );
-                }
-                let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-                assert_eq!(outcome.call.library, library);
-                assert_eq!(outcome.call.name, name);
-                let (result, error, disposition) = match (mode, contract) {
-                    (ApiMode::Strict, _) => (
-                        MARKER as u64,
-                        MARKER as u64,
-                        ApiDisposition::Stopped(ApiStopReason::StrictPolicy),
-                    ),
-                    (ApiMode::SimulateFail, UnsupportedResult::Win32Status) => (
-                        ERROR_CALL_NOT_IMPLEMENTED,
-                        MARKER as u64,
-                        ApiDisposition::SimulatedFailure,
-                    ),
-                    (ApiMode::SimulateSuccess, UnsupportedResult::Win32Status) => (
-                        ERROR_SUCCESS,
-                        MARKER as u64,
-                        ApiDisposition::SimulatedSuccess,
-                    ),
-                    (ApiMode::SimulateFail, UnsupportedResult::NtStatus) => (
-                        STATUS_NOT_IMPLEMENTED,
-                        MARKER as u64,
-                        ApiDisposition::SimulatedFailure,
-                    ),
-                    (ApiMode::SimulateSuccess, UnsupportedResult::NtStatus) => (
-                        STATUS_SUCCESS,
-                        MARKER as u64,
-                        ApiDisposition::SimulatedSuccess,
-                    ),
-                    (ApiMode::SimulateFail, UnsupportedResult::Hresult) => {
-                        (E_NOTIMPL, MARKER as u64, ApiDisposition::SimulatedFailure)
-                    }
-                    (ApiMode::SimulateSuccess, UnsupportedResult::Hresult) => {
-                        (S_OK, MARKER as u64, ApiDisposition::SimulatedSuccess)
-                    }
-                    (ApiMode::SimulateFail, UnsupportedResult::Win32Bool) => (
-                        FALSE,
-                        ERROR_CALL_NOT_IMPLEMENTED,
-                        ApiDisposition::SimulatedFailure,
-                    ),
-                    (ApiMode::SimulateSuccess, UnsupportedResult::Win32Bool) => {
-                        (TRUE, MARKER as u64, ApiDisposition::SimulatedSuccess)
-                    }
-                };
-                assert_eq!(
-                    outcome.disposition, disposition,
-                    "{library}!{name}, x64={is64}"
-                );
-                assert_eq!(emu.regs().rax, result, "{library}!{name}");
-                assert_eq!(emu.get_last_error(), error, "{library}!{name}");
-                assert_eq!(emu.maps.read_qword(DATA), Some(MARKER as u64));
-                assert_eq!(
-                    emu.api_policy.simulation_count,
-                    count + u64::from(mode != ApiMode::Strict)
-                );
-                let expected_sp = if !is64 && mode == ApiMode::Strict {
-                    sp - arguments as u64 * size_of::<u32>() as u64
-                } else {
-                    sp
-                };
-                assert_eq!(emu.sp(), expected_sp, "{library}!{name}");
-            }
-        }
-    }
-}
-
-#[test]
-fn unsupported_operation_recipes_validate_the_entire_frame() {
-    for is64 in [false, true] {
-        for &(library, name, arguments, _) in UNSUPPORTED_OPERATIONS {
-            // Register-only x64 calls have no unreadable stack argument.
-            if is64 && arguments <= 4 {
-                continue;
-            }
-            let mut emu = emulator(is64, library, name);
-            let readable = if is64 {
-                (arguments - 1) * 8
-            } else {
-                (arguments - 1) * 4
-            };
-            let sp = DATA + 0x1000 - readable as u64;
-            for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
-                emu.api_policy.clear_outcome();
-                emu.set_api_mode(mode);
-                emu.set_sp(sp);
-                emu.set_last_error(MARKER as u64);
-                emu.regs_mut().rax = MARKER as u64;
-                emu.maps.write_qword(DATA, MARKER as u64);
-                gateway(&mut emu, library);
-                assert_eq!(
-                    emu.api_policy.last_outcome.as_ref().unwrap().disposition,
-                    ApiDisposition::Stopped(ApiStopReason::InvalidFrame),
-                    "{library}!{name}, x64={is64}"
-                );
-                assert_eq!(emu.sp(), sp);
-                assert_eq!(emu.regs().rax, MARKER as u64);
-                assert_eq!(emu.get_last_error(), MARKER as u64);
-                assert_eq!(emu.maps.read_qword(DATA), Some(MARKER as u64));
-                assert_eq!(emu.api_policy.simulation_count, 0);
-            }
-        }
-    }
-}
-
-#[test]
-fn direct_access_check_leaves_grant_outputs_untouched() {
-    for mode in [ApiMode::Strict, ApiMode::SimulateFail] {
-        let mut emu = emulator(true, "ntdll", "unused_export");
-        emu.set_api_mode(mode);
-        emu.set_pc(CODE);
-        emu.syscall_name_by_real
-            .insert(UNKNOWN_SERVICE, "NtAccessCheck".into());
-        emu.syscall_number_map
-            .insert(UNKNOWN_SERVICE, WIN64_NTACCESSCHECK);
-        let sp = emu.regs().rsp - SHADOW_SIZE;
-        emu.regs_mut().rsp = sp;
-        emu.maps.write_qword(sp + 0x38, DATA);
-        emu.maps.write_qword(sp + 0x40, DATA + 4);
-        emu.maps.write_dword(DATA, MARKER);
-        emu.maps.write_dword(DATA + 4, MARKER);
-        emu.regs_mut().rax = UNKNOWN_SERVICE;
-        syscall64::gateway(&mut emu);
-        let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-        assert_eq!(outcome.call.name, "NtAccessCheck");
-        assert_eq!(
-            emu.regs().rax,
-            if mode == ApiMode::Strict {
-                UNKNOWN_SERVICE
-            } else {
-                STATUS_NOT_IMPLEMENTED
-            }
-        );
-        assert_eq!(emu.maps.read_dword(DATA), Some(MARKER));
-        assert_eq!(emu.maps.read_dword(DATA + 4), Some(MARKER));
-    }
-}
-
-#[test]
-fn managed_entry_checks_the_guest_directory_and_requires_a_runtime() {
-    for is64 in [false, true] {
-        let (mut emu, base) = prepare_winapi(is64);
-
-        use crate::winapi::libraries::mscoree::clr_header;
-        use goblin::pe::header::{DOS_MAGIC, PE_MAGIC, PE_POINTER_OFFSET};
-        use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
-        emu.base = base;
-        let optional = base + 0x80 + 24;
-        let table = if is64 { 112 } else { 96 };
-        let rva = 0x400;
-        assert!(emu.maps.write_word(base, DOS_MAGIC));
-        assert!(
-            emu.maps
-                .write_dword(base + u64::from(PE_POINTER_OFFSET), 0x80)
-        );
-        assert!(emu.maps.write_dword(base + 0x80, PE_MAGIC));
-        assert!(emu.maps.write_word(optional - 4, (table + 16 * 8) as u16));
-        assert!(
-            emu.maps
-                .write_word(optional, if is64 { MAGIC_64 } else { MAGIC_32 })
-        );
-        assert!(emu.maps.write_dword(optional + 56, 0x1000));
-        assert!(emu.maps.write_dword(optional + table - 4, 16));
-        assert!(emu.maps.write_dword(optional + table + 14 * 8, rva));
-        assert!(emu.maps.write_dword(optional + table + 14 * 8 + 4, 72));
-        assert_eq!(
-            clr_header(&emu),
-            Some((base + u64::from(rva), base + 0x1000))
-        );
-        assert!(emu.maps.write_dword(optional + table - 4, 2));
-        assert_eq!(clr_header(&emu), None);
-        emu.set_api_mode(ApiMode::Strict);
-        invoke_winapi_export(&mut emu, "mscoree.dll", "_CorExeMain");
-        assert!(emu.api_policy.stopped());
-        let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-        assert_eq!(outcome.call.name, "_CorExeMain");
-    }
-}
-
-#[test]
-fn unsupported_exports_obey_policy_without_writing_unused_arguments() {
-    use crate::tests::helpers::{call_winapi_export as call, invoke_winapi_export, prepare_winapi};
-    use crate::winapi::policy::ApiMode;
-    use crate::windows::constants::errors::{E_NOTIMPL, ERROR_CALL_NOT_IMPLEMENTED, S_OK};
-    for is64 in [false, true] {
-        for library in ["kernel32.dll", "kernelbase.dll"] {
-            let (mut emu, data) = prepare_winapi(is64);
-            emu.set_api_mode(ApiMode::Strict);
-            invoke_winapi_export(&mut emu, library, "WerSetFlags");
-            assert!(emu.api_policy.stopped());
-            emu.api_policy.clear_outcome();
-            emu.maps.write_dword(data, 0x12345678);
-            for (mode, hresult, direct_error) in [
-                (ApiMode::SimulateFail, E_NOTIMPL, ERROR_CALL_NOT_IMPLEMENTED),
-                (ApiMode::SimulateSuccess, S_OK, 0),
-            ] {
-                emu.set_api_mode(mode);
-                emu.set_last_error(127);
-                for (api, words, preserves_return) in [
-                    ("SetThreadpoolWait", 3, true),
-                    ("SetThreadpoolWaitEx", 4, false),
-                    ("SetThreadpoolTimer", 4, true),
-                    ("SetThreadpoolTimerEx", 4, false),
-                ] {
-                    emu.regs_mut().rax = u64::from(MARKER);
-                    let result = call(&mut emu, library, api, &[0; 4][..words]);
-                    assert_eq!(
-                        result,
-                        if preserves_return {
-                            u64::from(MARKER)
-                        } else {
-                            0
-                        },
-                        "{library}!{api}"
-                    );
-                }
-                emu.regs_mut().rdx = data;
-                assert_eq!(call(&mut emu, library, "WerSetFlags", &[0]), hresult);
-                assert_eq!(call(&mut emu, library, "GetTapeStatus", &[0]), direct_error);
-                let ring_args = if is64 {
-                    vec![1, 0, 8, 8, data]
-                } else {
-                    vec![1, 0, 0, 8, 8, data]
-                };
-                assert_eq!(call(&mut emu, library, "CreateIoRing", &ring_args), hresult);
-                assert_eq!(
-                    call(
-                        &mut emu,
-                        library,
-                        "CreateEnclave",
-                        &[0, 0, 4096, 4096, 1, data, 0, data]
-                    ),
-                    0
-                );
-                assert_eq!(emu.maps.read_dword(data), Some(0x12345678));
-                emu.set_last_error(127);
-                assert_eq!(emu.get_last_error(), 127);
-                assert_eq!(emu.maps.read_dword(data), Some(0x12345678));
-                let success = mode == ApiMode::SimulateSuccess;
-                assert_eq!(
-                    call(&mut emu, library, "GetConsoleScreenBufferInfo", &[0, data]),
-                    u64::from(success)
-                );
-                assert_eq!(
-                    emu.get_last_error(),
-                    if success {
-                        127
-                    } else {
-                        ERROR_CALL_NOT_IMPLEMENTED
-                    }
-                );
-                assert_eq!(emu.maps.read_dword(data), Some(0x12345678));
-            }
-        }
-    }
 }

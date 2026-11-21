@@ -22,10 +22,9 @@ impl Default for OsVersionInfoExA {
 }
 
 impl OsVersionInfoExA {
-    pub const SIZE: u32 = 156;
     pub fn new() -> OsVersionInfoExA {
         let mut ovi = OsVersionInfoExA {
-            version_info_size: Self::SIZE,
+            version_info_size: 156, // size of OSVERSIONINFOEXA
             major_version: 10,
             minor_version: 0,
             build_number: 19042,

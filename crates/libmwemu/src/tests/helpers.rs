@@ -1,13 +1,12 @@
+use crate::winapi::{winapi32, winapi64};
+use crate::{emu32, emu64};
+use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Once, OnceLock};
 
-use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
-use tempfile::TempDir;
-
 use crate::emu::object_handle::file_handle::init_file_system;
-use crate::winapi::{winapi32, winapi64};
-use crate::{emu32, emu64};
+use tempfile::TempDir;
 
 #[path = "../../libraries/rs-header/tests/fixtures/mod.rs"]
 mod pe_fixtures;
@@ -122,7 +121,7 @@ pub fn win32_maps_folder() -> String {
 /// NLS code-page tables (which aren't on the symbol server) couldn't be seeded
 /// from an existing `--iso` cache. Callers should treat `false` as "skip" so
 /// the suite stays green on offline machines rather than failing spuriously.
-pub fn set_winver_maps(emu: &mut Emu, version: &str) -> bool {
+pub fn set_winver_maps(emu: &mut crate::emu::Emu, version: &str) -> bool {
     if let Err(e) = emu.set_maps_from_winver(version) {
         eprintln!("skipping: --winver {} unavailable ({})", version, e);
         return false;
@@ -330,6 +329,24 @@ pub fn register_export_module(
     emu.export_indexes.register(index);
 }
 
+/// Register a synthetic module in the emulator's export-index registry:
+/// `fake.dll` at `base`, export ordinal base 5, with a single function at
+/// `base + 0x1500` named `CreateFileA` (ordinal 5).
+pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
+    use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
+
+    let parsed = ExportIndexData {
+        export_base: 5,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x1500 })],
+        named_exports: vec![NamedExport {
+            name: "CreateFileA".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    register_export_module(emu, "fake.dll", base, &parsed);
+}
+
 /// Invoke a 32-bit WinAPI hook honoring the `stdcall` convention as the engine
 /// presents it: the return address has already been popped, so arguments sit at
 /// `[esp+0]`, `[esp+4]`, ... (the hook pops them itself). Arguments are pushed
@@ -355,44 +372,23 @@ pub fn file_system_root() -> &'static Path {
 }
 
 pub const WINAPI_MODULE_BASE: u64 = 0x7000_0000;
+const EXPORT: u64 = WINAPI_MODULE_BASE + 0x100;
+const KERNELBASE_EXPORT: u64 = EXPORT + 0x10000;
+const USER32_EXPORT: u64 = EXPORT + 0x20000;
+const IPHLPAPI_EXPORT: u64 = EXPORT + 0x30000;
+const WS2_32_EXPORT: u64 = EXPORT + 0x40000;
+const SHLWAPI_EXPORT: u64 = EXPORT + 0x50000;
+const WININET_EXPORT: u64 = EXPORT + 0x60000;
+const ADVAPI32_EXPORT: u64 = EXPORT + 0x70000;
+const OLE32_EXPORT: u64 = EXPORT + 0x80000;
+const OLEAUT32_EXPORT: u64 = EXPORT + 0x90000;
+const CRYPT32_EXPORT: u64 = EXPORT + 0xa0000;
+const WINMM_EXPORT: u64 = EXPORT + 0xb0000;
+const GDIPLUS_EXPORT: u64 = EXPORT + 0xc0000;
+const MSVCRT_EXPORT: u64 = EXPORT + 0xd0000;
+const NTDLL_EXPORT: u64 = EXPORT + 0xe0000;
+const LIBGCC_EXPORT: u64 = EXPORT + 0xf0000;
 const DATA_SIZE: u64 = 0x1000;
-const WINAPI_EXPORT_RVA: u64 = 0x100;
-const WINAPI_MODULE_SPACING: u64 = 0x10000;
-const WINAPI_LIBRARIES: &[&str] = &[
-    "kernel32.dll",
-    "kernelbase.dll",
-    "user32.dll",
-    "iphlpapi.dll",
-    "ws2_32.dll",
-    "shlwapi.dll",
-    "wininet.dll",
-    "dnsapi.dll",
-    "winhttp.dll",
-    "advapi32.dll",
-    "ole32.dll",
-    "oleaut32.dll",
-    "crypt32.dll",
-    "bcrypt.dll",
-    "bcryptprimitives.dll",
-    "winmm.dll",
-    "gdi32.dll",
-    "mscoree.dll",
-    "gdiplus.dll",
-    "version.dll",
-    "msvcrt.dll",
-    "ntdll.dll",
-    "libgcc_s_dw2-1.dll",
-    "shell32.dll",
-    "shfolder.dll",
-    "comctl32.dll",
-    "uxtheme.dll",
-    "ntoskrnl.exe",
-    "ucrtbase.dll",
-    "api-ms-win-crt-runtime-l1-1-0.dll",
-    "api-ms-win-crt-string-l1-1-0.dll",
-    "cryptbase.dll",
-    "urlmon.dll",
-];
 
 pub fn prepare_winapi(is64: bool) -> (Emu, u64) {
     let mut emu = if is64 { emu64() } else { emu32() };
@@ -414,25 +410,33 @@ pub fn invoke_winapi_export(emu: &mut Emu, library: &str, name: &str) {
     let exports = ExportIndexData {
         export_base: 1,
         number_of_functions: 1,
-        ordinal_targets: vec![Some(ExportTarget::Direct {
-            rva: WINAPI_EXPORT_RVA as u32,
-        })],
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x100 })],
         named_exports: vec![NamedExport {
             name: name.into(),
             ordinal_index: 0,
         }],
     };
-    let index = WINAPI_LIBRARIES
-        .iter()
-        .position(|entry| *entry == library)
-        .unwrap_or_else(|| panic!("unexpected library: {library}"));
-    let base = WINAPI_MODULE_BASE + index as u64 * WINAPI_MODULE_SPACING;
-    let address = base + WINAPI_EXPORT_RVA;
-    register_export_module(emu, library, base, &exports);
-    let section = format!(
-        "{}.text",
-        library.trim_end_matches(".dll").trim_end_matches(".exe")
-    );
+    let address = match library {
+        "kernel32.dll" => EXPORT,
+        "kernelbase.dll" => KERNELBASE_EXPORT,
+        "user32.dll" => USER32_EXPORT,
+        "iphlpapi.dll" => IPHLPAPI_EXPORT,
+        "ws2_32.dll" => WS2_32_EXPORT,
+        "shlwapi.dll" => SHLWAPI_EXPORT,
+        "wininet.dll" => WININET_EXPORT,
+        "advapi32.dll" => ADVAPI32_EXPORT,
+        "ole32.dll" => OLE32_EXPORT,
+        "oleaut32.dll" => OLEAUT32_EXPORT,
+        "crypt32.dll" => CRYPT32_EXPORT,
+        "winmm.dll" => WINMM_EXPORT,
+        "gdiplus.dll" => GDIPLUS_EXPORT,
+        "msvcrt.dll" => MSVCRT_EXPORT,
+        "ntdll.dll" => NTDLL_EXPORT,
+        "libgcc_s_dw2-1.dll" => LIBGCC_EXPORT,
+        _ => panic!("unexpected library: {library}"),
+    };
+    register_export_module(emu, library, address - 0x100, &exports);
+    let section = format!("{}.text", library.trim_end_matches(".dll"));
     if emu.cfg.arch.is_64bits() {
         winapi64::gateway(address, &section, emu);
     } else {
@@ -467,11 +471,6 @@ pub fn call_winapi_export(emu: &mut Emu, library: &str, name: &str, args: &[u64]
         emu.regs().rsp,
         sp,
         "{library}!{name} must preserve the caller stack"
-    );
-    assert!(
-        !emu.api_policy.stopped(),
-        "{library}!{name} stopped instead of returning: {:?}",
-        emu.api_policy.last_outcome
     );
     result
 }

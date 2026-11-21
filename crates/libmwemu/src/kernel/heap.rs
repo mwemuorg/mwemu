@@ -14,8 +14,6 @@
 use crate::kernel::layout::HEAP_REDZONE;
 use serde::{Deserialize, Serialize};
 
-pub(super) const MIN_ALLOCATION_ALIGNMENT: u64 = 16;
-
 /// Which allocator handed a chunk out. Determines the poison pattern and how
 /// the chunk is described in a report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,7 +139,7 @@ impl KernelHeap {
             Region::Vmalloc | Region::Pages => (&mut self.vmalloc_cursor, self.vmalloc_end),
         };
 
-        let addr = (*cursor).next_multiple_of(MIN_ALLOCATION_ALIGNMENT);
+        let addr = (*cursor).next_multiple_of(16);
         if addr + size + HEAP_REDZONE > end {
             return None;
         }

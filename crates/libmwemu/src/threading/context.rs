@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use crate::{
@@ -134,39 +133,13 @@ impl ArchThreadState {
             .expect("aarch64 trace snapshot was set at construction")
     }
 }
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SignalStack {
-    pub pointer: u64,
-    pub flags: u32,
-    pub size: u64,
-}
-
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
-pub struct CrtThreadState {
-    pub errno_address: u64,
-    pub random_seed: Option<u32>,
-}
-
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
-pub struct WindowsThreadState {
-    pub msvcrt: CrtThreadState,
-    pub ucrt: CrtThreadState,
-    pub suspend_count: u32,
-    pub last_error: u32,
-    pub teb: u64,
-}
-
 #[derive(Clone)]
 pub struct ThreadContext {
-    pub id: u64, // Thread ID (e.g., 0x1000, 0x1001, etc.)
-    pub windows: WindowsThreadState,
-    pub error_mode: u32,
-    pub windows_start_address: Option<u64>,
+    pub id: u64,                    // Thread ID (e.g., 0x1000, 0x1001, etc.)
     pub suspended: bool,            // Whether thread is suspended
     pub wake_tick: usize,           // Global tick when thread can next run (0 = runnable)
     pub blocked_on_cs: Option<u64>, // Pointer to critical section (or futex word) if blocked
     pub clear_child_tid: u64,       // Linux: word zeroed + futex-woken when the thread exits
-    pub signal_stack: SignalStack,
     pub handle: u64,
     pub arch: ArchThreadState,
     pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
@@ -212,14 +185,10 @@ impl ThreadContext {
 
         ThreadContext {
             id,
-            windows: WindowsThreadState::default(),
-            error_mode: 0,
-            windows_start_address: None,
             suspended: false,
             wake_tick: 0, // 0 means runnable
             blocked_on_cs: None,
             clear_child_tid: 0,
-            signal_stack: SignalStack::default(),
             handle: 0,
             arch: arch_state,
             exit_value: None,

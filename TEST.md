@@ -9,7 +9,7 @@ If on Apple Silicon (M1/M2/M3/M4), install the x86_64 target first:
 rustup target add x86_64-apple-darwin
 ```
 
-Run `make samples` to install the release fixtures. It caches the archive in `test/.samples.zip` and restores missing files on later runs.
+Fetch the test sample bundle (needed for steps 4, 5, 6):
 
 ```bash
 make samples

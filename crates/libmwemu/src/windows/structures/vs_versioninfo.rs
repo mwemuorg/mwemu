@@ -22,11 +22,10 @@ impl Default for VS_VERSIONINFO {
 }
 
 impl VS_VERSIONINFO {
-    pub const KEY: &'static str = "VS_VERSION_INFO";
     pub fn new() -> Self {
         let mut sz_key = [0u16; 16];
         // "VS_VERSION_INFO\0" in UTF-16
-        let version_info = Self::KEY;
+        let version_info = "VS_VERSION_INFO\0";
         for (i, ch) in version_info.chars().enumerate() {
             if i < 16 {
                 sz_key[i] = ch as u16;

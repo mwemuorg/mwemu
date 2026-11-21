@@ -1,22 +1,16 @@
 use crate::maps::mem64::Permission;
-use crate::winapi::common::wait::WaitObject;
-use crate::winapi::libraries::gdi32::{DeviceContext, GraphicHandle};
 pub(crate) use file_handle::FileHandle;
 pub(crate) use heap_handle::HeapHandle;
 pub(crate) use mapping_handle::MappingHandle;
 use serde::{Deserialize, Serialize};
 use slab::Slab;
-use std::collections::{BTreeMap, VecDeque};
-use toolhelp::ToolhelpSnapshot;
+use std::collections::BTreeMap;
 
 pub mod file_handle;
 pub mod heap_handle;
 mod hive_parser;
-pub(crate) mod internet;
-use internet::InternetHandle;
 pub mod mapping_handle;
 mod registry_handle;
-pub(crate) mod toolhelp;
 mod windows_path;
 // TODO: support more handle: registry, thread, etc
 /*
@@ -34,27 +28,6 @@ pub struct SectionHandle {
     pub access: Option<Permission>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct FoundFile {
-    pub name: String,
-    pub attributes: u32,
-    pub times: [u64; 3],
-    pub size: u64,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub(crate) enum ServiceObject {
-    Manager { access: u32 },
-    Service { name: String, access: u32 },
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum NativeObject {
-    CsrPort,
-    KnownDllDirectory { wow64: bool, access: u32 },
-    KnownDllPath { wow64: bool, access: u32 },
-}
-
 enum HandleType {
     /// Permanently occupies slab slot 0 so no real handle ever gets the
     /// NULL-like key 0 (guests treat handle 0 as "no handle").
@@ -63,26 +36,6 @@ enum HandleType {
     MappingHandle(MappingHandle),
     HeapHandle(HeapHandle),
     SectionHandle(SectionHandle),
-    Toolhelp(ToolhelpSnapshot),
-    Thread(u64),
-    RegistryKey(String),
-    FileSearch(VecDeque<FoundFile>),
-    Process(u32),
-    Ipc,
-    ProcessToken(u32),
-    Waitable(u64),
-    ProcessAccess(u32, u32),
-    Console(u32, u32),
-    DeviceContext(DeviceContext),
-    RegistryKeyAccess(String, u32),
-    Service(ServiceObject),
-    Internet(InternetHandle),
-    UrlCacheGroup,
-    EventLog {
-        source: bool,
-    },
-    Graphic(GraphicHandle),
-    Native(NativeObject),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,30 +53,7 @@ pub(crate) struct MemoryHandles {
     sections: BTreeMap<u64, SectionHandle>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) enum WindowsHandle {
-    Toolhelp(ToolhelpSnapshot),
-    Thread(u64),
-    RegistryKey(String),
-    FileSearch(VecDeque<FoundFile>),
-    Process(u32),
-    Ipc,
-    ProcessToken(u32),
-    Waitable(u64, WaitObject),
-    ProcessAccess(u32, u32),
-    Console(u32, u32),
-    DeviceContext(DeviceContext),
-    RegistryKeyAccess(String, u32),
-    Service(ServiceObject),
-    Internet(InternetHandle),
-    UrlCacheGroup,
-    EventLog { source: bool },
-    Graphic(GraphicHandle),
-    Native(NativeObject),
-}
-
 pub struct HandleManagement {
-    waitables: BTreeMap<u64, WaitObject>,
     number_of_handle: usize,
     handle_types: Slab<HandleType>,
     process_heap_key: Option<u32>,
@@ -145,7 +75,6 @@ impl HandleManagement {
             number_of_handle: 0,
             process_heap_key: None,
             sections: BTreeMap::new(),
-            waitables: BTreeMap::new(),
         }
     }
 
@@ -193,421 +122,7 @@ impl HandleManagement {
             number_of_handle,
             process_heap_key: snapshot.process_heap_key,
             sections: snapshot.sections,
-            waitables: BTreeMap::new(),
         }
-    }
-
-    pub(crate) fn windows_snapshot(&self) -> Vec<(usize, WindowsHandle)> {
-        self.handle_types
-            .iter()
-            .filter_map(|(key, handle)| {
-                let saved = match handle {
-                    HandleType::Toolhelp(snapshot) => WindowsHandle::Toolhelp(snapshot.clone()),
-                    HandleType::Thread(id) => WindowsHandle::Thread(*id),
-                    HandleType::Process(id) => WindowsHandle::Process(*id),
-                    HandleType::ProcessAccess(id, mask) => WindowsHandle::ProcessAccess(*id, *mask),
-                    HandleType::Ipc => WindowsHandle::Ipc,
-                    HandleType::Waitable(id) => {
-                        WindowsHandle::Waitable(*id, self.waitables.get(id)?.clone())
-                    }
-                    HandleType::Console(selector, mode) => WindowsHandle::Console(*selector, *mode),
-                    HandleType::UrlCacheGroup => WindowsHandle::UrlCacheGroup,
-                    HandleType::Internet(handle) => WindowsHandle::Internet(handle.clone()),
-                    HandleType::Native(object) => WindowsHandle::Native(*object),
-                    HandleType::Graphic(handle) => WindowsHandle::Graphic(handle.clone()),
-                    HandleType::EventLog { source } => WindowsHandle::EventLog { source: *source },
-                    HandleType::Service(service) => WindowsHandle::Service(service.clone()),
-                    HandleType::DeviceContext(dc) => WindowsHandle::DeviceContext(dc.clone()),
-                    HandleType::ProcessToken(rights) => WindowsHandle::ProcessToken(*rights),
-                    HandleType::RegistryKeyAccess(path, access) => {
-                        WindowsHandle::RegistryKeyAccess(path.clone(), *access)
-                    }
-                    HandleType::RegistryKey(path) => WindowsHandle::RegistryKey(path.clone()),
-                    HandleType::FileSearch(entries) => WindowsHandle::FileSearch(entries.clone()),
-                    _ => return None,
-                };
-                Some((key, saved))
-            })
-            .collect()
-    }
-
-    pub(crate) fn restore_windows_snapshot(&mut self, snapshot: Vec<(usize, WindowsHandle)>) {
-        // The memory snapshot reserves these keys, keeping older formats unchanged.
-        for (key, saved) in snapshot {
-            if let Some(handle @ HandleType::Reserved) = self.handle_types.get_mut(key) {
-                *handle = match saved {
-                    WindowsHandle::Toolhelp(snapshot) => HandleType::Toolhelp(snapshot),
-                    WindowsHandle::FileSearch(entries) => HandleType::FileSearch(entries),
-                    WindowsHandle::Thread(id) => HandleType::Thread(id),
-                    WindowsHandle::Process(id) => HandleType::Process(id),
-                    WindowsHandle::ProcessAccess(id, mask) => HandleType::ProcessAccess(id, mask),
-                    WindowsHandle::Ipc => HandleType::Ipc,
-                    WindowsHandle::Waitable(id, obj) => {
-                        self.waitables.entry(id).or_insert(obj);
-                        HandleType::Waitable(id)
-                    }
-                    WindowsHandle::Console(selector, mode) => HandleType::Console(selector, mode),
-                    WindowsHandle::UrlCacheGroup => HandleType::UrlCacheGroup,
-                    WindowsHandle::Internet(handle) => HandleType::Internet(handle),
-                    WindowsHandle::Native(object) => HandleType::Native(object),
-                    WindowsHandle::Graphic(handle) => HandleType::Graphic(handle),
-                    WindowsHandle::EventLog { source } => HandleType::EventLog { source },
-                    WindowsHandle::Service(service) => HandleType::Service(service),
-                    WindowsHandle::DeviceContext(dc) => HandleType::DeviceContext(dc),
-                    WindowsHandle::ProcessToken(rights) => HandleType::ProcessToken(rights),
-                    WindowsHandle::RegistryKeyAccess(path, access) => {
-                        HandleType::RegistryKeyAccess(path, access)
-                    }
-                    WindowsHandle::RegistryKey(path) => HandleType::RegistryKey(path),
-                };
-                self.number_of_handle += 1;
-            }
-        }
-    }
-
-    pub(crate) fn open_registry_key(&mut self, path: String) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::RegistryKey(path)) as u32
-    }
-
-    pub(crate) fn open_registry_key_access(&mut self, path: String, access: u32) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types
-            .insert(HandleType::RegistryKeyAccess(path, access)) as u32
-    }
-
-    pub(crate) fn registry_can_query(&self, handle: u64) -> bool {
-        use crate::windows::constants::security::{
-            GENERIC_ALL, GENERIC_READ, KEY_QUERY_VALUE, MAXIMUM_ALLOWED,
-        };
-        match self.handle_types.get(handle as usize) {
-            Some(HandleType::RegistryKeyAccess(_, mask)) => {
-                mask & (KEY_QUERY_VALUE | GENERIC_READ | GENERIC_ALL | MAXIMUM_ALLOWED) != 0
-            }
-            Some(HandleType::RegistryKey(_)) => true,
-            _ => false,
-        }
-    }
-
-    pub(crate) fn registry_key(&self, handle: u64) -> Option<&str> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::RegistryKey(path) | HandleType::RegistryKeyAccess(path, _) => Some(path),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn close_registry_key(&mut self, handle: u64) -> bool {
-        if self.registry_key(handle).is_none() {
-            return false;
-        }
-        self.handle_types.remove(handle as usize);
-        self.number_of_handle -= 1;
-        true
-    }
-
-    pub(crate) fn invalidate_registry_key(&mut self, path: &str, include_root: bool) {
-        for (_, entry) in &mut self.handle_types {
-            if let HandleType::RegistryKey(key) | HandleType::RegistryKeyAccess(key, _) = entry
-                && ((include_root && key.eq_ignore_ascii_case(path))
-                    || key
-                        .get(..path.len())
-                        .is_some_and(|s| s.eq_ignore_ascii_case(path))
-                        && key.as_bytes().get(path.len()) == Some(&b'\\'))
-            {
-                key.clear();
-            }
-        }
-    }
-
-    pub(crate) fn named_waitable(&self, name: &[u16]) -> Option<u64> {
-        self.waitables
-            .iter()
-            .find_map(|(&id, object)| (object.name.as_deref() == Some(name)).then_some(id))
-    }
-
-    pub(crate) fn create_waitable(&mut self, object: WaitObject) -> Option<u64> {
-        let id = self
-            .waitables
-            .last_key_value()
-            .map(|(&id, _)| id)
-            .unwrap_or(0)
-            .checked_add(1)?;
-        self.waitables.insert(id, object);
-        Some(id)
-    }
-
-    pub(crate) fn open_waitable(&mut self, id: u64) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Waitable(id)) as u64
-    }
-
-    pub(crate) fn waitable_id(&self, handle: u64) -> Option<u64> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Waitable(id) => Some(*id),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn waitable(&mut self, id: u64) -> Option<&mut WaitObject> {
-        self.waitables.get_mut(&id)
-    }
-
-    pub(crate) fn open_process_token(&mut self, rights: u32) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::ProcessToken(rights)) as u32
-    }
-
-    pub(crate) fn process_token_rights(&self, handle: u64) -> Option<u32> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::ProcessToken(rights) => Some(*rights),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn console_handle(&mut self, selector: u32, default_mode: u32) -> u64 {
-        use crate::windows::constants::files::STD_INPUT_HANDLE;
-        let mut mode = default_mode;
-        for (key, entry) in &self.handle_types {
-            if let HandleType::Console(existing, flags) = entry {
-                if *existing == selector {
-                    return key as u64;
-                }
-                if *existing != STD_INPUT_HANDLE && selector != STD_INPUT_HANDLE {
-                    mode = *flags;
-                }
-            }
-        }
-        self.number_of_handle += 1;
-        self.handle_types
-            .insert(HandleType::Console(selector, mode)) as u64
-    }
-
-    pub(crate) fn console(&self, handle: u64) -> Option<(u32, u32)> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Console(selector, mode) => Some((*selector, *mode)),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn set_console_mode(&mut self, selector: u32, mode: u32) {
-        use crate::windows::constants::files::STD_INPUT_HANDLE;
-        for (_, entry) in &mut self.handle_types {
-            if let HandleType::Console(existing, flags) = entry
-                && (*existing == STD_INPUT_HANDLE) == (selector == STD_INPUT_HANDLE)
-            {
-                *flags = mode;
-            }
-        }
-    }
-
-    pub(crate) fn open_event_log(&mut self, source: bool) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::EventLog { source }) as u64
-    }
-
-    pub(crate) fn is_event_log(&self, handle: u64) -> bool {
-        usize::try_from(handle).ok().is_some_and(|key| {
-            matches!(
-                self.handle_types.get(key),
-                Some(HandleType::EventLog { .. })
-            )
-        })
-    }
-
-    pub(crate) fn close_event_log(&mut self, handle: u64, source: bool) -> bool {
-        let Ok(key) = usize::try_from(handle) else {
-            return false;
-        };
-        if !matches!(self.handle_types.get(key), Some(HandleType::EventLog { source: actual }) if *actual == source)
-        {
-            return false;
-        }
-        self.handle_types.remove(key);
-        self.number_of_handle -= 1;
-        true
-    }
-
-    pub(crate) fn open_service_object(&mut self, service: ServiceObject) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Service(service)) as u64
-    }
-
-    pub(crate) fn service_manager_access(&self, handle: u64) -> Option<u32> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Service(ServiceObject::Manager { access }) => Some(*access),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn close_service_object(&mut self, handle: u64) -> bool {
-        let Ok(key) = usize::try_from(handle) else {
-            return false;
-        };
-        if !matches!(self.handle_types.get(key), Some(HandleType::Service(_))) {
-            return false;
-        }
-        self.handle_types.remove(key);
-        self.number_of_handle -= 1;
-        true
-    }
-
-    pub(crate) fn insert_native_object(&mut self, object: NativeObject) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Native(object)) as u64
-    }
-
-    pub(crate) fn native_object(&self, handle: u64) -> Option<NativeObject> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Native(object) => Some(*object),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn insert_graphic(&mut self, graphic: GraphicHandle) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Graphic(graphic)) as u64
-    }
-
-    pub(crate) fn graphic(&self, object: u64) -> Option<&GraphicHandle> {
-        match self.handle_types.get(usize::try_from(object).ok()?)? {
-            HandleType::Graphic(entry) => Some(entry),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn stock_graphic(&self, stock: i32) -> Option<u64> {
-        self.handle_types.iter().find_map(|(key, object)| {
-            matches!(object, HandleType::Graphic(entry) if entry.stock == Some(stock))
-                .then_some(key as u64)
-        })
-    }
-
-    pub(crate) fn graphic_in_other_dc(&self, object: u64, owner: u64) -> bool {
-        self.handle_types.iter().any(|(key, entry)| {
-            key as u64 != owner
-                && matches!(entry, HandleType::DeviceContext(dc) if dc.holds_graphic(object))
-        })
-    }
-
-    pub(crate) fn delete_graphic(&mut self, object: u64) -> bool {
-        let Some(entry) = self.graphic(object) else {
-            return false;
-        };
-        if entry.stock.is_some() {
-            return true;
-        }
-        if self.graphic_in_other_dc(object, 0) {
-            return false;
-        }
-        self.handle_types.remove(object as usize);
-        self.number_of_handle -= 1;
-        true
-    }
-
-    pub(crate) fn insert_dc(&mut self, dc: DeviceContext) -> u64 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::DeviceContext(dc)) as u64
-    }
-    pub(crate) fn dc(&mut self, h: u64) -> Option<&mut DeviceContext> {
-        match self.handle_types.get_mut(usize::try_from(h).ok()?)? {
-            HandleType::DeviceContext(dc) => Some(dc),
-            _ => None,
-        }
-    }
-    pub(crate) fn release_dc(&mut self, h: u64, owner: Option<u64>) -> bool {
-        if self.dc(h).is_none_or(|dc| dc.window != owner) {
-            return false;
-        }
-        self.handle_types.remove(h as usize);
-        self.number_of_handle -= 1;
-        true
-    }
-    pub(crate) fn insert_ipc_handle(&mut self) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Ipc) as u32
-    }
-
-    pub(crate) fn insert_process_handle(&mut self, id: u32, access: u32) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types
-            .insert(HandleType::ProcessAccess(id, access)) as u32
-    }
-
-    pub(crate) fn contains_handle(&self, handle: u64) -> bool {
-        handle != 0 && usize::try_from(handle).is_ok_and(|index| self.handle_types.contains(index))
-    }
-
-    pub(crate) fn process_handle_id(&self, handle: u64) -> Option<u32> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Process(id) | HandleType::ProcessAccess(id, _) => Some(*id),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn process_access(&self, handle: u64) -> Option<u32> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::ProcessAccess(_, access) => Some(*access),
-            // Old snapshots recorded identity but no granted VM access.
-            HandleType::Process(_) => Some(0),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn insert_thread_handle(&mut self, id: u64) -> u32 {
-        let key = self.handle_types.insert(HandleType::Thread(id));
-        self.number_of_handle += 1;
-        key as u32
-    }
-
-    pub(crate) fn thread_handle_id(&self, handle: u64) -> Option<u64> {
-        let key = usize::try_from(handle).ok()?;
-        match self.handle_types.get(key) {
-            Some(HandleType::Thread(id)) => Some(*id),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn insert_toolhelp_snapshot(&mut self, snapshot: ToolhelpSnapshot) -> u32 {
-        let key = self.handle_types.insert(HandleType::Toolhelp(snapshot));
-        self.number_of_handle += 1;
-        key as u32
-    }
-
-    pub(crate) fn toolhelp_snapshot(&self, handle: u64) -> Option<&ToolhelpSnapshot> {
-        let key = usize::try_from(handle).ok()?;
-        match self.handle_types.get(key) {
-            Some(HandleType::Toolhelp(snapshot)) => Some(snapshot),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn toolhelp_snapshot_mut(&mut self, handle: u64) -> Option<&mut ToolhelpSnapshot> {
-        let key = usize::try_from(handle).ok()?;
-        match self.handle_types.get_mut(key) {
-            Some(HandleType::Toolhelp(snapshot)) => Some(snapshot),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn insert_file_search(&mut self, entries: VecDeque<FoundFile>) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::FileSearch(entries)) as u32
-    }
-
-    pub(crate) fn file_search(&mut self, handle: u64) -> Option<&mut VecDeque<FoundFile>> {
-        match self.handle_types.get_mut(usize::try_from(handle).ok()?)? {
-            HandleType::FileSearch(entries) => Some(entries),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn close_file_search(&mut self, handle: u64) -> bool {
-        if self.file_search(handle).is_none() {
-            return false;
-        }
-        self.handle_types.remove(handle as usize);
-        self.number_of_handle -= 1;
-        true
     }
 
     pub fn insert_file_handle(&mut self, file_handle: FileHandle) -> u32 {
@@ -858,30 +373,12 @@ impl HandleManagement {
                 HandleType::FileHandle(_)
                     | HandleType::MappingHandle(_)
                     | HandleType::SectionHandle(_)
-                    | HandleType::Toolhelp(_)
-                    | HandleType::Thread(_)
-                    | HandleType::Process(_)
-                    | HandleType::ProcessAccess(_, _)
-                    | HandleType::Ipc
-                    | HandleType::Native(_)
-                    | HandleType::Console(_, _)
-                    | HandleType::ProcessToken(_)
-                    | HandleType::Waitable(_)
             )
         ) {
             return false;
         }
-        match self.handle_types.try_remove(key) {
-            Some(HandleType::FileHandle(mut file)) => file.close(),
-            Some(HandleType::Waitable(id))
-                if !self
-                    .handle_types
-                    .iter()
-                    .any(|(_, h)| matches!(h, HandleType::Waitable(other) if *other==id)) =>
-            {
-                self.waitables.remove(&id);
-            }
-            _ => {}
+        if let Some(HandleType::FileHandle(mut file)) = self.handle_types.try_remove(key) {
+            file.close();
         }
         self.number_of_handle -= 1;
         true

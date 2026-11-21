@@ -5,14 +5,12 @@ use crate::api::abi::{
     self, ARM64_REGISTER_ARGS, ArgumentFault, BYTE_BYTES, CallFrame, DWORD_BYTES, QWORD_BYTES,
     WORD_BYTES, set_f64_return, set_integer_return, set_u64_return,
 };
-use crate::arch::Arch;
 use crate::emu::Emu;
 
 use CallingConvention::{Stdcall, Thiscall};
-use WindowsAbi::{WinApi, WinInterrupt, WinSyscall, WinSysenter};
+use WindowsAbi::{WinApi, WinSyscall};
 
 const X64_REGISTER_ARGS: usize = 4;
-const SYSENTER_RETURN_SLOTS: usize = 2;
 
 /// Source-level function convention; x64/ARM64 use the native Windows ABI.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,18 +21,12 @@ pub enum CallingConvention {
     Thiscall,
 }
 
-// Call sites import these variants beside Unix ABI variants.
-#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WindowsAbi {
     /// Function hook after the dispatcher has consumed the return address.
     WinApi(CallingConvention),
     /// x64 SYSCALL interception before the instruction clobbers RCX.
     WinSyscall,
-    /// x86 KiFastSystemCall: EDX points to the two return addresses before arguments.
-    WinSysenter,
-    /// Existing Windows INT 0x80 compatibility route, without a parameter ABI.
-    WinInterrupt,
 }
 
 pub type ArgumentError = abi::ArgumentError<WindowsAbi>;
@@ -136,17 +128,8 @@ impl WindowsAbi {
 
     fn integer_arg(self, emu: &Emu, index: usize, size: usize) -> Result<u64, ArgumentError> {
         let frame = CallFrame::new(emu, self);
-        if self == WinInterrupt
-            || (self == WinSyscall && !emu.cfg.arch.is_x64())
-            || (self == WinSysenter && emu.cfg.arch != Arch::X86)
-        {
+        if self == WinSyscall && !emu.cfg.arch.is_x64() {
             return Err(frame.error(index, size, None, ArgumentFault::UnsupportedConvention));
-        }
-        if self == WinSysenter {
-            let offset = index
-                .checked_add(SYSENTER_RETURN_SLOTS)
-                .and_then(|slot| slot.checked_mul(DWORD_BYTES));
-            return frame.memory_arg(index, emu.regs().get_edx(), offset, size.max(DWORD_BYTES));
         }
         if emu.cfg.arch.is_aarch64() {
             if index < ARM64_REGISTER_ARGS {
@@ -204,7 +187,7 @@ impl WindowsAbi {
         size: usize,
     ) -> Result<u64, ArgumentError> {
         let frame = CallFrame::new(emu, self);
-        if !matches!(self, WinApi(_))
+        if self == WinSyscall
             || emu.cfg.arch.is_aarch64()
             || (self == WinApi(Thiscall) && index == 0)
         {

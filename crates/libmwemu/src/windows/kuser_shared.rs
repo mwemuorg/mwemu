@@ -1,26 +1,6 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::system::*;
-use crate::windows::structures::PROCESSORS;
 use bitfield::bitfield;
-
-pub(crate) const PROCESSOR_FEATURES: &[u32] = &[
-    PF_COMPARE_EXCHANGE_DOUBLE,
-    PF_MMX_INSTRUCTIONS_AVAILABLE,
-    PF_XMMI_INSTRUCTIONS_AVAILABLE,
-    PF_RDTSC_INSTRUCTION_AVAILABLE,
-    PF_PAE_ENABLED,
-    PF_XMMI64_INSTRUCTIONS_AVAILABLE,
-    PF_NX_ENABLED,
-    PF_SSE3_INSTRUCTIONS_AVAILABLE,
-    PF_COMPARE_EXCHANGE128,
-    PF_XSAVE_ENABLED,
-    PF_SSSE3_INSTRUCTIONS_AVAILABLE,
-    PF_SSE4_1_INSTRUCTIONS_AVAILABLE,
-    PF_SSE4_2_INSTRUCTIONS_AVAILABLE,
-    PF_AVX_INSTRUCTIONS_AVAILABLE,
-    PF_AVX2_INSTRUCTIONS_AVAILABLE,
-];
 
 const USER_KUSER_SHARED_ADDR: u64 = 0x7FFE0000;
 
@@ -365,17 +345,11 @@ pub fn init_kuser_shared_data(emu: &mut emu::Emu) -> u64 {
     wr64!(QpcInterruptTimeIncrement, 0x8000000000000000);
     wr8!(QpcSystemTimeIncrementShift, 0x01);
     wr8!(QpcInterruptTimeIncrementShift, 0x01);
-    for &feature in PROCESSOR_FEATURES {
-        emu.maps.write_byte(
-            base + offset_of!(KuserSharedData, ProcessorFeatures) as u64 + u64::from(feature),
-            1,
-        );
-    }
-    wr16!(UnparkedProcessorCount, PROCESSORS as u16);
+    wr16!(UnparkedProcessorCount, 0x000c);
     wr32!(TelemetryCoverageRound, 0x00000001);
     wr32!(LangGenerationCount, 0x00000003);
     wr64!(InterruptTimeBias, 0x00000015a5d56406);
-    wr32!(ActiveProcessorCount, PROCESSORS);
+    wr32!(ActiveProcessorCount, 0x0000000c);
     wr8!(ActiveGroupCount, 0x01);
     wr64!(TimeZoneBiasEffectiveStart, 0x01db276e654cb2ff);
     wr64!(TimeZoneBiasEffectiveEnd, 0x01db280b8c3b2800);

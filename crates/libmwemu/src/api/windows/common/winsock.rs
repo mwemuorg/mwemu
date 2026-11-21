@@ -1,23 +1,16 @@
-pub(crate) mod sockets;
-
 use std::net::Ipv4Addr;
 
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::memory::{pointer_size, read_array, writable_pointer, write_pointer};
+use crate::winapi::common::memory::{pointer_size, writable_pointer, write_pointer};
 use crate::winapi::common::{heap, strings, trace};
-use crate::winapi::environment_store::Encoding;
+use crate::winapi::helper;
 use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::network::*;
-use crate::windows::structures::Hostent;
 
 const WINSOCK_VERSION_2_2: u16 = 0x0202;
-const AI_PASSIVE: u32 = 1;
-const AI_CANONNAME: u32 = 2;
-const AI_NUMERICHOST: u32 = 4;
 const SOCKADDR_IN_SIZE: usize = 16;
 
 const SOCKADDR_PORT_OFFSET: u64 = 2;
@@ -49,6 +42,22 @@ const WSADATA64: WsaDataLayout = WsaDataLayout {
     status: 16 + WSADESCRIPTION_LEN + 1,
 };
 
+pub(crate) fn socket(emu: &mut Emu, api: &str) {
+    let call = WinApi(Stdcall);
+    trace::api(
+        emu,
+        &format!("ws2_32!{api}"),
+        "family type protocol info group flags",
+        true,
+        |emu| {
+            let socket = helper::socket_create();
+            emu.set_last_error(ERROR_SUCCESS);
+            call.set_return(emu, socket);
+            call.cleanup_args(emu, 6);
+        },
+    );
+}
+
 pub(crate) fn startup(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     trace::api(emu, "ws2_32!WSAStartup", "version data", true, |emu| {
@@ -67,9 +76,6 @@ pub(crate) fn startup(emu: &mut Emu) {
         } else {
             WSAVERNOTSUPPORTED
         };
-        if result == 0 {
-            emu.sockets.startups = emu.sockets.startups.saturating_add(1);
-        }
         call.set_return(emu, result);
         call.cleanup_args(emu, 2);
     });
@@ -98,6 +104,58 @@ fn write_wsa_data(emu: &mut Emu, address: u64, version: u16) -> u64 {
     } else {
         WSAEFAULT
     }
+}
+
+pub(crate) fn socket_name(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    trace::api(
+        emu,
+        "ws2_32!getsockname",
+        "socket address length",
+        true,
+        |emu| {
+            let socket = api_try!(emu, call.arg(emu, 0));
+            let address = api_try!(emu, call.arg(emu, 1));
+            let length = api_try!(emu, call.arg(emu, 2));
+            let error = if !helper::socket_exist(socket) {
+                WSAENOTSOCK
+            } else if address == 0
+                || length == 0
+                || !emu
+                    .maps
+                    .can_access_range(length, size_of::<u32>(), Permission::READ_WRITE)
+                || emu
+                    .maps
+                    .read_dword(length)
+                    .is_none_or(|n| (n as i32) < SOCKADDR_IN_SIZE as i32)
+                || !emu
+                    .maps
+                    .validate_write_range(address, SOCKADDR_IN_SIZE as u64)
+            {
+                WSAEFAULT
+            } else {
+                let mut data = [0; SOCKADDR_IN_SIZE];
+                data[..size_of::<u16>()].copy_from_slice(&(AF_INET as u16).to_le_bytes());
+                if emu.maps.write_bytes(address, &data)
+                    && emu.maps.write_dword(length, SOCKADDR_IN_SIZE as u32)
+                {
+                    ERROR_SUCCESS
+                } else {
+                    WSAEFAULT
+                }
+            };
+            emu.set_last_error(error);
+            call.set_return(
+                emu,
+                if error == ERROR_SUCCESS {
+                    0
+                } else {
+                    SOCKET_ERROR
+                },
+            );
+            call.cleanup_args(emu, 3);
+        },
+    );
 }
 
 fn text_output(
@@ -138,7 +196,10 @@ pub(crate) fn host_name(emu: &mut Emu, api: &str, wide: bool) {
     };
     log_red!(
         emu,
-        "ws2_32!{api} buffer={address:#x} capacity={capacity} result={result:?}"
+        "ws2_32!{api} buffer:0x{:x} capacity:{} => {:?}",
+        address,
+        capacity,
+        result
     );
     if let Err(error) = result {
         emu.set_last_error(error);
@@ -241,7 +302,11 @@ pub(crate) fn name_info(emu: &mut Emu, api: &str, wide: bool) {
     let error = result.err().unwrap_or(ERROR_SUCCESS);
     log_red!(
         emu,
-        "ws2_32!{api} address={socket_address:#x} host_buffer={host:#x} service_buffer={service:#x} status={error}"
+        "ws2_32!{api} address:0x{:x} host:0x{:x} service:0x{:x} => {}",
+        socket_address,
+        host,
+        service,
+        error
     );
     if error != ERROR_SUCCESS {
         emu.set_last_error(error);
@@ -256,15 +321,8 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
     let call = WinApi(Stdcall);
     let node_pointer = api_try!(emu, call.arg(emu, 0));
     let service_pointer = api_try!(emu, call.arg(emu, 1));
-    let text = |address| {
-        if address == 0 {
-            Some(String::new())
-        } else {
-            strings::read_text_checked(emu, address, wide)
-        }
-    };
-    let node = text(node_pointer);
-    let service = text(service_pointer);
+    let node = strings::read_text(emu, node_pointer, wide);
+    let service = strings::read_text(emu, service_pointer, wide);
     let hints = api_try!(emu, call.arg(emu, 2));
     let output = api_try!(emu, call.arg(emu, 3));
     let result = (|| {
@@ -274,7 +332,7 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
         if !write_pointer(emu, output, 0) {
             return Err(WSAEFAULT);
         }
-        let mut fields = [0; 4];
+        let mut fields = [0, AF_INET, SOCK_STREAM, IPPROTO_TCP];
         if hints != 0 {
             if !emu
                 .maps
@@ -287,27 +345,17 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
                     .maps
                     .read_dword(hints + (index * size_of::<u32>()) as u64)
                     .ok_or(WSAEFAULT)?;
-                *field = value;
+                if index == 0 || value != 0 {
+                    *field = value;
+                }
             }
-        }
-        if fields[1] == 0 {
-            fields[1] = AF_INET;
         }
         if fields[1] != AF_INET {
             return Err(WSAEAFNOSUPPORT);
         }
-        let (socket_type, protocol) = match (fields[2], fields[3]) {
-            (0 | SOCK_STREAM, 0 | IPPROTO_TCP) => (SOCK_STREAM, IPPROTO_TCP),
-            (0 | SOCK_DGRAM, 0 | IPPROTO_UDP) => (SOCK_DGRAM, IPPROTO_UDP),
-            _ => return Err(WSAESOCKTNOSUPPORT),
-        };
-        fields[2] = socket_type;
-        fields[3] = protocol;
         if node_pointer == 0 && service_pointer == 0 {
             return Err(WSAHOST_NOT_FOUND);
         }
-        let node = node.as_deref().ok_or(WSAEFAULT)?;
-        let service = service.as_deref().ok_or(WSAEFAULT)?;
         let port = if service.is_empty() {
             0
         } else {
@@ -318,26 +366,20 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
                 .or_else(|| service.parse::<u16>().ok())
                 .ok_or(WSATYPE_NOT_FOUND)?
         };
-        let address = if node_pointer == 0 && fields[0] & AI_PASSIVE != 0 {
-            Ipv4Addr::UNSPECIFIED
+        let canonical = if node.is_empty() || node == "localhost" {
+            "localhost.localdomain".to_string()
+        } else if node == "127.0.0.1" {
+            "localhost".to_string()
         } else {
-            resolve_local_ipv4(emu, node, fields[0] & AI_NUMERICHOST != 0)?
+            format!("{node}.localdomain")
         };
-        let name = if fields[0] & AI_CANONNAME != 0 && node_pointer != 0 {
-            strings::encode_text(&format!("{node}\0"), wide)
-        } else {
-            Vec::new()
-        };
+        let name = strings::encode_text(&format!("{canonical}\0"), wide);
         let pointer = pointer_size(emu);
         let structure_size = ADDRINFO_SCALARS_SIZE + 4 * pointer;
         let total = structure_size + SOCKADDR_IN_SIZE as u64 + name.len() as u64;
         let base = heap::heap_allocate(emu, 0, total).ok_or(WSA_NOT_ENOUGH_MEMORY)?;
         let sockaddr = base + structure_size;
-        let canonical = if name.is_empty() {
-            0
-        } else {
-            sockaddr + SOCKADDR_IN_SIZE as u64
-        };
+        let canonical = sockaddr + SOCKADDR_IN_SIZE as u64;
         let mut data = vec![0; total as usize];
         for (index, value) in fields.into_iter().enumerate() {
             let offset = index * size_of::<u32>();
@@ -357,7 +399,7 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
             .copy_from_slice(&port.to_be_bytes());
         data[offset + SOCKADDR_ADDRESS_OFFSET as usize
             ..offset + SOCKADDR_ADDRESS_OFFSET as usize + size_of::<Ipv4Addr>()]
-            .copy_from_slice(&address.octets());
+            .copy_from_slice(&Ipv4Addr::LOCALHOST.octets());
         data[offset + SOCKADDR_IN_SIZE..].copy_from_slice(&name);
         if !emu.maps.write_bytes(base, &data) || !write_pointer(emu, output, base) {
             heap::heap_free(emu, 0, base);
@@ -368,7 +410,10 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
     let error = result.err().unwrap_or(ERROR_SUCCESS);
     log_red!(
         emu,
-        "ws2_32!{api} node={node:?} service={service:?} status={error}"
+        "ws2_32!{api} node:'{}' service:'{}' => {}",
+        node,
+        service,
+        error
     );
     if error != ERROR_SUCCESS {
         emu.set_last_error(error);
@@ -380,186 +425,9 @@ pub(crate) fn address_info(emu: &mut Emu, api: &str, wide: bool) {
 pub(crate) fn free_address_info(emu: &mut Emu, api: &str) {
     let call = WinApi(Stdcall);
     let address = api_try!(emu, call.arg(emu, 0));
-    log_red!(emu, "ws2_32!{api} address={address:#x}");
+    log_red!(emu, "ws2_32!{api} address:0x{:x}", address);
     if address != 0 {
         heap::heap_free(emu, 0, address);
     }
-    call.cleanup_args(emu, 1);
-}
-
-fn socket_set_contains(emu: &Emu, set: u64, socket: u64) -> Option<bool> {
-    let count = u32::from_le_bytes(read_array(emu, set)?);
-    if count == 0 {
-        return Some(false);
-    }
-    // fd_count is a DWORD; the SOCKET array is aligned to the guest pointer size.
-    let width = pointer_size(emu);
-    let array = set.checked_add(width)?;
-    let size = count as u64 * width;
-    if !emu
-        .maps
-        .can_access_range(array, usize::try_from(size).ok()?, Permission::READ)
-    {
-        return None;
-    }
-    for index in 0..count as u64 {
-        let address = array.checked_add(index * width)?;
-        let entry = if width == size_of::<u64>() as u64 {
-            u64::from_le_bytes(read_array(emu, address)?)
-        } else {
-            u32::from_le_bytes(read_array(emu, address)?) as u64
-        };
-        if entry == socket {
-            return Some(true);
-        }
-    }
-    Some(false)
-}
-
-pub fn __WSAFDIsSet(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let socket = api_try!(emu, call.arg(emu, 0));
-    let set = api_try!(emu, call.arg(emu, 1));
-    let result = socket_set_contains(emu, set, socket);
-    log_red!(
-        emu,
-        "ws2_32!__WSAFDIsSet socket={socket:#x} set={set:#x} => {result:?}"
-    );
-    if let Some(found) = result {
-        call.set_return(emu, found as u64);
-        call.cleanup_args(emu, 2);
-    } else {
-        emu.exception(ExceptionType::BadAddressDereferencing);
-    }
-}
-
-fn store_ipv4_host(emu: &mut Emu, name: &str, ip: Ipv4Addr) -> Option<u64> {
-    const DNS_NAME_CAPACITY: u64 = 256;
-    if name.len() as u64 >= DNS_NAME_CAPACITY {
-        return None;
-    }
-    let width = pointer_size(emu);
-    let address_list_field = if width == 8 { 24 } else { 12 };
-    let table = address_list_field + width;
-    let octets = table + 3 * width;
-    let name_at = octets + 4;
-    let key = format!("winsock_hostent_{}", emu.current_thread().id);
-    let base = if let Some(map) = emu.maps.get_map_by_name(&key) {
-        map.get_base()
-    } else {
-        let size = name_at + DNS_NAME_CAPACITY;
-        let base = emu.maps.alloc(size)?;
-        emu.maps
-            .create_map(&key, base, size, Permission::READ_WRITE)
-            .ok()?;
-        base
-    };
-    Hostent {
-        hname: base + name_at,
-        alias_list: base + table + 2 * width,
-        addr_type: AF_INET as u16,
-        length: size_of::<Ipv4Addr>() as u16,
-        addr_list: base + table,
-    }
-    .save(base, &mut emu.maps);
-    if write_pointer(emu, base + table, base + octets)
-        && write_pointer(emu, base + table + width, 0)
-        && write_pointer(emu, base + table + 2 * width, 0)
-        && emu.maps.write_bytes(base + octets, &ip.octets())
-        && emu.maps.write_bytes(base + name_at, name.as_bytes())
-        && emu.maps.write_byte(base + name_at + name.len() as u64, 0)
-    {
-        Some(base)
-    } else {
-        None
-    }
-}
-
-fn resolve_local_ipv4(emu: &Emu, name: &str, numeric_only: bool) -> Result<Ipv4Addr, u64> {
-    if let Ok(address) = name.parse() {
-        return Ok(address);
-    }
-    let name = name.trim_end_matches('.');
-    if !numeric_only
-        && (name.is_empty()
-            || name.eq_ignore_ascii_case("localhost")
-            || name.eq_ignore_ascii_case(&emu.cfg.host_name))
-    {
-        Ok(Ipv4Addr::LOCALHOST)
-    } else {
-        Err(WSAHOST_NOT_FOUND)
-    }
-}
-
-pub fn gethostbyname(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let source = api_try!(emu, call.arg(emu, 0));
-    let result = (|| {
-        let name = if source == 0 {
-            emu.cfg.host_name.clone()
-        } else {
-            strings::read_text_checked(emu, source, false).ok_or(WSAEFAULT)?
-        };
-        let address = resolve_local_ipv4(emu, &name, false)?;
-        let name = if name.is_empty() {
-            emu.cfg.host_name.clone()
-        } else {
-            name
-        };
-        store_ipv4_host(emu, &name, address).ok_or(WSAENOBUFS)
-    })();
-    log_red!(
-        emu,
-        "ws2_32!gethostbyname name={name} result={result:?}",
-        name = trace::input_string(emu, source, Encoding::Ansi)
-    );
-    let ret = result.unwrap_or_else(|error| {
-        emu.set_last_error(error);
-        0
-    });
-    call.set_return(emu, ret);
-    call.cleanup_args(emu, 1);
-}
-
-pub fn gethostbyaddr(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let [address, length, family] = api_try!(emu, call.args(emu));
-    let result = (|| {
-        if family as u32 != AF_INET {
-            return Err(WSAEAFNOSUPPORT);
-        }
-        if length as i32 != size_of::<Ipv4Addr>() as i32 {
-            return Err(WSAEFAULT);
-        }
-        let ip = Ipv4Addr::from(read_array::<4>(emu, address).ok_or(WSAEFAULT)?);
-        if !ip.is_loopback() {
-            return Err(WSAHOST_NOT_FOUND);
-        }
-        store_ipv4_host(emu, "localhost", ip).ok_or(WSAENOBUFS)
-    })();
-    log_red!(
-        emu,
-        "ws2_32!gethostbyaddr address={address:#x} length={length} family={family} result={result:?}"
-    );
-    let ret = result.unwrap_or_else(|error| {
-        emu.set_last_error(error);
-        0
-    });
-    call.set_return(emu, ret);
-    call.cleanup_args(emu, 3);
-}
-
-pub fn WSAGetLastError(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let error = emu.get_last_error();
-    log_red!(emu, "ws2_32!WSAGetLastError error={error}");
-    call.set_return(emu, error);
-}
-
-pub fn WSASetLastError(emu: &mut Emu) {
-    let call = WinApi(Stdcall);
-    let error = api_try!(emu, call.arg_u32(emu, 0));
-    log_red!(emu, "ws2_32!WSASetLastError error={error}");
-    emu.set_last_error(error as u64);
     call.cleanup_args(emu, 1);
 }

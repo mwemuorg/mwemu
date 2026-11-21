@@ -1,12 +1,4 @@
-use super::{getrandom, uname};
-use crate::api::abi::unix::LinuxSyscall;
-use crate::arch::Arch;
 use crate::emu;
-use crate::syscall::linux::constants::errors::ENOSYS;
-use crate::syscall::linux::constants::syscalls::{
-    NR32_CLOCK_GETTIME, NR32_CLOCK_GETTIME64, NR32_GETRANDOM, NR32_UNAME,
-};
-use crate::syscall::linux::time::{Timespec, clock_gettime};
 
 mod fs;
 mod memory;
@@ -26,8 +18,9 @@ fn trace_syscall32(emu: &mut emu::Emu, name: &str) {
 }
 
 pub fn gateway(emu: &mut emu::Emu) {
-    // INT 0x80 uses the i386 ABI even when the caller executes in long mode.
-    let nr = emu.regs().get_eax();
+    emu.regs_mut().sanitize32();
+
+    let nr = emu.regs().rax;
     if !emu.call_syscall_hook(nr) {
         return;
     }
@@ -40,16 +33,5 @@ pub fn gateway(emu: &mut emu::Emu) {
         return;
     }
 
-    match nr {
-        NR32_UNAME => uname(emu, Arch::X86),
-        NR32_GETRANDOM => getrandom(emu, Arch::X86),
-        NR32_CLOCK_GETTIME => clock_gettime(emu, Arch::X86, Timespec::Time32),
-        NR32_CLOCK_GETTIME64 => clock_gettime(emu, Arch::X86, Timespec::Time64),
-        _ if emu.cfg.is_x64() => {
-            // Legacy i386 operations have no checked long-mode frame or pointer-width contract.
-            log::trace!("unsupported Linux i386 syscall {nr} in long mode");
-            LinuxSyscall.set_return(emu, ENOSYS);
-        }
-        _ => misc::dispatch(emu),
-    }
+    misc::dispatch(emu);
 }

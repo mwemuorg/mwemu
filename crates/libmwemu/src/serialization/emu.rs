@@ -1,6 +1,8 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::sync::{Arc, atomic};
+use std::sync::Arc;
+use std::sync::atomic;
 
 use iced_x86::Instruction;
 use serde::{Deserialize, Serialize};
@@ -8,13 +10,10 @@ use serde::{Deserialize, Serialize};
 use crate::api::banzai::Banzai;
 use crate::api::unix::ApiState;
 use crate::api::windows::policy::ApiPolicy;
-use crate::arch::{Arch, OperatingSystem};
 use crate::config::Config;
 use crate::debug::breakpoint::Breakpoints;
 use crate::eflags::Eflags;
-use crate::emu::decoded_instruction::DecodedInstruction;
-use crate::emu::object_handle::HandleManagement;
-use crate::emu::{Emu, InstructionState, LastOp};
+use crate::emu::{Emu, LastOp};
 use crate::flags::Flags;
 use crate::hooks::Hooks;
 use crate::maps::Maps;
@@ -26,14 +25,15 @@ use crate::serialization::maps::SerializableMaps;
 use crate::serialization::pe32::SerializablePE32;
 use crate::serialization::pe64::SerializablePE64;
 use crate::serialization::thread_context::SerializableThreadContext;
-use crate::threading::context::{AArch64TraceSnapshot, ArchThreadState, X86TraceSnapshot};
+use crate::threading::context::ArchThreadState;
 use crate::threading::global_locks::GlobalLocks;
-use crate::threading::process::ProcessTable;
 use crate::utils::colors::Colors;
-use crate::winapi::common::crt_stdio::CrtIoState;
-use crate::winapi::common::winsock::sockets::SocketState;
 use crate::windows::structures::MemoryOperation;
-use crate::{emu_aarch64, emu32, emu64};
+
+use crate::arch::Arch;
+use crate::emu::InstructionState;
+use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::emu::object_handle::HandleManagement;
 #[derive(Serialize, Deserialize)]
 pub enum SerializableInstructionState {
     X86 {
@@ -104,7 +104,7 @@ pub struct SerializableEmu<M = SerializableMaps> {
     // NOTE: rng is not serialized (recreated on deserialize)
 
     // --- Platform & loaded binary ---
-    pub os: OperatingSystem,
+    pub os: crate::arch::OperatingSystem,
     pub pe64: Option<SerializablePE64>,
     pub pe32: Option<SerializablePE32>,
     // NOTE: elf32, elf64, macho64 not yet serialized
@@ -175,9 +175,9 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                 call_stack,
                 x86_trace,
             } => {
-                let owned = x86_trace
-                    .clone()
-                    .unwrap_or_else(|| Box::new(X86TraceSnapshot::new()));
+                let owned = x86_trace.clone().unwrap_or_else(|| {
+                    Box::new(crate::threading::context::X86TraceSnapshot::new())
+                });
                 let snapshot = owned.as_ref();
                 SerializableCurrentThreadState::X86 {
                     regs: *regs,
@@ -203,9 +203,9 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                 regs,
                 aarch64_trace,
             } => {
-                let owned = aarch64_trace
-                    .clone()
-                    .unwrap_or_else(|| Box::new(AArch64TraceSnapshot::new()));
+                let owned = aarch64_trace.clone().unwrap_or_else(|| {
+                    Box::new(crate::threading::context::AArch64TraceSnapshot::new())
+                });
                 let snapshot = owned.as_ref();
                 SerializableCurrentThreadState::AArch64 {
                     regs: *regs,
@@ -272,7 +272,7 @@ impl<'a> From<&'a Emu> for SerializableEmu {
             exp: emu.exp,
             // Tracing & statistics
             entropy: emu.entropy,
-            last_error: emu.get_last_error(),
+            last_error: emu.last_error,
             count_read: emu.count_read,
             count_write: emu.count_write,
             count_send: emu.count_send,
@@ -377,27 +377,6 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             force_break,
             api_policy: ApiPolicy::default(),
             unix_api: ApiState::default(),
-            crt_io: CrtIoState::default(),
-            sockets: SocketState::default(),
-            oem_file_names: false,
-            process_error_mode: 0,
-            ipc: Default::default(),
-            priorities: Default::default(),
-            last_luid: 0x10000,
-            atom_tables: Default::default(),
-            profiles: Default::default(),
-            console_cursor: Default::default(),
-            windows_tls_slots: Vec::new(),
-            windows_fls_slots: Vec::new(),
-            veh_registration_ids: Vec::new(),
-            last_veh_id: 0,
-            app_user_model_id: Vec::new(),
-            registry: Default::default(),
-            guest_windows: Default::default(),
-            com_apartments: Default::default(),
-            keyboard_state: Default::default(),
-            environment: None,
-            crt_environments: Default::default(),
             process_terminated: false,
             call_depth: 0,
             host_call_return: None,
@@ -433,7 +412,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             main_thread_cont,
             gateway_return,
             global_locks: GlobalLocks::new(),
-            processes: ProcessTable::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             // API call interception (hooks cannot be serialized)
             hooks: Hooks::default(),
             skip_apicall,
@@ -506,7 +485,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
                     fs,
                     call_stack,
                 } => {
-                    let snapshot = Box::new(X86TraceSnapshot {
+                    let snapshot = Box::new(crate::threading::context::X86TraceSnapshot {
                         pre_regs: pre_op_regs,
                         post_regs: post_op_regs,
                         pre_flags: pre_op_flags,
@@ -539,10 +518,6 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
                             *thread_eh_ctx = eh_ctx;
                             *thread_tls32 = tls32;
                             *thread_tls64 = tls64;
-                            // V1–V5 stored values per thread and had no process allocation bitmap.
-                            if emu.windows_fls_slots.len() < fls.len() {
-                                emu.windows_fls_slots.resize(fls.len(), true);
-                            }
                             *thread_fls = fls;
                             *thread_fs = fs;
                             *thread_call_stack = call_stack;
@@ -573,7 +548,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
                     pre_op_regs,
                     post_op_regs,
                 } => {
-                    let snapshot = Box::new(AArch64TraceSnapshot {
+                    let snapshot = Box::new(crate::threading::context::AArch64TraceSnapshot {
                         pre_regs: pre_op_regs,
                         post_regs: post_op_regs,
                     });
@@ -599,7 +574,6 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
         if emu.cfg.arch.is_64bits() {
             emu.maps.is_64bits = true;
         }
-        emu.set_last_error(last_error);
 
         emu
     }
@@ -607,7 +581,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
 
 impl Default for SerializableEmu {
     fn default() -> Self {
-        SerializableEmu::from(&Emu::new(Arch::X86))
+        SerializableEmu::from(&Emu::new(crate::arch::Arch::X86))
     }
 }
 
@@ -672,9 +646,9 @@ impl SerializableEmu {
 
     pub fn default_for_arch(arch: Arch) -> Self {
         let mut emu = match arch {
-            Arch::Aarch64 => emu_aarch64(),
-            Arch::X86_64 => emu64(),
-            Arch::X86 => emu32(),
+            Arch::Aarch64 => crate::emu_aarch64(),
+            Arch::X86_64 => crate::emu64(),
+            Arch::X86 => crate::emu32(),
         };
         emu.init_cpu();
         SerializableEmu::from(&emu)

@@ -5,7 +5,6 @@ use crate::api::abi::{
     self, ARM64_REGISTER_ARGS, ArgumentFault, BYTE_BYTES, CallFrame, DWORD_BYTES, QWORD_BYTES,
     WORD_BYTES, set_integer_return,
 };
-use crate::arch::Arch;
 use crate::emu::Emu;
 
 const SYSTEM_V_REGISTER_ARGS: usize = 6;
@@ -125,49 +124,5 @@ impl UnixApi {
 
     pub fn set_return(self, emu: &mut Emu, value: u64) {
         set_integer_return(emu, value);
-    }
-}
-
-/// Linux syscall register frames; no guest stack reads or function-call cleanup.
-#[derive(Clone, Copy, Debug)]
-pub struct LinuxSyscall;
-
-impl LinuxSyscall {
-    pub fn args(self, emu: &Emu) -> [u64; 6] {
-        self.args_for(emu, emu.cfg.arch)
-    }
-
-    pub(crate) fn args_for(self, emu: &Emu, arch: Arch) -> [u64; 6] {
-        match arch {
-            Arch::X86 => {
-                let regs = emu.regs();
-                [
-                    regs.get_ebx(),
-                    regs.get_ecx(),
-                    regs.get_edx(),
-                    regs.get_esi(),
-                    regs.get_edi(),
-                    regs.get_ebp(),
-                ]
-            }
-            Arch::X86_64 => {
-                let regs = emu.regs();
-                [regs.rdi, regs.rsi, regs.rdx, regs.r10, regs.r8, regs.r9]
-            }
-            Arch::Aarch64 => {
-                let regs = emu.regs_aarch64();
-                [
-                    regs.x[0], regs.x[1], regs.x[2], regs.x[3], regs.x[4], regs.x[5],
-                ]
-            }
-        }
-    }
-
-    pub fn set_return(self, emu: &mut Emu, value: u64) {
-        if emu.cfg.arch.is_64bits() {
-            set_integer_return(emu, value);
-        } else {
-            emu.regs_mut().set_eax(value);
-        }
     }
 }

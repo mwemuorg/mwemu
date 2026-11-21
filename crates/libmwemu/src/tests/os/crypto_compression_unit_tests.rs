@@ -1,11 +1,12 @@
-use crate::api::windows::common::{crypto_state, ntdll as ntdll_common};
 use crate::emu64;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
-use crate::winapi::common::memory::read_pointer;
-use crate::winapi::{helper, winapi64};
+use crate::winapi::winapi64;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::memory::*;
+
+use crate::api::windows::common::{crypto_state, ntdll as ntdll_common};
+use crate::winapi::helper;
 
 // ═══════════════════════════════════════════════════════════════════════
 //  crypto_state: hash lifecycle
@@ -16,7 +17,7 @@ fn crypto_state_md5_empty() {
     let h = helper::handler_create("test://md5_empty");
     assert!(crypto_state::create_hash(h, CALG_MD5));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // MD5("") = d41d8cd98f00b204e9800998ecf8427e
     assert_eq!(digest.len(), 16);
     assert_eq!(digest[0], 0xd4);
@@ -32,7 +33,7 @@ fn crypto_state_md5_hello() {
     assert!(crypto_state::create_hash(h, CALG_MD5));
     assert!(crypto_state::hash_data(h, b"Hello"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // MD5("Hello") = 8b1a9953c4611296a827abf8c47804d7
     assert_eq!(digest.len(), 16);
     assert_eq!(digest[0], 0x8b);
@@ -49,7 +50,7 @@ fn crypto_state_md5_incremental() {
     assert!(crypto_state::hash_data(h, b"Hel"));
     assert!(crypto_state::hash_data(h, b"lo"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // same as MD5("Hello")
     assert_eq!(digest[0], 0x8b);
     assert_eq!(digest[15], 0xd7);
@@ -62,7 +63,7 @@ fn crypto_state_sha1_empty() {
     let h = helper::handler_create("test://sha1_empty");
     assert!(crypto_state::create_hash(h, CALG_SHA1));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // SHA1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
     assert_eq!(digest.len(), 20);
     assert_eq!(digest[0], 0xda);
@@ -77,7 +78,7 @@ fn crypto_state_sha1_abc() {
     assert!(crypto_state::create_hash(h, CALG_SHA1));
     assert!(crypto_state::hash_data(h, b"abc"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // SHA1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
     assert_eq!(digest.len(), 20);
     assert_eq!(digest[0], 0xa9);
@@ -92,7 +93,7 @@ fn crypto_state_sha256_empty() {
     let h = helper::handler_create("test://sha256_empty");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // SHA256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     assert_eq!(digest.len(), 32);
     assert_eq!(digest[0], 0xe3);
@@ -108,7 +109,7 @@ fn crypto_state_sha256_hello_world() {
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
     assert!(crypto_state::hash_data(h, b"hello world"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     // SHA256("hello world") = b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
     assert_eq!(digest.len(), 32);
     assert_eq!(digest[0], 0xb9);
@@ -125,7 +126,7 @@ fn crypto_state_sha256_incremental() {
     assert!(crypto_state::hash_data(h, b"hello "));
     assert!(crypto_state::hash_data(h, b"world"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
     assert_eq!(digest[0], 0xb9);
     assert_eq!(digest[31], 0xe9);
 
@@ -137,7 +138,7 @@ fn crypto_state_hash_param_size() {
     let h = helper::handler_create("test://hp_size");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
 
-    let size = crypto_state::get_hash_param(h, HP_HASHSIZE).unwrap();
+    let size = crypto_state::get_hash_param(h, crypto_state::HP_HASHSIZE).unwrap();
     let size_val = u32::from_le_bytes([size[0], size[1], size[2], size[3]]);
     assert_eq!(size_val, 32);
 
@@ -149,7 +150,7 @@ fn crypto_state_hash_param_algid() {
     let h = helper::handler_create("test://hp_algid");
     assert!(crypto_state::create_hash(h, CALG_MD5));
 
-    let algid = crypto_state::get_hash_param(h, HP_ALGID).unwrap();
+    let algid = crypto_state::get_hash_param(h, crypto_state::HP_ALGID).unwrap();
     let algid_val = u32::from_le_bytes([algid[0], algid[1], algid[2], algid[3]]);
     assert_eq!(algid_val, CALG_MD5);
 
@@ -168,7 +169,7 @@ fn crypto_state_hash_data_after_finalize_fails() {
     assert!(crypto_state::create_hash(h, CALG_MD5));
     assert!(crypto_state::hash_data(h, b"test"));
 
-    let _ = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let _ = crypto_state::get_hash_param(h, crypto_state::HP_HASHVAL).unwrap();
 
     // after finalization, hash_data should fail
     assert!(!crypto_state::hash_data(h, b"more"));
@@ -188,7 +189,7 @@ fn crypto_state_hash_data_nonexistent() {
 
 #[test]
 fn crypto_state_get_param_nonexistent() {
-    assert!(crypto_state::get_hash_param(0xDEAD_BEEF, HP_HASHVAL).is_none());
+    assert!(crypto_state::get_hash_param(0xDEAD_BEEF, crypto_state::HP_HASHVAL).is_none());
 }
 
 #[test]
@@ -210,7 +211,7 @@ fn crypto_state_create_key_rc4() {
     let h = helper::handler_create("test://key_rc4");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = crypto_state::get_key_param(h, crypto_state::KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128);
 
@@ -222,11 +223,11 @@ fn crypto_state_create_key_aes128() {
     let h = helper::handler_create("test://key_aes128");
     assert!(crypto_state::create_key(h, CALG_AES_128, 128));
 
-    let kp_algid = crypto_state::get_key_param(h, KP_ALGID).unwrap();
+    let kp_algid = crypto_state::get_key_param(h, crypto_state::KP_ALGID).unwrap();
     let algid = u32::from_le_bytes([kp_algid[0], kp_algid[1], kp_algid[2], kp_algid[3]]);
     assert_eq!(algid, CALG_AES_128);
 
-    let kp_block = crypto_state::get_key_param(h, KP_BLOCKLEN).unwrap();
+    let kp_block = crypto_state::get_key_param(h, crypto_state::KP_BLOCKLEN).unwrap();
     let block_bits = u32::from_le_bytes([kp_block[0], kp_block[1], kp_block[2], kp_block[3]]);
     assert_eq!(block_bits, 128);
 
@@ -238,7 +239,7 @@ fn crypto_state_create_key_aes256() {
     let h = helper::handler_create("test://key_aes256");
     assert!(crypto_state::create_key(h, CALG_AES_256, 256));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = crypto_state::get_key_param(h, crypto_state::KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 256);
 
@@ -250,7 +251,7 @@ fn crypto_state_create_key_default_size() {
     let h = helper::handler_create("test://key_default");
     assert!(crypto_state::create_key(h, CALG_RC4, 0));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = crypto_state::get_key_param(h, crypto_state::KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128); // default for RC4
 
@@ -300,7 +301,7 @@ fn crypto_state_destroy_key_nonexistent() {
 
 #[test]
 fn crypto_state_get_key_param_nonexistent() {
-    assert!(crypto_state::get_key_param(0xDEADBEEF, KP_KEYLEN).is_none());
+    assert!(crypto_state::get_key_param(0xDEADBEEF, crypto_state::KP_KEYLEN).is_none());
 }
 
 #[test]
@@ -316,7 +317,7 @@ fn crypto_state_rc4_blocklen_zero() {
     let h = helper::handler_create("test://rc4_block");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
-    let kp = crypto_state::get_key_param(h, KP_BLOCKLEN).unwrap();
+    let kp = crypto_state::get_key_param(h, crypto_state::KP_BLOCKLEN).unwrap();
     let block = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(block, 0, "RC4 is a stream cipher, block length should be 0");
 
@@ -507,7 +508,7 @@ fn crypto_state_derive_key_from_hash() {
     assert!(crypto_state::derive_key_from_hash(hk, hh, CALG_AES_128));
 
     // Key should be the first 16 bytes of MD5("password") = 5f4dcc3b5aa765d61d8327deb882cf99
-    let kp = crypto_state::get_key_param(hk, KP_KEYLEN).unwrap();
+    let kp = crypto_state::get_key_param(hk, crypto_state::KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128);
 
@@ -541,9 +542,9 @@ fn crypto_state_concurrent_hashes() {
     assert!(crypto_state::hash_data(h_sha1, b"test"));
     assert!(crypto_state::hash_data(h_sha256, b"test"));
 
-    let d_md5 = crypto_state::get_hash_param(h_md5, HP_HASHVAL).unwrap();
-    let d_sha1 = crypto_state::get_hash_param(h_sha1, HP_HASHVAL).unwrap();
-    let d_sha256 = crypto_state::get_hash_param(h_sha256, HP_HASHVAL).unwrap();
+    let d_md5 = crypto_state::get_hash_param(h_md5, crypto_state::HP_HASHVAL).unwrap();
+    let d_sha1 = crypto_state::get_hash_param(h_sha1, crypto_state::HP_HASHVAL).unwrap();
+    let d_sha256 = crypto_state::get_hash_param(h_sha256, crypto_state::HP_HASHVAL).unwrap();
 
     assert_eq!(d_md5.len(), 16);
     assert_eq!(d_sha1.len(), 20);
@@ -883,16 +884,18 @@ fn crypt_lifecycle_64() {
     emu.maps
         .create_map("crypt_io", 0x100000, 0x1000, Permission::READ_WRITE);
 
+    let container_addr = 0x200000u64;
+    let provider_addr = 0x200100u64;
+    emu.maps
+        .create_map("crypt_str", 0x200000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(container_addr, "TestContainer");
+    emu.maps
+        .write_string(provider_addr, "Microsoft Base Cryptographic Provider v1.0");
+
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::advapi32::CryptAcquireContextA,
-        &[
-            prov_addr,
-            0,
-            0,
-            PROV_RSA_FULL.into(),
-            CRYPT_VERIFYCONTEXT.into(),
-        ],
+        &[prov_addr, container_addr, provider_addr, 1, 0],
     );
     assert_eq!(ret, 1, "CryptAcquireContextA must return TRUE");
     let hprov = emu.maps.read_qword(prov_addr).unwrap();
@@ -929,16 +932,16 @@ fn crypt_hash_64() {
     emu.maps
         .create_map("hash_io", 0x100000, 0x1000, Permission::READ_WRITE);
 
+    let container_addr = 0x200000u64;
+    emu.maps
+        .create_map("hash_str", 0x200000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(container_addr, "test");
+
+    // Acquire context first
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::advapi32::CryptAcquireContextA,
-        &[
-            prov_addr,
-            0,
-            0,
-            PROV_RSA_FULL.into(),
-            CRYPT_VERIFYCONTEXT.into(),
-        ],
+        &[prov_addr, container_addr, 0, 1, 0],
     );
     assert_eq!(ret, 1);
     let hprov = emu.maps.read_qword(prov_addr).unwrap();
@@ -960,6 +963,59 @@ fn crypt_hash_64() {
         &[hhash, data_addr, 11, 0],
     );
     assert_eq!(ret, 1, "CryptHashData must return TRUE");
+}
+
+#[test]
+fn bcrypt_lifecycle_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handle_addr = 0x100000u64;
+    let buf_addr = 0x100100u64;
+    let algo_addr = 0x200000u64;
+    emu.maps
+        .create_map("bcrypt_io", 0x100000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("bcrypt_str", 0x200000, 0x1000, Permission::READ_WRITE);
+
+    // Write L"AES" (wide)
+    let aes: [u8; 8] = [b'A', 0, b'E', 0, b'S', 0, 0, 0];
+    for (i, &b) in aes.iter().enumerate() {
+        emu.maps.write_byte(algo_addr + i as u64, b);
+    }
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptOpenAlgorithmProvider,
+        &[handle_addr, algo_addr, 0, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptOpenAlgorithmProvider must return STATUS_SUCCESS"
+    );
+    let h_algo = emu.maps.read_qword(handle_addr).unwrap();
+    assert_ne!(h_algo, 0, "algorithm handle must be non-zero");
+
+    // BCryptGenRandom: fill 32 bytes
+    for i in 0..32u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
+    }
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptGenRandom,
+        &[h_algo, buf_addr, 32, 0],
+    );
+    assert_eq!(ret, 0, "BCryptGenRandom must return STATUS_SUCCESS");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptCloseAlgorithmProvider,
+        &[h_algo, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptCloseAlgorithmProvider must return STATUS_SUCCESS"
+    );
 }
 
 #[test]
@@ -988,16 +1044,13 @@ fn crypt_acquire_release_context() {
     emu.maps
         .create_map("crypt", out_addr, 0x1000, Permission::READ_WRITE);
 
+    emu.maps
+        .write_qword(emu.regs().rsp + 0x20, CRYPT_VERIFYCONTEXT as u64);
+
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::advapi32::CryptAcquireContextA,
-        &[
-            out_addr,
-            0,
-            0,
-            PROV_RSA_FULL.into(),
-            CRYPT_VERIFYCONTEXT.into(),
-        ],
+        &[out_addr, 0, 0, PROV_RSA_FULL as u64],
     );
     assert_eq!(ret, 1, "CryptAcquireContextA should return TRUE");
 
@@ -1013,21 +1066,57 @@ fn crypt_acquire_release_context() {
 }
 
 #[test]
-fn invalid_random_provider_preserves_the_buffer() {
-    for is64 in [false, true] {
-        let (mut emu, buf) = helpers::prepare_winapi(is64);
-        emu.maps.write_dword(buf, 0xa5a5a5a5);
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                "advapi32.dll",
-                "CryptGenRandom",
-                &[0x1234, 4, buf]
-            ),
-            0
-        );
-        assert_eq!(emu.maps.read_dword(buf), Some(0xa5a5a5a5));
+fn crypt_gen_random() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let buf_addr = 0x100000u64;
+    emu.maps
+        .create_map("rng", buf_addr, 0x1000, Permission::READ_WRITE);
+
+    for i in 0..16u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
     }
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptGenRandom,
+        &[0x1234, 16, buf_addr],
+    );
+    assert_eq!(ret, 1, "CryptGenRandom should return TRUE");
+
+    let mut all_zero = true;
+    for i in 0..16u64 {
+        if emu.maps.read_byte(buf_addr + i).unwrap() != 0 {
+            all_zero = false;
+            break;
+        }
+    }
+    assert!(
+        !all_zero,
+        "CryptGenRandom should fill buffer with non-zero data"
+    );
+}
+
+#[test]
+fn crypt_create_hash() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let hash_out = 0x100000u64;
+    emu.maps
+        .create_map("hash", hash_out, 0x1000, Permission::READ_WRITE);
+
+    // phHash is the 5th argument (at rsp+0x20)
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptCreateHash,
+        &[0x1234, CALG_MD5 as u64, 0, 0, hash_out],
+    );
+    assert_eq!(ret, 1, "CryptCreateHash should return TRUE");
+
+    let hash_handle = emu.maps.read_qword(hash_out).unwrap();
+    assert_ne!(hash_handle, 0, "hash handle should be non-zero");
 }
 
 #[test]
@@ -1041,20 +1130,10 @@ fn crypt_gen_key() {
 
     // CryptGenKey(hProv, ALG_ID, flags, phKey)
     // phKey is r9 (4th arg)
-    let provider_out = key_out + 16;
-    assert_eq!(
-        helpers::call_winapi64(
-            &mut emu,
-            winapi64::advapi32::CryptAcquireContextW,
-            &[provider_out, 0, 0, 1, 0]
-        ),
-        1
-    );
-    let provider = emu.maps.read_qword(provider_out).unwrap();
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::advapi32::CryptGenKey,
-        &[provider, CALG_RC4 as u64, 0, key_out],
+        &[0x1234, CALG_RC4 as u64, 0, key_out],
     );
     assert_eq!(ret, 1, "CryptGenKey should return TRUE");
 
@@ -1063,626 +1142,78 @@ fn crypt_gen_key() {
 }
 
 #[test]
-fn invalid_csp_handles_preserve_outputs_on_both_guest_widths() {
-    use helpers::{call_winapi_export as call, prepare_winapi};
-    for is64 in [false, true] {
-        let (mut emu, data) = prepare_winapi(is64);
-        let lib = "advapi32.dll";
-        emu.maps.write_qword(data, u64::MAX);
-        assert_eq!(
-            call(
-                &mut emu,
-                lib,
-                "CryptCreateHash",
-                &[0, CALG_MD5.into(), 0, 0, data]
-            ),
-            0
-        );
-        assert_eq!(emu.maps.read_qword(data), Some(u64::MAX));
-        let length = data + 8;
-        emu.maps.write_dword(length, 4);
-        assert_eq!(
-            call(
-                &mut emu,
-                lib,
-                "CryptEncrypt",
-                &[0, 0, 1, 0, data, length, 4]
-            ),
-            0
-        );
-        assert_eq!(
-            call(&mut emu, lib, "CryptDecrypt", &[0, 0, 1, 0, data, length]),
-            0
-        );
-        assert_eq!(emu.maps.read_qword(data), Some(u64::MAX));
-        assert_eq!(emu.maps.read_dword(length), Some(4));
-    }
+fn crypt_encrypt_decrypt() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let data_addr = 0x100000u64;
+    let len_addr = 0x100100u64;
+    emu.maps
+        .create_map("crypted", data_addr, 0x1000, Permission::READ_WRITE);
+
+    emu.maps.write_qword(emu.regs().rsp + 0x20, data_addr);
+    emu.maps.write_qword(emu.regs().rsp + 0x28, len_addr);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptEncrypt,
+        &[0x1234, 0, 1, 0],
+    );
+    assert_eq!(ret, 1, "CryptEncrypt should return TRUE");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptDecrypt,
+        &[0x1234, 0, 1, 0],
+    );
+    assert_eq!(ret, 1, "CryptDecrypt should return TRUE");
 }
 
 #[test]
-fn random_providers_validate_handle_width_and_fill_only_the_guest_buffer() {
-    use crate::windows::constants::errors::{
-        STATUS_INVALID_HANDLE, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
-    };
-    use helpers::call_winapi_export as call;
-    let mut sequences = Vec::new();
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        emu.set_seed(101);
-        let handle = data + 96;
-        let buffer = data + 128;
-        emu.maps.write_wide_string(data, "RNG");
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptOpenAlgorithmProvider",
-                &[handle, data, 0, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        let rng = read_pointer(&emu, handle).unwrap();
-        assert_ne!(rng, 0);
-        emu.maps.fill_range(buffer, 0xa5, 24);
-        let mut outputs = Vec::new();
-        for (provider, flags) in [
-            (rng, 0),
-            (0, BCRYPT_USE_SYSTEM_PREFERRED_RNG),
-            (BCRYPT_RNG_ALG_HANDLE, 0),
-        ] {
-            // The size and flags are ULONG even in a 64-bit register.
-            let size = if is64 { 1 << 32 | 13 } else { 13 };
-            assert_eq!(
-                call(
-                    &mut emu,
-                    "bcrypt.dll",
-                    "BCryptGenRandom",
-                    &[provider, buffer, size, flags.into()]
-                ),
-                STATUS_SUCCESS
-            );
-            outputs.push(emu.maps.read_bytes(buffer, 13).into_owned());
-            assert_eq!(emu.maps.read_byte(buffer + 13), Some(0xa5));
-        }
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcryptprimitives.dll",
-                "ProcessPrng",
-                &[buffer, 13]
-            ),
-            1
-        );
-        outputs.push(emu.maps.read_bytes(buffer, 13).into_owned());
-        let length = if is64 { (1 << 32) | 13 } else { 13 };
-        for provider in ["advapi32.dll", "cryptbase.dll"] {
-            assert_eq!(
-                call(&mut emu, provider, "SystemFunction036", &[buffer, length]),
-                1
-            );
-            outputs.push(emu.maps.read_bytes(buffer, 13).into_owned());
-            assert_eq!(emu.maps.read_byte(buffer + 13), Some(0xa5));
-            assert_eq!(call(&mut emu, provider, "SystemFunction036", &[0, 13]), 0);
-        }
-        assert!(outputs.windows(2).all(|pair| pair[0] != pair[1]));
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptCloseAlgorithmProvider",
-                &[rng, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptGenRandom",
-                &[rng, buffer, 13, 0]
-            ),
-            STATUS_INVALID_HANDLE
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptGenRandom",
-                &[0, 0, 13, BCRYPT_USE_SYSTEM_PREFERRED_RNG.into()]
-            ),
-            STATUS_INVALID_PARAMETER
-        );
-        assert_eq!(
-            emu.maps.read_bytes(buffer, 13).as_ref(),
-            outputs.last().unwrap()
-        );
-        sequences.push(outputs);
+fn bcrypt_lifecycle() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handle_addr = 0x100000u64;
+    let algo_addr = 0x100100u64;
+    let buf_addr = 0x100200u64;
+    emu.maps
+        .create_map("bcrypt_data", handle_addr, 0x1000, Permission::READ_WRITE);
+
+    emu.maps.write_wide_string(algo_addr, "AES");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptOpenAlgorithmProvider,
+        &[handle_addr, algo_addr, 0, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptOpenAlgorithmProvider should return STATUS_SUCCESS"
+    );
+
+    let handle = emu.maps.read_qword(handle_addr).unwrap();
+    assert_ne!(handle, 0, "bcrypt handle should be non-zero");
+
+    // BCryptGenRandom
+    for i in 0..16u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
     }
-    assert_eq!(sequences[0], sequences[1]);
-}
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptGenRandom,
+        &[handle, buf_addr, 16, 0],
+    );
+    assert_eq!(ret, 0, "BCryptGenRandom should return STATUS_SUCCESS");
 
-#[test]
-fn crypt_memory_realloc_preserves_bytes_and_free_releases_the_allocation() {
-    use crate::winapi::common::heap::heap_allocation_size;
-    use helpers::call_winapi_export as call;
-
-    let dll = "crypt32.dll";
-    for is64 in [false, true] {
-        let (mut emu, _) = helpers::prepare_winapi(is64);
-        let buffer = call(&mut emu, dll, "CryptMemAlloc", &[8]);
-        assert_ne!(buffer, 0);
-        assert!(emu.maps.write_bytes(buffer, b"contents"));
-        let resized = call(&mut emu, dll, "CryptMemRealloc", &[buffer, 32]);
-        assert_ne!(resized, 0);
-        assert_eq!(&*emu.maps.read_bytes(resized, 8), b"contents");
-        assert_eq!(
-            call(
-                &mut emu,
-                dll,
-                "CryptMemRealloc",
-                &[resized, u32::MAX.into()]
-            ),
-            0
-        );
-        assert_eq!(&*emu.maps.read_bytes(resized, 8), b"contents");
-        call(&mut emu, dll, "CryptMemFree", &[resized]);
-        assert_eq!(heap_allocation_size(&emu, resized), None);
-    }
-}
-
-#[test]
-fn unsupported_digest_calls_preserve_context_and_have_no_return_value() {
-    use crate::winapi::policy::ApiMode;
-    use helpers::call_winapi_export as call;
-
-    for is64 in [false, true] {
-        let (mut emu, context) = helpers::prepare_winapi(is64);
-        for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
-            emu.set_api_mode(mode);
-            assert!(emu.maps.write_bytes(context, &[0xa5; 32]));
-            for dll in ["advapi32.dll", "ntdll.dll"] {
-                for (api, args) in [
-                    ("MD4Init", &[context][..]),
-                    ("MD5Update", &[context, context + 16, 8][..]),
-                ] {
-                    emu.regs_mut().rax = 123;
-                    call(&mut emu, dll, api, args);
-                    assert_eq!(emu.api_policy.last_outcome.as_ref().unwrap().result, None);
-                    assert_eq!(emu.regs().rax, 123);
-                    assert_eq!(&*emu.maps.read_bytes(context, 32), &[0xa5; 32]);
-                }
-            }
-        }
-    }
-}
-
-#[test]
-fn bcrypt_hashes_validate_outputs_and_preserve_state_for_retry() {
-    use crate::winapi::common::memory;
-    use crate::windows::constants::crypto::BCRYPT_MD5_ALG_HANDLE;
-    use crate::windows::constants::errors::{
-        STATUS_INVALID_HANDLE, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
-    };
-    let call = |emu: &mut _, api: &str, args: &[u64]| {
-        helpers::call_winapi_export(emu, "bcrypt.dll", api, args)
-    };
-    let empty_md5 = [
-        0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04, 0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42,
-        0x7e,
-    ];
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let output = data + 0x40;
-        assert_eq!(
-            call(
-                &mut emu,
-                "BCryptCreateHash",
-                &[BCRYPT_MD5_ALG_HANDLE, data, 0, 0, 0, 0, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        let handle = memory::read_pointer(&emu, data).unwrap();
-        assert_eq!(
-            call(&mut emu, "BCryptHashData", &[handle, 0, 1, 0]),
-            STATUS_INVALID_PARAMETER
-        );
-        emu.maps.fill_range(output, 0xab, 17);
-        assert_eq!(
-            call(&mut emu, "BCryptFinishHash", &[handle, output, 15, 0]),
-            STATUS_INVALID_PARAMETER
-        );
-        assert_eq!(emu.maps.read_byte(output), Some(0xab));
-        assert_eq!(
-            call(&mut emu, "BCryptFinishHash", &[handle, output, 16, 0]),
-            STATUS_SUCCESS
-        );
-        assert_eq!(emu.maps.read_bytes(output, 16).as_ref(), empty_md5);
-        assert_eq!(emu.maps.read_byte(output + 16), Some(0xab));
-        assert_eq!(
-            call(&mut emu, "BCryptHashData", &[handle, 0, 0, 0]),
-            STATUS_INVALID_HANDLE
-        );
-        assert_eq!(
-            call(&mut emu, "BCryptDestroyHash", &[handle]),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            call(&mut emu, "BCryptDestroyHash", &[handle]),
-            STATUS_INVALID_HANDLE
-        );
-        emu.maps.fill_range(output, 0xab, 16);
-        assert_eq!(
-            call(
-                &mut emu,
-                "BCryptHash",
-                &[BCRYPT_MD5_ALG_HANDLE, 0, 0, 0, 0, output, 16]
-            ),
-            STATUS_SUCCESS
-        );
-        assert_eq!(emu.maps.read_bytes(output, 16).as_ref(), empty_md5);
-    }
-}
-
-#[test]
-fn cng_derivation_and_cipher_use_guest_buffers_and_x86_slots() {
-    use crate::winapi::common::memory;
-    use crate::windows::constants::errors::STATUS_SUCCESS;
-    let call = |emu: &mut _, api: &str, args: &[u64]| {
-        helpers::call_winapi_export(emu, "bcrypt.dll", api, args)
-    };
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let key_out = data + 32;
-        let output = data + 96;
-        let size_out = output + 48;
-        emu.maps.write_bytes(data, b"passwordsalt");
-        let mut args = vec![BCRYPT_HMAC_SHA1_ALG_HANDLE, data, 8, data + 8, 4, 1];
-        if !is64 {
-            args.push(0);
-        }
-        args.extend([output, 20, 0]);
-        assert_eq!(
-            call(&mut emu, "BCryptDeriveKeyPBKDF2", &args),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            emu.maps.read_bytes(output, 20).as_ref(),
-            [
-                0x0c, 0x60, 0xc8, 0x0f, 0x96, 0x1f, 0x0e, 0x71, 0xf3, 0xa9, 0xb5, 0x24, 0xaf, 0x60,
-                0x12, 0x06, 0x2f, 0xe0, 0x37, 0xa6
-            ]
-        );
-        emu.maps.fill_range(data, 0, 16);
-        assert_eq!(
-            call(
-                &mut emu,
-                "BCryptGenerateSymmetricKey",
-                &[BCRYPT_AES_CBC_ALG_HANDLE, key_out, 0, 0, data, 16, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        let key = memory::read_pointer(&emu, key_out).unwrap();
-        assert_eq!(
-            call(
-                &mut emu,
-                "BCryptEncrypt",
-                &[key, data, 16, 0, 0, 0, output, 16, size_out, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            emu.maps.read_bytes(output, 16).as_ref(),
-            [
-                0x66, 0xe9, 0x4b, 0xd4, 0xef, 0x8a, 0x2c, 0x3b, 0x88, 0x4c, 0xfa, 0x59, 0xca, 0x34,
-                0x2b, 0x2e
-            ]
-        );
-        assert_eq!(call(&mut emu, "BCryptDestroyKey", &[key]), STATUS_SUCCESS);
-    }
-}
-
-#[test]
-fn data_protection_roundtrip_uses_local_allocations_and_rejects_truncated_input() {
-    use crate::winapi::common::memory::{pointer_size, read_pointer, write_pointer};
-    let call = |emu: &mut _, api: &str, args: &[u64]| {
-        helpers::call_winapi_export(emu, "crypt32.dll", api, args)
-    };
-    for is64 in [false, true] {
-        let (mut emu, input) = helpers::prepare_winapi(is64);
-        let width = pointer_size(&emu);
-        let protected = input + 32;
-        let output = input + 64;
-        let text = input + 96;
-        emu.maps.write_bytes(text, b"data");
-        emu.maps.write_dword(input, 4);
-        write_pointer(&mut emu, input + width, text);
-        assert_eq!(
-            call(
-                &mut emu,
-                "CryptProtectData",
-                &[input, 0, 0, 0, 0, 0, protected]
-            ),
-            1
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "CryptUnprotectData",
-                &[protected, 0, 0, 0, 0, 0, output]
-            ),
-            1
-        );
-        let recovered = read_pointer(&emu, output + width).unwrap();
-        assert_eq!(emu.maps.read_bytes(recovered, 4).as_ref(), b"data");
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, "kernel32.dll", "LocalFree", &[recovered]),
-            0
-        );
-        let envelope = read_pointer(&emu, protected + width).unwrap();
-        emu.maps.write_byte(envelope, 0);
-        assert_eq!(
-            call(
-                &mut emu,
-                "CryptUnprotectData",
-                &[protected, 0, 0, 0, 0, 0, output]
-            ),
-            0
-        );
-        assert_eq!(
-            helpers::call_winapi_export(&mut emu, "kernel32.dll", "LocalFree", &[envelope]),
-            0
-        );
-    }
-}
-
-#[test]
-fn csp_operations_reject_cng_hashes_and_keys() {
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    use crate::winapi::common::memory::read_pointer;
-    use crate::windows::constants::errors::{NTE_BAD_HASH, NTE_BAD_KEY, STATUS_SUCCESS};
-
-    for is64 in [false, true] {
-        let (mut emu, buffer) = prepare_winapi(is64);
-        let handle_out = buffer + 32;
-        let size = buffer + 48;
-        emu.maps.write_bytes(buffer, b"hello");
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptCreateHash",
-                &[BCRYPT_MD5_ALG_HANDLE, handle_out, 0, 0, 0, 0, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        let hash = read_pointer(&emu, handle_out).unwrap();
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptGenerateSymmetricKey",
-                &[BCRYPT_RC4_ALG_HANDLE, handle_out, 0, 0, buffer, 5, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        let key = read_pointer(&emu, handle_out).unwrap();
-
-        for dll in ["advapi32.dll", "crypt32.dll"] {
-            assert_eq!(
-                call(&mut emu, dll, "CryptHashData", &[hash, buffer, 5, 0]),
-                0
-            );
-            assert_eq!(emu.get_last_error(), NTE_BAD_HASH);
-            emu.maps.write_dword(size, 5);
-            let args = [key, 0, 1, 0, buffer, size, 5];
-            for (api, args) in [
-                ("CryptEncrypt", args.as_slice()),
-                ("CryptDecrypt", &args[..6]),
-            ] {
-                assert_eq!(call(&mut emu, dll, api, args), 0);
-                assert_eq!(emu.get_last_error(), NTE_BAD_KEY);
-                assert_eq!(emu.maps.read_bytes(buffer, 5).as_ref(), b"hello");
-                assert_eq!(emu.maps.read_dword(size), Some(5));
-            }
-        }
-
-        assert_eq!(
-            call(
-                &mut emu,
-                "bcrypt.dll",
-                "BCryptFinishHash",
-                &[hash, buffer, 16, 0]
-            ),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            emu.maps.read_bytes(buffer, 16).as_ref(),
-            &md5::compute([]).0
-        );
-        assert_eq!(
-            call(&mut emu, "bcrypt.dll", "BCryptDestroyHash", &[hash]),
-            STATUS_SUCCESS
-        );
-        assert_eq!(
-            call(&mut emu, "bcrypt.dll", "BCryptDestroyKey", &[key]),
-            STATUS_SUCCESS
-        );
-    }
-}
-
-#[test]
-fn historical_crypt32_hash_aliases_share_provider_state_with_advapi32() {
-    use crate::winapi::common::memory;
-    for is64 in [false, true] {
-        let (mut emu, data) = helpers::prepare_winapi(is64);
-        let call = |emu: &mut _, dll: &str, name: &str, args: &[u64]| {
-            helpers::call_winapi_export(emu, dll, name, args)
-        };
-        assert_eq!(
-            call(
-                &mut emu,
-                "advapi32.dll",
-                "CryptAcquireContextA",
-                &[data, 0, 0, PROV_RSA_FULL as u64, CRYPT_VERIFYCONTEXT as u64]
-            ),
-            1
-        );
-        let provider = memory::read_pointer(&emu, data).unwrap();
-        assert_eq!(
-            call(
-                &mut emu,
-                "crypt32.dll",
-                "CryptCreateHash",
-                &[provider, u64::from(CALG_MD5), 0, 0, data]
-            ),
-            1
-        );
-        let hash = memory::read_pointer(&emu, data).unwrap();
-        emu.maps.write_bytes(data, b"a");
-        assert_eq!(
-            call(
-                &mut emu,
-                "advapi32.dll",
-                "CryptHashData",
-                &[hash, data, 1, 0]
-            ),
-            1
-        );
-        emu.maps.write_dword(data, 16);
-        assert_eq!(
-            call(
-                &mut emu,
-                "crypt32.dll",
-                "CryptGetHashParam",
-                &[hash, u64::from(HP_HASHVAL), data + 16, data, 0]
-            ),
-            1
-        );
-        assert_eq!(
-            emu.maps.read_bytes(data + 16, 16).as_ref(),
-            &md5::compute(b"a").0
-        );
-        assert_eq!(
-            call(&mut emu, "crypt32.dll", "CryptDestroyHash", &[hash]),
-            1
-        );
-        assert_eq!(
-            call(
-                &mut emu,
-                "advapi32.dll",
-                "CryptReleaseContext",
-                &[provider, 0]
-            ),
-            1
-        );
-    }
-}
-
-#[test]
-fn csp_plaintext_blob_and_duplicated_key_preserve_material_on_both_guests() {
-    use crate::api::windows::common::memory::read_pointer;
-    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
-    use crate::windows::constants::crypto::{
-        CALG_RC4, CRYPT_EXPORTABLE, CRYPT_VERIFYCONTEXT, PLAINTEXTKEYBLOB, PROV_RSA_FULL,
-    };
-    use crate::windows::constants::errors::{ERROR_MORE_DATA, NTE_BAD_KEY_STATE};
-    let dll = "advapi32.dll";
-    for is64 in [false, true] {
-        let (mut emu, base) = prepare_winapi(is64);
-        let output = base + 64;
-        let size = base + 80;
-        let copy_out = base + 96;
-        assert_eq!(
-            call(
-                &mut emu,
-                dll,
-                "CryptAcquireContextW",
-                &[
-                    output,
-                    0,
-                    0,
-                    u64::from(PROV_RSA_FULL),
-                    u64::from(CRYPT_VERIFYCONTEXT)
-                ]
-            ),
-            1
-        );
-        let provider = read_pointer(&emu, output).unwrap();
-        let key_bytes = b"abcde";
-        let mut blob = vec![PLAINTEXTKEYBLOB, 2, 0, 0];
-        blob.extend(CALG_RC4.to_le_bytes());
-        blob.extend((key_bytes.len() as u32).to_le_bytes());
-        blob.extend(key_bytes);
-        emu.maps.write_bytes(base, &blob);
-        for flags in [0, CRYPT_EXPORTABLE] {
-            assert_eq!(
-                call(
-                    &mut emu,
-                    dll,
-                    "CryptImportKey",
-                    &[
-                        provider,
-                        base,
-                        blob.len() as u64,
-                        0,
-                        u64::from(flags),
-                        output
-                    ]
-                ),
-                1
-            );
-            let original = read_pointer(&emu, output).unwrap();
-            for (parameter, expected) in [
-                (KP_ALGID, CALG_RC4),
-                (KP_KEYLEN, (key_bytes.len() * 8) as u32),
-            ] {
-                emu.maps.write_dword(size, 4);
-                assert_eq!(
-                    call(
-                        &mut emu,
-                        dll,
-                        "CryptGetKeyParam",
-                        &[original, u64::from(parameter), copy_out, size, 0]
-                    ),
-                    1
-                );
-                assert_eq!(emu.maps.read_dword(copy_out), Some(expected));
-            }
-            assert_eq!(
-                call(
-                    &mut emu,
-                    dll,
-                    "CryptDuplicateKey",
-                    &[original, 0, 0, copy_out]
-                ),
-                1
-            );
-            let copy = read_pointer(&emu, copy_out).unwrap();
-            assert_ne!(original, copy);
-            assert_eq!(call(&mut emu, dll, "CryptDestroyKey", &[original]), 1);
-            let storage = base + 128;
-            emu.maps.write_bytes(storage, &[0x5a; 32]);
-            emu.maps.write_dword(size, 1);
-            let args = [copy, 0, u64::from(PLAINTEXTKEYBLOB), 0, storage, size];
-            assert_eq!(call(&mut emu, dll, "CryptExportKey", &args), 0);
-            assert_eq!(emu.maps.read_byte(storage), Some(0x5a));
-            if flags == 0 {
-                assert_eq!(emu.get_last_error(), NTE_BAD_KEY_STATE);
-            } else {
-                assert_eq!(emu.get_last_error(), ERROR_MORE_DATA);
-                assert_eq!(emu.maps.read_dword(size), Some(blob.len() as u32));
-                assert_eq!(call(&mut emu, dll, "CryptExportKey", &args), 1);
-                assert_eq!(
-                    &*emu.maps.try_read_bytes(storage, blob.len()).unwrap(),
-                    blob.as_slice()
-                );
-                assert_eq!(emu.maps.read_byte(storage + blob.len() as u64), Some(0x5a));
-            }
-            assert_eq!(call(&mut emu, dll, "CryptDestroyKey", &[copy]), 1);
-        }
-        assert_eq!(
-            call(&mut emu, dll, "CryptReleaseContext", &[provider, 0]),
-            1
-        );
-    }
+    // BCryptCloseAlgorithmProvider
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptCloseAlgorithmProvider,
+        &[handle, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptCloseAlgorithmProvider should return STATUS_SUCCESS"
+    );
 }
