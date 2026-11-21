@@ -264,9 +264,12 @@ pub(crate) fn command_string(emu: &mut Emu, wide: bool) -> Option<u64> {
     units.push(0);
     let bytes = if wide { Encoding::Wide } else { Encoding::Ansi }.encode(&units);
     let len = bytes.len() as u64;
-    let base = emu.maps.alloc(len)?;
+    // Round up to 16 bytes: SSE2-optimized CRT functions (strlen, memchr, …)
+    // read in aligned 16-byte chunks and would fault on an exact-size map.
+    let alloc_len = len.max(16).next_multiple_of(16);
+    let base = emu.maps.alloc(alloc_len)?;
     emu.maps
-        .create_map(name, base, len, Permission::READ_WRITE)
+        .create_map(name, base, alloc_len, Permission::READ_WRITE)
         .ok()?;
     emu.maps.write_bytes(base, &bytes).then_some(base)
 }
