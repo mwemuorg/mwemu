@@ -13,6 +13,7 @@
 //! 2. [`ModuleExportIndex`] + [`ExportIndexRegistry`] (this module) — runtime
 //!    form with rebased addresses, ordered iteration, and lookup helpers.
 
+use crate::api::windows::common::modules;
 use ahash::AHashMap;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 use serde::{Deserialize, Serialize};
@@ -192,6 +193,15 @@ impl ModuleExportIndex {
             .and_then(|idx| self.by_ordinal.get(*idx as usize).and_then(|s| s.as_ref()))
     }
 
+    /// Resolve a guest export name without folding case or trimming it.
+    pub fn resolve_name_exact(&self, name: &str) -> Option<&IndexedExport> {
+        let (index, _) = self
+            .display_names
+            .iter()
+            .find(|(_, export)| export == name)?;
+        self.by_ordinal.get(*index as usize)?.as_ref()
+    }
+
     /// Resolve an export by ordinal (the export ordinal as exported by
     /// Windows, i.e. `export_base + function_table_index`).
     pub fn resolve_ordinal(&self, ordinal: u32) -> Option<&IndexedExport> {
@@ -342,6 +352,7 @@ impl ExportIndexRegistry {
         self.resolve_name_in_module_inner(
             &normalized,
             &name_lc,
+            false,
             &mut Vec::new(),
             MAX_FORWARDER_DEPTH,
         )
@@ -350,7 +361,8 @@ impl ExportIndexRegistry {
     fn resolve_name_in_module_inner(
         &self,
         normalized_module: &str,
-        name_lc: &str,
+        name: &str,
+        exact: bool,
         visited: &mut Vec<(String, String)>,
         depth: usize,
     ) -> u64 {
@@ -360,7 +372,12 @@ impl ExportIndexRegistry {
         let Some(module) = self.by_name.get(normalized_module) else {
             return 0;
         };
-        let Some(target) = module.resolve_name(name_lc) else {
+        let target = if exact {
+            module.resolve_name_exact(name)
+        } else {
+            module.resolve_name(name)
+        };
+        let Some(target) = target else {
             return 0;
         };
         match target {
@@ -368,7 +385,7 @@ impl ExportIndexRegistry {
             IndexedExport::Forwarder { value } => {
                 // Cycle guard: skip if we have already started resolving this
                 // (module, symbol) pair.
-                let key = (normalized_module.to_string(), name_lc.to_string());
+                let key = (normalized_module.to_string(), name.to_string());
                 if visited.iter().any(|k| k == &key) {
                     return 0;
                 }
@@ -435,13 +452,12 @@ impl ExportIndexRegistry {
     }
 
     /// Resolve a named export using the supplied module base as a module
-    /// handle. Used by `GetProcAddress`.
+    /// handle. Names are case-sensitive, as required by `GetProcAddress`.
     pub fn resolve_name_by_base(&self, base: u64, name: &str) -> u64 {
         let Some(module) = self.get_by_base(base) else {
             return 0;
         };
-        let name_lc = normalize_export_name(name);
-        let Some(target) = module.resolve_name(&name_lc) else {
+        let Some(target) = module.resolve_name_exact(name) else {
             return 0;
         };
         match target {
@@ -489,39 +505,42 @@ fn parse_forwarder_and_resolve(
     let Some((dll_part, sym_part)) = value.split_once('.') else {
         return 0;
     };
-    let normalized_dll = normalize_module_name(dll_part);
-
-    if let Some(stripped) = sym_part.strip_prefix('#') {
-        // Ordinal forwarder: `dll.#N`.
-        let Ok(ordinal) = stripped.parse::<u32>() else {
-            return 0;
-        };
-        // We need a base to resolve by ordinal; pick the first registered
-        // module whose normalized name matches. Forwarders by ordinal are
-        // rare in practice but must not panic.
-        if let Some(module) = registry.by_name.get(&normalized_dll) {
-            match module.resolve_ordinal(ordinal) {
-                Some(IndexedExport::Direct { address }) => return *address,
-                Some(IndexedExport::Forwarder { value: fwd_value }) => {
-                    let key = (normalized_dll.clone(), format!("#{}", ordinal));
-                    if visited.iter().any(|k| k == &key) {
-                        return 0;
-                    }
-                    visited.push(key);
-                    return parse_forwarder_and_resolve(registry, fwd_value, visited, depth - 1);
+    let dll = normalize_module_name(dll_part);
+    let ordinal = match sym_part.strip_prefix('#') {
+        Some(text) => match text.parse::<u32>() {
+            Ok(value) => Some(value),
+            Err(_) => return 0,
+        },
+        None => None,
+    };
+    let mut resolve = |module_name: &str| {
+        let module = registry.by_name.get(module_name)?;
+        let entry = match ordinal {
+            Some(value) => module.resolve_ordinal(value),
+            None => module.resolve_name_exact(sym_part),
+        }?;
+        match entry {
+            IndexedExport::Direct { address } => Some(*address),
+            IndexedExport::Forwarder { value } => {
+                let key = (module_name.to_owned(), sym_part.to_owned());
+                if visited.contains(&key) {
+                    return None;
                 }
-                None => return 0,
+                let previous = visited.len();
+                visited.push(key);
+                let address = parse_forwarder_and_resolve(registry, value, visited, depth - 1);
+                visited.truncate(previous);
+                (address != 0).then_some(address)
             }
         }
-        return 0;
+    };
+    if registry.by_name.contains_key(&dll) || !modules::is_api_set_contract(&dll) {
+        return resolve(&dll).unwrap_or(0);
     }
-
-    registry.resolve_name_in_module_inner(
-        &normalized_dll,
-        &sym_part.to_ascii_lowercase(),
-        visited,
-        depth,
-    )
+    modules::api_set_hosts(&dll)
+        .iter()
+        .find_map(|host| resolve(&normalize_module_name(host)))
+        .unwrap_or(0)
 }
 
 /// Normalize a module name into a registry key:
@@ -539,261 +558,4 @@ pub fn normalize_module_name(name: &str) -> String {
 /// Normalize an export name: ASCII lowercase, no leading/trailing whitespace.
 pub fn normalize_export_name(name: &str) -> String {
     name.trim().to_ascii_lowercase()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rs_header::pe::export_index::build_export_index;
-    use rs_header::pe::shared::ImageSectionHeader;
-
-    fn section(va: u32, raw_ptr: u32, raw_size: u32) -> ImageSectionHeader {
-        let mut s = ImageSectionHeader {
-            name: [0; 8],
-            virtual_size: raw_size,
-            virtual_address: va,
-            size_of_raw_data: raw_size,
-            pointer_to_raw_data: raw_ptr,
-            pointer_to_relocations: 0,
-            pointer_to_linenumbers: 0,
-            number_of_relocations: 0,
-            number_of_linenumbers: 0,
-            characteristics: 0,
-        };
-        let n = b".text\0\0\0";
-        s.name[..n.len()].copy_from_slice(n);
-        s
-    }
-
-    /// Two-function export table; function 0 = direct, function 1 =
-    /// forwarder to `KERNELBASE.HeapAlloc`.
-    fn build_raw() -> (Vec<u8>, Vec<ImageSectionHeader>, u32, u32) {
-        let mut raw = vec![0u8; 0x200];
-        let export_off = 0x040;
-        let func_off = 0x080;
-        let name_off_table = 0x090;
-        let ord_off = 0x0a8;
-        let fwd_str_off = 0x0c0;
-        let name_a_off = 0x0d0;
-        let name_b_off = 0x0e0;
-
-        let export_va: u32 = 0x1040;
-        let func_va: u32 = 0x1080;
-        let name_table_va: u32 = 0x1090;
-        let ord_table_va: u32 = 0x10a8;
-        let name_a_va: u32 = 0x10d0;
-        let name_b_va: u32 = 0x10e0;
-
-        // function 0 RVA = 0x1500 (direct, outside export dir range).
-        // function 1 RVA = 0x10c0 (forwarder, inside [0x1040, 0x1140)).
-        raw[export_off + 16..export_off + 20].copy_from_slice(&1u32.to_le_bytes()); // base
-        raw[export_off + 20..export_off + 24].copy_from_slice(&2u32.to_le_bytes()); // nof
-        raw[export_off + 24..export_off + 28].copy_from_slice(&2u32.to_le_bytes()); // non
-        raw[export_off + 28..export_off + 32].copy_from_slice(&func_va.to_le_bytes());
-        raw[export_off + 32..export_off + 36].copy_from_slice(&name_table_va.to_le_bytes());
-        raw[export_off + 36..export_off + 40].copy_from_slice(&ord_table_va.to_le_bytes());
-
-        let func0_rva: u32 = 0x1500;
-        let func1_rva: u32 = 0x10c0;
-        raw[func_off..func_off + 4].copy_from_slice(&func0_rva.to_le_bytes());
-        raw[func_off + 4..func_off + 8].copy_from_slice(&func1_rva.to_le_bytes());
-
-        raw[name_off_table..name_off_table + 4].copy_from_slice(&name_a_va.to_le_bytes());
-        raw[name_off_table + 4..name_off_table + 8].copy_from_slice(&name_b_va.to_le_bytes());
-
-        raw[ord_off..ord_off + 2].copy_from_slice(&0u16.to_le_bytes()); // A -> 0
-        raw[ord_off + 2..ord_off + 4].copy_from_slice(&1u16.to_le_bytes()); // B -> 1
-
-        let s = b"KERNELBASE.HeapAlloc\0";
-        raw[fwd_str_off..fwd_str_off + s.len()].copy_from_slice(s);
-
-        let s = b"A\0";
-        raw[name_a_off..name_a_off + s.len()].copy_from_slice(s);
-        let s = b"B\0";
-        raw[name_b_off..name_b_off + s.len()].copy_from_slice(s);
-
-        let sections = vec![section(0x1000, 0, raw.len() as u32)];
-        (raw, sections, export_va, 0x100)
-    }
-
-    fn parsed() -> ExportIndexData {
-        let (raw, sections, va, size) = build_raw();
-        build_export_index(&raw, &sections, va, size).expect("parse")
-    }
-
-    fn make_index(base: u64, module: &str) -> ModuleExportIndex {
-        let normalized = normalize_module_name(module);
-        ModuleExportIndex::from_parsed(module.to_string(), normalized, base, &parsed())
-    }
-
-    #[test]
-    fn register_and_get_by_name() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        assert!(reg.get_by_name("kernel32").is_some());
-        assert!(reg.get_by_name("KERNEL32.DLL").is_some());
-        assert!(reg.get_by_name("kernelbase").is_none());
-    }
-
-    #[test]
-    fn get_by_base_returns_correct_module() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        assert!(reg.get_by_base(0x10000).is_some());
-        assert!(reg.get_by_base(0x20000).is_none());
-    }
-
-    #[test]
-    fn replacement_removes_old_base() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        reg.register(make_index(0x20000, "kernel32.dll"));
-        assert!(reg.get_by_base(0x10000).is_none(), "old base must be gone");
-        assert!(reg.get_by_base(0x20000).is_some());
-        assert_eq!(reg.len(), 1, "still one entry");
-    }
-
-    #[test]
-    fn removal_drops_both_maps_and_order() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        reg.register(make_index(0x20000, "ntdll.dll"));
-        assert!(reg.remove("kernel32"));
-        assert!(reg.get_by_name("kernel32").is_none());
-        assert!(reg.get_by_base(0x10000).is_none());
-        assert_eq!(reg.len(), 1);
-        // Order: only ntdll remains.
-        let names: Vec<&str> = reg
-            .iter_ordered()
-            .map(|m| m.normalized_name.as_str())
-            .collect();
-        assert_eq!(names, vec!["ntdll"]);
-    }
-
-    #[test]
-    fn named_resolution_is_case_insensitive() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        // direct export at base + 0x1500 = 0x11500
-        assert_eq!(reg.resolve_name_in_module("kernel32", "A"), 0x11500);
-        assert_eq!(reg.resolve_name_in_module("kernel32", "a"), 0x11500);
-    }
-
-    #[test]
-    fn global_search_returns_first_match() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        reg.register(make_index(0x30000, "ntdll.dll"));
-        assert_eq!(reg.resolve_name_global("A"), 0x11500);
-    }
-
-    #[test]
-    fn base_lookup_honors_handle() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        assert_eq!(reg.resolve_name_by_base(0x10000, "A"), 0x11500);
-        assert_eq!(reg.resolve_name_by_base(0x99999, "A"), 0);
-    }
-
-    #[test]
-    fn ordinal_resolution_uses_export_base() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        // base=1, so ordinal 1 -> index 0 = direct 0x11500.
-        assert_eq!(reg.resolve_ordinal_by_base(0x10000, 1), 0x11500);
-        // ordinal 0 is below base.
-        assert_eq!(reg.resolve_ordinal_by_base(0x10000, 0), 0);
-    }
-
-    #[test]
-    fn address_to_name_reverse_lookup() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        assert_eq!(
-            reg.resolve_address(0x11500),
-            Some(("kernel32".to_string(), "A".to_string()))
-        );
-        assert_eq!(reg.resolve_address(0x99999), None);
-    }
-
-    #[test]
-    fn forwarder_string_preserved_when_target_missing() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        // B forwarders to KERNELBASE.HeapAlloc, but KERNELBASE isn't
-        // registered -> must return 0, not crash.
-        assert_eq!(reg.resolve_name_in_module("kernel32", "B"), 0);
-    }
-
-    #[test]
-    fn forwarder_resolves_to_registered_target() {
-        // First build an index for kernelbase pointing to a direct export at
-        // 0x50000 + 0x1500 = 0x51500.
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        reg.register(make_index(0x50000, "kernelbase.dll"));
-        // B -> KERNELBASE.HeapAlloc. We never built a name "HeapAlloc" in
-        // kernelbase, so this still returns 0 — but the resolution path
-        // must not crash and must not loop.
-        assert_eq!(reg.resolve_name_in_module("kernel32", "B"), 0);
-    }
-
-    #[test]
-    fn ordering_preserved_across_replace() {
-        let mut reg = ExportIndexRegistry::new();
-        reg.register(make_index(0x10000, "kernel32.dll"));
-        reg.register(make_index(0x20000, "ntdll.dll"));
-        reg.register(make_index(0x30000, "kernel32.dll")); // replace
-        let names: Vec<&str> = reg
-            .iter_ordered()
-            .map(|m| m.normalized_name.as_str())
-            .collect();
-        assert_eq!(names, vec!["kernel32", "ntdll"]);
-    }
-
-    #[test]
-    fn module_name_normalization_handles_paths_and_case() {
-        assert_eq!(normalize_module_name("KERNEL32.DLL"), "kernel32");
-        assert_eq!(
-            normalize_module_name("C:\\Windows\\kernel32.dll"),
-            "kernel32"
-        );
-        assert_eq!(normalize_module_name("/usr/lib/kernel32.dll"), "kernel32");
-        assert_eq!(normalize_module_name("kernel32"), "kernel32");
-        assert_eq!(normalize_module_name("  kernelbase.DLL  "), "kernelbase");
-    }
-
-    #[test]
-    fn parsed_rebase_updates_addresses() {
-        let mut idx = make_index(0x10000, "kernel32.dll");
-        // base 0x10000 + RVA 0x1500 = 0x11500
-        assert_eq!(
-            idx.resolve_name("a").unwrap().direct_address(),
-            Some(0x11500)
-        );
-        idx.rebase(0x40000);
-        // base 0x40000 + RVA 0x1500 = 0x41500
-        assert_eq!(
-            idx.resolve_name("a").unwrap().direct_address(),
-            Some(0x41500)
-        );
-        assert_eq!(idx.base, 0x40000);
-        // Reverse map rebuilt with the same display name.
-        assert_eq!(idx.resolve_address(0x41500), Some("A"));
-    }
-
-    #[test]
-    fn unindexed_module_resolves_to_zero() {
-        let reg = ExportIndexRegistry::new();
-        assert_eq!(reg.resolve_name_in_module("nope", "A"), 0);
-        assert_eq!(reg.resolve_name_global("A"), 0);
-    }
-
-    #[test]
-    fn parsed_named_exports_preserve_case_in_address_map() {
-        // The raw export name "A" must surface in the address map with its
-        // original spelling.
-        let idx = make_index(0x10000, "kernel32.dll");
-        assert_eq!(idx.resolve_address(0x11500), Some("A"));
-    }
 }

@@ -4,7 +4,7 @@
 
 ## Select shellcode 
 
-The unique required parameter is the shellcode `-f` or `--file`.
+Use `-f` or `--file` to select the input. For raw files, the default target is Windows. Use `--sys linux` or `--sys macos` to select the OS before loading. Choose the architecture separately.
 
 ```
 target/release/mwemu -f path/shellcode.bin

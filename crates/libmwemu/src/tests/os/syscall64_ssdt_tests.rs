@@ -1,14 +1,16 @@
-use crate::windows::constants::errors::*;
-use crate::windows::constants::memory::*;
-use crate::windows::constants::process::*;
-use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::syscall::windows::syscall64;
 use crate::tests::helpers;
-
+use crate::threading::context::ThreadContext;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
+use crate::windows::constants::security::TOKEN_QUERY;
+use crate::windows::constants::syscalls::*;
+use crate::windows::structures::MemoryBasicInformation64;
 use crate::*;
 
 fn setup_emu64_syscall() -> emu::Emu {
@@ -36,10 +38,8 @@ fn nt_query_virtual_memory_success_writes_output() {
     emu.regs_mut().rdx = 0x400100;
     emu.regs_mut().r8 = MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION;
     emu.regs_mut().r9 = 0x500100; // MEMORY_BASIC_INFORMATION output
-    emu.maps.write_qword(
-        emu.regs().rsp + 0x28,
-        crate::windows::structures::MemoryBasicInformation64::SIZE,
-    ); // out length
+    emu.maps
+        .write_qword(emu.regs().rsp + 0x28, MemoryBasicInformation64::SIZE); // out length
     emu.maps.write_qword(emu.regs().rsp + 0x30, 0x500080); // return length ptr
 
     syscall64::gateway(&mut emu);
@@ -47,7 +47,7 @@ fn nt_query_virtual_memory_success_writes_output() {
     assert_eq!(emu.regs().rax, STATUS_SUCCESS);
     assert_eq!(
         emu.maps.read_qword(0x500080).unwrap_or(0),
-        crate::windows::structures::MemoryBasicInformation64::SIZE
+        MemoryBasicInformation64::SIZE
     );
     assert_eq!(emu.maps.read_qword(0x500100).unwrap_or(0), 0x400000);
 }
@@ -68,13 +68,34 @@ fn nt_map_view_of_section_preserves_page_permissions() {
     ];
     for (protection, expected) in cases {
         let mut emu = setup_emu64_syscall();
-        let section_handle = 0x100;
+        emu.syscall_name_by_real
+            .insert(WIN64_NTMAPVIEWOFSECTION, "NtMapViewOfSection".into());
         let rsp = emu.regs().rsp;
         let base_ptr = rsp + 0x100;
         let size_ptr = base_ptr + 8;
 
-        // An empty section name selects the placeholder-view path without loading a DLL.
-        emu.section_handles.insert(section_handle, String::new());
+        let maximum = base_ptr + 16;
+        let section_out = maximum + 8;
+        assert!(emu.maps.write_qword(maximum, PAGE_SIZE));
+        assert_eq!(
+            native_test_call(
+                &mut emu,
+                WIN64_NTCREATESECTION,
+                &[
+                    section_out,
+                    u64::from(SECTION_ALL_ACCESS),
+                    0,
+                    maximum,
+                    u64::from(PAGE_EXECUTE_READWRITE),
+                    u64::from(SEC_COMMIT),
+                    0
+                ]
+            ),
+            STATUS_SUCCESS
+        );
+        let section_handle = emu.maps.read_qword(section_out).unwrap();
+        emu.maps.write_qword(rsp + 0x28, 0);
+        emu.maps.write_qword(rsp + 0x30, 0);
         assert!(emu.maps.write_qword(base_ptr, 0));
         assert!(emu.maps.write_qword(size_ptr, PAGE_SIZE));
         assert!(emu.maps.write_qword(rsp + 0x38, size_ptr));
@@ -88,6 +109,11 @@ fn nt_map_view_of_section_preserves_page_permissions() {
 
         syscall64::gateway(&mut emu);
 
+        if matches!(protection, PAGE_WRITECOPY | PAGE_EXECUTE_WRITECOPY) {
+            assert_eq!(emu.regs().rax, STATUS_NOT_IMPLEMENTED);
+            assert_eq!(emu.maps.read_qword(base_ptr), Some(0));
+            continue;
+        }
         assert_eq!(emu.regs().rax, STATUS_SUCCESS, "protection {protection:#x}");
         let base = emu.maps.read_qword(base_ptr).expect("mapped base");
         let map = emu.maps.get_mem_by_addr(base).expect("mapped section view");
@@ -173,56 +199,24 @@ fn nt_write_then_read_virtual_memory_roundtrip() {
 }
 
 #[test]
-fn nt_query_information_process_basic_and_cookie() {
-    helpers::setup();
-    let mut emu = setup_emu64_syscall();
-    emu.maps
-        .create_map("peb", 0x70000000, 0x1000, Permission::READ_WRITE)
-        .expect("create peb");
-    emu.maps
-        .create_map("io", 0x560000, 0x2000, Permission::READ_WRITE)
-        .expect("create io");
-
-    // ProcessBasicInformation
-    emu.regs_mut().rax = WIN64_NTQUERYINFORMATIONPROCESS;
-    emu.regs_mut().rcx = !0;
-    emu.regs_mut().rdx = PROCESS_INFORMATION_CLASS_PROCESS_BASIC_INFORMATION;
-    emu.regs_mut().r8 = 0x560100;
-    emu.regs_mut().r9 = 0x30;
-    emu.maps.write_qword(emu.regs().rsp + 0x28, 0x560080); // return length ptr
-    syscall64::gateway(&mut emu);
-    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
-    assert_eq!(emu.maps.read_qword(0x560080).unwrap_or(0), 0x30);
-    assert_eq!(emu.maps.read_qword(0x560108).unwrap_or(0), 0x70000000); // PebBaseAddress
-
-    // ProcessCookie
-    emu.regs_mut().rax = WIN64_NTQUERYINFORMATIONPROCESS;
-    emu.regs_mut().rcx = !0;
-    emu.regs_mut().rdx = PROCESS_INFORMATION_CLASS_PROCESS_COOKIE;
-    emu.regs_mut().r8 = 0x560200;
-    emu.regs_mut().r9 = 4;
-    emu.maps.write_qword(emu.regs().rsp + 0x28, 0);
-    syscall64::gateway(&mut emu);
-    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
-    assert_eq!(emu.maps.read_dword(0x560200).unwrap_or(1), 0x01234567);
-}
-
-#[test]
-fn nt_open_and_terminate_process_behavior() {
+fn invalid_native_open_preserves_the_output_and_current_process_termination_stops_execution() {
     helpers::setup();
     let mut emu = setup_emu64_syscall();
     emu.maps
         .create_map("io", 0x570000, 0x1000, Permission::READ_WRITE)
         .expect("create io");
 
+    let output = 0x570080;
+    let sentinel = 0xfa11;
+    emu.maps.write_qword(output, sentinel);
     emu.regs_mut().rax = WIN64_NTOPENPROCESS;
-    emu.regs_mut().rcx = 0x570080; // process handle out
+    emu.regs_mut().rcx = output;
     emu.regs_mut().rdx = 0;
     emu.regs_mut().r8 = 0;
     emu.regs_mut().r9 = 0;
     syscall64::gateway(&mut emu);
-    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
-    assert_eq!(emu.maps.read_qword(0x570080).unwrap_or(0), 0x4);
+    assert_eq!(emu.regs().rax, STATUS_ACCESS_VIOLATION);
+    assert_eq!(emu.maps.read_qword(output), Some(sentinel));
 
     emu.is_running.store(1, Ordering::Relaxed);
     emu.regs_mut().rax = WIN64_NTTERMINATEPROCESS;
@@ -1741,13 +1735,13 @@ fn qsi_process_information_enumerates_live_threads() {
     helpers::setup();
     let mut emu = setup_emu64_syscall();
     // Append three more threads with distinct scheduler states.
-    let mut suspended = crate::threading::context::ThreadContext::new(0x1001, emu.cfg.arch);
+    let mut suspended = ThreadContext::new(0x1001, emu.cfg.arch);
     suspended.suspended = true;
     emu.threads.push(suspended);
-    let mut blocked = crate::threading::context::ThreadContext::new(0x1002, emu.cfg.arch);
+    let mut blocked = ThreadContext::new(0x1002, emu.cfg.arch);
     blocked.blocked_on_cs = Some(0xDEAD_BEEF);
     emu.threads.push(blocked);
-    let mut sleeping = crate::threading::context::ThreadContext::new(0x1003, emu.cfg.arch);
+    let mut sleeping = ThreadContext::new(0x1003, emu.cfg.arch);
     sleeping.wake_tick = emu.tick + 10;
     emu.threads.push(sleeping);
 
@@ -1883,4 +1877,414 @@ fn file_section_mapping_rejects_invalid_outputs_ranges_and_missing_images() {
     syscall64::gateway(&mut emu);
     assert_eq!(emu.regs().rax, STATUS_INVALID_IMAGE_FORMAT);
     assert_eq!(emu.maps.read_qword(base_ptr), Some(0));
+}
+
+#[test]
+fn native_object_syscalls_and_windows_apis_share_handles_and_error_contracts() {
+    fn syscall(emu: &mut emu::Emu, number: u64, arguments: &[u64]) -> u64 {
+        let sp = emu.sp();
+        let regs = emu.regs_mut();
+        regs.rax = number;
+        for (index, value) in arguments.iter().copied().enumerate() {
+            match index {
+                0 => emu.regs_mut().rcx = value,
+                1 => emu.regs_mut().rdx = value,
+                2 => emu.regs_mut().r8 = value,
+                3 => emu.regs_mut().r9 = value,
+                _ => {
+                    assert!(emu.maps.write_qword(sp + (index as u64 + 1) * 8, value));
+                }
+            }
+        }
+        syscall64::gateway(emu);
+        assert_eq!(emu.sp(), sp);
+        assert!(!emu.api_policy.stopped());
+        emu.regs().rax
+    }
+    let (mut emu, out) = helpers::prepare_winapi(true);
+    emu.set_sp(emu.sp() - 0x100);
+    for (number, name) in [
+        (WIN64_NTOPENPROCESS, "NtOpenProcess"),
+        (WIN64_NTOPENPROCESSTOKEN, "NtOpenProcessToken"),
+        (WIN64_NTDUPLICATEOBJECT, "NtDuplicateObject"),
+        (WIN64_NTCLOSE, "NtClose"),
+    ] {
+        emu.syscall_name_by_real.insert(number, name.into());
+    }
+    let pid = helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetCurrentProcessId", &[]);
+    let attributes = out + 16;
+    let client = attributes + 48;
+    emu.maps.write_dword(attributes, 48);
+    emu.maps.write_qword(client, pid);
+    let rights = u64::from(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE);
+    assert_eq!(
+        syscall(
+            &mut emu,
+            WIN64_NTOPENPROCESS,
+            &[out, rights, attributes, client]
+        ),
+        STATUS_SUCCESS
+    );
+    let process = emu.maps.read_qword(out).unwrap();
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetProcessId", &[process]),
+        pid
+    );
+    assert_eq!(
+        syscall(
+            &mut emu,
+            WIN64_NTOPENPROCESSTOKEN,
+            &[process, u64::from(TOKEN_QUERY), out]
+        ),
+        STATUS_SUCCESS
+    );
+    let token = emu.maps.read_qword(out).unwrap();
+    assert_eq!(
+        emu.handle_management.process_token_rights(token),
+        Some(TOKEN_QUERY)
+    );
+    let arguments = [
+        NT_CURRENT_PROCESS,
+        process,
+        NT_CURRENT_PROCESS,
+        out,
+        0,
+        0,
+        u64::from(DUPLICATE_SAME_ACCESS),
+    ];
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTDUPLICATEOBJECT, &arguments),
+        STATUS_SUCCESS
+    );
+    let copy = emu.maps.read_qword(out).unwrap();
+    assert_ne!(copy, process);
+    assert_eq!(syscall(&mut emu, WIN64_NTCLOSE, &[process]), STATUS_SUCCESS);
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetProcessId", &[copy]),
+        pid
+    );
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "ZwClose", &[token]),
+        STATUS_SUCCESS
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTCLOSE, &[token]),
+        STATUS_INVALID_HANDLE
+    );
+    let invalid = 0x7fff0000;
+    let mut invalid_dup = arguments;
+    invalid_dup[1] = invalid;
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTDUPLICATEOBJECT, &invalid_dup),
+        STATUS_INVALID_HANDLE
+    );
+    assert_eq!(emu.maps.read_qword(out), Some(0));
+    emu.maps.write_qword(out, copy);
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTOPENPROCESSTOKEN, &[invalid, 0, out]),
+        STATUS_INVALID_HANDLE
+    );
+    assert_eq!(emu.maps.read_qword(out), Some(copy));
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "CloseHandle", &[copy]),
+        1
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTCLOSE, &[copy]),
+        STATUS_INVALID_HANDLE
+    );
+}
+
+#[test]
+fn native_handle_calls_respect_x86_guest_pointer_width() {
+    let (mut emu, out) = helpers::prepare_winapi(false);
+    let current = u64::from(NT_CURRENT_PROCESS as u32);
+    let guard = 0x11223344;
+    emu.maps.write_dword(out + 4, guard);
+    assert_eq!(
+        helpers::call_winapi_export(
+            &mut emu,
+            "ntdll.dll",
+            "ZwOpenProcessToken",
+            &[current, u64::from(TOKEN_QUERY), out]
+        ),
+        STATUS_SUCCESS
+    );
+    let token = u64::from(emu.maps.read_dword(out).unwrap());
+    assert_eq!(emu.maps.read_dword(out + 4), Some(guard));
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "CloseHandle", &[token]),
+        1
+    );
+    assert_eq!(
+        helpers::call_winapi_export(
+            &mut emu,
+            "ntdll.dll",
+            "NtDuplicateObject",
+            &[
+                current,
+                current,
+                current,
+                out,
+                0,
+                0,
+                u64::from(DUPLICATE_SAME_ACCESS)
+            ]
+        ),
+        STATUS_SUCCESS
+    );
+    assert_eq!(emu.maps.read_dword(out + 4), Some(guard));
+    let copy = u64::from(emu.maps.read_dword(out).unwrap());
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "NtClose", &[copy]),
+        STATUS_SUCCESS
+    );
+}
+
+fn native_test_call(emu: &mut emu::Emu, number: u64, args: &[u64]) -> u64 {
+    emu.syscall_name_by_real
+        .insert(number, syscall64::what_syscall(number));
+    emu.regs_mut().rax = number;
+    for (index, value) in args.iter().copied().enumerate() {
+        match index {
+            0 => emu.regs_mut().rcx = value,
+            1 => emu.regs_mut().rdx = value,
+            2 => emu.regs_mut().r8 = value,
+            3 => emu.regs_mut().r9 = value,
+            _ => assert!(
+                emu.maps
+                    .write_qword(emu.sp() + (index as u64 + 1) * 8, value)
+            ),
+        }
+    }
+    syscall64::gateway(emu);
+    emu.regs().rax
+}
+
+fn native_name(emu: &mut emu::Emu, descriptor: u64, text: &str) {
+    let bytes = (text.encode_utf16().count() * 2) as u16;
+    emu.maps.write_word(descriptor, bytes);
+    emu.maps.write_word(descriptor + 2, bytes + 2);
+    emu.maps.write_qword(descriptor + 8, descriptor + 16);
+    emu.maps.write_wide_string(descriptor + 16, text);
+}
+
+#[test]
+fn native_unsupported_services_preserve_outputs_and_follow_the_requested_mode() {
+    use crate::winapi::policy::ApiMode;
+
+    let out = 0x101200;
+    for mode in [
+        ApiMode::Strict,
+        ApiMode::SimulateFail,
+        ApiMode::SimulateSuccess,
+    ] {
+        for number in [
+            WIN64_NTCREATETHREADEX,
+            WIN64_NTRAISEHARDERROR,
+            WIN64_NTSETINFORMATIONPROCESS,
+            WIN64_NTSETINFORMATIONTHREAD,
+            WIN64_NTWAITFORALERTBYTHREADID,
+            WIN64_NTALPCCREATEPORTSECTION,
+            WIN64_NTALPCQUERYINFORMATION,
+            WIN64_NTOPENKEYTRANSACTED,
+            WIN64_NTQUERYMULTIPLEVALUEKEY,
+            WIN64_NTQUERYIOCOMPLETION,
+            WIN64_NTSUBSCRIBEWNFSTATECHANGE,
+        ] {
+            let mut emu = setup_emu64_syscall();
+            emu.set_api_mode(mode);
+            emu.maps.write_qword(out, u64::MAX);
+            let status = native_test_call(
+                &mut emu,
+                number,
+                &[out, out, out, out, 8, out, 0, 0, 0, 0, 0],
+            );
+            assert_eq!(
+                emu.api_policy.stopped(),
+                mode == ApiMode::Strict,
+                "{number:#x}"
+            );
+            if mode == ApiMode::SimulateFail {
+                assert_eq!(status, STATUS_NOT_IMPLEMENTED, "{number:#x}");
+            }
+            assert_eq!(emu.maps.read_qword(out), Some(u64::MAX), "{number:#x}");
+        }
+    }
+}
+
+#[test]
+fn native_knowndll_links_validate_root_access_output_and_lifetime() {
+    let mut emu = setup_emu64_syscall();
+    let out = 0x101200;
+    let object = out + 16;
+    let descriptor = object + 48;
+    let returned = out + 256;
+    emu.maps.write_dword(object, 48);
+    emu.maps.write_qword(object + 16, descriptor);
+    native_name(&mut emu, descriptor, r"\KnownDlls32");
+    let open = |emu: &mut emu::Emu, nr, access| native_test_call(emu, nr, &[out, access, object]);
+    assert_eq!(
+        open(&mut emu, WIN64_NTOPENDIRECTORYOBJECT, 0),
+        STATUS_SUCCESS
+    );
+    let no_traverse = emu.maps.read_qword(out).unwrap();
+    assert_eq!(
+        open(&mut emu, WIN64_NTOPENDIRECTORYOBJECT, 2),
+        STATUS_SUCCESS
+    );
+    let directory = emu.maps.read_qword(out).unwrap();
+    native_name(&mut emu, descriptor, "KnownDllPath");
+    emu.maps.write_qword(object + 8, no_traverse);
+    assert_eq!(
+        open(&mut emu, WIN64_NTOPENSYMBOLICLINKOBJECT, 1),
+        STATUS_ACCESS_DENIED
+    );
+    emu.maps.write_qword(object + 8, directory);
+    assert_eq!(
+        open(&mut emu, WIN64_NTOPENSYMBOLICLINKOBJECT, 1),
+        STATUS_SUCCESS
+    );
+    let link = emu.maps.read_qword(out).unwrap();
+    let query = |emu: &mut emu::Emu| {
+        native_test_call(
+            emu,
+            WIN64_NTQUERYSYMBOLICLINKOBJECT,
+            &[link, descriptor, returned],
+        )
+    };
+    emu.maps.write_word(descriptor + 2, 0);
+    assert_eq!(query(&mut emu), STATUS_BUFFER_TOO_SMALL);
+    let target = r"C:\Windows\SysWOW64";
+    assert_eq!(
+        emu.maps.read_dword(returned),
+        Some((target.len() * 2) as u32)
+    );
+    emu.maps.write_word(descriptor + 2, 128);
+    emu.maps.write_qword(descriptor + 8, 0x11ffff);
+    assert_eq!(query(&mut emu), STATUS_ACCESS_VIOLATION);
+    emu.maps.write_qword(descriptor + 8, descriptor + 16);
+    assert_eq!(query(&mut emu), STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_wide_string(descriptor + 16), target);
+    assert_eq!(
+        native_test_call(&mut emu, WIN64_NTCLOSE, &[link]),
+        STATUS_SUCCESS
+    );
+    assert_eq!(query(&mut emu), STATUS_INVALID_HANDLE);
+}
+
+#[test]
+fn native_csr_port_checks_message_capacity_and_service_before_writing() {
+    use crate::winapi::policy::ApiMode;
+
+    let mut emu = setup_emu64_syscall();
+    emu.set_api_mode(ApiMode::SimulateFail);
+    let out = 0x102000;
+    let descriptor = out + 16;
+    let send = out + 128;
+    let receive = out + 256;
+    let length = out + 512;
+    native_name(&mut emu, descriptor, r"\Sessions\1\Windows\ApiPort");
+    assert_eq!(
+        native_test_call(
+            &mut emu,
+            WIN64_NTALPCCONNECTPORT,
+            &[out, descriptor, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ),
+        STATUS_SUCCESS
+    );
+    let port = emu.maps.read_qword(out).unwrap();
+    let quality = out + 640;
+    emu.maps.write_dword(quality, 12);
+    let client_view = quality + 16;
+    emu.maps.write_dword(client_view, 48);
+    emu.maps.write_qword(client_view + 8, u64::MAX);
+    assert_eq!(
+        native_test_call(
+            &mut emu,
+            WIN64_NTCONNECTPORT,
+            &[out, descriptor, quality, client_view, 0, length, 0, 0]
+        ),
+        STATUS_INVALID_HANDLE
+    );
+    assert_eq!(emu.maps.read_qword(out), Some(port));
+    assert_eq!(
+        native_test_call(
+            &mut emu,
+            WIN64_NTCONNECTPORT,
+            &[out, descriptor, quality, 0, 0, length, 0, 0]
+        ),
+        STATUS_SUCCESS
+    );
+    assert_eq!(emu.maps.read_dword(length), Some(512));
+    let message = [port, 0x20000, send, 0, receive, length, 0, 0];
+    const TOTAL: usize = 0x58;
+    emu.maps.write_word(send, (TOTAL - 0x28) as u16);
+    emu.maps.write_word(send + 2, TOTAL as u16);
+    emu.maps.write_dword(send + 0x34, u32::MAX);
+    emu.maps.write_qword(receive, u64::MAX);
+    emu.maps.write_qword(length, TOTAL as u64 - 1);
+    assert_eq!(
+        native_test_call(&mut emu, WIN64_NTALPCSENDWAITRECEIVEPORT, &message),
+        STATUS_BUFFER_TOO_SMALL
+    );
+    assert_eq!(emu.maps.read_qword(receive), Some(u64::MAX));
+    assert_eq!(emu.maps.read_qword(length), Some(TOTAL as u64));
+    emu.maps.write_byte(receive + TOTAL as u64, 0xa5);
+    assert_eq!(
+        native_test_call(&mut emu, WIN64_NTALPCSENDWAITRECEIVEPORT, &message),
+        STATUS_SUCCESS
+    );
+    assert_eq!(emu.maps.read_word(receive + 4), Some(2));
+    assert_eq!(emu.maps.read_dword(receive + 0x34), Some(0));
+    assert_eq!(emu.maps.read_byte(receive + TOTAL as u64), Some(0xa5));
+    emu.maps.write_dword(send + 0x30, 17);
+    emu.maps.write_qword(receive, u64::MAX);
+    assert_eq!(
+        native_test_call(&mut emu, WIN64_NTALPCSENDWAITRECEIVEPORT, &message),
+        STATUS_NOT_IMPLEMENTED
+    );
+    assert_eq!(emu.maps.read_qword(receive), Some(u64::MAX));
+}
+
+#[test]
+fn native_nls_and_empty_wnf_data_validate_each_output() {
+    let mut emu = setup_emu64_syscall();
+    let address = 0x102000;
+    let length = address + 8;
+    let end = 0x120000;
+    let profile = tempfile::tempdir().unwrap();
+    std::fs::write(profile.path().join("C_1252.NLS"), [7; 512]).unwrap();
+    emu.cfg.maps_folder = profile.path().to_str().unwrap().into();
+    emu.maps.write_qword(address, u64::MAX);
+    let nls = |emu: &mut emu::Emu, size| {
+        native_test_call(emu, WIN64_NTGETNLSSECTIONPTR, &[11, 1252, 0, address, size])
+    };
+    assert_eq!(nls(&mut emu, end - 4), STATUS_ACCESS_VIOLATION);
+    assert_eq!(emu.maps.read_qword(address), Some(u64::MAX));
+    emu.maps.write_qword(length, u64::MAX);
+    assert_eq!(nls(&mut emu, length), STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_qword(length), Some(PAGE_SIZE));
+    assert_eq!(
+        emu.maps.read_byte(emu.maps.read_qword(address).unwrap()),
+        Some(7)
+    );
+    let state = address + 32;
+    emu.maps.write_qword(state, 0x418a_073a_a3bc_0c75);
+    emu.maps.write_qword(address, u64::MAX);
+    let wnf = |emu: &mut emu::Emu, size| {
+        native_test_call(
+            emu,
+            WIN64_NTQUERYWNFSTATEDATA,
+            &[state, 0, 0, address, 0, size],
+        )
+    };
+    assert_eq!(wnf(&mut emu, end - 2), STATUS_ACCESS_VIOLATION);
+    assert_eq!(emu.maps.read_qword(address), Some(u64::MAX));
+    assert_eq!(wnf(&mut emu, length), STATUS_SUCCESS);
+    assert_eq!(
+        emu.maps.read_qword(address),
+        Some(u64::from(u32::MAX) << 32)
+    );
+    assert_eq!(emu.maps.read_dword(length), Some(0));
 }

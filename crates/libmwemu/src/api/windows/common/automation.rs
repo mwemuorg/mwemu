@@ -6,31 +6,25 @@ use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, Timelike};
 
 use crate::api::abi::windows::{ArgumentError, CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::policy::api_try;
+use crate::winapi::common::memory::read_array;
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
+use crate::windows::constants::time::*;
 
-const VARIANT_TRUE: i16 = -1;
-const VARIANT_FALSE: i16 = 0;
+pub(crate) const VARIANT_TRUE: i16 = -1;
+pub(crate) const VARIANT_FALSE: i16 = 0;
 const VARCMP_LT: u64 = 0;
 const VARCMP_EQ: u64 = 1;
 const VARCMP_GT: u64 = 2;
 const VARCMP_NULL: u64 = 3;
-const CURRENCY_SCALE: f64 = 10_000.0;
+pub(crate) const CURRENCY_UNITS: u32 = 10_000;
+const CURRENCY_SCALE: f64 = CURRENCY_UNITS as f64;
 const DECIMAL_SCALE_MAX: u8 = 28;
 const DECIMAL_NEG: u8 = 0x80;
 const DECIMAL_SCALE_OFFSET: u64 = 2;
-const DECIMAL_SIGN_OFFSET: u64 = 3;
-const DECIMAL_HIGH_OFFSET: u64 = 4;
-const DECIMAL_LOW_OFFSET: u64 = 8;
-const DOS_DATE_YEAR_SHIFT: u32 = 9;
-const DOS_DATE_MONTH_SHIFT: u32 = 5;
-const DOS_TIME_HOUR_SHIFT: u32 = 11;
-const DOS_TIME_MINUTE_SHIFT: u32 = 5;
 const DATE_MIN: f64 = -657_434.0;
 const DATE_END: f64 = 2_958_466.0;
 const SECONDS_PER_DAY: f64 = 86_400.0;
-const DOS_YEAR_START: i32 = 1980;
-const DOS_YEAR_END: i32 = 2107;
 
 #[derive(Clone, Copy)]
 pub(crate) enum FloatWidth {
@@ -80,7 +74,7 @@ fn integer(value: f64, bits: u32, signed: bool) -> Result<u64, u64> {
     })
 }
 
-fn numeric_bytes(value: f64, number: Number) -> Result<Vec<u8>, u64> {
+pub(crate) fn numeric_bytes(value: f64, number: Number) -> Result<Vec<u8>, u64> {
     match number {
         Number::Bool => Ok((if value == 0.0 {
             VARIANT_FALSE
@@ -113,7 +107,7 @@ fn numeric_bytes(value: f64, number: Number) -> Result<Vec<u8>, u64> {
     }
 }
 
-fn output(emu: &mut Emu, pointer: u64, bytes: &[u8]) -> Result<(), u64> {
+pub(crate) fn output(emu: &mut Emu, pointer: u64, bytes: &[u8]) -> Result<(), u64> {
     if pointer == 0
         || !emu.maps.validate_write_range(pointer, bytes.len() as u64)
         || !emu.maps.write_bytes(pointer, bytes)
@@ -123,7 +117,7 @@ fn output(emu: &mut Emu, pointer: u64, bytes: &[u8]) -> Result<(), u64> {
     Ok(())
 }
 
-fn after_float(emu: &Emu, index: usize, x86_word: usize) -> Result<u64, ArgumentError> {
+pub(crate) fn argument_at(emu: &Emu, index: usize, x86_word: usize) -> Result<u64, ArgumentError> {
     let call = WinApi(Stdcall);
     call.arg(
         emu,
@@ -138,11 +132,11 @@ fn after_float(emu: &Emu, index: usize, x86_word: usize) -> Result<u64, Argument
 pub(crate) fn convert(emu: &mut Emu, api: &str, width: FloatWidth, number: Number) {
     let call = WinApi(Stdcall);
     let value = api_try!(emu, width.read(emu));
-    let destination = api_try!(emu, after_float(emu, 1, width.words()));
+    let destination = api_try!(emu, argument_at(emu, 1, width.words()));
     let result = numeric_bytes(value, number).and_then(|bytes| output(emu, destination, &bytes));
     log_red!(
         emu,
-        "oleaut32!{} {} destination:0x{:x} => {:?}",
+        "oleaut32!{} value={} destination=0x{:x} result={:?}",
         api,
         value,
         destination,
@@ -154,25 +148,6 @@ pub(crate) fn convert(emu: &mut Emu, api: &str, width: FloatWidth, number: Numbe
 
 /// Locale-dependent formatting and full DECIMAL rounding remain unmodelled.
 /// Read the correct FP ABI and fail without modifying the caller's output.
-pub(crate) fn unsupported_conversion(emu: &mut Emu, api: &str, width: FloatWidth, locale: bool) {
-    let call = WinApi(Stdcall);
-    let value = api_try!(emu, width.read(emu));
-    let pointer_index = if locale { 3 } else { 1 };
-    let destination = api_try!(
-        emu,
-        after_float(emu, pointer_index, width.words() + pointer_index - 1)
-    );
-    log_red!(
-        emu,
-        "oleaut32!{} {} destination:0x{:x} not implemented",
-        api,
-        value,
-        destination
-    );
-    call.set_return(emu, E_NOTIMPL);
-    call.cleanup_args(emu, width.words() + pointer_index);
-}
-
 fn compare(left: f64, right: f64) -> u64 {
     match left.partial_cmp(&right) {
         Some(Ordering::Less) => VARCMP_LT,
@@ -187,7 +162,13 @@ pub(crate) fn compare_single(emu: &mut Emu) {
     let left = api_try!(emu, call.arg_f32(emu, 0, 0)) as f64;
     let right = api_try!(emu, call.arg_f64(emu, 1, 1));
     let value = compare(left, right);
-    log_red!(emu, "oleaut32!VarR4CmpR8 {} {} => {}", left, right, value);
+    log_red!(
+        emu,
+        "oleaut32!VarR4CmpR8 left={} right={} result={}",
+        left,
+        right,
+        value
+    );
     call.set_return(emu, value);
     call.cleanup_args(emu, 3);
 }
@@ -197,30 +178,60 @@ pub(crate) fn compare_currency(emu: &mut Emu) {
     let left = api_try!(emu, call.arg_i64(emu, 0)) as f64 / CURRENCY_SCALE;
     let right = api_try!(emu, call.arg_f64(emu, 1, 2));
     let value = compare(left, right);
-    log_red!(emu, "oleaut32!VarCyCmpR8 {} {} => {}", left, right, value);
+    log_red!(
+        emu,
+        "oleaut32!VarCyCmpR8 left={} right={} result={}",
+        left,
+        right,
+        value
+    );
     call.set_return(emu, value);
     call.cleanup_args(emu, 4);
 }
 
-fn read_decimal(emu: &Emu, address: u64) -> Option<f64> {
-    let scale = emu
-        .maps
-        .read_byte(address.checked_add(DECIMAL_SCALE_OFFSET)?)?;
-    let sign = emu
-        .maps
-        .read_byte(address.checked_add(DECIMAL_SIGN_OFFSET)?)?;
-    if address == 0 || scale > DECIMAL_SCALE_MAX || sign & !DECIMAL_NEG != 0 {
-        return None;
+pub(crate) struct Decimal {
+    pub(crate) magnitude: u128,
+    pub(crate) scale: u8,
+    pub(crate) negative: bool,
+}
+
+impl Decimal {
+    pub(crate) fn read(emu: &Emu, address: u64) -> Result<Self, u64> {
+        let raw = read_array::<16>(emu, address)
+            .filter(|_| address != 0)
+            .ok_or(E_POINTER)?;
+        let [_, _, scale, sign, h0, h1, h2, h3, low @ ..] = raw;
+        if scale > DECIMAL_SCALE_MAX || sign & !DECIMAL_NEG != 0 {
+            return Err(HRESULT_E_INVALID_ARG);
+        }
+        let magnitude = (u128::from(u32::from_le_bytes([h0, h1, h2, h3])) << u64::BITS)
+            | u128::from(u64::from_le_bytes(low));
+        Ok(Self {
+            magnitude,
+            scale,
+            negative: sign != 0,
+        })
     }
-    let high = emu
-        .maps
-        .read_dword(address.checked_add(DECIMAL_HIGH_OFFSET)?)?;
-    let low = emu
-        .maps
-        .read_qword(address.checked_add(DECIMAL_LOW_OFFSET)?)?;
-    let magnitude = ((high as u128) << u64::BITS) | low as u128;
-    let value = magnitude as f64 / 10.0f64.powi(scale as i32);
-    Some(if sign == DECIMAL_NEG { -value } else { value })
+
+    pub(crate) fn write(&self, emu: &mut Emu, address: u64) -> Result<(), u64> {
+        // wReserved overlays the type tag when DECIMAL is inside a VARIANT.
+        let address = address
+            .checked_add(DECIMAL_SCALE_OFFSET)
+            .filter(|_| address != 0)
+            .ok_or(E_POINTER)?;
+        let mut raw = [0u8; 14];
+        raw[0] = self.scale;
+        raw[1] = if self.negative { DECIMAL_NEG } else { 0 };
+        raw[2..6].copy_from_slice(&((self.magnitude >> u64::BITS) as u32).to_le_bytes());
+        raw[6..].copy_from_slice(&(self.magnitude as u64).to_le_bytes());
+        output(emu, address, &raw)
+    }
+}
+
+fn read_decimal(emu: &Emu, address: u64) -> Option<f64> {
+    let dec = Decimal::read(emu, address).ok()?;
+    let value = dec.magnitude as f64 / 10.0f64.powi(i32::from(dec.scale));
+    Some(if dec.negative { -value } else { value })
 }
 
 pub(crate) fn compare_decimal(emu: &mut Emu) {
@@ -231,7 +242,7 @@ pub(crate) fn compare_decimal(emu: &mut Emu) {
         read_decimal(emu, address).map_or(HRESULT_E_INVALID_ARG, |left| compare(left, right));
     log_red!(
         emu,
-        "oleaut32!VarDecCmpR8 decimal:0x{:x} {} => {}",
+        "oleaut32!VarDecCmpR8 decimal=0x{:x} right={} result={}",
         address,
         right,
         value
@@ -244,14 +255,20 @@ pub(crate) fn power(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let left = api_try!(emu, call.arg_f64(emu, 0, 0));
     let right = api_try!(emu, call.arg_f64(emu, 1, 2));
-    let destination = api_try!(emu, after_float(emu, 2, 4));
+    let destination = api_try!(emu, argument_at(emu, 2, 4));
     let value = left.powf(right);
     let result = if value.is_finite() {
         output(emu, destination, &value.to_le_bytes())
     } else {
         Err(DISP_E_OVERFLOW)
     };
-    log_red!(emu, "oleaut32!VarR8Pow {} {} => {:?}", left, right, result);
+    log_red!(
+        emu,
+        "oleaut32!VarR8Pow base={} exponent={} result={:?}",
+        left,
+        right,
+        result
+    );
     call.set_return(emu, result.err().unwrap_or(S_OK));
     call.cleanup_args(emu, 5);
 }
@@ -259,8 +276,8 @@ pub(crate) fn power(emu: &mut Emu) {
 pub(crate) fn round(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let value = api_try!(emu, call.arg_f64(emu, 0, 0));
-    let decimals = api_try!(emu, after_float(emu, 1, 2)) as i32;
-    let destination = api_try!(emu, after_float(emu, 2, 3));
+    let decimals = api_try!(emu, argument_at(emu, 1, 2)) as i32;
+    let destination = api_try!(emu, argument_at(emu, 2, 3));
     let result = if decimals < 0 {
         Err(HRESULT_E_INVALID_ARG)
     } else {
@@ -275,7 +292,7 @@ pub(crate) fn round(emu: &mut Emu) {
     };
     log_red!(
         emu,
-        "oleaut32!VarR8Round {} decimals:{} => {:?}",
+        "oleaut32!VarR8Round value={} decimals={} result={:?}",
         value,
         decimals,
         result
@@ -319,30 +336,30 @@ pub(crate) fn to_system_time(emu: &mut Emu, unpacked: bool) {
     let value = api_try!(emu, call.arg_f64(emu, 0, 0));
     let destination = api_try!(
         emu,
-        after_float(
+        argument_at(
             emu,
             if unpacked { 2 } else { 1 },
             if unpacked { 3 } else { 2 },
         )
     );
     let flags = if unpacked {
-        api_try!(emu, after_float(emu, 1, 2)) as u32
+        api_try!(emu, argument_at(emu, 1, 2)) as u32
     } else {
         0
     };
-    let result = if flags != 0 {
-        Err(HRESULT_E_INVALID_ARG)
-    } else {
-        variant_date(value)
-            .ok_or(HRESULT_E_INVALID_ARG)
-            .and_then(|date| {
-                let mut bytes = system_time_bytes(date);
-                if unpacked {
-                    bytes.extend_from_slice(&(date.ordinal() as u16).to_le_bytes());
-                }
-                output(emu, destination, &bytes)
-            })
-    };
+    if flags != 0 {
+        policy::unsupported(emu, "oleaut32", "VarUdateFromDate", emu.pc());
+        return;
+    }
+    let result = variant_date(value)
+        .ok_or(HRESULT_E_INVALID_ARG)
+        .and_then(|date| {
+            let mut bytes = system_time_bytes(date);
+            if unpacked {
+                bytes.extend_from_slice(&(date.ordinal() as u16).to_le_bytes());
+            }
+            output(emu, destination, &bytes)
+        });
     let api = if unpacked {
         "VarUdateFromDate"
     } else {
@@ -350,7 +367,7 @@ pub(crate) fn to_system_time(emu: &mut Emu, unpacked: bool) {
     };
     log_red!(
         emu,
-        "oleaut32!{} {} destination:0x{:x} => {:?}",
+        "oleaut32!{} value={} destination=0x{:x} result={:?}",
         api,
         value,
         destination,
@@ -368,8 +385,8 @@ pub(crate) fn to_system_time(emu: &mut Emu, unpacked: bool) {
 pub(crate) fn to_dos_time(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let value = api_try!(emu, call.arg_f64(emu, 0, 0));
-    let date_pointer = api_try!(emu, after_float(emu, 1, 2));
-    let time_pointer = api_try!(emu, after_float(emu, 2, 3));
+    let date_pointer = api_try!(emu, argument_at(emu, 1, 2));
+    let time_pointer = api_try!(emu, argument_at(emu, 2, 3));
     let result = variant_date(value)
         .filter(|d| (DOS_YEAR_START..=DOS_YEAR_END).contains(&d.year()))
         .ok_or(HRESULT_E_INVALID_ARG)
@@ -396,7 +413,7 @@ pub(crate) fn to_dos_time(emu: &mut Emu) {
         });
     log_red!(
         emu,
-        "oleaut32!VariantTimeToDosDateTime {} => {:?}",
+        "oleaut32!VariantTimeToDosDateTime date={} result={:?}",
         value,
         result
     );

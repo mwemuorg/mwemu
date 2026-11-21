@@ -6,10 +6,9 @@
 //!
 //! Coverage is intentionally partial: everything a driver needs to *allocate,
 //! free, copy and log* is implemented, because that is what memory-safety
-//! analysis depends on. The rest of the kernel is declared in [`SURFACE`] and
-//! answered with a benign zero, which is enough to keep a driver running
-//! through its own logic. An unimplemented symbol that is actually called is
-//! recorded in `KernelEnv::unimplemented` rather than aborting the run.
+//! analysis depends on. Dispatch declarations also supply [`SURFACE`]. Calls
+//! without a handler return zero and record the symbol in
+//! `KernelEnv::unimplemented`.
 
 pub mod io;
 pub mod misc;
@@ -67,216 +66,27 @@ pub fn data_symbol_size(name: &str) -> Option<u64> {
     Some(size)
 }
 
-/// Every symbol this surface knows about, grouped the way the modules are.
-/// Used for `--kernel-surface`-style reporting: it answers "what can mwemu
-/// emulate for a driver today?" without running anything.
+/// Exact callable names declared by the dispatchers, grouped by subsystem.
+/// Prefix-based partial models are also recognized by `is_implemented`.
 pub const SURFACE: &[(&str, &[&str])] = &[
-    (
-        "alloc",
-        &[
-            "__kmalloc",
-            "__kmalloc_noprof",
-            "__kmalloc_node",
-            "__kmalloc_node_noprof",
-            "__kmalloc_cache_noprof",
-            "__kmalloc_cache_node_noprof",
-            "__kmalloc_large_noprof",
-            "kmalloc_trace",
-            "kcalloc",
-            "kmalloc_array",
-            "kfree",
-            "kfree_sensitive",
-            "krealloc",
-            "krealloc_noprof",
-            "krealloc_node_align_noprof",
-            "kmemdup",
-            "kstrdup",
-            "kstrndup",
-            "kmem_cache_create",
-            "kmem_cache_create_usercopy",
-            "__kmem_cache_create_args",
-            "kmem_cache_destroy",
-            "kmem_cache_alloc",
-            "kmem_cache_alloc_noprof",
-            "kmem_cache_zalloc",
-            "kmem_cache_free",
-            "vmalloc",
-            "vzalloc",
-            "__vmalloc",
-            "vfree",
-            "kvmalloc",
-            "kvmalloc_node_noprof",
-            "kvzalloc",
-            "kvfree",
-            "__get_free_pages",
-            "get_zeroed_page",
-            "free_pages",
-            "__free_pages",
-            "alloc_pages",
-            "devm_kmalloc",
-            "devm_kzalloc",
-            "devm_kfree",
-        ],
-    ),
-    (
-        "usercopy",
-        &[
-            "copy_from_user",
-            "_copy_from_user",
-            "copy_to_user",
-            "_copy_to_user",
-            "clear_user",
-            "strncpy_from_user",
-            "memdup_user",
-            "vmemdup_user",
-            "__check_object_size",
-            "validate_usercopy_range",
-        ],
-    ),
-    (
-        "string",
-        &[
-            "memcpy",
-            "memmove",
-            "memset",
-            "memcmp",
-            "strlen",
-            "strnlen",
-            "strcmp",
-            "strncmp",
-            "strcpy",
-            "strncpy",
-            "strscpy",
-            "strlcpy",
-            "strcat",
-            "strchr",
-            "strrchr",
-            "strstr",
-            "snprintf",
-            "scnprintf",
-            "sprintf",
-            "simple_strtoul",
-            "kstrtoint",
-            "kstrtoul",
-            "kstrtouint",
-            "kstrtou32",
-            "sized_strscpy",
-        ],
-    ),
-    (
-        "lifetime",
-        &[
-            "refcount_inc",
-            "refcount_dec",
-            "refcount_dec_and_test",
-            "refcount_add",
-            "refcount_sub_and_test",
-            "refcount_inc_not_zero",
-            "refcount_warn_saturate",
-            "kref_get",
-            "kref_put",
-        ],
-    ),
-    (
-        "locking",
-        &[
-            "mutex_lock",
-            "mutex_unlock",
-            "mutex_trylock",
-            "__mutex_init",
-            "_raw_spin_lock",
-            "_raw_spin_unlock",
-            "_raw_spin_lock_irqsave",
-            "_raw_spin_unlock_irqrestore",
-            "down_read",
-            "up_read",
-            "down_write",
-            "up_write",
-            "synchronize_rcu",
-            "rcu_read_lock",
-            "rcu_read_unlock",
-            "mutex_init_generic",
-            "__list_add_valid_or_report",
-            "__list_del_entry_valid_or_report",
-        ],
-    ),
-    (
-        "deferred",
-        &[
-            "queue_work_on",
-            "schedule_work",
-            "queue_delayed_work_on",
-            "flush_work",
-            "cancel_work_sync",
-            "cancel_delayed_work_sync",
-            "mod_timer",
-            "add_timer",
-            "del_timer_sync",
-            "timer_delete_sync",
-            "call_rcu",
-            "kvfree_call_rcu",
-            "kthread_create_on_node",
-            "wake_up_process",
-            "kthread_stop",
-        ],
-    ),
-    (
-        "logging",
-        &[
-            "printk",
-            "_printk",
-            "_dev_info",
-            "_dev_warn",
-            "_dev_err",
-            "__warn_printk",
-            "panic",
-            "dump_stack",
-            "__stack_chk_fail",
-            "__fortify_panic",
-        ],
-    ),
-    (
-        "registration",
-        &[
-            "__register_chrdev",
-            "__unregister_chrdev",
-            "alloc_chrdev_region",
-            "register_chrdev_region",
-            "unregister_chrdev_region",
-            "cdev_init",
-            "cdev_add",
-            "cdev_del",
-            "misc_register",
-            "misc_deregister",
-            "class_create",
-            "class_destroy",
-            "device_create",
-            "device_destroy",
-            "proc_create",
-            "remove_proc_entry",
-            "debugfs_create_file",
-            "debugfs_create_dir",
-            "debugfs_remove",
-            "try_module_get",
-            "module_put",
-        ],
-    ),
-    (
-        "time",
-        &[
-            "msleep",
-            "usleep_range",
-            "ssleep",
-            "ktime_get",
-            "ktime_get_real_ts64",
-            "get_random_bytes",
-            "get_random_u32",
-            "capable",
-        ],
-    ),
+    ("alloc", mm::SURFACE),
+    ("string", string::SURFACE),
+    ("sync", sync::SURFACE),
+    ("logging", printk::SURFACE),
+    ("registration", module::SURFACE),
+    ("net", net::SURFACE),
+    ("io", io::SURFACE),
+    ("misc", misc::SURFACE),
 ];
 
-/// True when the symbol has a real implementation (not just a benign stub).
+/// True when dispatch has a handler or a deliberate partial model for this name.
 pub fn is_implemented(name: &str) -> bool {
-    SURFACE.iter().any(|(_, names)| names.contains(&name))
+    mm::has_handler(name)
+        || string::has_handler(name)
+        || sync::has_handler(name)
+        || printk::has_handler(name)
+        || module::has_handler(name)
+        || net::has_handler(name)
+        || io::has_handler(name)
+        || misc::has_handler(name)
 }

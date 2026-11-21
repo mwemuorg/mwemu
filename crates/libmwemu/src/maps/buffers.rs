@@ -6,6 +6,9 @@ pub enum BufferKind {
     Aligned,
     Bstr,
     Task,
+    Environment,
+    Sid,
+    SafeArray,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

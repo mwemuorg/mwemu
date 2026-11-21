@@ -120,6 +120,7 @@ impl Emu {
         } else {
             self.cfg.entry_point
         };
+        self.current_thread_mut().windows_start_address = Some(actual);
         self.set_pc(actual);
         log::trace!("PE base: 0x{base:x}, entry point: 0x{entry:x}, initial PC: 0x{actual:x}");
     }

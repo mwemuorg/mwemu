@@ -2,7 +2,10 @@ use crate::api::windows::export_index::{self, ModuleExportIndex};
 use crate::emu::Emu;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
+use crate::winapi::winapi64::msvcrt;
 use crate::windows::constants::memory::*;
+use goblin::pe::header::{COFF_MACHINE_X86, COFF_MACHINE_X86_64, PE_MAGIC};
+use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
 
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
@@ -68,16 +71,16 @@ impl Emu {
         w32(&mut hdr, 0x3c, 0x80); // e_lfanew
 
         // PE signature
-        w32(&mut hdr, 0x80, 0x0000_4550);
+        w32(&mut hdr, 0x80, PE_MAGIC);
 
         // IMAGE_FILE_HEADER
-        w16(&mut hdr, 0x84, 0x014c); // Machine = i386
+        w16(&mut hdr, 0x84, COFF_MACHINE_X86); // Machine = i386
         w16(&mut hdr, 0x86, 2); // NumberOfSections
         w16(&mut hdr, 0x94, 0xe0); // SizeOfOptionalHeader
         w16(&mut hdr, 0x96, 0x2102); // DLL | EXEC | 32BIT
 
         // IMAGE_OPTIONAL_HEADER32
-        w16(&mut hdr, 0x98, 0x10b); // Magic = PE32
+        w16(&mut hdr, 0x98, MAGIC_32); // Magic = PE32
         w32(&mut hdr, 0x9c, text_size); // SizeOfCode
         w32(&mut hdr, 0xac, TEXT_RVA); // BaseOfCode
         w32(&mut hdr, 0xb0, edata_rva); // BaseOfData
@@ -278,14 +281,14 @@ impl Emu {
         hdr[0] = 0x4d;
         hdr[1] = 0x5a;
         w32(&mut hdr, 0x3c, 0x80);
-        w32(&mut hdr, 0x80, 0x0000_4550);
+        w32(&mut hdr, 0x80, PE_MAGIC);
 
-        w16(&mut hdr, 0x84, 0x8664); // Machine = AMD64
+        w16(&mut hdr, 0x84, COFF_MACHINE_X86_64); // Machine = AMD64
         w16(&mut hdr, 0x86, 2);
         w16(&mut hdr, 0x94, 0xf0); // SizeOfOptionalHeader (PE32+)
         w16(&mut hdr, 0x96, 0x2022); // DLL | EXEC | LARGE_ADDRESS_AWARE
 
-        w16(&mut hdr, 0x98, 0x20b); // Magic = PE32+
+        w16(&mut hdr, 0x98, MAGIC_64); // Magic = PE32+
         w32(&mut hdr, 0x9c, text_size);
         w32(&mut hdr, 0xac, TEXT_RVA);
         // PE32+ has ImageBase at 0xb0 as u64
@@ -381,7 +384,12 @@ impl Emu {
                 data: &hdr,
             },
             ImageRegion {
-                name: format!("{map_name}.text"),
+                // The native MSVCRT execution path only applies to file-backed code.
+                name: if map_name.eq_ignore_ascii_case("msvcrt") {
+                    msvcrt::SYNTHETIC_TEXT.into()
+                } else {
+                    format!("{map_name}.text")
+                },
                 offset: TEXT_RVA as u64,
                 size: text_size as u64,
                 permission: Permission::READ_WRITE_EXECUTE,

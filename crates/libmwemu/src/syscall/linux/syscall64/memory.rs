@@ -1,11 +1,13 @@
+use super::thread::yield_current;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::unsupported;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
         NR64_BRK => handle_syscall64_brk(emu),
         NR64_NANOSLEEP => handle_syscall64_nanosleep(emu),
-        NR64_MREMAP => handle_syscall64_mremap(emu),
+        NR64_MREMAP => unsupported(emu, "mremap"),
         _ => return false,
     }
 
@@ -99,30 +101,6 @@ pub(super) fn handle_syscall64_nanosleep(emu: &mut emu::Emu) {
     );
 
     // No wall clock to sleep on: let every other thread run first.
-    super::thread::yield_current(emu);
-    emu.regs_mut().rax = 0;
-}
-
-pub(super) fn handle_syscall64_mremap(emu: &mut emu::Emu) {
-    let old_addr = emu.regs().rdi;
-    let old_sz = emu.regs().rsi;
-    let new_sz = emu.regs().rdx;
-    let flags = emu.regs().r10;
-    let new_addr = emu.regs().r8;
-
-    log::info!(
-        "{}** {} syscall mremap(old_addr: 0x{:x}, old_sz: 0x{:x}, new_sz: 0x{:x}, flags: 0x{:x}, new_addr: 0x{:x}) ={} {}",
-        emu.colors.light_red,
-        emu.pos,
-        old_addr,
-        old_sz,
-        new_sz,
-        flags,
-        new_addr,
-        emu.regs().rax,
-        emu.colors.nc
-    );
-
-    // TODO: implement actual mremap
+    yield_current(emu);
     emu.regs_mut().rax = 0;
 }

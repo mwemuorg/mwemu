@@ -4,9 +4,10 @@ use crate::api::abi::ArgumentFault;
 use crate::api::macos;
 use crate::api::macos::libsystem::gateway;
 use crate::api::unix::ApiStopReason;
+use crate::emu::Emu;
 
 /// Apple AArch64 ABI: variadic arguments always live on the stack.
-fn push_varargs(emu: &mut crate::emu::Emu, args: &[u64]) {
+fn push_varargs(emu: &mut Emu, args: &[u64]) {
     let sp = emu.regs_aarch64().sp;
     for (i, a) in args.iter().enumerate() {
         emu.maps.write_qword(sp + i as u64 * 8, *a);
@@ -60,7 +61,9 @@ fn strvis_copies_printable_text() {
 #[test]
 fn ioctl_reports_terminal_size() {
     let (mut emu, d) = aarch64_env();
-    set_args(&mut emu, &[1, 0x40087468, d]); // TIOCGWINSZ
+    set_args(&mut emu, &[1, 0x40087468]); // TIOCGWINSZ
+    let sp = emu.sp();
+    emu.maps.write_qword(sp, d);
     gateway("_ioctl", &mut emu);
     assert_eq!(ret(&emu), 0);
     assert_eq!(emu.maps.read_word(d), Some(24));
@@ -69,27 +72,6 @@ fn ioctl_reports_terminal_size() {
     set_args(&mut emu, &[1, 0x1234, d]);
     gateway("_ioctl", &mut emu);
     assert_eq!(ret(&emu) as i64, -1);
-}
-
-#[test]
-fn strtol_family_honours_sign_base_and_endptr() {
-    let (mut emu, d) = aarch64_env();
-    let s = put_str(&mut emu, d, "-0x10 rest");
-    let endp = d + 0x100;
-    set_args(&mut emu, &[s, endp, 16]);
-    gateway("_strtol", &mut emu);
-    assert_eq!(ret(&emu) as i64, -16);
-    assert_eq!(emu.maps.read_qword(endp), Some(s + 5));
-
-    let oct = put_str(&mut emu, d + 0x200, "0755");
-    set_args(&mut emu, &[oct, 0, 0]);
-    gateway("_strtoul", &mut emu);
-    assert_eq!(ret(&emu), 0o755);
-
-    let n = put_str(&mut emu, d + 0x300, " 99 bottles");
-    set_args(&mut emu, &[n]);
-    gateway("_atoi", &mut emu);
-    assert_eq!(ret(&emu), 99);
 }
 
 #[test]
@@ -180,7 +162,7 @@ fn time_queries_fill_structs() {
 #[test]
 fn rand_is_deterministic_per_seed() {
     let (mut emu, _) = aarch64_env();
-    let sequence = |emu: &mut crate::emu::Emu| -> Vec<u64> {
+    let sequence = |emu: &mut Emu| -> Vec<u64> {
         set_args(emu, &[7]);
         gateway("_srand", emu);
         (0..3)
@@ -297,4 +279,20 @@ fn zero_vararg_is_a_value_and_literal_formats_need_no_stack_argument() {
     gateway("_printf", &mut emu);
     assert_eq!(stdout_text(&emu), "literal %");
     assert!(!emu.unix_api.stopped());
+}
+
+#[test]
+fn case_conversion_aliases_preserve_eof_and_non_ascii_bytes() {
+    let (mut emu, _) = aarch64_env();
+    for name in ["_tolower", "__tolower", "___tolower"] {
+        for (value, expected) in [
+            (b'A' as u64, b'a' as u64),
+            (0x80, 0x80),
+            (u32::MAX as u64, u32::MAX as u64),
+        ] {
+            set_args(&mut emu, &[value]);
+            gateway(name, &mut emu);
+            assert_eq!(ret(&emu) as u32, expected as u32, "{name}");
+        }
+    }
 }

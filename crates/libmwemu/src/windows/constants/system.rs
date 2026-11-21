@@ -6,16 +6,22 @@ pub const TEMP_PATH: &str = "C:\\Temp\\"; // randomize this
 pub const CWD_PATH: &str = "C:\\cwd"; // randomize this
 pub const WINDOWS_DIRECTORY: &str = "C:\\Windows"; // randomize this
 pub const SYSTEM_DIRECTORY: &str = "C:\\Windows\\System32"; // randomize this
+
 pub const TRUE: u64 = 1;
 pub const FALSE: u64 = 0;
+
 pub const NUM_BYTES_TRACE: usize = 16;
 pub const VERSION: u64 = 0x1db10106;
+
 pub const IDOK: u64 = 1;
+
 pub const SYSTEM_BASIC_INFORMATION: u64 = 0;
+
 pub const COINIT_APARTMENTTHREADED: u32 = 2;
-pub const CSIDL_WINDOWS: u32 = 0x24;
+
 pub const HORZRES: u32 = 8;
 pub const SRCCOPY: u32 = 0x00cc_0020;
+
 // processorFeaturePresent
 pub const PF_ARM_64BIT_LOADSTORE_ATOMIC: u32 = 25;
 pub const PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE: u32 = 24;
@@ -67,8 +73,14 @@ pub const MAPVK_VSC_TO_VK: u32 = 0x01;
 pub const MAPVK_VK_TO_CHAR: u32 = 0x02;
 pub const MAPVK_VSC_TO_VK_EX: u32 = 0x03;
 pub const MAPVK_VK_TO_VSC_EX: u32 = 0x04;
+
 pub const VK_BACK: u32 = 0x08;
 pub const VK_TAB: u32 = 0x09;
 pub const VK_RETURN: u32 = 0x0d;
 pub const VK_ESCAPE: u32 = 0x1b;
 pub const VK_SPACE: u32 = 0x20;
+
+pub const TIME_ZONE_ID_UNKNOWN: u32 = 0;
+pub const TIME_ZONE_ID_STANDARD: u32 = 1;
+pub const TIME_ZONE_ID_DAYLIGHT: u32 = 2;
+pub const TIME_ZONE_ID_INVALID: u32 = 0xffff_ffff;

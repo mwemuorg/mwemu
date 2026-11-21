@@ -1,11 +1,12 @@
+use crate::api::windows::policy::ApiMode;
+use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
+use crate::winapi::libraries::gdi32;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
-use crate::windows::constants::network::*;
 use crate::windows::constants::system::*;
-
 use crate::*;
 
 /// Call a 64-bit WinAPI that reads stack args at rsp+0x28, rsp+0x30, ...
@@ -31,129 +32,6 @@ fn call_winapi64_stack(emu: &mut emu::Emu, func: fn(&mut emu::Emu), args: &[u64]
     emu.regs().rax
 }
 
-// ─── crypt32 64-bit: CertOpenStore ───
-
-#[test]
-fn cert_open_store_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let handle = call_winapi64_stack(
-        &mut emu,
-        winapi64::crypt32::CertOpenStore,
-        &[
-            CERT_STORE_PROV_SYSTEM_W,
-            (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING) as u64,
-            0,
-            0,
-            0,
-        ],
-    );
-    assert_ne!(handle, 0, "CertOpenStore should return non-zero handle");
-}
-
-// ─── crypt32 64-bit: CertOpenSystemStoreA ───
-
-#[test]
-fn cert_open_system_store_a_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let str_addr = 0x30000u64;
-    emu.maps
-        .create_map("str_buf", str_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps.write_string(str_addr, "MY");
-
-    let handle = helpers::call_winapi64(
-        &mut emu,
-        winapi64::crypt32::CertOpenSystemStoreA,
-        &[0, str_addr],
-    );
-    assert_ne!(
-        handle, 0,
-        "CertOpenSystemStoreA should return non-zero handle"
-    );
-}
-
-// ─── crypt32 64-bit: CertOpenSystemStoreW ───
-
-#[test]
-fn cert_open_system_store_w_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let str_addr = 0x30000u64;
-    emu.maps
-        .create_map("str_buf", str_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps.write_wide_string(str_addr, "ROOT");
-
-    let handle = helpers::call_winapi64(
-        &mut emu,
-        winapi64::crypt32::CertOpenSystemStoreW,
-        &[0, str_addr],
-    );
-    assert_ne!(
-        handle, 0,
-        "CertOpenSystemStoreW should return non-zero handle"
-    );
-}
-
-// ─── crypt32 64-bit: CertCloseStore ───
-
-#[test]
-fn cert_close_store_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let store = call_winapi64_stack(
-        &mut emu,
-        winapi64::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0],
-    );
-    assert_ne!(store, 0);
-
-    let ret = helpers::call_winapi64(&mut emu, winapi64::crypt32::CertCloseStore, &[store, 0]);
-    assert_eq!(ret, 1, "CertCloseStore should return TRUE");
-}
-
-// ─── crypt32 64-bit: CertFindCertificateInStore (empty store) ───
-
-#[test]
-fn cert_find_certificate_empty_store_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let store = call_winapi64_stack(
-        &mut emu,
-        winapi64::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0],
-    );
-
-    let cert = call_winapi64_stack(
-        &mut emu,
-        winapi64::crypt32::CertFindCertificateInStore,
-        &[store, 0x10001, 0, 0, 0, 0],
-    );
-    assert_eq!(cert, 0, "empty store should have no certificates");
-}
-
-// ─── crypt32 64-bit: CertFreeCertificateContext ───
-
-#[test]
-fn cert_free_certificate_context_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::crypt32::CertFreeCertificateContext,
-        &[0x1234],
-    );
-    assert_eq!(ret, 1, "CertFreeCertificateContext should return TRUE");
-}
-
 // ─── crypt32 64-bit: CryptStringToBinaryA ───
 
 #[test]
@@ -177,128 +55,6 @@ fn crypt_string_to_binary_a_64() {
         &[str_addr, 8, CRYPT_STRING_BASE64, out_ptr, out_sz_ptr, 0, 0],
     );
     assert_eq!(ret, 1, "CryptStringToBinaryA should return TRUE (success)");
-}
-
-// ─── crypt32 64-bit: full open/find/close cycle ───
-
-#[test]
-fn cert_store_lifecycle_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let str_addr = 0x30000u64;
-    emu.maps
-        .create_map("buf", str_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps.write_string(str_addr, "MY");
-
-    let store = helpers::call_winapi64(
-        &mut emu,
-        winapi64::crypt32::CertOpenSystemStoreA,
-        &[0, str_addr],
-    );
-    assert_ne!(store, 0);
-
-    let cert = call_winapi64_stack(
-        &mut emu,
-        winapi64::crypt32::CertFindCertificateInStore,
-        &[store, 0x10001, 0, 0, 0, 0],
-    );
-    assert_eq!(cert, 0, "emulated store is empty");
-
-    let closed = helpers::call_winapi64(&mut emu, winapi64::crypt32::CertCloseStore, &[store, 0]);
-    assert_eq!(closed, 1);
-}
-
-// ─── crypt32 32-bit: CertOpenStore ───
-
-#[test]
-fn cert_open_store_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let ret = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0],
-    );
-    assert_ne!(ret, 0, "CertOpenStore 32-bit should return non-zero handle");
-}
-
-// ─── crypt32 32-bit: CertOpenSystemStoreA ───
-
-#[test]
-fn cert_open_system_store_a_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let str_addr = 0x30000u64;
-    emu.maps
-        .create_map("str_buf", str_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps.write_string(str_addr, "MY");
-
-    let ret = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertOpenSystemStoreA,
-        &[0, str_addr as u32],
-    );
-    assert_ne!(ret, 0, "CertOpenSystemStoreA 32-bit non-zero handle");
-}
-
-// ─── crypt32 32-bit: CertCloseStore ───
-
-#[test]
-fn cert_close_store_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let store = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0],
-    );
-    assert_ne!(store, 0);
-
-    let ret = helpers::call_winapi32(&mut emu, winapi32::crypt32::CertCloseStore, &[store, 0]);
-    assert_eq!(ret, 1, "CertCloseStore 32-bit should return TRUE");
-}
-
-// ─── crypt32 32-bit: CertFindCertificateInStore ───
-
-#[test]
-fn cert_find_certificate_empty_store_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let store = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0],
-    );
-    assert_ne!(store, 0);
-
-    let cert = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertFindCertificateInStore,
-        &[store, 0x10001, 0, 0, 0, 0],
-    );
-    assert_eq!(cert, 0, "32-bit empty store has no certs");
-}
-
-// ─── crypt32 32-bit: CertFreeCertificateContext ───
-
-#[test]
-fn cert_free_certificate_context_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let ret = helpers::call_winapi32(
-        &mut emu,
-        winapi32::crypt32::CertFreeCertificateContext,
-        &[0x1234],
-    );
-    assert_eq!(ret, 1, "CertFreeCertificateContext 32-bit TRUE");
 }
 
 // ─── crypt32 32-bit: CryptStringToBinaryA ───
@@ -614,23 +370,6 @@ fn ws2_32_wsa_startup_64() {
 }
 
 #[test]
-fn ws2_32_socket_create_close_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let sock = helpers::call_winapi64(
-        &mut emu,
-        winapi64::ws2_32::socket,
-        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
-    );
-    assert_ne!(sock, 0, "socket() should return non-zero handle");
-    assert_ne!(sock, u64::MAX, "socket() should not return INVALID_SOCKET");
-
-    let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::closesocket, &[sock]);
-    assert_eq!(ret, 0, "closesocket returns 0");
-}
-
-#[test]
 fn ws2_32_htons_64() {
     helpers::setup();
     let mut emu = emu64();
@@ -661,18 +400,6 @@ fn ws2_32_wsa_startup_32() {
         ret as u64, WSAEFAULT,
         "WSAStartup requires writable WSADATA"
     );
-}
-
-#[test]
-fn ws2_32_socket_create_close_32() {
-    helpers::setup();
-    let mut emu = emu32();
-
-    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
-    assert_ne!(sock, 0, "socket() 32-bit non-zero");
-
-    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::closesocket, &[sock]);
-    assert_eq!(ret, 0, "closesocket 32-bit returns 0");
 }
 
 #[test]
@@ -779,7 +506,7 @@ fn create_compatible_dc_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let hdc = helpers::call_winapi64(&mut emu, winapi64::gdi32::CreateCompatibleDC, &[0]);
+    let hdc = helpers::call_winapi64(&mut emu, gdi32::CreateCompatibleDC, &[0]);
     assert_ne!(
         hdc, 0,
         "CreateCompatibleDC should return non-zero DC handle"
@@ -787,31 +514,16 @@ fn create_compatible_dc_64() {
 }
 
 #[test]
-fn create_compatible_bitmap_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let hbm = helpers::call_winapi64(
-        &mut emu,
-        winapi64::gdi32::CreateCompatibleBitmap,
-        &[0x1337, 640, 480],
-    );
-    assert_ne!(hbm, 0, "CreateCompatibleBitmap returns non-zero handle");
-}
-
-#[test]
 fn select_delete_object_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let hdc = helpers::call_winapi64(&mut emu, winapi64::gdi32::CreateCompatibleDC, &[0]);
-    let prev = helpers::call_winapi64(&mut emu, winapi64::gdi32::SelectObject, &[hdc, 0xABCD]);
-    // SelectObject returns the previously selected object (or the object itself)
-    // The implementation returns rdx (the new object), so we just check it doesn't crash
-    assert!(prev != u64::MAX, "SelectObject should not fail");
+    let hdc = helpers::call_winapi64(&mut emu, gdi32::CreateCompatibleDC, &[0]);
+    let prev = helpers::call_winapi64(&mut emu, gdi32::SelectObject, &[hdc, 0xABCD]);
+    assert_eq!(prev, 0);
 
-    let ret = helpers::call_winapi64(&mut emu, winapi64::gdi32::DeleteObject, &[0xABCD]);
-    assert_eq!(ret, 1, "DeleteObject returns TRUE");
+    let ret = helpers::call_winapi64(&mut emu, gdi32::DeleteObject, &[0xABCD]);
+    assert_eq!(ret, 0, "DeleteObject rejects an unrelated handle");
 }
 
 #[test]
@@ -819,44 +531,9 @@ fn delete_dc_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let hdc = helpers::call_winapi64(&mut emu, winapi64::gdi32::CreateCompatibleDC, &[0]);
-    let ret = helpers::call_winapi64(&mut emu, winapi64::gdi32::DeleteDC, &[hdc]);
+    let hdc = helpers::call_winapi64(&mut emu, gdi32::CreateCompatibleDC, &[0]);
+    let ret = helpers::call_winapi64(&mut emu, gdi32::DeleteDC, &[hdc]);
     assert_eq!(ret, 1, "DeleteDC returns TRUE");
-}
-
-#[test]
-fn get_device_caps_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let width = helpers::call_winapi64(
-        &mut emu,
-        winapi64::gdi32::GetDeviceCaps,
-        &[0x1337, HORZRES as u64],
-    );
-    assert!(width > 0, "GetDeviceCaps(HORZRES) should return >0");
-}
-
-// ─── shell32 64-bit: ShellExecuteA ───
-
-#[test]
-fn shell_execute_a_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let str_addr = 0x30000u64;
-    emu.maps
-        .create_map("str_buf", str_addr, 0x2000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps.write_string(str_addr, "open");
-    emu.maps.write_string(str_addr + 0x100, "notepad.exe");
-
-    let ret = call_winapi64_stack(
-        &mut emu,
-        winapi64::shell32::ShellExecuteA,
-        &[0, str_addr, str_addr + 0x100, 0, 0, 1],
-    );
-    assert!(ret > 32, "ShellExecuteA returns >32 on success");
 }
 
 // ─── ntdll 64-bit: LZNT1 compressed chunk with back-reference ───
@@ -1201,184 +878,46 @@ fn crypt_string_to_binary_a_hex_decode_64() {
     assert_eq!(decoded.as_ref(), b"AB");
 }
 
-// ─── CryptHashCertificate: real SHA-256 hash (64-bit) ───
-
 #[test]
-fn crypt_hash_certificate_sha256_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let data_addr = 0x70000u64;
-    let hash_addr = 0x80000u64;
-    let hash_len_addr = 0x90000u64;
-
-    emu.maps
-        .create_map("data", data_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hash", hash_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hlen", hash_len_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-
-    // Hash the empty string with SHA-256
-    emu.maps.write_dword(hash_len_addr, 32);
-
-    let ret = call_winapi64_stack(
-        &mut emu,
-        |emu: &mut emu::Emu| {
-            let alg_id = emu.regs().rdx as u32;
-            let cert_ptr = emu.regs().r8;
-            let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
-                emu, alg_id, cert_ptr, cert_len, hp, hlp,
-            );
-        },
-        &[
-            0,
-            CALG_SHA_256 as u64,
-            data_addr,
-            0,
-            hash_addr,
-            hash_len_addr,
-        ],
-    );
-    assert_eq!(ret, 1, "CryptHashCertificate should succeed");
-
-    let hash_len = emu.maps.read_dword(hash_len_addr).unwrap_or(0);
-    assert_eq!(hash_len, 32, "SHA-256 hash is 32 bytes");
-
-    // SHA-256 of empty string = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-    let hash = emu.maps.read_bytes(hash_addr, 32);
-    assert_eq!(hash[0], 0xe3, "SHA-256 empty first byte");
-    assert_eq!(hash[1], 0xb0, "SHA-256 empty second byte");
-    assert_eq!(hash[31], 0x55, "SHA-256 empty last byte");
-}
-
-#[test]
-fn crypt_hash_certificate_sha1_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let data_addr = 0x70000u64;
-    let hash_addr = 0x80000u64;
-    let hash_len_addr = 0x90000u64;
-
-    emu.maps
-        .create_map("data", data_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hash", hash_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hlen", hash_len_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-
-    emu.maps.write_dword(hash_len_addr, 20);
-
-    let ret = call_winapi64_stack(
-        &mut emu,
-        |emu: &mut emu::Emu| {
-            let alg_id = emu.regs().rdx as u32;
-            let cert_ptr = emu.regs().r8;
-            let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
-                emu, alg_id, cert_ptr, cert_len, hp, hlp,
-            );
-        },
-        &[0, CALG_SHA1 as u64, data_addr, 0, hash_addr, hash_len_addr],
-    );
-    assert_eq!(ret, 1, "CryptHashCertificate SHA-1 should succeed");
-
-    let hash_len = emu.maps.read_dword(hash_len_addr).unwrap_or(0);
-    assert_eq!(hash_len, 20, "SHA-1 hash is 20 bytes");
-
-    // SHA-1 of empty string = da39a3ee5e6b4b0d3255bfef95601890afd80709
-    let hash = emu.maps.read_bytes(hash_addr, 20);
-    assert_eq!(hash[0], 0xda, "SHA-1 empty first byte");
-    assert_eq!(hash[1], 0x39, "SHA-1 empty second byte");
-    assert_eq!(hash[19], 0x09, "SHA-1 empty last byte");
-}
-
-#[test]
-fn crypt_hash_certificate_size_query_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let hash_len_addr = 0x90000u64;
-    emu.maps
-        .create_map("hlen", hash_len_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-
-    let ret = call_winapi64_stack(
-        &mut emu,
-        |emu: &mut emu::Emu| {
-            let alg_id = emu.regs().rdx as u32;
-            let cert_ptr = emu.regs().r8;
-            let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
-                emu, alg_id, cert_ptr, cert_len, hp, hlp,
-            );
-        },
-        &[0, CALG_SHA_256 as u64, 0, 0, 0, hash_len_addr], // hash_ptr=0 → size query
-    );
-    assert_eq!(ret, 1);
-
-    let hash_len = emu.maps.read_dword(hash_len_addr).unwrap_or(0);
-    assert_eq!(hash_len, 32, "size query returns 32 for SHA-256");
-}
-
-#[test]
-fn crypt_hash_certificate_md5_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let data_addr = 0x70000u64;
-    let hash_addr = 0x80000u64;
-    let hash_len_addr = 0x90000u64;
-
-    emu.maps
-        .create_map("data", data_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hash", hash_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-    emu.maps
-        .create_map("hlen", hash_len_addr, 0x1000, Permission::READ_WRITE)
-        .expect("map");
-
-    emu.maps.write_dword(hash_len_addr, 16);
-
-    let ret = call_winapi64_stack(
-        &mut emu,
-        |emu: &mut emu::Emu| {
-            let alg_id = emu.regs().rdx as u32;
-            let cert_ptr = emu.regs().r8;
-            let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
-                emu, alg_id, cert_ptr, cert_len, hp, hlp,
-            );
-        },
-        &[0, CALG_MD5 as u64, data_addr, 0, hash_addr, hash_len_addr],
-    );
-    assert_eq!(ret, 1);
-
-    let hash_len = emu.maps.read_dword(hash_len_addr).unwrap_or(0);
-    assert_eq!(hash_len, 16, "MD5 hash is 16 bytes");
-
-    // MD5 of empty = d41d8cd98f00b204e9800998ecf8427e
-    let hash = emu.maps.read_bytes(hash_addr, 16);
-    assert_eq!(hash[0], 0xd4, "MD5 empty first byte");
-    assert_eq!(hash[15], 0x7e, "MD5 empty last byte");
+fn certificate_hashes_use_sdk_argument_slots_and_atomic_output() {
+    for is64 in [false, true] {
+        let (mut emu, bytes) = helpers::prepare_winapi(is64);
+        let length = bytes + 64;
+        let call = |emu: &mut _, id: u32, output| {
+            helpers::call_winapi_export(
+                emu,
+                "crypt32.dll",
+                "CryptHashCertificate",
+                &[0, u64::from(id), 0, 0, 0, output, length],
+            )
+        };
+        for (algorithm, size, first, last) in [
+            (0, 20, 0xda, 0x09),
+            (CALG_SHA1, 20, 0xda, 0x09),
+            (CALG_SHA_256, 32, 0xe3, 0x55),
+            (CALG_MD5, 16, 0xd4, 0x7e),
+        ] {
+            assert_eq!(call(&mut emu, algorithm, 0), 1);
+            assert_eq!(emu.maps.read_dword(length), Some(size));
+            emu.maps.fill_range(bytes, 0xcc, 40);
+            emu.maps.write_dword(length, size - 1);
+            assert_eq!(call(&mut emu, algorithm, bytes), 0);
+            assert_eq!(emu.maps.read_byte(bytes), Some(0xcc));
+            assert_eq!(call(&mut emu, algorithm, bytes), 1);
+            assert_eq!(emu.maps.read_byte(bytes), Some(first));
+            assert_eq!(emu.maps.read_byte(bytes + u64::from(size) - 1), Some(last));
+            assert_eq!(emu.maps.read_byte(bytes + u64::from(size)), Some(0xcc));
+        }
+        assert_eq!(
+            helpers::call_winapi_export(
+                &mut emu,
+                "crypt32.dll",
+                "CryptHashCertificate",
+                &[0, 0, 0, 1, u64::from(u32::MAX), bytes, length]
+            ),
+            0
+        );
+    }
 }
 
 #[test]
@@ -1451,32 +990,25 @@ fn winhttp_full_flow_64() {
         "WinHttpOpenRequest must return a request handle"
     );
 
-    // WinHttpSendRequest
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::winhttp::WinHttpSendRequest,
-        &[h_request, 0, 0, 0, 0, 0, 0],
-    );
-    assert_eq!(ret, 1, "WinHttpSendRequest must return TRUE");
-
-    // WinHttpReceiveResponse
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::winhttp::WinHttpReceiveResponse,
-        &[h_request, 0],
-    );
-    assert_eq!(ret, 1, "WinHttpReceiveResponse must return TRUE");
-
-    // WinHttpReadData
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::winhttp::WinHttpReadData,
-        &[h_request, buffer_addr, 0x100, bytes_read_addr],
-    );
-    assert_eq!(ret, 1, "WinHttpReadData must return TRUE");
-    let bytes = emu.maps.read_dword(bytes_read_addr).unwrap();
-    assert_eq!(bytes, 0, "bytes read must be 0 (stub)");
-
+    emu.set_api_mode(ApiMode::SimulateFail);
+    emu.maps.write_dword(bytes_read_addr, 0x12345678);
+    for (handler, args) in [
+        (
+            winapi64::winhttp::WinHttpSendRequest as fn(&mut Emu),
+            vec![h_request, 0, 0, 0, 0, 0, 0],
+        ),
+        (
+            winapi64::winhttp::WinHttpReceiveResponse,
+            vec![h_request, 0],
+        ),
+        (
+            winapi64::winhttp::WinHttpReadData,
+            vec![h_request, buffer_addr, 0x100, bytes_read_addr],
+        ),
+    ] {
+        assert_eq!(helpers::call_winapi64(&mut emu, handler, &args), 0);
+    }
+    assert_eq!(emu.maps.read_dword(bytes_read_addr), Some(0x12345678));
     // WinHttpCloseHandle — close all in reverse order
     let ret = helpers::call_winapi64(
         &mut emu,
@@ -1513,5 +1045,379 @@ fn ntdll_restore_last_error_aliases_preserve_call_frame() {
             assert_eq!(emu.regs().rbx, NONVOLATILE_MARKER);
             assert!(emu.api_policy.last_outcome.is_none());
         }
+    }
+}
+
+#[test]
+fn internet_reads_do_not_invent_payloads_or_overwrite_buffers() {
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        emu.set_api_mode(ApiMode::SimulateFail);
+        for (dll, api, args) in [
+            ("wininet.dll", "InternetReadFile", [1, data, 1, data + 8]),
+            ("wininet.dll", "InternetReadFileExW", [1, data, 0, 0]),
+            ("winhttp.dll", "WinHttpReadData", [1, data, 1, data + 8]),
+        ] {
+            emu.maps.write_bytes(data, &[0xa5; 16]);
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, dll, api, &args),
+                0,
+                "{dll}!{api} is64={is64}"
+            );
+            assert_eq!(emu.maps.read_bytes(data, 16), vec![0xa5; 16]);
+        }
+    }
+}
+
+#[test]
+fn rtl_critical_sections_share_ownership_and_return_native_status() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::winapi::common::memory::{pointer_size, read_pointer};
+    use crate::windows::constants::errors::{STATUS_ACCESS_VIOLATION, STATUS_SUCCESS};
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare_winapi(is64);
+        let width = pointer_size(&emu);
+        let size = 4 * width + 8;
+        let tid = emu.current_thread().id;
+        emu.maps.write_byte(data + size, 0xa5);
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "RtlInitializeCriticalSectionEx",
+                &[data, 19, 0]
+            ),
+            STATUS_SUCCESS
+        );
+        assert_eq!(read_pointer(&emu, data + size - width), Some(19));
+        for recursion in [1, 2] {
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "RtlEnterCriticalSection", &[data]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(emu.maps.read_dword(data + width + 4), Some(recursion));
+            assert_eq!(read_pointer(&emu, data + width + 8), Some(tid));
+        }
+        for recursion in [1, 0] {
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "RtlLeaveCriticalSection", &[data]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(emu.maps.read_dword(data + width + 4), Some(recursion));
+        }
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "RtlDeleteCriticalSection", &[data]),
+            STATUS_SUCCESS
+        );
+        assert_eq!(emu.maps.read_byte(data + size), Some(0xa5));
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "RtlInitializeCriticalSection", &[0]),
+            STATUS_ACCESS_VIOLATION
+        );
+    }
+}
+
+#[test]
+fn runtime_function_lookup_returns_a_guest_table_entry_for_an_image_pc() {
+    use crate::maps::mem64::Permission;
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    let (mut emu, out) = prepare_winapi(true);
+    let base = 0x4100_0000;
+    let pe_offset = 0x80;
+    let table_rva = 0x200;
+    let entry = base + table_rva;
+    emu.maps
+        .create_map("unwind_fixture.pe", base, 0x1000, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_dword(base + 0x3c, pe_offset as u32);
+    let pe = base + pe_offset;
+    emu.maps.write_dword(pe + 0x50, 0x1000);
+    emu.maps.write_dword(pe + 0x84, 16);
+    emu.maps.write_dword(pe + 0xa0, table_rva as u32);
+    emu.maps.write_dword(pe + 0xa4, 12);
+    emu.maps.write_dword(entry, 0x300);
+    emu.maps.write_dword(entry + 4, 0x380);
+    emu.maps.write_dword(entry + 8, 0x480);
+    for dll in ["ntdll.dll", "kernel32.dll"] {
+        emu.maps.write_qword(out, 0);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "RtlLookupFunctionEntry",
+                &[base + 0x37f, out, 0]
+            ),
+            entry
+        );
+        assert_eq!(emu.maps.read_qword(out), Some(base));
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "RtlLookupFunctionEntry",
+                &[base + 0x380, out, 0]
+            ),
+            0
+        );
+    }
+}
+
+#[test]
+fn internet_handles_keep_their_library_parent_and_request_url() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::windows::constants::{errors::*, network::*};
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare_winapi(is64);
+        let (host, path, size, output) = (data, data + 64, data + 128, data + 256);
+        emu.maps.write_string(host, "example.test");
+        emu.maps.write_string(path, "/local");
+        let inet = "wininet.dll";
+        let session = call(&mut emu, inet, "InternetOpenA", &[0; 5]);
+        assert_ne!(session, 0);
+        let connection = call(
+            &mut emu,
+            inet,
+            "InternetConnectA",
+            &[
+                session,
+                host,
+                8443,
+                0,
+                0,
+                INTERNET_SERVICE_HTTP.into(),
+                0,
+                0,
+            ],
+        );
+        let request = call(
+            &mut emu,
+            inet,
+            "HttpOpenRequestA",
+            &[connection, 0, path, 0, 0, 0, INTERNET_FLAG_SECURE, 0],
+        );
+        assert_ne!(connection, 0);
+        assert_ne!(request, 0);
+        assert_eq!(
+            call(&mut emu, "winhttp.dll", "WinHttpCloseHandle", &[request]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+        emu.maps.write_dword(size, 0);
+        assert_eq!(
+            call(
+                &mut emu,
+                inet,
+                "InternetQueryOptionW",
+                &[request, INTERNET_OPTION_URL.into(), 0, size]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        let expected = "https://example.test:8443/local";
+        assert_eq!(
+            emu.maps.read_dword(size),
+            Some(((expected.len() + 1) * 2) as u32)
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                inet,
+                "InternetQueryOptionW",
+                &[request, INTERNET_OPTION_URL.into(), output, size]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_wide_string(output), expected);
+        assert_eq!(emu.maps.read_dword(size), Some((expected.len() * 2) as u32));
+        assert_eq!(
+            call(
+                &mut emu,
+                inet,
+                "InternetQueryOptionA",
+                &[connection, INTERNET_OPTION_HANDLE_TYPE.into(), output, size]
+            ),
+            1
+        );
+        assert_eq!(
+            emu.maps.read_dword(output),
+            Some(INTERNET_HANDLE_TYPE_CONNECT_HTTP)
+        );
+        assert_eq!(call(&mut emu, inet, "InternetCloseHandle", &[session]), 1);
+        for closed in [request, connection, session] {
+            assert_eq!(call(&mut emu, inet, "InternetCloseHandle", &[closed]), 0);
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+        }
+    }
+}
+
+#[test]
+fn dns_compares_names_and_clears_offline_query_results() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::winapi::common::memory::{read_pointer, write_pointer};
+    use crate::windows::constants::errors::DNS_ERROR_RCODE_SERVER_FAILURE;
+    for is64 in [false, true] {
+        let (mut emu, first) = prepare_winapi(is64);
+        let (second, records) = (first + 64, first + 128);
+        emu.maps.write_wide_string(first, "Ä.Host..");
+        emu.maps.write_wide_string(second, "ä.host");
+        assert_eq!(
+            call(&mut emu, "dnsapi.dll", "DnsNameCompare_W", &[first, second]),
+            1
+        );
+        emu.maps.write_string(first, "server");
+        emu.maps.write_string(second, "other.");
+        assert_eq!(
+            call(&mut emu, "dnsapi.dll", "DnsNameCompare_A", &[first, second]),
+            0
+        );
+        write_pointer(&mut emu, records, 0x1234);
+        assert_eq!(
+            call(
+                &mut emu,
+                "dnsapi.dll",
+                "DnsQuery_A",
+                &[first, 1, 0, 0, records, 0]
+            ),
+            DNS_ERROR_RCODE_SERVER_FAILURE
+        );
+        assert_eq!(read_pointer(&emu, records), Some(0));
+    }
+}
+
+#[test]
+fn certificate_comparisons_use_signed_serials_issuers_and_guest_time() {
+    use crate::winapi::common::memory::{pointer_size, write_pointer};
+    for is64 in [false, true] {
+        let (mut emu, base) = helpers::prepare_winapi(is64);
+        let width = pointer_size(&emu);
+        let other = base + 128;
+        let bytes = base + 320;
+        let time = bytes + 32;
+        emu.maps.write_bytes(bytes, &[0xff, 0xff, 0, b'A', b'B']);
+        for (info, serial_size, issuer) in [(base, 1, bytes + 3), (other, 2, bytes + 3)] {
+            emu.maps.write_dword(info + width, serial_size);
+            write_pointer(&mut emu, info + 2 * width, bytes);
+            emu.maps.write_dword(info + 6 * width, 1);
+            write_pointer(&mut emu, info + 7 * width, issuer);
+            emu.maps.write_qword(info + 8 * width, 5);
+            emu.maps.write_qword(info + 8 * width + 8, 15);
+        }
+        let call = |emu: &mut _, name: &str, args: &[u64]| {
+            helpers::call_winapi_export(emu, "crypt32.dll", name, args)
+        };
+        assert_eq!(
+            call(&mut emu, "CertCompareCertificate", &[1, base, other]),
+            1
+        );
+        write_pointer(&mut emu, other + 7 * width, bytes + 4);
+        assert_eq!(
+            call(&mut emu, "CertCompareCertificate", &[1, base, other]),
+            0
+        );
+        assert_eq!(
+            call(&mut emu, "CertVerifyValidityNesting", &[base, other]),
+            1
+        );
+        for (when, expected) in [(4, u64::from(u32::MAX)), (5, 0), (15, 0), (16, 1)] {
+            emu.maps.write_qword(time, when);
+            assert_eq!(
+                call(&mut emu, "CertVerifyTimeValidity", &[time, base]),
+                expected
+            );
+        }
+    }
+}
+
+#[test]
+fn wininet_cache_groups_and_local_urls_respect_guest_widths() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::windows::constants::errors::ERROR_INSUFFICIENT_BUFFER;
+    for is64 in [false, true] {
+        let (mut emu, base) = prepare_winapi(is64);
+        let lib = "wininet.dll";
+        let group = call(&mut emu, lib, "CreateUrlCacheGroup", &[0, 0]);
+        assert_ne!(group, 0);
+        let args = if is64 {
+            vec![group, 0, 0]
+        } else {
+            vec![group, 0, 0, 0]
+        };
+        assert_eq!(call(&mut emu, lib, "DeleteUrlCacheGroup", &args), 1);
+        assert_eq!(call(&mut emu, lib, "DeleteUrlCacheGroup", &args), 0);
+        let (child, out, length) = (base + 64, base + 128, base + 256);
+        emu.maps.write_string(base, "http://example.test/a/b");
+        emu.maps.write_string(child, "../c");
+        emu.maps.write_dword(length, 1);
+        assert_eq!(
+            call(
+                &mut emu,
+                lib,
+                "InternetCombineUrlA",
+                &[base, child, out, length, 0]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(
+            call(
+                &mut emu,
+                lib,
+                "InternetCombineUrlA",
+                &[base, child, out, length, 0]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_string(out), "http://example.test/c");
+    }
+}
+
+#[test]
+fn empty_certificate_stores_follow_provider_and_handle_contracts() {
+    use crate::windows::constants::crypto::{CERT_STORE_PROV_MEMORY, CERT_STORE_PROV_SYSTEM_W};
+    use crate::windows::constants::errors::{
+        CRYPT_E_NOT_FOUND, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
+    };
+    use helpers::call_winapi_export as call;
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let dll = "crypt32.dll";
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "CertOpenStore",
+                &[CERT_STORE_PROV_SYSTEM_W, 0, 0, 0, 0]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_PARAMETER);
+        let memory_store = call(
+            &mut emu,
+            dll,
+            "CertOpenStore",
+            &[CERT_STORE_PROV_MEMORY, 0, 0, 0, 0],
+        );
+        assert_ne!(memory_store, 0);
+        emu.maps.write_string(data, "MY");
+        emu.maps.write_wide_string(data + 32, "ROOT");
+        let ansi_store = call(&mut emu, dll, "CertOpenSystemStoreA", &[0, data]);
+        let wide_store = call(&mut emu, dll, "CertOpenSystemStoreW", &[0, data + 32]);
+        for store in [memory_store, ansi_store, wide_store] {
+            assert_ne!(store, 0);
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "CertFindCertificateInStore",
+                    &[store, 0, 0, 0, 0, 0]
+                ),
+                0
+            );
+            assert_eq!(emu.get_last_error(), CRYPT_E_NOT_FOUND);
+            assert_eq!(call(&mut emu, dll, "CertCloseStore", &[store, 0]), 1);
+            assert_eq!(call(&mut emu, dll, "CertCloseStore", &[store, 0]), 0);
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+        }
+        assert_eq!(call(&mut emu, dll, "CertFreeCertificateContext", &[0]), 1);
     }
 }

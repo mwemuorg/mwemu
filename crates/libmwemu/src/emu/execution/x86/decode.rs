@@ -1,13 +1,14 @@
-use crate::windows::constants::memory::*;
-use iced_x86::{Decoder, DecoderOptions};
+use iced_x86::{Decoder, DecoderError, DecoderOptions, Instruction};
 
-use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::engine;
 use crate::err::MwemuError;
 use crate::exception::types::{ExceptionType, MemoryAccess};
+use crate::windows::constants::memory::BLOCK_LEN;
 
 use super::assert_x86_arch;
+
+const MAX_X86_INSTRUCTION_LEN: usize = 15;
 
 /// x86-family cache fill. Performs the cache hit/miss check, reads a block
 /// of code from the maps, and inserts the decoded instructions into the
@@ -26,35 +27,25 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
         emu.drain_code_writes_x86(&mut scratch);
     }
 
-    if !emu.check_instruction_fetch(pc) {
+    let cache_hit = emu.x86_instruction_cache().lookup_entry(pc, 0);
+    if cache_hit
+        && emu.maps.get_mem_by_addr(pc).is_some_and(|mem| {
+            mem.read_code(pc, MAX_X86_INSTRUCTION_LEN).len() == MAX_X86_INSTRUCTION_LEN
+        })
+    {
+        return Ok(());
+    }
+
+    // Near a map boundary, recheck continuation bytes even on a cache hit.
+    if !emu.fetch_x86_code(pc, arch_bits, BLOCK_LEN, block) {
         return Err(MwemuError::new(
             "instruction fetch from inaccessible memory",
         ));
     }
 
-    let cache_hit = emu.x86_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());
     }
-
-    if block.is_empty() {
-        return Err(MwemuError::new("cannot read code block, weird address."));
-    }
-
-    let code = match emu.maps.get_mem_by_addr(pc) {
-        Some(code) => code,
-        None => {
-            log::trace!("code flow to unmapped address 0x{:x}", pc);
-            Console::spawn_console(emu);
-            return Err(MwemuError::new("cannot read program counter"));
-        }
-    };
-
-    let block_slice = code.read_code(pc, BLOCK_LEN);
-    if block_slice.len() != block.len() {
-        block.resize(block_slice.len(), 0);
-    }
-    block.clone_from_slice(&block_slice);
 
     let mut decoder = Decoder::with_ip(arch_bits, block, pc, DecoderOptions::NONE);
     emu.rep = None;
@@ -66,21 +57,48 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
 }
 
 impl Emu {
-    pub(crate) fn check_instruction_fetch(&mut self, pc: u64) -> bool {
-        if self
-            .maps
-            .get_mem_by_addr(pc)
-            .is_some_and(|mem| !mem.read_code(pc, 1).is_empty())
-        {
+    /// Read a block from the current map. Only the first instruction may need
+    /// bytes from the next map. Speculative lookahead must never raise a fault.
+    fn fetch_x86_code(&mut self, pc: u64, bits: u32, limit: usize, bytes: &mut Vec<u8>) -> bool {
+        bytes.clear();
+        let mut cursor = pc;
+        let mut remaining = limit;
+        while let Some(mem) = self.maps.get_mem_by_addr(cursor) {
+            let chunk = mem.read_code(cursor, remaining);
+            if chunk.is_empty() {
+                break;
+            }
+            bytes.extend_from_slice(&chunk);
+            if bytes.len() >= MAX_X86_INSTRUCTION_LEN {
+                return true;
+            }
+            remaining = MAX_X86_INSTRUCTION_LEN - bytes.len();
+            cursor = pc.saturating_add(bytes.len() as u64);
+        }
+
+        // A short buffer can still contain a complete (possibly illegal) opcode.
+        let mut decoder = Decoder::with_ip(bits, bytes, pc, DecoderOptions::NONE);
+        let _ = decoder.decode();
+        if decoder.last_error() != DecoderError::NoMoreBytes {
             return true;
         }
+
         self.memory_exception(
             ExceptionType::SettingRipToNonMappedAddr,
-            pc,
+            cursor,
             1,
             MemoryAccess::Execute,
         );
         false
+    }
+
+    pub(super) fn fetch_x86_instruction(&mut self, pc: u64) -> Option<Instruction> {
+        let bits = if self.cfg.is_x64() { 64 } else { 32 };
+        let mut bytes = Vec::with_capacity(MAX_X86_INSTRUCTION_LEN);
+        if !self.fetch_x86_code(pc, bits, MAX_X86_INSTRUCTION_LEN, &mut bytes) {
+            return None;
+        }
+        Some(Decoder::with_ip(bits, &bytes, pc, DecoderOptions::NONE).decode())
     }
 
     /// Apply the executable-memory writes `Maps` recorded since the last drain
@@ -126,33 +144,10 @@ pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
     assert_x86_arch(emu, "decode_and_execute_x86");
     let pc = emu.pc();
 
-    if !emu.check_instruction_fetch(pc) {
+    let Some(ins) = emu.fetch_x86_instruction(pc) else {
         return (0, false);
-    }
-
-    // Fetch code
-    let code = match emu.maps.get_mem_by_addr(pc) {
-        Some(c) => c,
-        None => {
-            log::trace!("code flow to unmapped address 0x{:x}", pc);
-            Console::spawn_console(emu);
-            return (0, false);
-        }
     };
-
     emu.memory_operations.clear();
-
-    let block = code.read_code(pc, BLOCK_LEN).to_vec();
-    if block.is_empty() {
-        return (0, false);
-    }
-    let mut decoder = if emu.cfg.is_x64() {
-        Decoder::with_ip(64, &block, pc, DecoderOptions::NONE)
-    } else {
-        Decoder::with_ip(32, &block, pc, DecoderOptions::NONE)
-    };
-
-    let ins = decoder.decode();
     let sz = ins.len();
 
     emu.set_x86_instruction(Some(ins));

@@ -1,366 +1,175 @@
-# Kernel-mode emulation (drivers)
+# Kernel-mode emulation
 
-Emulating a driver is not emulating a program with different imports. A driver
-has no entry point, no libc, no loader and no process: it is an object file that
-an operating system links into its own address space and then calls back into.
-mwemu's kernel mode supplies the three things that are missing, and nothing
-else:
+mwemu loads driver images into an emulated kernel address space, resolves their imports, and calls their entry points and callbacks. Kernel API models provide allocation, memory access, logging, and selected operating-system services. The allocation ledger records object lifetimes for memory-safety analysis.
 
-1. **A linker.** `.ko` images are ET_REL relocatable objects — no program
-   headers, no `.dynamic`, sections that have not been placed. Placement and
-   relocation happen at load time (`rs_header::elf::relocatable`, driven by
-   `Emu::load_kernel_module`).
-2. **A kernel to call.** Every imported symbol is resolved to an address in a
-   synthetic "kernel text" region; a call landing there is intercepted and
-   routed to a Rust implementation, the same mechanism the winapi layer uses.
-3. **An allocator with a memory.** Driver bugs are lifetime bugs, so the slab is
-   modelled explicitly: chunks are tracked with their provenance, freed chunks
-   go to quarantine instead of being recycled, and every access is checked
-   against the ledger.
+## Supported images
 
-Point 3 is the reason this exists. A real slab hands freed memory straight back
-out, which is exactly what makes a use-after-free hard to see; keeping the chunk
-mapped and poisoned turns it into a report.
-
-## Layout
-
-```
-crates/libmwemu/src/kernel/
-    mod.rs        KernelOs, KernelEnv, stub allocation, call interception
-    layout.rs     address-space plan per OS
-    heap.rs       allocation ledger (pure bookkeeping)
-    guard.rs      memory-safety verdicts and findings
-    linux/        mm, string, sync, printk, module, misc
-    windows/      ntoskrnl surface (pool allocators implemented)
-    macos/        XNU / IOKit surface (allocators implemented)
-crates/libmwemu/src/emu/loaders/ko.rs   the ET_REL load path
-crates/libmwemu/libraries/rs-header/src/elf/relocatable.rs   ET_REL parsing
-```
-
-Only the symbol tables and the handlers differ between the three OSes;
-placement, interception, the ledger and the analysis are shared. That is why a
-`.sys` will inherit the whole use-after-free analysis the day its loader lands.
-
-## Address space
-
-Chosen to match the real layouts, and — more importantly — so the distances
-between regions stay inside what the relocations can encode. A module built
-with `-mcmodel=kernel` reaches the kernel through `R_X86_64_PLT32`, a signed
-32-bit displacement, so module and stub area must be within ±2GB.
-
-| region | Linux | purpose |
+| Platform | Image and architecture | Loading |
 | --- | --- | --- |
-| kernel text (stubs) | `0xffffffff81000000` | one interceptable slot per imported function |
-| kernel data | `0xffffffff82000000` | storage for imported variables (`jiffies`, …) |
-| module image | `0xffffffffc0000000` | the loaded `.ko` |
-| slab | `0xffff888000000000` | `kmalloc` / `kmem_cache_alloc` chunks |
-| vmalloc | `0xffffc90000000000` | `vmalloc` / page allocations |
-| kernel stack | `0xffffc90000100000` | |
+| Linux | ELF64 `ET_REL` `.ko`, x86-64 or AArch64 | `Emu::load_kernel_module` places sections, resolves symbols, and applies supported relocations. |
+| Windows | PE32+ `.sys`, x64 | `Emu::load_sys_driver` maps the image, applies base relocations, binds imports, and initializes the security cookie. `load_kernel_module` also recognizes these drivers. |
+| macOS | Mach-O BSD kmod kext, arm64e | `Emu::load_kext_macho64` maps segments, applies supported chained fixups, and reads the name and start/stop addresses from `kmod_info`. |
 
-Chunks are separated by an unmapped redzone, so a linear overflow off the end
-of an allocation faults instead of corrupting the next one.
+Loading does not run initialization. Call `run_module_init()` to enter the module. For Windows, this calls `run_driver_entry()` with a constructed `DRIVER_OBJECT` and registry path. `run_module_exit()` calls the recorded exit or unload routine when one exists.
 
-## Detection
+Windows auto-detection accepts x64 PE images with the native subsystem and no `ntdll.dll` import. This is a loader heuristic, not a guarantee that every such image is a supported driver. The macOS path does not support the classic external relocations used by x86-64 kexts.
 
-| finding | how it is decided |
+## Symbol discovery and handler coverage
+
+Windows, Linux and macOS derive callable names and dispatch from the same platform registries. `SURFACE` lists exact names. `is_implemented(name)` also recognizes guarded partial models such as supported Linux `netif_*` prefixes. A registered name may still call a partial handler or a shared stub.
+
+| Platform | Rust discovery | MCP discovery |
+| --- | --- | --- |
+| Windows | `libmwemu::kernel::windows::SURFACE` and `windows::is_implemented` | `mwemu_kernel_surface` with `{"os":"windows"}` |
+| Linux | `libmwemu::kernel::linux::SURFACE` and `linux::is_implemented` | `mwemu_kernel_surface` with `{"os":"linux"}`. Linux is the default. |
+| macOS | `libmwemu::kernel::macos::SURFACE` and `macos::is_implemented` | `mwemu_kernel_surface` with `{"os":"macos"}` |
+
+Windows and Linux classify data exports separately and resolve them to storage. These exports do not appear in the callable surface. Function imports can resolve to interceptable stubs even without a handler.
+
+The loaders report missing imports differently. Windows adds names without a handler or data model to `module.unresolved`. Linux uses that field for linker resolution failures, so assigning a stub can hide the absence of a handler from the list. The macOS loader currently leaves it empty. Use dispatch discovery and runtime diagnostics to assess API coverage.
+
+Windows `MmGetSystemRoutineAddress` uses the same handler discovery and data-export classification. It returns an interceptable address or data storage for a recognized name, and `NULL` otherwise. Static imports can reach the unsupported-call policy while a dynamic lookup of the same unknown name returns `NULL`.
+
+### Windows models
+
+| Group | Current behavior |
 | --- | --- |
-| `use_after_free_read` / `use_after_free_write` | access lands in a quarantined chunk |
-| `use_after_free_poison_deref` | the *address* is slab free poison (`0x6b6b…`), i.e. the pointer was loaded out of a freed object |
-| `use_after_free_call` | an indirect branch target came out of quarantine |
-| `double_free` | free of a chunk already in quarantine |
-| `invalid_free` | free of something that is not a chunk base |
-| `slab_out_of_bounds` | access past the requested size, inside the slab bucket |
-| `memory_leak` | still live after the module's exit path ran |
+| `alloc` | Pool and page allocation, lookaside lists, and list operations. Modeled allocations use the shared lifetime ledger. |
+| `io` | Devices and symbolic links, IRP construction/completion, MDLs, work items, interfaces, and partial lower-driver behavior. |
+| `mm` | Physical-memory windows, copies, address translation, MDL mapping, probes, routine lookup, and partial HAL operations. |
+| `rtl` | String descriptors and conversion, version queries, PE inspection, bitmaps, and partial registry/security/table routines. |
+| `sync` | Partial synchronization objects, lock/IRQL stubs, DPCs and timers, callback transfers, processor/time queries, and bugcheck handling. |
+| `crt` | Memory and string operations, narrow/wide formatting, checked `va_list` reads, debug logging, and limited runtime support. |
+| `misc` | Partial process, thread, handle, native-service, security, filter, tracing, power, and framework routines. |
 
-Each finding carries the faulting instruction, the object, its cache, and both
-the allocation and the free site. Repeats of the same (kind, instruction,
-object) collapse into a hit count.
+Windows kernel imports use their registered Nt/Zw spellings. The selected API mode applies when a call reaches fallback.
 
-Freed memory stays mapped, so execution continues after the first stale
-dereference and one run can surface the whole chain rather than stopping at the
-first symptom.
+`WdfVersionBind` fills a function table with stubs. It does not provide the KMDF object model or establish that a KMDF driver can complete initialization. Kernel SEH unwinding and APC delivery are not modeled. Windows x86 and ARM64 drivers are unsupported.
 
-## Implemented Linux surface
+### Linux models
 
-`mwemu_kernel_surface` (MCP) and `libmwemu::kernel::linux::SURFACE` return this
-list at runtime.
+| Group | Current behavior |
+| --- | --- |
+| `alloc` | Slab, cache, vmalloc, page, and managed allocations. Frees, copies, and user-copy helpers. |
+| `string` | Memory/string operations, integer conversion, and formatted output. Bulk-copy models use range-aware guard checks. |
+| `sync` | Refcount operations and release callbacks, with simplified locking and synchronization. |
+| `logging` | Kernel/device logs, warnings, and selected fatal runtime paths. |
+| `registration` | Character, misc, class, device, proc, and debugfs registration models. |
+| `net` | Partial network-device, packet-buffer, USB, and wireless models, including tracked allocations and registration capture. |
+| `io` | Shared MMIO windows, DMA buffers, and partial IRQ/resource models. These do not emulate a physical device. |
+| `misc` | Deferred work, timers, RCU callbacks, tasks, time, random values, and other partial services. |
 
-**Allocation** — every spelling funnels into one ledger, so it does not matter
-which kernel version the driver was built against:
+Compiler and kernel versions can change which allocation wrapper names appear as imports. Discovery describes the names accepted by this emulator rather than a complete export list for a particular Linux version. Data exports such as `jiffies`, `current_task`, and workqueue globals have separate storage models.
 
-`__kmalloc`, `__kmalloc_noprof`, `__kmalloc_node`, `__kmalloc_node_noprof`,
-`__kmalloc_cache_noprof`, `__kmalloc_cache_node_noprof`, `__kmalloc_large_noprof`,
-`kmalloc_trace`, `kcalloc`, `kmalloc_array`, `kfree`, `kfree_sensitive`,
-`krealloc`, `krealloc_noprof`, `kmemdup`, `kstrdup`, `kstrndup`,
-`kmem_cache_create`, `kmem_cache_create_usercopy`, `__kmem_cache_create_args`,
-`kmem_cache_destroy`, `kmem_cache_alloc`, `kmem_cache_alloc_noprof`,
-`kmem_cache_zalloc`, `kmem_cache_free`, `vmalloc`, `vzalloc`, `__vmalloc`,
-`vfree`, `kvmalloc`, `kvmalloc_node_noprof`, `kvzalloc`, `kvfree`,
-`__get_free_pages`, `get_zeroed_page`, `free_pages`, `__free_pages`,
-`alloc_pages`, `devm_kmalloc`, `devm_kzalloc`, `devm_kfree`.
+`kernel_registered_drivers()` exposes captured registration information for a harness to inspect and invoke driver callbacks. Initialization alone does not exercise probe, request, or teardown paths.
 
-`kzalloc`, `kcalloc` and friends are inline wrappers in the kernel headers, so
-they never appear as symbols — they arrive as `__GFP_ZERO` on one of the above.
+### macOS models
 
-**User copies** — `copy_from_user`, `_copy_from_user`, `copy_to_user`,
-`_copy_to_user`, `clear_user`, `strncpy_from_user`, `memdup_user`,
-`vmemdup_user`, `__check_object_size`, `validate_usercopy_range`.
+The kext gateway shares selected memory and string routines with Linux. IOKit size-based allocation, free, console logging and single-threaded lock models are available. `IOMallocAligned` accepts power-of-two alignments through 16 bytes. Typed XNU allocators, structured logging and the IOKit C++ object runtime use the unknown-import path.
 
-**String / lib** — `memcpy`, `memmove`, `memset`, `memcmp`, `strlen`, `strnlen`,
-`strcmp`, `strncmp`, `strcpy`, `strncpy`, `strscpy`, `sized_strscpy`, `strlcpy`,
-`strcat`, `strchr`, `strrchr`, `strstr`, `snprintf`, `scnprintf`, `sprintf`,
-`simple_strtoul`, `kstrtoint`, `kstrtoul`, `kstrtouint`, `kstrtou32`.
+## Call frames, failures, and unsupported imports
 
-These run through the guard too: a `memcpy()` into a freed object is a
-use-after-free that no instruction-level check would see, because the copy
-happens inside the kernel, not in the driver's own code.
+The kernel gateway checks the x64 return slot or obtains the AArch64 link register before dispatch. An unreadable argument or return frame stops the call with the symbol and entry PC/SP. Earlier writes and allocations remain visible. Kernel formatters check their required variadic arguments before publishing output.
 
-**Object lifetime** — `refcount_inc`, `refcount_dec`, `refcount_dec_and_test`,
-`refcount_add`, `refcount_sub_and_test`, `refcount_inc_not_zero`,
-`refcount_warn_saturate`, `kref_get`, `kref_put`. Modelled for real, not
-stubbed: in a driver the refcount *is* the object lifetime, and
-`refcount_dec_and_test()` returning true is what triggers the free.
+If the gateway finds no handler, it records the name once in `KernelEnv::unimplemented`. Windows applies the [Windows API policy](API.md#windows-api-policy), including status-only NT results where a signature exists. The Linux and macOS kernel fallback returns integer zero. The [handler ABI](API.md#handler-abi) describes the adapters and their supported argument layouts.
 
-**Locking** — `mutex_lock`, `mutex_unlock`, `mutex_trylock`, `__mutex_init`,
-`mutex_init_generic`, `_raw_spin_lock`, `_raw_spin_unlock`,
-`_raw_spin_lock_irqsave`, `_raw_spin_unlock_irqrestore`, `down_read`, `up_read`,
-`down_write`, `up_write`, `synchronize_rcu`, `rcu_read_lock`, `rcu_read_unlock`,
-`__list_add_valid_or_report`, `__list_del_entry_valid_or_report`. No-ops:
-single-threaded emulation cannot deadlock.
+`kernel_call` returns an error for a policy stop or kernel abort. Clear a pending API fault explicitly before another call. A fresh call clears the separate kernel-abort marker. Guest state changes from the previous call remain visible.
 
-**Deferred work** — `queue_work_on`, `schedule_work`, `queue_delayed_work_on`,
-`flush_work`, `cancel_work_sync`, `cancel_delayed_work_sync`, `mod_timer`,
-`add_timer`, `del_timer_sync`, `timer_delete_sync`, `call_rcu`,
-`kvfree_call_rcu`, `kthread_create_on_node`, `wake_up_process`, `kthread_stop`.
+Each `kernel_call` has a default budget of 5,000,000 instructions, combined with any tighter caller limit. `kernel_set_call_budget` changes it. Zero disables this per-call limit. Budget exhaustion is an error, not a successful guest return.
 
-Callbacks are **queued**, not run inline. "Unregister now, free later" is the
-shape of most kernel use-after-free bugs, and running the callback immediately
-would close the very window the bug lives in. Drain them with
-`Emu::kernel_run_deferred()` / `mwemu_kernel_run_deferred`.
+## Memory and findings
 
-**Logging** — `printk`, `_printk`, `_dev_info`, `_dev_warn`, `_dev_err`,
-`__warn_printk`, `panic`, `dump_stack`, `__stack_chk_fail`, `__fortify_panic`.
+Each platform has a layout for synthetic kernel text, imported data, module code, slab/pool memory, large allocations, and the stack. The kernel boundary intercepts control transfers to function stubs. Linux x86-64 module and stub addresses stay within the signed displacement range used by relative calls.
 
-**Registration** — `__register_chrdev`, `__unregister_chrdev`,
-`alloc_chrdev_region`, `register_chrdev_region`, `unregister_chrdev_region`,
-`cdev_init`, `cdev_add`, `cdev_del`, `misc_register`, `misc_deregister`,
-`class_create`, `class_destroy`, `device_create`, `device_destroy`,
-`proc_create`, `remove_proc_entry`, `debugfs_create_file`, `debugfs_create_dir`,
-`debugfs_remove`, `try_module_get`, `module_put`.
+Allocation models record the requested size, bucket size, cache, API, and allocation/free sites. Freeing a chunk fills it with poison bytes and keeps it mapped in quarantine. The allocator does not reuse it. Gaps separate allocations. These choices make stale accesses easier to detect, but they do not reproduce a real kernel allocator.
 
-**Time / misc** — `msleep`, `usleep_range`, `ssleep`, `ktime_get`,
-`ktime_get_real_ts64`, `get_random_bytes`, `get_random_u32`, `capable`.
+Kernel initialization enables `kernel_guard`. Instrumented x86 and AArch64 accesses consult the ledger, and selected host-side memory models use explicit guard checks. The single-address check identifies the chunk containing the starting address. Bulk range checks can also detect a copy whose length crosses the requested boundary. Coverage depends on the access path. An unmapped address or an empty finding list does not prove memory safety.
 
-**Imported variables** (resolved to storage, not stubs) — `jiffies`,
-`jiffies_64`, `kmalloc_caches`, `current_task`, `cpu_number`, `__preempt_count`,
-`__per_cpu_offset`, `__stack_chk_guard`, `__ref_stack_chk_guard`, `system_wq`
-and the other workqueue globals, `boot_cpu_data`, `init_task`, `init_net`,
-`init_user_ns`, `init_mm`, `page_offset_base`, `vmemmap_base`, `physical_mask`,
-`phys_base`, the `param_ops_*` tables, `pv_ops`, `empty_zero_page`, `max_pfn`,
-`totalram_pages`.
+| Finding tag | Meaning |
+| --- | --- |
+| `use_after_free_read` / `use_after_free_write` | A checked access touches a quarantined allocation. |
+| `use_after_free_poison_deref` | The address matches the free-poison pattern, including supported nearby offsets. |
+| `use_after_free_call` | A branch targets an unmapped free-poison address. This is pattern detection, not general pointer-provenance tracking. |
+| `double_free` | The allocation was already freed. |
+| `invalid_free` | The pointer is not the base of a tracked allocation. |
+| `slab_out_of_bounds` | A checked address or range exceeds the requested size of a tracked allocation. |
+| `invalid_address` | A modeled memory operation reports an invalid address. |
+| `memory_leak` | A tracked allocation is still live when `kernel_check_leaks()` runs. |
 
-An import with no implementation is not fatal: it is reported at load time
-(`unresolved`), and if it is actually called the call returns 0 and the symbol
-is recorded in `KernelEnv::unimplemented`. That way a partially covered kernel
-still runs a driver as far as it can go.
+Findings retain the instruction, address, access size, and available allocation provenance. Repeated findings with the same kind, instruction, and object increase a hit count. Poison-only findings may have no original object identity. Freed memory can remain readable after a report, but later faults or invalid control flow can still stop the run.
 
-## macOS (kexts)
+Call `kernel_check_leaks()` explicitly after the intended cleanup and exit paths. It reports all remaining tracked allocations, so running it before cleanup can include objects that are still intentionally live. `kernel_set_fail_alloc(Some(index))` makes one allocation attempt return null. The index is zero-based. `kernel_alloc_count()` exposes the attempt count, and `None` disables injection.
 
-The kext loader (`Emu::load_kext_macho64`, `emu/loaders/kext.rs`) links a plain
-BSD (kmod) kext against the emulated XNU kernel. Unlike a `.ko` (an ET_REL with
-section relocations) an arm64e kext is an already-placed image: its segments
-carry final image-relative vmaddrs and its fixups are a chained-pointer list
-(`LC_DYLD_CHAINED_FIXUPS`, pointer format `ARM64E_KERNEL` = 7, a 4-byte-stride
-variant decoded in `macho64.rs`). Loading places the segments contiguously at
-the module base, applies the fixups (rebases become `base + target`, binds the
-address of an interceptable kernel stub), then reads `kmod_info` for the module
-name and its `start`/`stop` entry points — the kext equivalent of
-`init_module`/`cleanup_module`.
+## Deferred callbacks
 
-The instruction-level memory guard, previously x86-only, is now wired into the
-AArch64 load/store handlers too (gated on `kernel_guard`, so ordinary userspace
-runs pay only a bool check). That is what lets a use-after-free *read* inside an
-arm64e driver be reported, not just the API-level ones — and it makes
-`--memory-guard` effective for AArch64 macOS binaries as well.
+Work, timer, RCU, DPC, and thread models can queue callbacks. `kernel_run_deferred()` processes up to 64 queued callbacks per invocation, including newly queued work within that bound. It returns the number attempted and logs callback failures. It is not an operating-system scheduler or a guarantee that every callback succeeded.
 
-Implemented XNU surface: `IOMalloc`/`IOMallocZero`/`IOFree` (and the `kalloc`
-spellings), `IOLog`/`printf`/`kprintf`, the `IOLock`/`lck_mtx` family as no-ops
-(single-threaded), and the generic libkern string/memory helpers (`memcpy`,
-`memmove`, `memset`, …) which fall through to the shared, guarded Linux
-implementations. Still declared only: the `OSObject`/`OSMetaClass` runtime and
-the IOKit matching surface (`libmwemu::kernel::macos::SURFACE`), i.e. C++ IOKit
-drivers.
+Some APIs transfer directly to a guest callback instead of queueing it, such as `KeIpiGenericCall`. Locking and interrupt models are simplified and do not validate real concurrency, race behavior, or deadlock freedom.
 
-x86_64 kexts use classic external relocations (`LC_DYSYMTAB`) rather than
-chained fixups, so only arm64e kexts take this path for now.
+## Windows requests and privileged operations
 
-## Windows (`.sys`)
+`run_driver_entry()` builds x64 driver structures, calls the entry point, and captures the dispatch table, unload/AddDevice callbacks, and created devices. `kernel_devices()` and `kernel_dispatch_table()` expose the resulting state. A normal return still needs its guest `NTSTATUS` checked.
 
-A `.sys` is a PE64 with `DriverEntry` as its entry point and imports from
-`ntoskrnl.exe`, `HAL.dll`, `FLTMGR.SYS`, `WDFLDR.SYS`. The loader
-(`Emu::load_sys_driver`, `emu/loaders/sys.rs`, auto-detected by
-`load_code`/`load_kernel_module` from the native subsystem plus the kernel
-imports) maps the image at the kernel module base, applies the base
-relocations, seeds `__security_cookie` through the Load Config directory
-(the driver's own `__security_init_cookie` fast-fails otherwise) and binds
-every import to the emulated kernel: a stub for a function, zeroed storage
-for a data export (`IoDeviceObjectType`, `SeExports`, `NtBuildNumber`, …).
-Only x64 drivers for now.
+`kernel_ioctl(device, code, input, output_len)` constructs `IRP_MJ_DEVICE_CONTROL` using the method encoded in the control code: buffered, direct, or neither. The request builder maps buffers in the emulated user address range. A device value of zero selects the first created device. `kernel_create`, `kernel_close`, `kernel_read`, `kernel_write`, and `kernel_send_irp` cover other request paths.
 
-A driver is driven the way the I/O manager drives it, and the objects it
-reads are built with the real x64 layouts (`kernel/windows/structs.rs`),
-because `IoGetCurrentIrpStackLocation`, `ExInitializeFastMutex`,
-`MmGetSystemAddressForMdlSafe` and friends are inline in the DDK headers:
+Request setup failures return `Err`. Once dispatch runs, a call failure can instead appear in `IrpResult.error` with a failure status. Inspect that field together with `status`, `io_status`, `information`, `completed`, and `output`. `Ok(IrpResult)` alone does not mean a completed or successful request. Results also include observed privileged operations and newly recorded unsupported names.
 
-- `Emu::run_module_init()` / `run_driver_entry()` builds a `DRIVER_OBJECT`
-  (every `MajorFunction` slot pre-filled with `IopInvalidDeviceRequest`) and
-  a registry path, calls `DriverEntry`, then captures the dispatch table
-  (exposed as module symbols `IRP_MJ_DEVICE_CONTROL`, …), `DriverUnload`,
-  `AddDevice` and the devices created through `IoCreateDevice(Secure)`.
-- `Emu::kernel_ioctl(device, code, input, output_len)` sends
-  `IRP_MJ_DEVICE_CONTROL` with the buffering the control code's method asks
-  for (buffered: `SystemBuffer`; direct: `MdlAddress`; neither:
-  `Type3InputBuffer`/`UserBuffer`), with the caller's buffers mapped in the
-  user-mode range so `ProbeForRead`/`MmUserProbeAddress` checks behave. The
-  result carries the NTSTATUS, `IoStatus`, the output buffer, whether
-  `IofCompleteRequest` ran, and the privileged operations the request made.
-  `kernel_create`/`kernel_close`/`kernel_read`/`kernel_write`/`kernel_send_irp`
-  cover the other requests a user-mode client can send.
-- `Emu::kernel_ioctl_candidates()` harvests control codes from the driver's
-  code (immediates and `add/sub reg, -base; cmp reg, range` switch tables);
-  `kernel_scan_ioctls()` sends each with several input sizes and reports
-  what it reached — the BYOVD starting point.
-- Every request runs under an instruction budget (`kernel_set_call_budget`,
-  default 5M) so a driver polling a register cannot hang the run.
-- A bugcheck, `__fastfail` (`int 0x29`), raised status, `ProbeForRead`
-  violation or unhandled exception *aborts* the call: `kernel_call` (and so
-  every `kernel_ioctl`) returns an error naming the cause instead of whatever
-  was in `rax`, the reason is logged as `ABORT:` in the kernel log, and the
-  next call starts clean. A fuzzer therefore cannot mistake a crash for a
-  successful request.
-- `MmGetSystemRoutineAddress` resolves names in the modelled surface to
-  stubs and returns NULL for anything else, so a driver probing for an
-  optional API takes its fallback path.
+`kernel_ioctl_candidates()` extracts candidate control codes from instruction patterns. `kernel_scan_ioctls()` tries candidates with several buffer sizes and retains selected results. This is a heuristic exploration aid, not exhaustive IOCTL discovery or proof of a vulnerability.
 
-### Privileged operations
+`kernel_privops()` reports modeled MSR, port, physical-memory, address-translation, PCI, and cross-processor operations with their PC and instruction count. `kernel_set_msr` and `kernel_set_port` supply emulated values. Physical-memory windows use tracked allocations. These observations show which modeled operations a path reached. They do not reproduce hardware behavior or establish exploitability.
 
-A BYOVD (bring-your-own-vulnerable-driver) hunt is a search for an IOCTL
-that hands user mode a ring-0 primitive. Those are logged, not blocked, in
-`KernelEnv::privops` (`Emu::kernel_privops()`, each with the faulting PC and
-step): `rdmsr`/`wrmsr` (the MSR file is modelled, `kernel_set_msr` presets
-one), `in`/`out` (`kernel_set_port`), `map_io_space`/`unmap_io_space`
-(`MmMapIoSpace`, `MmMapVideoDisplay`, `ZwMapViewOfSection` on
-`\Device\PhysicalMemory`), `phys_read` (`MmCopyMemory`), `virt_to_phys`,
-`pci_read`/`pci_write` (`HalGetBusDataByOffset`), `ipi_call`
-(`KeIpiGenericCall`). `cli`/`sti`, `rdpmc` and the port and MSR instructions
-are implemented in the engine for kernel mode. A physical-memory window is a
-pool chunk, so a stale use after `MmUnmapIoSpace` reports like any other
-use-after-free.
+## Usage
 
-CLI: `mwemu -f driver.sys -6` runs DriverEntry and prints devices, links and
-dispatch; `--ioctl CODE[:INPUT_HEX[:OUT_LEN]]` sends one request;
-`--ioctl-scan` runs the scan. MCP: `mwemu_kernel_driver`, `mwemu_kernel_ioctl`,
-`mwemu_kernel_send_irp`, `mwemu_kernel_scan_ioctls`, `mwemu_kernel_privops`,
-`mwemu_kernel_preset`. Python: `kernel_ioctl`, `kernel_devices`,
-`kernel_dispatch_table`, `kernel_scan_ioctls`, `kernel_privops`,
-`kernel_set_msr`, `kernel_set_port`.
-
-### Implemented Windows surface
-
-`libmwemu::kernel::windows::SURFACE` (and `mwemu_kernel_surface` with
-`os=windows`) lists it at run time, grouped by file:
-
-- **pool** — every `ExAllocatePool*`/`ExFreePool*` spelling, `MmAllocate*`,
-  lookaside lists (the header's `Allocate`/`Free` point at the pool stubs so
-  the DDK's inline `ExAllocateFromNPagedLookasideList` works), `SLIST`
-  push/pop/flush in the real 16-byte x64 layout, `ExInterlocked*List`.
-- **io** — `IoCreateDevice`/`IoCreateDeviceSecure`, symbolic links,
-  `IofCompleteRequest`, IRP allocation/initialisation, stack-location helpers,
-  `IoBuildDeviceIoControlRequest`, `IofCallDriver` (a modelled lower driver
-  completes it), MDLs, work items (queued, not run), device interfaces,
-  remove locks, `IoGetDeviceObjectPointer` against the driver's own devices.
-- **mm** — `MmMapIoSpace`, `MmCopyMemory`, `MmGetPhysicalAddress`,
-  `MmGetSystemRoutineAddress` (resolves to an interceptable stub, so a
-  run-time lookup of `ZwQuerySystemInformation` is still intercepted), MDL
-  probe/lock/map, `MmAllocatePagesForMdl`, `ProbeForRead`/`Write`, HAL bus
-  data and address translation.
-- **rtl** — `UNICODE_STRING`/`ANSI_STRING` family, `RtlGetVersion` (Windows
-  10 22H2), registry helpers (answer "not found" so defaults apply), the
-  security-descriptor/ACL/SID group that `wdmsec`'s statically linked
-  `IoCreateDeviceSecure` depends on, `RtlImageNtHeader`/
-  `RtlImageDirectoryEntryToData`, bitmaps, AVL table stubs.
-- **crt** — `memcpy`/`memset`/`strlen`/`wcs*`/`_wcsnicmp`/…, the `printf`
-  family (narrow, wide, `va_list`; `%ws`, `%wZ`, `%Z`, `%I64x`), `DbgPrint`/
-  `DbgPrintEx`/`vDbgPrintEx`, `__C_specific_handler`.
-- **sync** — spin locks, fast mutexes, ERESOURCE, push locks, rundown
-  protection (uncontended by construction), events/semaphores/mutexes
-  (modelled for real), DPCs and timers (queued, drained by
-  `kernel_run_deferred`), `KeIpiGenericCall` and
-  `KeExpandKernelStackAndCallout` (tail calls into the driver), processor,
-  affinity and time queries, `KeBugCheckEx` (stops the run).
-- **misc** — `Ps*` (a fake System process and thread, notify routines
-  recorded, system threads queued), `Ob*` (handles remembered), `Se*`,
-  `Zw*` (registry and files answered benignly; `ZwQuerySystemInformation`
-  reports a one-module kernel; `\Device\PhysicalMemory` sections logged),
-  `Cm*`, `Flt*`, `Etw*`, `Po*`, `WdfVersionBind` (fills the `WdfFunctions`
-  table with per-index stubs; the KMDF object model itself is not modelled,
-  so a pure KMDF driver gets through DriverEntry but never sees
-  `EvtDeviceAdd`).
-
-An import outside the surface still resolves to a stub that returns 0 and
-is listed in `module.unresolved` at load time and `KernelEnv::unimplemented`
-when called. Not modelled yet: SEH dispatch in kernel mode (`__try` around
-`ProbeForRead` ends the run instead of unwinding), `mov cr*`, APC delivery,
-x86 (32-bit) and ARM64 drivers, the KMDF object model.
-
-`drivers/windows/tlm` is the Windows twin of the Linux target: the same
-stale-hot-channel use-after-free plus an `MmMapIoSpace` and an
-`rdmsr`/`wrmsr` IOCTL behind a magic value. `make windows-driver` builds it
-with mingw-w64 into `test/windows_uaf_driver.sys` and
-`cargo test -p libmwemu tests::kernel::windows` drives it end to end.
-
-## Using it
-
-Rust:
+Load and initialize a Linux module, then inspect its result and findings:
 
 ```rust
 let mut emu = libmwemu::emu64();
-emu.load_kernel_module("driver.ko")?;   // or driver.sys: the format is detected
-emu.run_module_init()?;                       // insmod
-emu.call_module_symbol("drv_ioctl", &[0, cmd, argp])?;
-for f in emu.kernel_findings() {
-    println!("{}", f.report());
+emu.load_kernel_module("driver.ko")?;
+let result = emu.run_module_init()?;
+println!("module init returned {result:#x}");
+for finding in emu.kernel_findings() {
+    println!("{}", finding.report());
 }
 ```
 
-Windows:
+Use `call_module_symbol(name, args)` or `kernel_call(address, args)` to exercise additional paths with the driver-specific arguments. Initialization does not infer suitable request data. Load a macOS kext with `load_kext_macho64` before using the same lifecycle methods.
+
+For Windows, choose the unsupported-call policy explicitly:
 
 ```rust
+use libmwemu::ApiMode;
+
 let mut emu = libmwemu::emu64();
+emu.set_api_mode(ApiMode::Strict);
 emu.load_kernel_module("driver.sys")?;
-emu.run_module_init()?;                                   // DriverEntry
-let r = emu.kernel_ioctl(0, 0x9c402118, &0xc000_0082u32.to_le_bytes(), 8)?;
-for op in &r.privops { println!("{}", op.report()); }      // rdmsr 0xc0000082 -> ...
+let status = emu.run_module_init()?;
+println!("DriverEntry returned {status:#x}");
 ```
 
-CLI — links the module and leaves PC at its init, so a plain run does what
-`insmod` does:
+CLI examples:
 
 ```sh
 mwemu -f driver.ko -6 -v
-mwemu -f driver.sys -6 --ioctl-scan
+mwemu -f driver.sys -6 --api-mode strict
+mwemu -f driver.sys -6 --api-mode simulate-fail --ioctl-scan
 ```
 
-MCP — see the kernel-mode section of `crates/mwemu-mcp/README.md`.
+`--ioctl CODE[:INPUT_HEX[:OUTPUT_LEN]]` sends one Windows request after initialization. Its control code and input layout must match the driver. The CLI uses the kernel initialization path and reports Windows devices and dispatch entries.
 
-## Test target
+The [MCP kernel tools](../crates/mwemu-mcp/README.md#emulating-a-driver-and-finding-lifetime-bugs) expose module calls, findings, deferred work, leaks, and surface discovery. Windows tools also expose driver requests, IOCTL scans, privileged operations, and presets. Python bindings provide corresponding module-call, finding, device, request, and preset methods.
 
-`drivers/macos/tlm` is the kext counterpart: the same deliberately vulnerable
-telemetry driver as a BSD kmod. `make macos-driver` builds it into
-`test/macos_uaf_driver.kext` (arm64e, needs the macOS SDK) and
-`cargo test -p libmwemu tests::kernel::macos_uaf` drives it end to end. Like the
-Linux target it is loaded only inside mwemu, never `kextload`ed.
+## Tests
 
-`drivers/linux/tlm` is a deliberately vulnerable telemetry driver used as the
-reference target; `make driver` builds it into `test/linux_uaf_driver.ko` and
-`cargo test -p libmwemu tests::kernel` drives it end to end.
+| Target | Build command | Output | Required toolchain |
+| --- | --- | --- | --- |
+| `drivers/linux/tlm` | `make driver` | `test/linux_uaf_driver.ko` | Linux kernel headers and a matching build toolchain. |
+| `drivers/windows/tlm` | `make windows-driver` | `test/windows_uaf_driver.sys` | mingw-w64 with DDK headers. |
+| `drivers/macos/tlm` | `make macos-driver` | `test/macos_uaf_driver.kext` | macOS SDK and arm64e toolchain support. |
+
+These deliberately vulnerable telemetry drivers exercise lifetime errors. The Windows target also exercises physical-memory and MSR paths. Load the artifacts inside mwemu for testing.
+
+```sh
+cargo test -p libmwemu tests::kernel -- --nocapture
+```
+
+The kernel suite includes self-contained ABI, dispatch/discovery, and memory tests. Artifact-dependent tests return early when their driver is absent. A green suite without those artifacts does not establish end-to-end driver coverage. Follow [TEST.md](../TEST.md) and the host-specific instructions in [AGENTS.md](../AGENTS.md) for the full validation setup.

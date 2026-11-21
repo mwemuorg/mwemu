@@ -1,4 +1,4 @@
-//! Raw shellcode: machine code with no executable header.
+//! Raw machine code with no executable header.
 
 use crate::emu::Emu;
 use crate::err::MwemuError;
@@ -7,57 +7,51 @@ use crate::windows::peb::{peb32, peb64};
 
 use super::format::{FormatLoader, LoadInput, apply_entry_point_override};
 
-/// Loader for raw machine code.
+// File-backed raw code has historically had this much zero-filled space after the input.
+const RAW_CODE_PADDING: u64 = 0xffff;
+
 pub(crate) struct Shellcode;
 
 impl FormatLoader for Shellcode {
     fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
         log::trace!("shellcode detected.");
-
-        // TODO: the register/flag reset should follow the caller's request
-        // instead of being hardcoded off.
-        emu.init_win32(false, false)?;
-
-        // The shellcode runs as a thread of a normal Windows process, so the
-        // process image is mapped first and the shellcode goes on top of it.
-        let exe_name = emu.cfg.exe_name.clone();
-        let exe_path = emu.cfg.get_maps_folder(&exe_name);
-        if emu.cfg.is_x64() {
-            match emu.load_pe64(&exe_path, false, 0) {
-                Ok(image) => peb64::update_ldr_entry_base(&exe_name, image.base, emu),
-                Err(error) => log::warn!("cannot load shellcode process image: {error}"),
-            }
+        if emu.os.is_windows() {
+            init_windows_process(emu)?;
         } else {
-            match emu.load_pe32(&exe_path, false, 0) {
-                Ok(image) => peb32::update_ldr_entry_base(&exe_name, image.base, emu),
-                Err(error) => log::warn!("cannot load shellcode process image: {error}"),
-            }
+            emu.init_cpu();
         }
 
-        let code_sz = input.bytes.len().max(1) as u64;
-        let code_map = match emu.maps.create_map(
-            "code",
-            emu.cfg.code_base_addr,
-            code_sz,
-            Permission::READ_WRITE_EXECUTE,
-        ) {
-            Ok(m) => m,
-            Err(_) => {
-                log::error!("cannot create code map");
-                return Err(MwemuError::new("cannot create code map"));
-            }
-        };
-        if !code_map.load(input.path) {
-            log::trace!("shellcode not found, select the file with -f");
-            return Err(MwemuError::new(&format!(
-                "cannot load shellcode from '{}'",
-                input.path
-            )));
-        }
-        let code = emu.maps.get_mem_mut("code");
-        code.extend(0xffff); // this could overlap an existing map
-
+        let base = emu.cfg.code_base_addr;
+        let size = input.bytes.len() as u64 + RAW_CODE_PADDING;
+        let code = emu
+            .maps
+            .create_map("code", base, size, Permission::READ_WRITE_EXECUTE)
+            .map_err(|reason| {
+                MwemuError::new(&format!("cannot map raw code at {base:#x}: {reason}"))
+            })?;
+        code.write_bytes(base, input.bytes);
+        emu.set_pc(base);
         apply_entry_point_override(emu);
         Ok(())
     }
+}
+
+fn init_windows_process(emu: &mut Emu) -> Result<(), MwemuError> {
+    emu.init_win32(false, false)?;
+
+    // Raw Windows code runs in a process with a main image in the PEB.
+    let exe_name = emu.cfg.exe_name.clone();
+    let exe_path = emu.cfg.get_maps_folder(&exe_name);
+    if emu.cfg.is_x64() {
+        match emu.load_pe64(&exe_path, false, 0) {
+            Ok(image) => peb64::update_ldr_entry_base(&exe_name, image.base, emu),
+            Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+        }
+    } else {
+        match emu.load_pe32(&exe_path, false, 0) {
+            Ok(image) => peb32::update_ldr_entry_base(&exe_name, image.base, emu),
+            Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+        }
+    }
+    Ok(())
 }

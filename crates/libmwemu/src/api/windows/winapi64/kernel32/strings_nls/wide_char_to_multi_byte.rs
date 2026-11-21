@@ -17,7 +17,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "** {}:{:x} kernel32!WideCharToMultiByte code_page: {} dw_flags: {} lp_wide_char_str: 0x{:x} cch_wide_char: {} lp_multi_byte_str: 0x{:x} cb_multi_byte: {} lp_default_char: 0x{:x} lp_used_default_char: 0x{:x}",
+        "** {}:{:x} kernel32!WideCharToMultiByte code_page={} dw_flags={} lp_wide_char_str=0x{:x} cch_wide_char={} lp_multi_byte_str=0x{:x} cb_multi_byte={} lp_default_char=0x{:x} lp_used_default_char=0x{:x}",
         emu.pos,
         emu.regs().rip,
         code_page,
@@ -68,7 +68,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     if cb_multi_byte < input_len as u64 {
         // Set last error to ERROR_INSUFFICIENT_BUFFER
         log::warn!(
-            "{} buffer too small for result cb_multi_byte: {} input_len: {}",
+            "{} buffer too small for result cb_multi_byte={} input_len={}",
             emu.pos,
             cb_multi_byte,
             input_len
@@ -108,7 +108,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     if lp_wide_char_str > 0 && !s.is_empty() {
         log_red!(
             emu,
-            "Input wide string: \"{}\" (length: {} characters)",
+            "Input wide string: \"{}\" (length={} characters)",
             s.escape_debug(),
             // This will show escape sequences for non-printable chars
             input_len

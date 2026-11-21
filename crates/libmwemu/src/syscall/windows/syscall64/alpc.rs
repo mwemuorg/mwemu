@@ -1,272 +1,250 @@
+use crate::api::abi::windows::WindowsAbi::WinSyscall;
+use crate::api::windows::common::memory::read_guest_bytes;
+use crate::api::windows::common::ntdll::read_unicode_string;
+use crate::api::windows::common::sections;
+use crate::api::windows::policy;
 use crate::emu::Emu;
+use crate::emu::object_handle::NativeObject;
+use crate::maps::mem64::Permission;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
-use crate::windows::constants::syscalls::*;
+use crate::windows::constants::memory::PAGE_READWRITE;
 
-use super::sync;
-
-/// Generic ALPC handle-creating stub: writes a fake handle to [RCX] and returns STATUS_SUCCESS.
-fn alpc_create_handle(emu: &mut Emu, nr: u64, name: &str) {
-    let handle_out = emu.regs().rcx;
-    log_orange!(emu, "syscall 0x{:x}: {} out: 0x{:x}", nr, name, handle_out);
-    if handle_out != 0 && emu.maps.is_mapped(handle_out) {
-        let h = sync::next_handle();
-        let _ = emu.maps.write_qword(handle_out, h);
-    }
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// Generic ALPC info-query stub: zero-fills the output buffer and returns STATUS_SUCCESS.
-fn alpc_query_info(emu: &mut Emu, nr: u64, name: &str) {
-    let info_buf = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let length = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: {} buf: 0x{:x} len: 0x{:x}",
-        nr,
-        name,
-        info_buf,
-        length
-    );
-    if info_buf != 0 && emu.maps.is_mapped(info_buf) {
-        let sz = length.min(0x1000) as usize;
-        for i in 0..sz {
-            let _ = emu.maps.write_byte(info_buf + i as u64, 0);
-        }
-    }
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// Generic ALPC stub that simply returns STATUS_SUCCESS (no output).
-fn alpc_noop(emu: &mut Emu, nr: u64, name: &str) {
-    log_orange!(emu, "syscall 0x{:x}: {} (stub)", nr, name);
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// `NtAlpcConnectPort` — client connects to an ALPC server port.
-///
-/// x64: RCX=PortHandle(out), RDX=PortName, R8=ObjAttr, R9=PortAttr,
-/// [rsp+28]=Flags, [rsp+30]=RequiredServerSid, [rsp+38]=ConnectionMessage(in/out),
-/// [rsp+40]=BufferLength.
-/// Writes a fake handle, zero-fills ConnectionMessage reply so ReturnValue=0=SUCCESS.
-pub fn nt_alpc_connect_port(emu: &mut Emu) {
-    let handle_out = emu.regs().rcx;
-    let rsp = emu.regs().rsp;
-    let conn_msg_ptr = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtAlpcConnectPort out: 0x{:x}, conn_msg: 0x{:x}",
-        WIN64_NTALPCCONNECTPORT,
-        handle_out,
-        conn_msg_ptr,
-    );
-
-    if handle_out != 0 && emu.maps.is_mapped(handle_out) {
-        let h = sync::next_handle();
-        let _ = emu.maps.write_qword(handle_out, h);
-    }
-
-    // Zero-fill the connection message reply so ReturnValue == STATUS_SUCCESS.
-    if conn_msg_ptr != 0 && emu.maps.is_mapped(conn_msg_ptr) {
-        for off in 0..0x200u64 {
-            let _ = emu.maps.write_byte(conn_msg_ptr + off, 0);
-        }
-    }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-pub fn nt_alpc_connect_port_ex(emu: &mut Emu) {
-    alpc_create_handle(emu, WIN64_NTALPCCONNECTPORTEX, "NtAlpcConnectPortEx");
-}
-pub fn nt_alpc_create_port(emu: &mut Emu) {
-    alpc_create_handle(emu, WIN64_NTALPCCREATEPORT, "NtAlpcCreatePort");
-}
-pub fn nt_alpc_create_port_section(emu: &mut Emu) {
-    alpc_create_handle(
-        emu,
-        WIN64_NTALPCCREATEPORTSECTION,
-        "NtAlpcCreatePortSection",
-    );
-}
-pub fn nt_alpc_create_resource_reserve(emu: &mut Emu) {
-    alpc_create_handle(
-        emu,
-        WIN64_NTALPCCREATERESOURCERESERVE,
-        "NtAlpcCreateResourceReserve",
-    );
-}
-pub fn nt_alpc_create_section_view(emu: &mut Emu) {
-    alpc_create_handle(
-        emu,
-        WIN64_NTALPCCREATESECTIONVIEW,
-        "NtAlpcCreateSectionView",
-    );
-}
-pub fn nt_alpc_create_security_context(emu: &mut Emu) {
-    alpc_create_handle(
-        emu,
-        WIN64_NTALPCCREATESECURITYCONTEXT,
-        "NtAlpcCreateSecurityContext",
-    );
-}
-
-pub fn nt_alpc_query_information(emu: &mut Emu) {
-    alpc_query_info(emu, WIN64_NTALPCQUERYINFORMATION, "NtAlpcQueryInformation");
-}
-
-/// `NtAlpcQueryInformationMessage` — 0x8c.
-///
-/// RCX = PortHandle, RDX = PortMessage, R8 = MessageInfoClass,
-/// R9 = MessageInformation (out), [rsp+28] = Length, [rsp+30] = ReturnLength.
-pub fn nt_alpc_query_information_message(emu: &mut Emu) {
-    let port = emu.regs().rcx;
-    let class = emu.regs().r8;
-    let info = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let length = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-    let ret_len = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtAlpcQueryInformationMessage port: 0x{:x}, class: 0x{:x}, buf: 0x{:x}, len: 0x{:x}",
-        WIN64_NTALPCQUERYINFORMATIONMESSAGE,
-        port,
-        class,
-        info,
-        length,
-    );
-
-    if info != 0 && emu.maps.is_mapped(info) {
-        let sz = length.min(0x1000) as usize;
-        for i in 0..sz {
-            let _ = emu.maps.write_byte(info + i as u64, 0);
-        }
-    }
-    if ret_len != 0 && emu.maps.is_mapped(ret_len) {
-        let _ = emu.maps.write_qword(ret_len, length.min(0x1000));
-    }
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-pub fn nt_alpc_cancel_message(emu: &mut Emu) {
-    alpc_noop(emu, WIN64_NTALPCCANCELMESSAGE, "NtAlpcCancelMessage");
-}
-pub fn nt_alpc_delete_port_section(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCDELETEPORTSECTION,
-        "NtAlpcDeletePortSection",
-    );
-}
-pub fn nt_alpc_delete_resource_reserve(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCDELETERESOURCERESERVE,
-        "NtAlpcDeleteResourceReserve",
-    );
-}
-pub fn nt_alpc_delete_section_view(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCDELETESECTIONVIEW,
-        "NtAlpcDeleteSectionView",
-    );
-}
-pub fn nt_alpc_delete_security_context(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCDELETESECURITYCONTEXT,
-        "NtAlpcDeleteSecurityContext",
-    );
-}
-pub fn nt_alpc_disconnect_port(emu: &mut Emu) {
-    alpc_noop(emu, WIN64_NTALPCDISCONNECTPORT, "NtAlpcDisconnectPort");
-}
-pub fn nt_alpc_impersonate_client_container_of_port(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCIMPERSONATECLIENTCONTAINEROFPORT,
-        "NtAlpcImpersonateClientContainerOfPort",
-    );
-}
-pub fn nt_alpc_impersonate_client_of_port(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCIMPERSONATECLIENTOFPORT,
-        "NtAlpcImpersonateClientOfPort",
-    );
-}
-pub fn nt_alpc_open_sender_process(emu: &mut Emu) {
-    alpc_create_handle(
-        emu,
-        WIN64_NTALPCOPENSENDERPROCESS,
-        "NtAlpcOpenSenderProcess",
-    );
-}
-pub fn nt_alpc_open_sender_thread(emu: &mut Emu) {
-    alpc_create_handle(emu, WIN64_NTALPCOPENSENDERTHREAD, "NtAlpcOpenSenderThread");
-}
-pub fn nt_alpc_revoke_security_context(emu: &mut Emu) {
-    alpc_noop(
-        emu,
-        WIN64_NTALPCREVOKESECURITYCONTEXT,
-        "NtAlpcRevokeSecurityContext",
-    );
-}
-
-// PORT_MESSAGE reply type (Windows LPC).
+const PORT_MESSAGE_SIZE: usize = 0x28;
 const LPC_REPLY: u16 = 2;
-// x64 PORT_MESSAGE size.
-const PORT_MESSAGE_SIZE: u64 = 0x28;
+const ALPC_MSGFLG_SYNC_REQUEST: u32 = 0x0002_0000;
+const CSR_CAPTURE_BUFFER: usize = PORT_MESSAGE_SIZE;
+const CSR_API_NUMBER: usize = CSR_CAPTURE_BUFFER + size_of::<u64>();
+const CSR_RETURN_VALUE: usize = CSR_API_NUMBER + size_of::<u32>();
+const CSR_CLIENT_CONNECT: u32 = 0;
+const CSR_CONNECT_REQUEST: usize = 0x40;
+const CSR_CONNECT_SIZE: usize = CSR_CONNECT_REQUEST + 24;
 
-/// `NtAlpcSendWaitReceivePort` — 0x8c.
-///
-/// x64: RCX=PortHandle, RDX=Flags, R8=SendMessage, R9=SendMsgAttr,
-/// [rsp+28]=ReceiveMessage(out), [rsp+30]=BufferLength, [rsp+38]=RecvMsgAttr, [rsp+40]=Timeout.
-///
-/// Writes a minimal PORT_MESSAGE header with Type=LPC_REPLY to the receive buffer so ntdll's
-/// CsrClientConnectToServer reply checks succeed.
-pub fn nt_alpc_send_wait_receive_port(emu: &mut Emu) {
-    let port = emu.regs().rcx;
-    let send_msg_ptr = emu.regs().r8;
-    let rsp = emu.regs().rsp;
-    let recv_msg_ptr = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-
-    // Read DataLength from the send PORT_MESSAGE header (+0x00 = u1.s1.DataLength, CSHORT).
-    let send_data_len = if send_msg_ptr != 0 && emu.maps.is_mapped(send_msg_ptr) {
-        emu.maps.read_word(send_msg_ptr).unwrap_or(0)
-    } else {
-        0
-    };
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtAlpcSendWaitReceivePort port: 0x{:x}, send: 0x{:x}, recv_buf: 0x{:x}",
-        WIN64_NTALPCSENDWAITRECEIVEPORT,
-        port,
-        send_msg_ptr,
-        recv_msg_ptr,
-    );
-
-    if recv_msg_ptr != 0 && emu.maps.is_mapped(recv_msg_ptr) {
-        // Zero-fill data portion (after PORT_MESSAGE header) for any ReturnValue checks.
-        let data_len = send_data_len.min(0x1e0) as u64;
-        for off in 0..(PORT_MESSAGE_SIZE + data_len) {
-            let _ = emu.maps.write_byte(recv_msg_ptr + off, 0);
-        }
-        // Write PORT_MESSAGE header: DataLength, TotalLength, then Type=LPC_REPLY at +0x04.
-        let _ = emu.maps.write_word(recv_msg_ptr, send_data_len);
-        let _ = emu.maps.write_word(
-            recv_msg_ptr + 0x02,
-            PORT_MESSAGE_SIZE as u16 + send_data_len,
-        );
-        let _ = emu.maps.write_word(recv_msg_ptr + 0x04, LPC_REPLY);
+fn csr_port(name: &str) -> bool {
+    if name.eq_ignore_ascii_case(r"\Windows\ApiPort") {
+        return true;
     }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    let mut parts = name.split('\\');
+    matches!(
+        (parts.next(), parts.next(), parts.next(), parts.next(), parts.next(), parts.next()),
+        (Some(""), Some(sessions), Some(session), Some(windows), Some(port), None)
+        if sessions.eq_ignore_ascii_case("Sessions")
+            && session.parse::<u32>().is_ok() && session.bytes().all(|b| b.is_ascii_digit())
+            && windows.eq_ignore_ascii_case("Windows") && port.eq_ignore_ascii_case("ApiPort")
+    )
 }
 
-pub fn nt_alpc_set_information(emu: &mut Emu) {
-    alpc_noop(emu, WIN64_NTALPCSETINFORMATION, "NtAlpcSetInformation");
+pub(super) fn nt_alpc_connect_port(emu: &mut Emu) {
+    let call = WinSyscall;
+    let [out, name] = api_try!(emu, call.args(emu));
+    let name = match read_unicode_string(emu, name) {
+        Ok(name) => name,
+        Err(status) => return call.set_return(emu, status),
+    };
+    if !csr_port(&name) {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtAlpcConnectPort", emu.pc(), call);
+    }
+    let [
+        _,
+        _,
+        object,
+        attributes,
+        flags,
+        sid,
+        message,
+        length,
+        sent,
+        received,
+        timeout,
+    ] = api_try!(emu, call.args(emu));
+    if [object, attributes, flags, sid, sent, received, timeout]
+        .iter()
+        .any(|value| *value != 0)
+    {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtAlpcConnectPort", emu.pc(), call);
+    }
+    if !emu.maps.validate_write_range(out, 8) {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    if message != 0 || length != 0 {
+        if message == 0 || length == 0 {
+            return call.set_return(emu, STATUS_INVALID_PARAMETER);
+        }
+        let Some(capacity) = emu.maps.read_qword(length) else {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+        };
+        if capacity < PORT_MESSAGE_SIZE as u64 {
+            return call.set_return(emu, STATUS_BUFFER_TOO_SMALL);
+        }
+        if !emu
+            .maps
+            .can_access_range(message, PORT_MESSAGE_SIZE, Permission::READ)
+            || !emu.maps.validate_write_range(length, 8)
+        {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+        }
+        if emu.maps.read_word(message) != Some(0)
+            || emu.maps.read_word(message + 2) != Some(PORT_MESSAGE_SIZE as u16)
+        {
+            return policy::unsupported_with_abi(emu, "ntdll", "NtAlpcConnectPort", emu.pc(), call);
+        }
+        emu.maps.write_qword(length, PORT_MESSAGE_SIZE as u64);
+    }
+    let handle = emu
+        .handle_management
+        .insert_native_object(NativeObject::CsrPort);
+    emu.maps.write_qword(out, handle);
+    log_orange!(emu, "NtAlpcConnectPort port={name:?} handle={handle:#x}");
+    call.set_return(emu, STATUS_SUCCESS);
+}
+
+pub(super) fn nt_alpc_send_wait_receive_port(emu: &mut Emu) {
+    let call = WinSyscall;
+    let [
+        handle,
+        flags,
+        send,
+        out_attributes,
+        receive,
+        length,
+        in_attributes,
+        timeout,
+    ] = api_try!(emu, call.args(emu));
+    if emu.handle_management.native_object(handle) != Some(NativeObject::CsrPort)
+        || flags as u32 & !ALPC_MSGFLG_SYNC_REQUEST != 0
+        || [out_attributes, in_attributes, timeout]
+            .iter()
+            .any(|value| *value != 0)
+    {
+        return policy::unsupported_with_abi(
+            emu,
+            "ntdll",
+            "NtAlpcSendWaitReceivePort",
+            emu.pc(),
+            call,
+        );
+    }
+    if !emu
+        .maps
+        .can_access_range(send, PORT_MESSAGE_SIZE, Permission::READ)
+    {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    let Some(data_len) = emu.maps.read_word(send) else {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    };
+    let total = PORT_MESSAGE_SIZE + usize::from(data_len);
+    if total < CSR_RETURN_VALUE + size_of::<u32>()
+        || emu.maps.read_word(send + 2).map(usize::from) != Some(total)
+    {
+        return call.set_return(emu, STATUS_INVALID_PARAMETER);
+    }
+    if !emu.maps.can_access_range(send, total, Permission::READ) {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    if emu.maps.read_qword(send + CSR_CAPTURE_BUFFER as u64) != Some(0)
+        || emu.maps.read_dword(send + CSR_API_NUMBER as u64) != Some(CSR_CLIENT_CONNECT)
+        || emu.maps.read_word(send + 6) != Some(0)
+        || total != CSR_CONNECT_SIZE
+        || emu.maps.read_dword(send + CSR_CONNECT_REQUEST as u64) != Some(0)
+        || emu.maps.read_qword(send + CSR_CONNECT_REQUEST as u64 + 8) != Some(0)
+        || emu.maps.read_dword(send + CSR_CONNECT_REQUEST as u64 + 16) != Some(0)
+    {
+        return policy::unsupported_with_abi(
+            emu,
+            "ntdll",
+            "NtAlpcSendWaitReceivePort",
+            emu.pc(),
+            call,
+        );
+    }
+    let Some(capacity) = emu.maps.read_qword(length) else {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    };
+    if !emu.maps.validate_write_range(length, 8) {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    if capacity < total as u64 {
+        emu.maps.write_qword(length, total as u64);
+        return call.set_return(emu, STATUS_BUFFER_TOO_SMALL);
+    }
+    if !emu.maps.validate_write_range(receive, total as u64) {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    let Some(mut reply) = read_guest_bytes(emu, send, total) else {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    };
+    reply[4..6].copy_from_slice(&LPC_REPLY.to_le_bytes());
+    reply[CSR_RETURN_VALUE..CSR_RETURN_VALUE + 4]
+        .copy_from_slice(&(STATUS_SUCCESS as u32).to_le_bytes());
+    emu.maps.write_bytes(receive, &reply);
+    emu.maps.write_qword(length, total as u64);
+    call.set_return(emu, STATUS_SUCCESS);
+}
+
+pub(super) fn nt_connect_port(emu: &mut Emu) {
+    const SECURITY_QOS_SIZE: usize = 12;
+    const PORT_VIEW_SIZE: usize = 48;
+    const PORT_MAXIMUM_MESSAGE_LENGTH: u32 = 512;
+    let call = WinSyscall;
+    let [out, name, quality, client, server, maximum, data, length] = api_try!(emu, call.args(emu));
+    let name = match read_unicode_string(emu, name) {
+        Ok(name) => name,
+        Err(status) => return call.set_return(emu, status),
+    };
+    if !csr_port(&name) || server != 0 || data != 0 {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtConnectPort", emu.pc(), call);
+    }
+    if !emu
+        .maps
+        .can_access_range(quality, SECURITY_QOS_SIZE, Permission::READ)
+        || !emu.maps.validate_write_range(out, 8)
+        || (maximum != 0 && !emu.maps.validate_write_range(maximum, 4))
+        || (length != 0 && !emu.maps.validate_write_range(length, 4))
+    {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+    }
+    if emu.maps.read_dword(quality) != Some(SECURITY_QOS_SIZE as u32)
+        || !matches!(emu.maps.read_dword(quality + 4), Some(0..=3))
+        || !matches!(emu.maps.read_byte(quality + 8), Some(0..=1))
+        || !matches!(emu.maps.read_byte(quality + 9), Some(0..=1))
+        || (length != 0 && emu.maps.read_dword(length) != Some(0))
+    {
+        return call.set_return(emu, STATUS_INVALID_PARAMETER);
+    }
+    if client != 0 {
+        if !emu
+            .maps
+            .can_access_range(client, PORT_VIEW_SIZE, Permission::READ)
+            || !emu.maps.validate_write_range(client, PORT_VIEW_SIZE as u64)
+        {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+        }
+        if emu.maps.read_dword(client) != Some(PORT_VIEW_SIZE as u32) {
+            return call.set_return(emu, STATUS_INVALID_PARAMETER);
+        }
+        let (Some(section), Some(offset), Some(size)) = (
+            emu.maps.read_qword(client + 8),
+            emu.maps.read_dword(client + 16),
+            emu.maps.read_qword(client + 24),
+        ) else {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+        };
+        match sections::map(emu, section, 0, u64::from(offset), size, PAGE_READWRITE) {
+            Ok((base, mapped)) => {
+                emu.maps.write_qword(client + 24, mapped);
+                emu.maps.write_qword(client + 32, base);
+                emu.maps.write_qword(client + 40, base);
+            }
+            Err(status) => return call.set_return(emu, status),
+        }
+    }
+    let handle = emu
+        .handle_management
+        .insert_native_object(NativeObject::CsrPort);
+    emu.maps.write_qword(out, handle);
+    if maximum != 0 {
+        emu.maps.write_dword(maximum, PORT_MAXIMUM_MESSAGE_LENGTH);
+    }
+    call.set_return(emu, STATUS_SUCCESS);
 }

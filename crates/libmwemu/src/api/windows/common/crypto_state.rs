@@ -6,37 +6,29 @@ use sha2::{Digest as Sha2Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-const CALG_SHA_256: u32 = 0x0000800c;
-const CALG_SHA1: u32 = 0x00008004;
-const CALG_MD5: u32 = 0x00008003;
-const CALG_RC4: u32 = 0x00006801;
-const CALG_AES_128: u32 = 0x0000660e;
-const CALG_AES_256: u32 = 0x00006610;
-const CALG_DES: u32 = 0x00006601;
-const CALG_3DES: u32 = 0x00006603;
+use crate::windows::constants::crypto::{
+    CALG_3DES, CALG_AES_128, CALG_AES_256, CALG_DES, CALG_MD5, CALG_RC4, CALG_SHA_256, CALG_SHA1,
+    HP_ALGID, HP_HASHSIZE, HP_HASHVAL, KP_ALGID, KP_BLOCKLEN, KP_KEYLEN,
+};
 
-pub const HP_HASHVAL: u32 = 0x0002;
-pub const HP_HASHSIZE: u32 = 0x0004;
-pub const HP_ALGID: u32 = 0x0001;
-
-pub const KP_BLOCKLEN: u32 = 0x0008;
-pub const KP_KEYLEN: u32 = 0x0007;
-pub const KP_ALGID: u32 = 0x0001;
-
+#[derive(Clone)]
 enum HashState {
     Md5(md5::Context),
     Sha1(Sha1),
     Sha256(Sha256),
 }
 
+#[derive(Clone)]
 struct CryptoHash {
     alg_id: u32,
     state: HashState,
     finalized: Option<Vec<u8>>,
 }
 
+#[derive(Clone)]
 struct CryptoKey {
     alg_id: u32,
+    exportable: bool,
     key_data: Vec<u8>,
 }
 
@@ -160,7 +152,14 @@ pub fn create_key(handle: u64, alg_id: u32, key_len_bits: u32) -> bool {
     };
     let key_data: Vec<u8> = (0..key_len).map(|i| (i as u8).wrapping_mul(0x37)).collect();
     with_store(|s| {
-        s.keys.insert(handle, CryptoKey { alg_id, key_data });
+        s.keys.insert(
+            handle,
+            CryptoKey {
+                alg_id,
+                key_data,
+                exportable: false,
+            },
+        );
     });
     true
 }
@@ -183,12 +182,22 @@ pub fn derive_key_from_hash(key_handle: u64, hash_handle: u64, alg_id: u32) -> b
         *b = if i < digest.len() { digest[i] } else { 0 };
     }
     with_store(|s| {
-        s.keys.insert(key_handle, CryptoKey { alg_id, key_data });
+        s.keys.insert(
+            key_handle,
+            CryptoKey {
+                alg_id,
+                key_data,
+                exportable: false,
+            },
+        );
     });
     true
 }
 
 pub fn set_key_data(handle: u64, data: &[u8]) -> bool {
+    if data.is_empty() {
+        return false;
+    }
     with_store(|s| {
         if let Some(k) = s.keys.get_mut(&handle) {
             k.key_data = data.to_vec();
@@ -350,17 +359,16 @@ fn aes256_decrypt_ecb(key: &[u8], data: &mut [u8]) {
 pub fn encrypt_data(handle: u64, data: &mut [u8]) -> bool {
     with_store(|s| {
         if let Some(k) = s.keys.get(&handle) {
+            if k.key_data.is_empty() {
+                return false;
+            }
             match k.alg_id {
                 CALG_RC4 => rc4_crypt(&k.key_data, data),
                 CALG_DES => des_encrypt_ecb(&k.key_data, data),
                 CALG_3DES => tdes_encrypt_ecb(&k.key_data, data),
                 CALG_AES_128 => aes128_encrypt_ecb(&k.key_data, data),
                 CALG_AES_256 => aes256_encrypt_ecb(&k.key_data, data),
-                _ => {
-                    for (i, b) in data.iter_mut().enumerate() {
-                        *b ^= k.key_data[i % k.key_data.len()];
-                    }
-                }
+                _ => return false,
             }
             true
         } else {
@@ -372,35 +380,18 @@ pub fn encrypt_data(handle: u64, data: &mut [u8]) -> bool {
 pub fn decrypt_data(handle: u64, data: &mut [u8]) -> bool {
     with_store(|s| {
         if let Some(k) = s.keys.get(&handle) {
+            if k.key_data.is_empty() {
+                return false;
+            }
             match k.alg_id {
                 CALG_RC4 => rc4_crypt(&k.key_data, data),
                 CALG_DES => des_decrypt_ecb(&k.key_data, data),
                 CALG_3DES => tdes_decrypt_ecb(&k.key_data, data),
                 CALG_AES_128 => aes128_decrypt_ecb(&k.key_data, data),
                 CALG_AES_256 => aes256_decrypt_ecb(&k.key_data, data),
-                _ => {
-                    for (i, b) in data.iter_mut().enumerate() {
-                        *b ^= k.key_data[i % k.key_data.len()];
-                    }
-                }
+                _ => return false,
             }
             true
-        } else {
-            false
-        }
-    })
-}
-
-pub const KP_IV: u32 = 0x0001;
-pub const KP_MODE: u32 = 0x0004;
-
-pub fn set_key_param(handle: u64, param: u32, data: &[u8]) -> bool {
-    with_store(|s| {
-        if let Some(_k) = s.keys.get_mut(&handle) {
-            match param {
-                KP_IV | KP_MODE => true,
-                _ => true,
-            }
         } else {
             false
         }
@@ -456,42 +447,6 @@ pub fn dpapi_unprotect(data: &[u8]) -> Vec<u8> {
     decrypted
 }
 
-pub fn sign_hash(hash_handle: u64, sig_len: usize) -> Option<Vec<u8>> {
-    let hash_val = get_hash_param(hash_handle, HP_HASHVAL)?;
-    let alg_id = with_store(|s| s.hashes.get(&hash_handle).map(|h| h.alg_id))?;
-    let digest_info_prefix: &[u8] = match alg_id {
-        CALG_MD5 => &[
-            0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05,
-            0x05, 0x00, 0x04, 0x10,
-        ],
-        CALG_SHA1 => &[
-            0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04,
-            0x14,
-        ],
-        CALG_SHA_256 => &[
-            0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02,
-            0x01, 0x05, 0x00, 0x04, 0x20,
-        ],
-        _ => &[],
-    };
-    let t_len = digest_info_prefix.len() + hash_val.len();
-    let out_len = if sig_len > 0 { sig_len } else { 128 };
-    if out_len < t_len + 11 {
-        return Some(hash_val);
-    }
-    let ps_len = out_len - t_len - 3;
-    let mut sig = vec![0u8; out_len];
-    sig[0] = 0x00;
-    sig[1] = 0x01;
-    for b in &mut sig[2..2 + ps_len] {
-        *b = 0xff;
-    }
-    sig[2 + ps_len] = 0x00;
-    sig[3 + ps_len..3 + ps_len + digest_info_prefix.len()].copy_from_slice(digest_info_prefix);
-    sig[3 + ps_len + digest_info_prefix.len()..].copy_from_slice(&hash_val);
-    Some(sig)
-}
-
 pub fn pbkdf2_derive(alg_id: u32, password: &[u8], salt: &[u8], iterations: u32, out: &mut [u8]) {
     match alg_id {
         CALG_SHA1 => {
@@ -501,4 +456,32 @@ pub fn pbkdf2_derive(alg_id: u32, password: &[u8], salt: &[u8], iterations: u32,
             pbkdf2::pbkdf2_hmac::<Sha256>(password, salt, iterations, out);
         }
     }
+}
+
+pub fn duplicate_object(source: u64, target: u64, is_hash: bool) -> bool {
+    with_store(|store| {
+        if is_hash {
+            let Some(hash) = store.hashes.get(&source).cloned() else {
+                return false;
+            };
+            store.hashes.insert(target, hash);
+        } else {
+            let Some(key) = store.keys.get(&source).cloned() else {
+                return false;
+            };
+            store.keys.insert(target, key);
+        }
+        true
+    })
+}
+
+pub(crate) fn set_exportable(handle: u64, exportable: bool) {
+    with_store(|s| {
+        if let Some(key) = s.keys.get_mut(&handle) {
+            key.exportable = exportable;
+        }
+    });
+}
+pub(crate) fn is_exportable(handle: u64) -> bool {
+    with_store(|s| s.keys.get(&handle).is_some_and(|k| k.exportable))
 }

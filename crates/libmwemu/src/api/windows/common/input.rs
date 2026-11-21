@@ -79,7 +79,7 @@ pub(crate) fn map_virtual_key(emu: &mut Emu, api: &str, extended: bool) {
     };
     log_red!(
         emu,
-        "user32!{} code:0x{:x} type:{} layout:0x{:x} => 0x{:x}",
+        "user32!{} code=0x{:x} type={} layout=0x{:x} result=0x{:x}",
         api,
         code,
         kind,

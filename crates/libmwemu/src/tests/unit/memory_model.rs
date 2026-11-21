@@ -583,3 +583,84 @@ fn nt_free_virtual_memory() {
     );
     assert!(!emu.maps.is_mapped(base));
 }
+
+#[test]
+fn memory_calls_honor_process_handle_lifetime_and_granted_access() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::windows::constants::errors::{
+        ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE, STATUS_ACCESS_DENIED,
+    };
+    use crate::windows::constants::process::{PROCESS_QUERY_INFORMATION, PROCESS_VM_OPERATION};
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare_winapi(is64);
+        let pid = call(&mut emu, "kernel32.dll", "GetCurrentProcessId", &[]);
+        let op = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenProcess",
+            &[PROCESS_VM_OPERATION as u64, 0, pid],
+        );
+        let query = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenProcess",
+            &[PROCESS_QUERY_INFORMATION as u64, 0, pid],
+        );
+        let flags = (MEM_RESERVE | MEM_COMMIT) as u64;
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernel32.dll",
+                "VirtualAllocEx",
+                &[query, 0, 4096, flags, PAGE_READWRITE as u64]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+        let address = call(
+            &mut emu,
+            "kernelbase.dll",
+            "VirtualAllocEx",
+            &[op, 0, 4096, flags, PAGE_READWRITE as u64],
+        );
+        assert_ne!(address, 0);
+        assert_ne!(
+            call(
+                &mut emu,
+                "kernel32.dll",
+                "VirtualQueryEx",
+                &[query, address, data, 128]
+            ),
+            0
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "NtReadVirtualMemory",
+                &[query, address, data, 4, 0]
+            ),
+            STATUS_ACCESS_DENIED
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernel32.dll",
+                "VirtualFreeEx",
+                &[op, address, 0, MEM_RELEASE as u64]
+            ),
+            1
+        );
+        assert_eq!(call(&mut emu, "kernel32.dll", "CloseHandle", &[op]), 1);
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernelbase.dll",
+                "VirtualAllocEx",
+                &[op, 0, 4096, flags, PAGE_READWRITE as u64]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+    }
+}

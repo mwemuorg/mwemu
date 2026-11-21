@@ -3,7 +3,8 @@ use crate::emu::Emu;
 use crate::maps::buffers::{BufferAllocation, BufferKind};
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::align_up;
-use crate::winapi::common::heap;
+use crate::winapi::common::{heap, memory};
+use crate::windows::constants::errors::{E_OUTOFMEMORY, E_POINTER, S_OK};
 
 const LARGE_ALLOCATION: u64 = 0x8000;
 
@@ -109,4 +110,20 @@ pub(crate) fn reallocate(emu: &mut Emu, address: u64, size: u64, kind: BufferKin
         return None;
     }
     Some(new_address)
+}
+
+/// Store an encoded, NUL-terminated UTF-16 string in COM task memory.
+pub(crate) fn return_task_string(emu: &mut Emu, output: u64, encoded: &[u8]) -> u64 {
+    if output == 0 || !memory::writable_pointer(emu, output) {
+        return E_POINTER;
+    }
+    let Some(address) = allocate(emu, encoded.len() as u64, 16, 0, BufferKind::Task) else {
+        memory::write_pointer(emu, output, 0);
+        return E_OUTOFMEMORY;
+    };
+    if emu.maps.write_bytes(address, encoded) && memory::write_pointer(emu, output, address) {
+        return S_OK;
+    }
+    free(emu, address, BufferKind::Task);
+    E_POINTER
 }

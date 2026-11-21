@@ -1,91 +1,29 @@
+pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
+    GlobalLock, GlobalUnlock, HeapSetInformation,
+};
+
+use crate::api::dispatch_api;
 use crate::emu::Emu;
+use crate::winapi::libraries::kernel32::memory::{
+    IsBadCodePtr, IsBadHugeReadPtr, IsBadHugeWritePtr, IsBadWritePtr,
+};
+pub use crate::winapi::libraries::unsupported::kernel32::VirtualLock;
 use crate::winapi::winapi64::kernel32;
 
-mod decode_pointer;
-pub use decode_pointer::DecodePointer;
+pub use crate::api::windows::libraries::kernel32::memory::*;
 
-mod encode_pointer;
-pub use encode_pointer::EncodePointer;
+pub use crate::winapi::common::ntdll::{DecodePointer, EncodePointer};
 
-mod get_process_heap;
-pub use get_process_heap::GetProcessHeap;
-
-mod heap_alloc;
-pub use heap_alloc::HeapAlloc;
-
-mod heap_create;
-pub use heap_create::HeapCreate;
-
-mod heap_destroy;
-pub use heap_destroy::HeapDestroy;
-
-mod heap_free;
-pub use heap_free::HeapFree;
-
-mod heap_re_alloc;
-pub use heap_re_alloc::HeapReAlloc;
-
-mod heap_set_information;
-pub use heap_set_information::HeapSetInformation;
-
-mod local_alloc;
-pub use local_alloc::LocalAlloc;
-
-mod map_view_of_file;
-pub use map_view_of_file::MapViewOfFile;
-
-mod read_process_memory;
-pub use read_process_memory::ReadProcessMemory;
-
-mod local_free;
-pub use local_free::LocalFree;
+pub use crate::winapi::common::heap::GetProcessHeap;
 
 mod virtual_alloc_common;
 
-mod virtual_alloc;
-pub use virtual_alloc::VirtualAlloc;
-
-mod virtual_alloc_ex;
-pub use virtual_alloc_ex::VirtualAllocEx;
-
-mod virtual_alloc_ex_numa;
-pub use virtual_alloc_ex_numa::VirtualAllocExNuma;
-
-mod virtual_free;
-pub use virtual_free::VirtualFree;
-
-mod virtual_lock;
-pub use virtual_lock::VirtualLock;
-
-mod virtual_protect;
-pub use virtual_protect::VirtualProtect;
-
-mod virtual_protect_ex;
-pub use virtual_protect_ex::VirtualProtectEx;
-
-mod write_process_memory;
-pub use write_process_memory::WriteProcessMemory;
-
-mod global_alloc;
-pub use global_alloc::GlobalAlloc;
-
-mod global_free;
-pub use global_free::GlobalFree;
-
-mod global_lock;
-pub use global_lock::GlobalLock;
-
-mod global_unlock;
-pub use global_unlock::GlobalUnlock;
-
-mod heap_size;
-pub use heap_size::HeapSize;
-
-mod flush_instruction_cache;
-pub use flush_instruction_cache::FlushInstructionCache;
-
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
+        "IsBadCodePtr" => IsBadCodePtr(emu),
+        "IsBadHugeReadPtr" => IsBadHugeReadPtr(emu),
+        "IsBadHugeWritePtr" => IsBadHugeWritePtr(emu),
+        "IsBadWritePtr" => IsBadWritePtr(emu),
         "FlushInstructionCache" => kernel32::FlushInstructionCache(emu),
         "DecodePointer" => kernel32::DecodePointer(emu),
         "EncodePointer" => kernel32::EncodePointer(emu),
@@ -121,7 +59,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GlobalFlags" => kernel32::GlobalFlags(emu),
         "GlobalSize" => kernel32::GlobalSize(emu),
         "GlobalReAlloc" => kernel32::GlobalReAlloc(emu, addr),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

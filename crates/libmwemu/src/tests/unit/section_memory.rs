@@ -50,11 +50,22 @@ fn call(emu: &mut Emu, function: fn(&mut Emu), args: &[u64]) -> u64 {
 fn views_share_bytes_but_keep_independent_protection_and_lifetimes() {
     for is64 in [false, true] {
         let mut emu = prepare(is64);
-        let handle = call(
-            &mut emu,
-            |emu| sections::create_file_mapping(emu, false),
-            &[u32::MAX as u64, 0, PAGE_READWRITE as u64, 0, 0x20000, 0],
-        );
+        let create = |emu: &mut Emu| sections::create_file_mapping(emu, false);
+        let mut args = [
+            INVALID_HANDLE_VALUE_64,
+            0,
+            PAGE_READWRITE as u64,
+            0,
+            0x20000,
+            0,
+        ];
+        if is64 {
+            args[0] = INVALID_HANDLE_VALUE_32;
+            assert_eq!(call(&mut emu, create, &args), 0);
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+            args[0] = INVALID_HANDLE_VALUE_64;
+        }
+        let handle = call(&mut emu, create, &args);
         assert_ne!(handle, 0);
         let first = call(
             &mut emu,
@@ -113,7 +124,7 @@ fn nt_section_calls_validate_outputs_and_preserve_handles_in_snapshots() {
         memory::write_pointer(&mut emu, DATA + 16, 0x20000);
         let mut map_args = [
             handle,
-            u32::MAX as u64,
+            NT_CURRENT_PROCESS,
             DATA + 8,
             0,
             0,
@@ -125,6 +136,12 @@ fn nt_section_calls_validate_outputs_and_preserve_handles_in_snapshots() {
         ];
         let map = |emu: &mut Emu| sections::nt_map(emu, WinApi(Stdcall));
         let count = emu.maps.maps.len();
+        if is64 {
+            map_args[1] = INVALID_HANDLE_VALUE_32;
+            assert_eq!(call(&mut emu, map, &map_args), STATUS_INVALID_HANDLE);
+            assert_eq!(emu.maps.maps.len(), count);
+            map_args[1] = NT_CURRENT_PROCESS;
+        }
         map_args[6] = 1;
         assert_ne!(call(&mut emu, map, &map_args), 0);
         assert_eq!(emu.maps.maps.len(), count);
@@ -344,4 +361,44 @@ fn nt_section_lifecycle() {
         "NtUnmapViewOfSection should return STATUS_SUCCESS"
     );
     assert!(!emu.maps.is_mapped(mapped_base));
+}
+
+#[test]
+fn app_file_views_share_storage_and_unmap_in_the_current_process() {
+    use crate::windows::constants::files::FILE_MAP_WRITE;
+    for is64 in [false, true] {
+        for dll in ["kernel32.dll", "kernelbase.dll"] {
+            let (mut emu, _) = helpers::prepare_winapi(is64);
+            let current = if is64 { u64::MAX } else { u64::from(u32::MAX) };
+            let mut create = vec![current, 0, PAGE_READWRITE as u64, 4096];
+            if !is64 {
+                create.push(0);
+            }
+            create.push(0);
+            let h = helpers::call_winapi_export(&mut emu, dll, "CreateFileMappingFromApp", &create);
+            assert_ne!(h, 0);
+            let mut args = vec![h, u64::from(FILE_MAP_WRITE), 0];
+            if !is64 {
+                args.push(0);
+            }
+            args.push(4096);
+            let a = helpers::call_winapi_export(&mut emu, dll, "MapViewOfFileFromApp", &args);
+            let b = helpers::call_winapi_export(&mut emu, dll, "MapViewOfFileFromApp", &args);
+            assert!(a != 0 && b != 0 && a != b);
+            assert!(emu.maps.write_dword(a, 0x1234));
+            assert_eq!(emu.maps.read_dword(b), Some(0x1234));
+            for base in [a, b] {
+                assert_eq!(
+                    helpers::call_winapi_export(
+                        &mut emu,
+                        dll,
+                        "UnmapViewOfFile2",
+                        &[current, base, 0]
+                    ),
+                    1
+                );
+                assert!(emu.maps.read_byte(base).is_none());
+            }
+        }
+    }
 }

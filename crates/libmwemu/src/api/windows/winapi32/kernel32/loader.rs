@@ -6,18 +6,13 @@ use crate::windows::peb::peb32;
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     let call = WinApi(Stdcall);
-    let Some(dll) = modules::normalize_library_name(libname, true) else {
+    let Some(mut dll) = modules::normalize_library_name(libname, true) else {
         call.set_return(emu, 0);
         return 0;
     };
 
-    // API set DLLs are virtual; map them to a real provider to avoid hard failure.
     if modules::is_api_set_contract(&dll) {
-        let base = load_library(emu, "kernelbase.dll");
-        if base != 0 {
-            return base;
-        }
-        return load_library(emu, "kernel32.dll");
+        dll = modules::api_set_hosts(&dll)[0].to_owned();
     }
 
     let dll_path = emu.cfg.get_maps_folder(&dll);
@@ -39,8 +34,8 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
                 peb32::dynamic_link_module(image.base, image.header_offset, &dll, emu);
                 emu.library_loaded = true; // Signal to GDB that library list changed
                 image.base
-            } else if let Some(exports) = get_stub_exports(&dll) {
-                let base = emu.create_stub_pe32(&dll, exports) as u64;
+            } else if let Some(exports) = get_stub_exports(&dll, emu.cfg.arch) {
+                let base = emu.create_stub_pe32(&dll, &exports) as u64;
                 if base != 0 {
                     peb32::dynamic_link_module(base, 0, &dll, emu);
                     emu.library_loaded = true;

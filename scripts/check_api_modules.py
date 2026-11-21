@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Check Windows API module ownership and re-exports."""
+"""Check API, syscall, and kernel sources, plus Windows API module style."""
 import argparse
 import hashlib
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+
+
+SOURCE_MODULES = ("api", "kernel", "syscall")
 
 
 def dependencies(dep_info, root):
@@ -25,8 +29,12 @@ def dependencies(dep_info, root):
     return result
 
 
-def orphan_sources(source_root, compiled):
-    return sorted(path.resolve() for path in source_root.rglob("*.rs")
+def orphan_sources(source_roots, compiled):
+    for source_root in source_roots:
+        if (source_root / "mod.rs").resolve() not in compiled:
+            raise ValueError(f"dependency files do not contain the root module: {source_root}")
+    return sorted(path.resolve() for source_root in source_roots
+                  for path in source_root.rglob("*.rs")
                   if path.resolve() not in compiled)
 
 
@@ -88,18 +96,39 @@ def current_compilation(root, target=None, offline=False):
     return {library_dep_info(artifact) for artifact in artifacts}
 
 
+@lru_cache(maxsize=None)
+def crate_module_aliases(source):
+    root = source / "lib.rs"
+    if not root.is_file():
+        return {}
+    pattern = r"(?m)^(?:pub(?:\([^)]*\))?\s+)?use\s+(?:crate::)?([\w:]+)\s+as\s+(\w+)\s*;"
+    return {alias: target.split("::") for target, alias in
+            re.findall(pattern, root.read_text(encoding="utf-8"))}
+
+
 def aggregating_modules(path, text):
     directory = path.parent if path.name == "mod.rs" else path.with_suffix("")
-    aggregators = set()
     declarations = r'(?m)^(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;'
-    for name in re.findall(declarations, text):
-        child = directory / f"{name}.rs"
+    candidates = {name: directory / name for name in re.findall(declarations, text)}
+    source = next((parent for parent in path.parents if parent.name == "src"), None)
+    if source is not None:
+        for target in re.findall(r'(?m)^pub use (crate::[\w:]+)::\*;', text):
+            first, *rest = target.split("::")[1:]
+            parts = crate_module_aliases(source).get(first, [first])
+            candidates[target] = source.joinpath(*parts, *rest)
+    aggregators = set()
+    for name, stem in candidates.items():
+        child = stem.with_suffix(".rs")
         if not child.is_file():
-            child = directory / name / "mod.rs"
+            child = stem / "mod.rs"
         if not child.is_file():
             continue
         content = child.read_text(encoding="utf-8")
-        if re.search(declarations, content) and re.search(r'(?m)^pub use ', content):
+        # A facade can re-export handlers from sibling modules without declaring children.
+        public_definition = r"(?m)^pub\s+(?!(?:use|mod)\b)\w+"
+        if re.search(r"(?m)^pub use ", content) and (
+            re.search(declarations, content) or not re.search(public_definition, content)
+        ):
             aggregators.add(name)
     return aggregators
 
@@ -115,7 +144,7 @@ def module_style_issues(text, aggregators=()):
         visibility, tree = match.groups()
         line = text.count("\n", 0, match.start()) + 1
         if "*" in tree:
-            target = re.fullmatch(r'\s*(\w+)\s*::\s*\*\s*', tree)
+            target = re.fullmatch(r'\s*([\w:]+)\s*::\s*\*\s*', tree)
             if not target or target[1] not in aggregators:
                 issues.append((line, "list handler names explicitly; wildcard re-exports require a subsystem module"))
         prefix = tree.split("{", 1)[0].rsplit("::", 1)[0].strip()
@@ -148,8 +177,25 @@ class ApiModulesTests(unittest.TestCase):
             active, orphan = root / "mod.rs", root / "orphan.rs"
             for path in (active, orphan, root / "reference.h"):
                 path.touch()
-            self.assertEqual(orphan_sources(root, {active.resolve()}), [orphan.resolve()])
-            self.assertEqual(orphan_sources(root, {active.resolve(), orphan.resolve()}), [])
+            self.assertEqual(orphan_sources([root], {active.resolve()}), [orphan.resolve()])
+            self.assertEqual(orphan_sources([root], {active.resolve(), orphan.resolve()}), [])
+
+    def test_each_entry_tree_reports_unconnected_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            roots = [Path(folder) / name for name in SOURCE_MODULES]
+            compiled, orphans = set(), []
+            for root in roots:
+                root.mkdir()
+                entry, orphan = root / "mod.rs", root / "unconnected.rs"
+                entry.touch()
+                orphan.touch()
+                compiled.add(entry.resolve())
+                orphans.append(orphan.resolve())
+            self.assertEqual(orphan_sources(roots, compiled), sorted(orphans))
+            self.assertEqual(orphan_sources(roots, compiled | set(orphans)), [])
+            for root in roots:
+                with self.subTest(missing=root.name), self.assertRaises(ValueError):
+                    orphan_sources(roots, compiled - {(root / "mod.rs").resolve()})
 
     def test_git_ignored_sources_are_checked_before_and_after_staging(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -203,6 +249,29 @@ class ApiModulesTests(unittest.TestCase):
             (root / "text.rs").write_text("pub fn ApiA() {}\n", encoding="utf-8")
             declarations = "mod strings_nls;\nmod text;\n"
             self.assertEqual(aggregating_modules(root / "mod.rs", declarations), {"strings_nls"})
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "src"
+            shared = source / "api" / "shared"
+            shared.mkdir(parents=True)
+            (shared / "mod.rs").write_text("mod text;\npub use text::ApiA;\n", encoding="utf-8")
+            (shared / "text.rs").write_text("pub fn ApiA() {}\n", encoding="utf-8")
+            caller = source / "api" / "windows" / "mod.rs"
+            public = "pub use crate::api::shared::*;"
+            self.assertEqual(module_style_issues(public, aggregating_modules(caller, public)), [])
+            leaf = "pub use crate::api::shared::text::*;"
+            self.assertTrue(module_style_issues(leaf, aggregating_modules(caller, leaf)))
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "src"
+            shared = source / "api" / "windows" / "shared"
+            shared.mkdir(parents=True)
+            (source / "lib.rs").write_text("pub(crate) use api::windows as winapi;\n", encoding="utf-8")
+            (shared / "exports.rs").write_text("pub use super::text::{ApiA, ApiW};\n", encoding="utf-8")
+            (shared / "text.rs").write_text("pub use super::other::ApiW;\npub fn ApiA() {}\n", encoding="utf-8")
+            caller = source / "caller.rs"
+            for module, issues in [("exports", False), ("text", True), ("missing", True)]:
+                statement = f"pub use crate::winapi::shared::{module}::*;"
+                with self.subTest(module=module):
+                    self.assertEqual(bool(module_style_issues(statement, aggregating_modules(caller, statement))), issues)
         for bad in ['pub use text::*;\n',
                     'pub use text::ApiA;\npub use text::ApiW;\n',
                     '#[path = "../text.rs"]\nmod text;\n']:
@@ -230,20 +299,21 @@ def main():
         return run_self_tests()
     root = Path(__file__).resolve().parents[1]
     try:
-        source_root = root / "crates/libmwemu/src/api/windows"
-        sources = sorted(source_root.rglob("*.rs"))
+        source_base = root / "crates/libmwemu/src"
+        source_roots = [source_base / name for name in SOURCE_MODULES]
+        sources = sorted(path for source_root in source_roots
+                         for path in source_root.rglob("*.rs"))
+        style_root = source_base / "api/windows"
         ignored = ignored_sources(root, sources)
         if ignored:
             names = "\n".join(path.relative_to(root).as_posix() for path in ignored)
             raise ValueError(f"Rust sources are ignored by Git:\n{names}")
         dep_files = current_compilation(root, args.target, args.offline)
         compiled = set().union(*(dependencies(path, root) for path in dep_files))
-        if (source_root / "mod.rs").resolve() not in compiled:
-            raise ValueError("dependency file does not contain the Windows API root module")
-        orphans = orphan_sources(source_root, compiled)
+        orphans = orphan_sources(source_roots, compiled)
         style_issues = [
             {"path": path.relative_to(root).as_posix(), "line": line, "message": message}
-            for path in sources
+            for path in sorted(style_root.rglob("*.rs"))
             for text in [path.read_text(encoding="utf-8")]
             for line, message in module_style_issues(text, aggregating_modules(path, text))
         ]
@@ -253,6 +323,8 @@ def main():
     report = {
         "dependency_files": {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                              for path in sorted(dep_files)},
+        "source_roots": [path.relative_to(root).as_posix() for path in source_roots],
+        "style_root": style_root.relative_to(root).as_posix(),
         "api_sources": len(sources),
         "ignored_sources": None if ignored is None else [],
         "orphans": [path.relative_to(root).as_posix() for path in orphans],
@@ -270,9 +342,9 @@ def main():
         print(f"FAIL: {len(style_issues)} Windows API module declarations need cleanup")
         return 1
     if orphans:
-        print(f"FAIL: {len(orphans)} Windows API source files are not compiled")
+        print(f"FAIL: {len(orphans)} API, syscall, or kernel source files are not compiled")
         return 1
-    print(f"OK: all {report['api_sources']} Windows API source files are compiled")
+    print(f"OK: all {report['api_sources']} API, syscall, and kernel source files are compiled")
     return 0
 
 

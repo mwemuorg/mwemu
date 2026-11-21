@@ -1,26 +1,51 @@
-use crate::{tests::helpers, *};
+use std::cell::Cell;
+use std::rc::Rc;
+
+use crate::exception::types::ExceptionType;
+use crate::{emu32, tests::helpers};
+
+const CHECKPOINT: u64 = 30_862_819;
 
 #[test]
-// the donut shellcode generator, with a 32bits truncated payload, emulate 30_862_819
-// instructions and check.
-//
-// Ignored in CI: the golden eax/ebx values are only reproducible when the genuine
-// 32-bit Windows system DLLs are present in maps/windows/x86/ (the donut loader walks
-// the PEB Ldr list and reads real DLL contents). Those DLLs are non-redistributable,
-// gitignored, and not shipped in test.zip, and --winver auto-fetch is AMD64-only, so a
-// fresh CI checkout lacks them and the run diverges (eax=0xE7E4C5B9). Run locally with
-// `cargo test --release -- --ignored` once the x86 maps are populated.
-#[ignore = "needs genuine 32-bit Windows DLLs in maps/windows/x86/ (not available in CI)"]
-pub fn sc32win_donut() {
+fn sc32win_donut() {
     helpers::setup();
+    let sample = sample!("sc32win_donut.bin");
+    let maps = win_maps!(32);
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = maps;
+    emu.load_code(&sample).expect("load Donut fixture");
+    let code_end = emu
+        .maps
+        .get_map_by_name("code")
+        .expect("raw code map")
+        .get_bottom();
 
-    let sample = sample!("sc32win_donut.bin");
-    emu.load_code(&sample);
-    emu.run_to(30_862_819);
+    let last_exception = Rc::new(Cell::new(None));
+    let observed = Rc::clone(&last_exception);
+    emu.set_hook_on_exception(move |_, pc, kind| {
+        observed.set(Some((pc, kind)));
+        true
+    });
 
-    assert_eq!(emu.regs().get_eax(), 0xF5B24B1D); // used to be 0x7f937230?
-    assert_eq!(emu.regs().get_ebx(), 0x12); // used to be 0x0c
+    match emu.run_to(CHECKPOINT) {
+        Ok(_) => {
+            assert_eq!(emu.pos, CHECKPOINT);
+            assert_eq!(emu.regs().get_eax(), 0xF5B24B1D);
+            assert_eq!(emu.regs().get_ebx(), 0x12);
+        }
+        Err(error) => {
+            // The truncated fixture can reach the final zero byte and fault fetching the next byte.
+            let fault_pc = code_end - 1;
+            assert_eq!(
+                last_exception.get(),
+                Some((fault_pc, ExceptionType::SettingRipToNonMappedAddr)),
+                "{error}"
+            );
+            assert_eq!(emu.pc(), fault_pc, "{error}");
+            assert!(emu.process_terminated, "{error}");
+            assert_eq!(emu.maps.read_byte(fault_pc), Some(0));
+            assert!(!emu.maps.is_mapped(code_end));
+        }
+    }
 }

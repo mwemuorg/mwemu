@@ -6,6 +6,7 @@ Apply these checks alongside the shared [API emulation guidance](../SKILL.md).
 
 - Verify prototypes against Microsoft Learn and SDK/WDK declarations. PHNT is an additional reference for undocumented NT declarations. Check exact export spelling and case. Encoding-neutral SDK macros are not necessarily exported symbols, and one DLL or Windows version does not establish another's exports.
 - Check ordinary and irregular encoded pairs, such as `getnameinfo` / `GetNameInfoW`, and applicable Nt/Zw aliases. A user-mode Nt/Zw mapping does not establish equivalent kernel-mode behavior. Preserve handler precedence and distinguish mapped DLL execution from Rust interception.
+- Compare static import diagnostics with dynamic lookup for the same name. On Windows a missing driver import can reach fallback even when dynamic lookup returns `NULL`.
 - When checking local DLL exports, presence can establish a name. Absence on one host does not prove absence on every supported target. Confirm aliases and signatures before adding a variant.
 
 ## Windows calling conventions
@@ -13,9 +14,9 @@ Apply these checks alongside the shared [API emulation guidance](../SKILL.md).
 | Boundary | Check |
 | --- | --- |
 | x86 arguments | Count DWORD slots. A by-value `POINT`, wide integer, or `double` can consume two. A pointer to that value consumes one. Account for implicit objects and register arguments in `thiscall` or `fastcall`. |
-| x86 return and cleanup | `stdcall` callee cleanup and `cdecl` caller cleanup differ. Check each exit path and avoid consuming the return address twice. Validate integer pairs, x87 results, and special CRT/intrinsic conventions separately. |
+| x86 return and cleanup | Verify callee-owned `stdcall` or caller-owned `cdecl` slots on each exit. Cross-check by-value arguments against a decorated import when available. Variadic functions normally leave cleanup to the caller. Check register pairs, x87 and intrinsic returns separately. |
 | Windows x64 hooks | Integer/pointer positions use `RCX`, `RDX`, `R8`, `R9`, then stack slots after shadow space. Floating-point positions and varargs need their own checks. Account for the engine's interception point. |
-| Windows syscall entry | Do not copy function-hook offsets or assume the engine intercepted after every architectural register change. Verify the live syscall entry path and adapter. |
+| Windows syscall entry | Use the guest build's service mapping when available. Check the raw service number and entry PC on a miss. Use the ABI for the actual trap and leave the guest stub to return and clean its arguments. |
 | Other guests and drivers | Use the supported guest's own ABI and privilege boundary. Sharing pointer width does not make Windows ARM64, x64, and driver calls interchangeable. |
 
 Check public bindings and callbacks when changing an ABI helper. Do not migrate a CPU-context operation as if it were ordinary argument decoding.

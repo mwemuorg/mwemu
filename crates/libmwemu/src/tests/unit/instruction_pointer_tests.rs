@@ -4,8 +4,8 @@
 
 #[test]
 fn test_set_rip_nonmapped_linux() {
-    let mut emu = crate::emu64();
-    emu.os = crate::arch::OperatingSystem::Linux;
+    let mut emu = emu64();
+    emu.os = OperatingSystem::Linux;
 
     let result = emu.set_rip_with_check(0xdeadbeef, false);
     assert!(!result);
@@ -13,8 +13,8 @@ fn test_set_rip_nonmapped_linux() {
 
 #[test]
 fn test_set_eip_nonmapped_linux() {
-    let mut emu = crate::emu32();
-    emu.os = crate::arch::OperatingSystem::Linux;
+    let mut emu = emu32();
+    emu.os = OperatingSystem::Linux;
 
     let result = emu.set_eip(0xdeadbeef, false);
     assert!(!result);
@@ -22,7 +22,7 @@ fn test_set_eip_nonmapped_linux() {
 
 #[test]
 fn test_force_reload_flag_exists() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
 
     emu.force_reload = false;
     assert!(!emu.force_reload);
@@ -33,13 +33,13 @@ fn test_force_reload_flag_exists() {
 
 #[test]
 fn test_os_default_is_windows() {
-    let emu = crate::emu64();
+    let emu = emu64();
     assert!(emu.os.is_windows());
 }
 
 #[test]
 fn test_skip_apicall_flag() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
 
     emu.skip_apicall = false;
     assert!(!emu.skip_apicall);
@@ -59,6 +59,11 @@ fn test_skip_apicall_flag() {
 
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
+use crate::arch::OperatingSystem;
+use crate::emu::Emu;
+use crate::tests::helpers::prepare_winapi;
+use crate::{emu32, emu64};
+
 const MODULE_BASE: u64 = 0x7FF0_0000_0000;
 const NATIVE_MAP_BASE: u64 = MODULE_BASE + 0x1_000;
 const STACK_TOP: u64 = 0x8000_0000_0800;
@@ -66,12 +71,12 @@ const CALLER_IP: u64 = 0x0001_0000;
 const CALLER_NEXT: u64 = CALLER_IP + 2;
 
 /// One fully prepared x64 emulator wired for native msvcrt execution.
-fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> crate::emu::Emu {
+fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> Emu {
     use crate::maps::mem64::Permission;
     use crate::tests::helpers;
 
-    let mut emu = crate::emu64();
-    emu.os = crate::arch::OperatingSystem::Windows;
+    let mut emu = emu64();
+    emu.os = OperatingSystem::Windows;
     emu.cfg.verbose = 0;
     emu.cfg.nocolors = true;
 
@@ -111,6 +116,24 @@ fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> crate::emu::Emu
     };
     helpers::register_export_module(&mut emu, "msvcrt.dll", MODULE_BASE, &parsed);
     emu
+}
+
+#[test]
+fn msvcrt_synthetic_exports_dispatch_instead_of_executing_the_ret_slot() {
+    const RETURN_PC: u64 = 0x10000;
+    let (mut emu, data) = prepare_winapi(true);
+    let base = emu.create_stub_pe64("msvcrt.dll", &["strlen"]);
+    let target = emu.api_name_to_addr("strlen");
+    assert!(base != 0 && target > base);
+    emu.maps.write_bytes(data, b"string\0");
+    emu.regs_mut().rcx = data;
+    emu.regs_mut().rax = u64::MAX;
+    let before = emu.regs().rsp;
+    assert!(emu.stack_push64(RETURN_PC));
+    emu.handle_winapi(target);
+    assert_eq!(emu.regs().rax, 6);
+    assert_eq!(emu.regs().rsp, before);
+    assert_eq!(emu.pc(), RETURN_PC);
 }
 
 #[test]
@@ -200,8 +223,8 @@ fn msvcrt_native_resolved_iat_thunk_executes_natively() {
 fn msvcrt_native_unresolved_msvcrt_dll_thunk_warns_and_skips() {
     use crate::maps::mem64::Permission;
 
-    let mut emu = crate::emu64();
-    emu.os = crate::arch::OperatingSystem::Windows;
+    let mut emu = emu64();
+    emu.os = OperatingSystem::Windows;
     emu.cfg.verbose = 0;
     emu.cfg.nocolors = true;
 

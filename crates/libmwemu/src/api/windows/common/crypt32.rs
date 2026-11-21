@@ -1,59 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::emu::Emu;
+use crate::winapi::common::memory::read_guest_bytes;
+use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
+use crate::windows::constants::errors::*;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-
-use crate::emu;
-
-fn base64_decode(input: &[u8]) -> Option<Vec<u8>> {
-    let filtered: Vec<u8> = input
-        .iter()
-        .copied()
-        .filter(|&b| !b.is_ascii_whitespace())
-        .collect();
-
-    let decode_char = |c: u8| -> Option<u8> {
-        match c {
-            b'A'..=b'Z' => Some(c - b'A'),
-            b'a'..=b'z' => Some(c - b'a' + 26),
-            b'0'..=b'9' => Some(c - b'0' + 52),
-            b'+' => Some(62),
-            b'/' => Some(63),
-            b'=' => Some(0),
-            _ => None,
-        }
-    };
-
-    if !filtered.len().is_multiple_of(4) {
-        return None;
-    }
-
-    let mut out = Vec::with_capacity(filtered.len() * 3 / 4);
-    for chunk in filtered.chunks(4) {
-        let a = decode_char(chunk[0])?;
-        let b = decode_char(chunk[1])?;
-        let c = decode_char(chunk[2])?;
-        let d = decode_char(chunk[3])?;
-
-        let triple = (a as u32) << 18 | (b as u32) << 12 | (c as u32) << 6 | d as u32;
-
-        out.push((triple >> 16) as u8);
-        if chunk[2] != b'=' {
-            out.push((triple >> 8) as u8);
-        }
-        if chunk[3] != b'=' {
-            out.push(triple as u8);
-        }
-    }
-    Some(out)
-}
-
-fn strip_pem_headers(input: &str) -> String {
-    input
-        .lines()
-        .filter(|line| !line.starts_with("-----"))
-        .collect::<Vec<_>>()
-        .join("")
-}
+use std::fmt::Write;
 
 fn hex_decode(input: &[u8]) -> Option<Vec<u8>> {
     let filtered: Vec<u8> = input
@@ -82,72 +36,6 @@ fn hex_nibble(c: u8) -> Option<u8> {
     }
 }
 
-pub(crate) fn crypt_string_to_binary_a(
-    emu: &mut emu::Emu,
-    string_ptr: u64,
-    num_chars: u64,
-    flags: u64,
-    out_ptr: u64,
-    inout_sz_ptr: u64,
-) -> u64 {
-    let input_str = if num_chars > 0 {
-        let bytes = emu.maps.read_bytes(string_ptr, num_chars as usize);
-        String::from_utf8_lossy(&bytes).into_owned()
-    } else {
-        emu.maps.read_string(string_ptr)
-    };
-
-    let decoded = match flags {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_decode(input_str.as_bytes()),
-        CRYPT_STRING_BASE64HEADER => {
-            let stripped = strip_pem_headers(&input_str);
-            base64_decode(stripped.as_bytes())
-        }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => Some(input_str.as_bytes().to_vec()),
-        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => {
-            hex_decode(input_str.as_bytes())
-        }
-        _ => Some(input_str.as_bytes().to_vec()),
-    };
-
-    let dflags = match flags {
-        CRYPT_STRING_BASE64HEADER => "BASE64HEADER",
-        CRYPT_STRING_BASE64 => "BASE64",
-        CRYPT_STRING_BINARY => "BINARY",
-        CRYPT_STRING_HEX => "HEX",
-        CRYPT_STRING_BASE64_ANY => "BASE64_ANY",
-        CRYPT_STRING_ANY => "ANY",
-        CRYPT_STRING_HEX_ANY => "HEX_ANY",
-        CRYPT_STRING_HEXRAW => "HEXRAW",
-        _ => "unknown",
-    };
-
-    match decoded {
-        Some(data) => {
-            if out_ptr != 0 && inout_sz_ptr != 0 {
-                let buf_sz = emu.maps.read_dword(inout_sz_ptr).unwrap_or(0) as usize;
-                let write_len = data.len().min(buf_sz);
-                emu.maps.write_bytes(out_ptr, &data[..write_len]);
-            }
-            if inout_sz_ptr != 0 {
-                emu.maps.write_dword(inout_sz_ptr, data.len() as u32);
-            }
-            log_red!(
-                emu,
-                "crypt32!CryptStringToBinaryA {} decoded {} -> {} bytes",
-                dflags,
-                input_str.len(),
-                data.len()
-            );
-            1
-        }
-        None => {
-            log_red!(emu, "crypt32!CryptStringToBinaryA {} decode failed", dflags);
-            0
-        }
-    }
-}
-
 fn base64_encode(input: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
@@ -172,277 +60,342 @@ fn base64_encode(input: &[u8]) -> String {
     out
 }
 
-fn hex_encode(input: &[u8]) -> String {
-    let mut out = String::with_capacity(input.len() * 2);
-    for b in input {
-        out.push_str(&format!("{:02x}", b));
+fn guest_bytes(emu: &Emu, pointer: u64, length: usize) -> Result<Vec<u8>, u64> {
+    if length as u64 > emu.maps.max_alloc_size {
+        return Err(ERROR_NOT_ENOUGH_MEMORY);
     }
-    out
+    if length == 0 {
+        return Ok(Vec::new());
+    }
+    read_guest_bytes(emu, pointer, length).ok_or(ERROR_NOACCESS)
 }
 
-pub(crate) fn crypt_binary_to_string_a(
-    emu: &mut emu::Emu,
-    data_ptr: u64,
-    data_len: u64,
+fn decoded_base64(input: &[u8]) -> Option<Vec<u8>> {
+    let mut bits = 0u32;
+    let mut count = 0;
+    let mut seen_padding = false;
+    let mut output = Vec::new();
+    for &ch in input {
+        if ch.is_ascii_whitespace() {
+            continue;
+        }
+        if ch == b'=' {
+            seen_padding = true;
+            continue;
+        }
+        if seen_padding {
+            return None;
+        }
+        let sextet = match ch {
+            b'A'..=b'Z' => ch - b'A',
+            b'a'..=b'z' => ch - b'a' + 26,
+            b'0'..=b'9' => ch - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        };
+        bits = (bits << 6) | u32::from(sextet);
+        count += 6;
+        if count >= 8 {
+            count -= 8;
+            output.push((bits >> count) as u8);
+        }
+    }
+    if count == 6 {
+        output.push((bits << 2) as u8);
+    }
+    Some(output)
+}
+
+fn pem(text: &[u8]) -> Option<(usize, Vec<u8>)> {
+    let text = std::str::from_utf8(text).ok()?;
+    let begin = text.find("-----BEGIN ")?;
+    let rest = &text[begin + "-----BEGIN ".len()..];
+    let (label, rest) = rest.split_once("-----")?;
+    let (body, _) = rest.split_once(&format!("-----END {label}-----"))?;
+    Some((begin, decoded_base64(body.as_bytes())?))
+}
+
+fn decode(
+    emu: &Emu,
+    wide: bool,
+    input: u64,
+    count: u32,
     flags: u64,
-    str_ptr: u64,
-    str_len_ptr: u64,
-) -> u64 {
-    let data = emu.maps.read_bytes(data_ptr, data_len as usize);
-
-    let encoded = match flags & 0x0000_000f {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(&data),
-        CRYPT_STRING_BASE64HEADER => {
-            let b64 = base64_encode(&data);
-            format!(
-                "-----BEGIN CERTIFICATE-----\r\n{}\r\n-----END CERTIFICATE-----\r\n",
-                b64
-            )
-        }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(&data).into_owned(),
-        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(&data),
-        _ => base64_encode(&data),
-    };
-
-    let needed = encoded.len() as u32 + 1;
-
-    if str_ptr == 0 {
-        if str_len_ptr != 0 {
-            emu.maps.write_dword(str_len_ptr, needed);
-        }
-        log_red!(
-            emu,
-            "crypt32!CryptBinaryToStringA size query -> {} chars",
-            needed
-        );
-        return 1;
+) -> Result<(Vec<u8>, usize, u64), u64> {
+    if input == 0 {
+        return Err(ERROR_INVALID_PARAMETER);
     }
-
-    let buf_sz = if str_len_ptr != 0 {
-        emu.maps.read_dword(str_len_ptr).unwrap_or(0) as usize
+    let raw = if count == 0 {
+        let text = strings::read_text_checked(emu, input, wide).ok_or(ERROR_NOACCESS)?;
+        strings::encode_text(&text, wide)
     } else {
-        needed as usize
+        let length = (count as usize)
+            .checked_mul(if wide { 2 } else { 1 })
+            .ok_or(ERROR_INVALID_PARAMETER)?;
+        guest_bytes(emu, input, length)?
     };
-
-    let write_len = encoded.len().min(buf_sz.saturating_sub(1));
-    emu.maps
-        .write_bytes(str_ptr, &encoded.as_bytes()[..write_len]);
-    emu.maps.write_byte(str_ptr + write_len as u64, 0);
-    if str_len_ptr != 0 {
-        emu.maps.write_dword(str_len_ptr, needed);
+    if flags == CRYPT_STRING_BINARY {
+        return Ok((raw, 0, CRYPT_STRING_BINARY));
     }
+    let text = if wide {
+        raw.as_chunks::<2>()
+            .0
+            .iter()
+            .copied()
+            .map(|v| u8::try_from(u16::from_le_bytes(v)))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| ERROR_INVALID_DATA)?
+    } else {
+        raw.clone()
+    };
+    if matches!(
+        flags,
+        CRYPT_STRING_BASE64HEADER | CRYPT_STRING_BASE64_ANY | CRYPT_STRING_ANY
+    ) {
+        if let Some((skip, decoded)) = pem(&text) {
+            return Ok((decoded, skip, CRYPT_STRING_BASE64HEADER));
+        }
+        if flags == CRYPT_STRING_BASE64HEADER {
+            return Err(ERROR_INVALID_DATA);
+        }
+    }
+    if matches!(
+        flags,
+        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY | CRYPT_STRING_ANY
+    ) {
+        if let Some(decoded) = decoded_base64(&text) {
+            return Ok((decoded, 0, CRYPT_STRING_BASE64));
+        }
+        if flags == CRYPT_STRING_ANY {
+            return Ok((raw, 0, CRYPT_STRING_BINARY));
+        }
+        return Err(ERROR_INVALID_DATA);
+    }
+    if matches!(
+        flags,
+        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW
+    ) {
+        if text
+            .iter()
+            .any(|byte| !byte.is_ascii_whitespace() && !byte.is_ascii_hexdigit())
+        {
+            return Err(ERROR_INVALID_DATA);
+        }
+        return hex_decode(&text)
+            .map(|bytes| {
+                (
+                    bytes,
+                    0,
+                    if flags == CRYPT_STRING_HEX_ANY {
+                        CRYPT_STRING_HEX
+                    } else {
+                        flags
+                    },
+                )
+            })
+            .ok_or(ERROR_INVALID_DATA);
+    }
+    Err(ERROR_INVALID_PARAMETER)
+}
 
+fn string_to_binary(emu: &mut Emu, name: &str, wide: bool) {
+    let call = WinApi(Stdcall);
+    let [input, count, flags, output, size, skipped, format] = api_try!(emu, call.args(emu));
     log_red!(
         emu,
-        "crypt32!CryptBinaryToStringA {} bytes -> {} chars",
-        data_len,
-        encoded.len()
+        "crypt32!{name} input={input:#x} characters={count} flags={flags:#x} output={output:#x}"
     );
-    1
-}
-
-pub(crate) fn crypt_binary_to_string_w(
-    emu: &mut emu::Emu,
-    data_ptr: u64,
-    data_len: u64,
-    flags: u64,
-    str_ptr: u64,
-    str_len_ptr: u64,
-) -> u64 {
-    let data = emu.maps.read_bytes(data_ptr, data_len as usize);
-
-    let encoded = match flags & 0x0000_000f {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(&data),
-        CRYPT_STRING_BASE64HEADER => {
-            let b64 = base64_encode(&data);
-            format!(
-                "-----BEGIN CERTIFICATE-----\r\n{}\r\n-----END CERTIFICATE-----\r\n",
-                b64
-            )
+    let result = (|| {
+        if size == 0
+            || !emu.maps.validate_write_range(size, 4)
+            || [skipped, format]
+                .iter()
+                .any(|&p| p != 0 && !emu.maps.validate_write_range(p, 4))
+        {
+            return Err(ERROR_INVALID_PARAMETER);
         }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(&data).into_owned(),
-        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(&data),
-        _ => base64_encode(&data),
-    };
-
-    let needed = encoded.len() as u32 + 1;
-
-    if str_ptr == 0 {
-        if str_len_ptr != 0 {
-            emu.maps.write_dword(str_len_ptr, needed);
-        }
-        log_red!(
-            emu,
-            "crypt32!CryptBinaryToStringW size query -> {} chars",
-            needed
-        );
-        return 1;
-    }
-
-    let buf_sz = if str_len_ptr != 0 {
-        emu.maps.read_dword(str_len_ptr).unwrap_or(0) as usize
-    } else {
-        needed as usize
-    };
-
-    let write_len = encoded.len().min(buf_sz.saturating_sub(1));
-    emu.maps.write_wide_string(str_ptr, &encoded[..write_len]);
-    if str_len_ptr != 0 {
-        emu.maps.write_dword(str_len_ptr, needed);
-    }
-
-    log_red!(
-        emu,
-        "crypt32!CryptBinaryToStringW {} bytes -> {} chars",
-        data_len,
-        encoded.len()
-    );
-    1
-}
-
-pub(crate) fn crypt_string_to_binary_w(
-    emu: &mut emu::Emu,
-    string_ptr: u64,
-    num_chars: u64,
-    flags: u64,
-    out_ptr: u64,
-    inout_sz_ptr: u64,
-) -> u64 {
-    let input_str = if num_chars > 0 {
-        let mut s = String::new();
-        for i in 0..num_chars {
-            let c = emu.maps.read_word(string_ptr + i * 2).unwrap_or(0);
-            if c == 0 {
-                break;
+        let (data, skipped_chars, actual) =
+            decode(emu, wide, input, count as u32, u64::from(flags as u32))?;
+        if output != 0 {
+            let capacity = emu.maps.read_dword(size).ok_or(ERROR_NOACCESS)? as usize;
+            if capacity < data.len() {
+                return Err(ERROR_MORE_DATA);
             }
-            s.push(char::from_u32(c as u32).unwrap_or('\0'));
+            if !data.is_empty() && !emu.maps.write_bytes(output, &data) {
+                return Err(ERROR_NOACCESS);
+            }
         }
-        s
-    } else {
-        emu.maps.read_wide_string(string_ptr)
-    };
+        if output == 0 || actual != CRYPT_STRING_BINARY {
+            emu.maps.write_dword(size, data.len() as u32);
+        }
+        if skipped != 0 {
+            emu.maps.write_dword(skipped, skipped_chars as u32);
+        }
+        if format != 0 {
+            emu.maps.write_dword(format, actual as u32);
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        emu.set_last_error(error);
+    }
+    call.set_return(emu, u64::from(result.is_ok()));
+    call.cleanup_args(emu, 7);
+}
 
-    let decoded = match flags {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_decode(input_str.as_bytes()),
-        CRYPT_STRING_BASE64HEADER => {
-            let stripped = strip_pem_headers(&input_str);
-            base64_decode(stripped.as_bytes())
+pub fn CryptStringToBinaryA(emu: &mut Emu) {
+    string_to_binary(emu, "CryptStringToBinaryA", false);
+}
+pub fn CryptStringToBinaryW(emu: &mut Emu) {
+    string_to_binary(emu, "CryptStringToBinaryW", true);
+}
+
+fn encode(data: &[u8], flags: u64) -> Result<String, u64> {
+    let separator = if flags & CRYPT_STRING_NOCRLF != 0 {
+        ""
+    } else if flags & CRYPT_STRING_NOCR != 0 {
+        "\n"
+    } else {
+        "\r\n"
+    };
+    let format = flags & !(CRYPT_STRING_NOCRLF | CRYPT_STRING_NOCR);
+    let mut text = String::new();
+    match format {
+        CRYPT_STRING_BASE64HEADER
+        | CRYPT_STRING_BASE64
+        | CRYPT_STRING_BASE64_ANY
+        | CRYPT_STRING_ANY => {
+            if format == CRYPT_STRING_BASE64HEADER {
+                text.push_str("-----BEGIN CERTIFICATE-----");
+                text.push_str(separator);
+            }
+            let encoded = base64_encode(data);
+            for line in encoded.as_bytes().chunks(64) {
+                for &byte in line {
+                    text.push(char::from(byte));
+                }
+                text.push_str(separator);
+            }
+            if format == CRYPT_STRING_BASE64HEADER {
+                text.push_str("-----END CERTIFICATE-----");
+                text.push_str(separator);
+            }
         }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => Some(input_str.as_bytes().to_vec()),
         CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => {
-            hex_decode(input_str.as_bytes())
-        }
-        _ => Some(input_str.as_bytes().to_vec()),
-    };
-
-    let dflags = match flags {
-        0x00 => "BASE64HEADER",
-        0x01 => "BASE64",
-        0x02 => "BINARY",
-        0x04 => "HEX",
-        0x06 => "BASE64_ANY",
-        0x07 => "ANY",
-        0x08 => "HEX_ANY",
-        0x0c => "HEXRAW",
-        _ => "unknown",
-    };
-
-    match decoded {
-        Some(data) => {
-            if out_ptr != 0 && inout_sz_ptr != 0 {
-                let buf_sz = emu.maps.read_dword(inout_sz_ptr).unwrap_or(0) as usize;
-                let write_len = data.len().min(buf_sz);
-                emu.maps.write_bytes(out_ptr, &data[..write_len]);
+            for row in data.chunks(if format == CRYPT_STRING_HEXRAW {
+                usize::MAX
+            } else {
+                16
+            }) {
+                for (index, byte) in row.iter().enumerate() {
+                    if index != 0 && format != CRYPT_STRING_HEXRAW {
+                        text.push(' ');
+                        if index == 8 {
+                            text.push(' ');
+                        }
+                    }
+                    write!(text, "{byte:02x}").map_err(|_| ERROR_NOT_ENOUGH_MEMORY)?;
+                }
+                text.push_str(separator);
             }
-            if inout_sz_ptr != 0 {
-                emu.maps.write_dword(inout_sz_ptr, data.len() as u32);
-            }
-            log_red!(
-                emu,
-                "crypt32!CryptStringToBinaryW {} decoded {} -> {} bytes",
-                dflags,
-                input_str.len(),
-                data.len()
-            );
-            1
         }
-        None => {
-            log_red!(emu, "crypt32!CryptStringToBinaryW {} decode failed", dflags);
-            0
-        }
+        _ => return Err(ERROR_INVALID_PARAMETER),
     }
+    Ok(text)
 }
 
-pub(crate) fn crypt_hash_certificate(
-    emu: &mut emu::Emu,
-    alg_id: u32,
-    cert_encoded_ptr: u64,
-    cert_encoded_len: u64,
-    hash_ptr: u64,
-    hash_len_ptr: u64,
-) -> u64 {
-    let data = emu
-        .maps
-        .read_bytes(cert_encoded_ptr, cert_encoded_len as usize);
-
-    let (hash_bytes, hash_size) = match alg_id {
-        CALG_SHA_256 | 0 => {
-            let mut hasher = Sha256::new();
-            hasher.update(data);
-            let result = hasher.finalize();
-            (result.to_vec(), 32u32)
-        }
-        CALG_SHA1 => {
-            let mut hasher = Sha1::new();
-            hasher.update(data);
-            let result = hasher.finalize();
-            (result.to_vec(), 20u32)
-        }
-        CALG_MD5 => {
-            let digest = md5::compute(data);
-            (digest.to_vec(), 16u32)
-        }
-        _ => {
-            log_red!(
-                emu,
-                "crypt32!CryptHashCertificate unknown alg 0x{:x}",
-                alg_id
-            );
-            return 0;
-        }
-    };
-
-    if hash_ptr == 0 {
-        if hash_len_ptr != 0 {
-            emu.maps.write_dword(hash_len_ptr, hash_size);
-        }
-        log_red!(
-            emu,
-            "crypt32!CryptHashCertificate alg=0x{:x} size query -> {}",
-            alg_id,
-            hash_size
-        );
-        return 1;
-    }
-
-    let buf_sz = if hash_len_ptr != 0 {
-        emu.maps.read_dword(hash_len_ptr).unwrap_or(0) as usize
-    } else {
-        hash_size as usize
-    };
-
-    let write_len = hash_bytes.len().min(buf_sz);
-    emu.maps.write_bytes(hash_ptr, &hash_bytes[..write_len]);
-    if hash_len_ptr != 0 {
-        emu.maps.write_dword(hash_len_ptr, hash_size);
-    }
-
+fn binary_to_string(emu: &mut Emu, name: &str, wide: bool) {
+    let call = WinApi(Stdcall);
+    let [input, count, flags, output, size] = api_try!(emu, call.args(emu));
+    let flags = u64::from(flags as u32);
     log_red!(
         emu,
-        "crypt32!CryptHashCertificate alg=0x{:x} data={} bytes -> hash={} bytes",
-        alg_id,
-        cert_encoded_len,
-        hash_size
+        "crypt32!{name} input={input:#x} bytes={count} flags={flags:#x} output={output:#x}"
     );
-    1
+    let result = (|| {
+        if input == 0 || size == 0 || !emu.maps.validate_write_range(size, 4) {
+            return Err(ERROR_INVALID_PARAMETER);
+        }
+        let data = guest_bytes(emu, input, count as u32 as usize)?;
+        let raw = flags & !(CRYPT_STRING_NOCRLF | CRYPT_STRING_NOCR) == CRYPT_STRING_BINARY;
+        let (payload, used, needed, width) = if raw {
+            let len = data.len();
+            (data, len, len, 1)
+        } else {
+            let mut encoded = encode(&data, flags)?;
+            let used = encoded.len();
+            encoded.push('\0');
+            (
+                strings::encode_text(&encoded, wide),
+                used,
+                used + 1,
+                if wide { 2 } else { 1 },
+            )
+        };
+        if output == 0 {
+            emu.maps.write_dword(size, needed as u32);
+            return Ok(());
+        }
+        let capacity = emu.maps.read_dword(size).ok_or(ERROR_NOACCESS)? as usize;
+        let length = capacity.min(needed) * width;
+        if length != 0 && !emu.maps.write_bytes(output, &payload[..length]) {
+            return Err(ERROR_NOACCESS);
+        }
+        if capacity < needed {
+            return Err(ERROR_MORE_DATA);
+        }
+        emu.maps.write_dword(size, used as u32);
+        Ok(())
+    })();
+    if let Err(error) = result {
+        emu.set_last_error(error);
+    }
+    call.set_return(emu, u64::from(result.is_ok()));
+    call.cleanup_args(emu, 5);
+}
+
+pub fn CryptBinaryToStringA(emu: &mut Emu) {
+    binary_to_string(emu, "CryptBinaryToStringA", false);
+}
+pub fn CryptBinaryToStringW(emu: &mut Emu) {
+    binary_to_string(emu, "CryptBinaryToStringW", true);
+}
+
+pub fn CryptHashCertificate(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let [provider, algorithm, flags, input, length, output, size] = api_try!(emu, call.args(emu));
+    log_red!(
+        emu,
+        "crypt32!CryptHashCertificate provider={provider:#x} algorithm={algorithm:#x} flags={flags:#x} input={input:#x} bytes={length} output={output:#x}"
+    );
+    let result = (|| {
+        if flags as u32 != 0 || size == 0 || !emu.maps.validate_write_range(size, 4) {
+            return Err(ERROR_INVALID_PARAMETER);
+        }
+        let bytes = guest_bytes(emu, input, length as u32 as usize)?;
+        let digest = match algorithm as u32 {
+            CALG_SHA_256 => Sha256::digest(&bytes).to_vec(),
+            CALG_SHA1 | 0 => Sha1::digest(&bytes).to_vec(),
+            CALG_MD5 => md5::compute(&bytes).to_vec(),
+            _ => return Err(NTE_BAD_ALGID),
+        };
+        if output != 0 {
+            let capacity = emu.maps.read_dword(size).ok_or(ERROR_NOACCESS)? as usize;
+            if capacity < digest.len() {
+                emu.maps.write_dword(size, digest.len() as u32);
+                return Err(ERROR_MORE_DATA);
+            }
+            if !emu.maps.write_bytes(output, &digest) {
+                return Err(ERROR_NOACCESS);
+            }
+        }
+        emu.maps.write_dword(size, digest.len() as u32);
+        Ok(())
+    })();
+    if let Err(error) = result {
+        emu.set_last_error(error);
+    }
+    call.set_return(emu, u64::from(result.is_ok()));
+    call.cleanup_args(emu, 7);
 }

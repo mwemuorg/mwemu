@@ -1,11 +1,6 @@
-use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
-use crate::emu;
-use crate::winapi::policy::api_try;
+use crate::emu::Emu;
+use crate::winapi::common::threads;
 
-pub fn ExitProcess(emu: &mut emu::Emu) {
-    let call = WinApi(Stdcall);
-    let p0 = api_try!(emu, call.arg(emu, 0));
-    log_red!(emu, "kernelbase!ExitProcess");
-    emu.set_last_error(0);
-    call.set_return(emu, 1);
+pub fn ExitProcess(emu: &mut Emu) {
+    threads::exit_process(emu, "ExitProcess");
 }

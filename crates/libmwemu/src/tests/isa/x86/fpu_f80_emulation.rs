@@ -20,8 +20,22 @@ pub fn fpu_f80_emulation() {
     assert!(f80.is_zero());
     assert_eq!(f80.get_f64(), -0.0);
 
+    for bits in [
+        1,
+        2,
+        f64::MIN_POSITIVE.to_bits() - 1,
+        f64::MIN_POSITIVE.to_bits(),
+    ] {
+        for sign in [0, (-0.0f64).to_bits()] {
+            f80.set_f64(f64::from_bits(sign | bits));
+            assert!(f80.bit_integer());
+            assert_eq!(f80.get_f64().to_bits(), sign | bits);
+        }
+    }
+
     // Test infinity
     f80.set_f64(f64::INFINITY);
+    assert_eq!(f80.get(), 0x7fff_8000_0000_0000_0000);
     assert!(f80.is_infinite());
     assert_eq!(f80.get_f64(), f64::INFINITY);
 
