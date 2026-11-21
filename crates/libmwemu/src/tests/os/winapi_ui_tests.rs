@@ -884,6 +884,86 @@ fn shell_argument_array_uses_guest_pointers_and_local_free() {
 }
 
 #[test]
+fn display_enumeration_calls_back_with_the_primary_monitor_and_clip() {
+    use crate::tests::helpers::{call_winapi_export, prepare_winapi};
+    use crate::winapi::policy::ApiMode;
+
+    const CALLBACK: u64 = 0x2800_0000;
+    const SCREEN: [i32; 4] = [0, 0, 1920, 1080];
+    for is64 in [true, false] {
+        let (mut emu, data) = prepare_winapi(is64);
+        emu.set_api_mode(ApiMode::SimulateSuccess);
+        emu.maps
+            .create_map(
+                "monitor_callback",
+                CALLBACK,
+                0x1000,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        // MONITORENUMPROC returns with RET on x64 and RET 16 on x86.
+        let ret: &[u8] = if is64 { &[0xc3] } else { &[0xc2, 16, 0] };
+        emu.maps.write_bytes(CALLBACK, ret);
+        emu.set_pc(CALLBACK + 0x80);
+        let point_args: &[u64] = if is64 { &[0, 0] } else { &[0, 0, 0] };
+        let monitor = call_winapi_export(&mut emu, "user32.dll", "MonitorFromPoint", point_args);
+        assert_ne!(monitor, 0);
+
+        for (clip, expected, more) in [
+            (None, Some(SCREEN), true),
+            (Some([-5, 2, 9, 7]), Some([0, 2, 9, 7]), true),
+            (Some([-5, 0, 0, 7]), None, true),
+            (None, Some(SCREEN), false),
+        ] {
+            let clip_ptr = clip.map_or(0, |edges: [i32; 4]| {
+                let addr = data + 16;
+                assert!(
+                    emu.maps
+                        .write_bytes(addr, edges.map(i32::to_le_bytes).as_flattened())
+                );
+                addr
+            });
+            emu.maps.write_dword(data, 0);
+            emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+                if pc == CALLBACK {
+                    let [handle, dc, rect, context] = if is64 {
+                        let r = emu.regs();
+                        [r.rcx, r.rdx, r.r8, r.r9]
+                    } else {
+                        [4, 8, 12, 16].map(|offset| {
+                            emu.maps
+                                .read_dword(emu.sp() + offset)
+                                .map(u64::from)
+                                .unwrap()
+                        })
+                    };
+                    assert_eq!((handle, dc, context), (monitor, 0, data));
+                    let edges = [0, 4, 8, 12]
+                        .map(|offset| emu.maps.read_dword(rect + offset).unwrap() as i32);
+                    assert_eq!(Some(edges), expected);
+                    let count = emu.maps.read_dword(context).unwrap();
+                    emu.maps.write_dword(context, count + 1);
+                    emu.regs_mut().rax = u64::from(more);
+                }
+                true
+            });
+            let result = call_winapi_export(
+                &mut emu,
+                "user32.dll",
+                "EnumDisplayMonitors",
+                &[0, clip_ptr, CALLBACK, data],
+            );
+            assert_eq!(
+                emu.maps.read_dword(data),
+                Some(u32::from(expected.is_some())),
+                "callback count"
+            );
+            assert_eq!(result != 0, more);
+        }
+    }
+}
+
+#[test]
 fn gdi_objects_keep_their_type_selection_guest_layout_and_display_profile() {
     use crate::tests::helpers::{call_winapi_export, prepare_winapi};
     for is64 in [false, true] {

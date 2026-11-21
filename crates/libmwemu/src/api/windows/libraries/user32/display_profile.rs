@@ -1,6 +1,8 @@
+use super::rectangles::Rect;
 use super::window_state::{DESKTOP_WINDOW, SCREEN_HEIGHT, SCREEN_WIDTH, WORK_HEIGHT};
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
+use crate::err::MwemuError;
 use crate::winapi::common::{memory::read_array, strings};
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::ERROR_NOACCESS;
@@ -168,6 +170,69 @@ fn parameters(emu: &mut Emu, api: &str) {
     call.set_return(emu, ok.into());
     call.cleanup_args(emu, 4);
 }
+
+fn enumerate_primary_monitor(
+    emu: &mut Emu,
+    clip: u64,
+    callback: u64,
+    data: u64,
+) -> Result<bool, MwemuError> {
+    if callback == 0 {
+        return Ok(false);
+    }
+    let mut bounds = Rect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    if clip != 0 {
+        let Some(clip) = Rect::read(emu, clip) else {
+            return Ok(false);
+        };
+        bounds = bounds.intersection(clip);
+        if bounds.empty() {
+            return Ok(true);
+        }
+    }
+
+    // Keep the RECT in this invocation's guest stack frame while the callback runs.
+    let sp = emu.sp();
+    let Some(rect) = sp.checked_sub(Rect::BYTE_LEN as u64) else {
+        return Ok(false);
+    };
+    if !bounds.write(emu, rect) {
+        return Ok(false);
+    }
+    emu.set_sp(rect);
+    let args = [MONITOR, 0, rect, data];
+    let result = if emu.cfg.arch.is_64bits() {
+        emu.call64(callback, &args)? as u32
+    } else {
+        emu.call32(callback, &args.map(|arg| arg as u32))?
+    };
+    emu.set_sp(sp);
+    Ok(result != 0)
+}
+
+pub fn EnumDisplayMonitors(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let [dc, clip, callback, data] = api_try!(emu, call.args(emu));
+    log_red!(
+        emu,
+        "user32!EnumDisplayMonitors dc={dc:#x} clip={clip:#x} callback={callback:#x} data={data:#x}"
+    );
+    if dc != 0 {
+        policy::unsupported(emu, "user32", "EnumDisplayMonitors", emu.pc());
+        return;
+    }
+    match enumerate_primary_monitor(emu, clip, callback, data) {
+        Ok(completed) => {
+            call.set_return(emu, completed.into());
+            call.cleanup_args(emu, 4);
+        }
+        Err(error) => {
+            log::warn!("EnumDisplayMonitors callback {callback:#x}: {error}");
+            emu.stop();
+        }
+    }
+}
+
 pub fn MonitorFromPoint(emu: &mut Emu) {
     get_monitor(emu, "MonitorFromPoint", true);
 }

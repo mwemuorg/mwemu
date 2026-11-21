@@ -77,9 +77,10 @@ pub use dialogs::{MessageBoxA, MessageBoxExA, MessageBoxExW, MessageBoxW};
 
 mod display_profile;
 pub use display_profile::{
-    AdjustWindowRect, AdjustWindowRectEx, GetCaretBlinkTime, GetDoubleClickTime, GetKeyboardLayout,
-    GetKeyboardType, GetMonitorInfoA, GetMonitorInfoW, GetSysColor, GetSystemMetrics,
-    MonitorFromPoint, MonitorFromWindow, SystemParametersInfoA, SystemParametersInfoW,
+    AdjustWindowRect, AdjustWindowRectEx, EnumDisplayMonitors, GetCaretBlinkTime,
+    GetDoubleClickTime, GetKeyboardLayout, GetKeyboardType, GetMonitorInfoA, GetMonitorInfoW,
+    GetSysColor, GetSystemMetrics, MonitorFromPoint, MonitorFromWindow, SystemParametersInfoA,
+    SystemParametersInfoW,
 };
 
 mod user_objects;

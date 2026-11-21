@@ -4,7 +4,7 @@ use crate::winapi::common::memory::read_array;
 use crate::winapi::policy::api_try;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-struct Rect {
+pub(super) struct Rect {
     left: i32,
     top: i32,
     right: i32,
@@ -12,22 +12,28 @@ struct Rect {
 }
 
 impl Rect {
-    fn read(emu: &Emu, addr: u64) -> Option<Self> {
-        if addr == 0 {
-            return None;
-        }
-        let bytes = read_array::<{ 4 * size_of::<i32>() }>(emu, addr)?;
-        let (words, _) = bytes.as_chunks::<4>();
-        let [left, top, right, bottom] = std::array::from_fn(|i| i32::from_le_bytes(words[i]));
-        Some(Self {
+    pub(super) const BYTE_LEN: usize = size_of::<[i32; 4]>();
+
+    pub(super) const fn new(left: i32, top: i32, right: i32, bottom: i32) -> Self {
+        Self {
             left,
             top,
             right,
             bottom,
-        })
+        }
     }
 
-    fn write(self, emu: &mut Emu, addr: u64) -> bool {
+    pub(super) fn read(emu: &Emu, addr: u64) -> Option<Self> {
+        if addr == 0 {
+            return None;
+        }
+        let bytes = read_array::<{ Self::BYTE_LEN }>(emu, addr)?;
+        let (words, _) = bytes.as_chunks::<4>();
+        let [left, top, right, bottom] = std::array::from_fn(|i| i32::from_le_bytes(words[i]));
+        Some(Self::new(left, top, right, bottom))
+    }
+
+    pub(super) fn write(self, emu: &mut Emu, addr: u64) -> bool {
         let bytes = [self.left, self.top, self.right, self.bottom].map(i32::to_le_bytes);
         let bytes = bytes.as_flattened();
         addr != 0
@@ -35,11 +41,11 @@ impl Rect {
             && emu.maps.write_bytes(addr, bytes)
     }
 
-    fn empty(self) -> bool {
+    pub(super) fn empty(self) -> bool {
         self.left >= self.right || self.top >= self.bottom
     }
 
-    fn intersection(self, b: Self) -> Self {
+    pub(super) fn intersection(self, b: Self) -> Self {
         let r = Self {
             left: self.left.max(b.left),
             top: self.top.max(b.top),

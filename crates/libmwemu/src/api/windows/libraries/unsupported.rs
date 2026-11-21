@@ -1992,7 +1992,6 @@ pub mod user32 {
         EnumDesktopsW,
         EnumDisplayDevicesA,
         EnumDisplayDevicesW,
-        EnumDisplayMonitors,
         EnumDisplaySettingsA,
         EnumDisplaySettingsExA,
         EnumDisplaySettingsExW,
