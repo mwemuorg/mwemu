@@ -7,6 +7,7 @@
 //! waiter's call (sets its return value and hands it ownership).
 use super::libc_extra::trace;
 use crate::api::abi::unix::UnixApi;
+use crate::api::dispatch_api;
 use crate::api::unix::api_try;
 use crate::emu::Emu;
 
@@ -30,9 +31,8 @@ const ETIMEDOUT: u64 = 60;
 
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
-    let call = UnixApi;
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
-    match name {
+    dispatch_api!(name, {
         "pthread_mutex_init" => api_mutex_init(emu),
         "pthread_mutex_lock" => api_mutex_lock(emu),
         "pthread_mutex_trylock" => api_mutex_trylock(emu),
@@ -41,10 +41,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "pthread_mutexattr_init" => api_mutexattr_init(emu),
         "pthread_mutexattr_settype" => api_mutexattr_settype(emu),
         "pthread_mutexattr_gettype" => api_mutexattr_gettype(emu),
-        "pthread_mutexattr_destroy" | "pthread_cond_init" | "pthread_cond_destroy" => {
-            trace(emu, &format!("{}() -> 0", name));
-            call.set_return(emu, 0);
-        }
+        "pthread_mutexattr_destroy" | "pthread_cond_init" | "pthread_cond_destroy" => sync_noop(emu, name),
         "pthread_cond_wait" => api_cond_wait(emu),
         "pthread_cond_timedwait" => api_cond_timedwait(emu),
         "pthread_cond_signal" => api_cond_wake(emu, false),
@@ -52,10 +49,11 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "os_unfair_lock_lock" | "os_unfair_lock_lock_with_options" => api_unfair_lock(emu),
         "os_unfair_lock_trylock" => api_unfair_trylock(emu),
         "os_unfair_lock_unlock" => api_unfair_unlock(emu),
-        "os_unfair_lock_assert_owner" | "os_unfair_lock_assert_not_owner" => {}
-        _ => return false,
-    }
-    true
+        "os_unfair_lock_assert_owner" | "os_unfair_lock_assert_not_owner" => lock_assertion_stub(emu),
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn current_tid(emu: &Emu) -> u64 {
@@ -387,3 +385,11 @@ fn api_unfair_unlock(emu: &mut Emu) {
     }
     trace(emu, &format!("os_unfair_lock_unlock(0x{:x})", lock));
 }
+
+fn sync_noop(emu: &mut Emu, name: &str) {
+    let call = UnixApi;
+    trace(emu, &format!("{}() -> 0", name));
+    call.set_return(emu, 0);
+}
+
+fn lock_assertion_stub(_emu: &mut Emu) {}

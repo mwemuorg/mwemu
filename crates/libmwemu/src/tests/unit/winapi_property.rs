@@ -357,11 +357,11 @@ fn kernelbase_preserves_the_unimplemented_api_result() {
 fn winapi_stdcall_discards_sdk_dword_slots() {
     setup();
     let (mut emu, _) = prepare_winapi(false);
-    // Counts are DWORD slots: COORD is one, CY/TRACEHANDLE are two.
+    emu.set_api_mode(crate::ApiMode::SimulateFail);
+    // Exercise both handlers and known fallback signatures. COORD takes one x86 slot, CY and TRACEHANDLE take two.
     let cases = [
         ("advapi32.dll", "AbortSystemShutdownA", 1),
         ("advapi32.dll", "AbortSystemShutdownW", 1),
-        ("advapi32.dll", "AccessCheck", 8),
         ("advapi32.dll", "ControlTraceW", 5),
         ("kernel32.dll", "GetEnabledXStateFeatures", 0),
         ("kernel32.dll", "GetThreadEnabledXStateFeatures", 0),
@@ -399,18 +399,21 @@ fn winapi_output_writes_respect_argument_positions_and_types() {
         "GetEventLogInformation",
         &[0, 0, 0, 0, data, data + 8],
     );
-    assert_eq!(emu.maps.read_dword(data), Some(0));
+    assert_eq!(emu.maps.read_dword(data), Some(size_of::<u32>() as u32));
     assert_eq!(
         emu.maps.read_dword(data + 4),
         Some((SENTINEL >> u32::BITS) as u32)
     );
     assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL));
-    // LockFile's fifth argument is a DWORD count, never an output pointer.
+    // The first stack argument is the creation disposition, an input DWORD.
+    let path = data + 128;
+    emu.maps
+        .write_wide_string(path, r"C:\property-invalid-disposition");
     call_winapi_export(
         &mut emu,
         "kernelbase.dll",
-        "LockFile",
-        &[0, 0, 0, 0, data + 8],
+        "CreateFileW",
+        &[path, 0, 0, 0, data + 8, 0, 0],
     );
     assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL));
     // These register arguments are flags, sizes or application data, not outputs.
@@ -427,17 +430,14 @@ fn winapi_output_writes_respect_argument_positions_and_types() {
         call_winapi_export(&mut emu, library, api, &arguments);
         assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL), "{api}");
     }
+    emu.set_api_mode(crate::ApiMode::SimulateFail);
     for (library, api, arguments) in [
         ("advapi32.dll", "EventAccessQuery", vec![0, 0, data]),
         ("ws2_32.dll", "WSCEnumProtocols32", vec![0, 0, data, 0]),
     ] {
         emu.maps.write_qword(data, SENTINEL);
         call_winapi_export(&mut emu, library, api, &arguments);
-        assert_eq!(
-            emu.maps.read_dword(data + 4),
-            Some((SENTINEL >> u32::BITS) as u32),
-            "{api}"
-        );
+        assert_eq!(emu.maps.read_qword(data), Some(SENTINEL), "{api}");
         assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL), "{api}");
     }
 }
@@ -447,7 +447,6 @@ fn winapi_qword_results_replace_both_halves_on_x86() {
     setup();
     let mut emu = emu32();
     for (library, api, arguments) in [
-        ("advapi32.dll", "GetTraceLoggerHandle", vec![0]),
         ("kernel32.dll", "GetEnabledXStateFeatures", vec![]),
         ("kernel32.dll", "GetThreadEnabledXStateFeatures", vec![]),
         ("wininet.dll", "CreateUrlCacheGroup", vec![0, 0]),

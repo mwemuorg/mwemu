@@ -1,6 +1,37 @@
+use goblin::pe::header::{DOS_MAGIC, PE_MAGIC};
+use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
+
+use crate::maps::mem64::Permission;
+use crate::windows::constants::process::TLS_MAXIMUM_AVAILABLE;
 use crate::{emu::Emu, threading::context::ArchThreadState};
 
 impl Emu {
+    pub(crate) fn restore_legacy_windows_slots(&mut self) {
+        let is64 = self.cfg.arch.is_64bits();
+        let mut slots = 0;
+        let mut callbacks = Vec::new();
+        for (index, thread) in self.threads.iter_mut().enumerate() {
+            if let ArchThreadState::X86 {
+                tls32, tls64, veh, ..
+            } = &mut thread.arch
+            {
+                slots = slots.max(if is64 { tls64.len() } else { tls32.len() });
+                if index != 0 {
+                    callbacks.append(veh);
+                }
+            }
+        }
+        self.windows_tls_slots
+            .resize(slots.min(TLS_MAXIMUM_AVAILABLE), true);
+        if let Some(thread) = self.threads.first_mut()
+            && let ArchThreadState::X86 { veh, .. } = &mut thread.arch
+        {
+            veh.extend(callbacks);
+            // Old snapshots used callback addresses as removal handles.
+            self.veh_registration_ids.resize(veh.len(), 0);
+        }
+    }
+
     pub fn tls32(&self) -> &Vec<u32> {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { tls32, .. } => tls32,
@@ -39,7 +70,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if mz != 0x5A4D {
+        if mz != DOS_MAGIC {
             return false;
         }
 
@@ -55,7 +86,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if pe_sig != 0x00004550 {
+        if pe_sig != PE_MAGIC {
             return false;
         }
 
@@ -65,7 +96,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if magic != 0x10B {
+        if magic != MAGIC_32 {
             return false; // only PE32 here
         }
 
@@ -127,7 +158,7 @@ impl Emu {
                 &format!(".tls_data_{:x}", base),
                 tls_data_addr,
                 total_sz.max(0x1000) as u64,
-                crate::maps::mem64::Permission::READ_WRITE,
+                Permission::READ_WRITE,
             );
             if template_sz > 0 {
                 self.maps.memcpy(tls_data_addr, tls_data_start, template_sz);
@@ -137,7 +168,7 @@ impl Emu {
                     &format!(".tls_ptrs_{:x}", base),
                     tls_ptrs_addr,
                     0x1000,
-                    crate::maps::mem64::Permission::READ_WRITE,
+                    Permission::READ_WRITE,
                 );
                 self.maps.write_dword(tls_ptrs_addr, tls_data_addr as u32);
                 if self.maps.exists_mapname("teb") {
@@ -164,7 +195,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if mz != 0x5A4D {
+        if mz != DOS_MAGIC {
             return false;
         }
 
@@ -178,7 +209,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if pe_sig != 0x00004550 {
+        if pe_sig != PE_MAGIC {
             return false;
         }
 
@@ -187,7 +218,7 @@ impl Emu {
             Some(v) => v,
             None => return false,
         };
-        if magic != 0x20B {
+        if magic != MAGIC_64 {
             return false; // only PE64 here
         }
 
@@ -245,7 +276,7 @@ impl Emu {
                 &format!(".tls_data_{:x}", base),
                 tls_data_addr,
                 total_sz.max(0x1000) as u64,
-                crate::maps::mem64::Permission::READ_WRITE,
+                Permission::READ_WRITE,
             );
             if template_sz > 0 {
                 self.maps.memcpy(tls_data_addr, tls_data_start, template_sz);
@@ -255,7 +286,7 @@ impl Emu {
                     &format!(".tls_ptrs_{:x}", base),
                     tls_ptrs_addr,
                     0x1000,
-                    crate::maps::mem64::Permission::READ_WRITE,
+                    Permission::READ_WRITE,
                 );
                 self.maps.write_qword(tls_ptrs_addr, tls_data_addr);
                 if self.maps.exists_mapname("teb64") {

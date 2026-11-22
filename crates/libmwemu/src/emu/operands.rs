@@ -3,6 +3,8 @@ use iced_x86::{Instruction, OpKind, Register};
 
 use crate::maps::mem64::Permission;
 use crate::utils::helpers::{OP_KIND_BIT_WIDTH, unlikely};
+use crate::winapi::common::process;
+use crate::windows::structures::{TEB, TEB64};
 use crate::{
     console::Console,
     emu::Emu,
@@ -138,8 +140,7 @@ impl Emu {
                     if self.cfg.is_x64() { 0 } else { 1 }
                 }
                 0x14 => {
-                    let teb = self.maps.get_mem("teb");
-                    let tib = teb.get_base(); // tib is first element.
+                    let tib = self.windows_teb()?; // tib is first element.
                     if self.cfg.verbose >= 1 {
                         log::trace!("{} Reading NtTIB 0x{:x}", self.pos, tib);
                     }
@@ -152,31 +153,10 @@ impl Emu {
                     }
                     peb.get_base()
                 }
-                0x20 => {
-                    if self.cfg.verbose >= 1 {
-                        log::trace!("{} Reading PID 0x{:x}", self.pos, 10);
-                    }
-                    10
-                }
-                0x24 => {
-                    if self.cfg.verbose >= 1 {
-                        log::trace!("{} Reading TID 0x{:x}", self.pos, 101);
-                    }
-                    101
-                }
-                0x34 => {
-                    if self.cfg.verbose >= 1 {
-                        log::trace!("{} Reading last error value 0", self.pos);
-                    }
-                    0
-                }
-                0x18 => {
-                    let teb = self.maps.get_mem("teb");
-                    if self.cfg.verbose >= 3 {
-                        log::trace!("{} Reading TEB 0x{:x}", self.pos, teb.get_base());
-                    }
-                    teb.get_base()
-                }
+                TEB::CLIENT_ID_PROCESS_ID_OFFSET => process::current_process_id(self),
+                TEB::CLIENT_ID_THREAD_ID_OFFSET => self.current_thread().id,
+                TEB::LAST_ERROR_VALUE_OFFSET => self.get_last_error(),
+                0x18 => self.windows_teb()?,
                 0x00 => {
                     if self.cfg.verbose >= 1 {
                         log::trace!("Reading SEH 0x{:x}", self.seh());
@@ -205,8 +185,14 @@ impl Emu {
                     locale
                 }
                 _ => {
-                    log::trace!("unimplemented fs:[{}]", mem_addr);
-                    return None;
+                    let address = self.windows_teb()?.checked_add(mem_addr)?;
+                    return match self.get_operand_sz(ins, noperand) {
+                        8 => self.maps.read_byte(address).map(u64::from),
+                        16 => self.maps.read_word(address).map(u64::from),
+                        32 => self.maps.read_dword(address).map(u64::from),
+                        64 => self.maps.read_qword(address),
+                        _ => None,
+                    };
                 }
             };
             return Some(value1);
@@ -252,25 +238,10 @@ impl Emu {
                     }
                     peb.get_base()
                 }
-                0x30 => {
-                    let teb = self.maps.get_mem("teb");
-                    if self.cfg.verbose >= 3 {
-                        log::trace!("{} Reading TEB 0x{:x}", self.pos, teb.get_base());
-                    }
-                    teb.get_base()
-                }
-                0x40 => {
-                    if self.cfg.verbose >= 1 {
-                        log::trace!("{} Reading PID 0x{:x}", self.pos, 10);
-                    }
-                    10
-                }
-                0x48 => {
-                    if self.cfg.verbose >= 1 {
-                        log::trace!("{} Reading TID 0x{:x}", self.pos, 101);
-                    }
-                    101
-                }
+                0x30 => self.windows_teb()?,
+                TEB64::CLIENT_ID_PROCESS_ID_OFFSET => process::current_process_id(self),
+                TEB64::CLIENT_ID_THREAD_ID_OFFSET => self.current_thread().id,
+                TEB64::LAST_ERROR_VALUE_OFFSET => self.get_last_error(),
                 0x10 => {
                     let stack = self.maps.get_mem("stack");
                     if self.cfg.verbose >= 1 {
@@ -322,7 +293,7 @@ impl Emu {
                 _ => {
                     // Fall back to reading from actual TEB memory so that real ntdll code
                     // can access arbitrary TEB fields without explicit special-casing.
-                    let teb_base = self.maps.get_mem("teb").get_base();
+                    let teb_base = self.windows_teb()?;
                     let teb_addr = teb_base.wrapping_add(mem_addr);
                     let sz = self.get_operand_sz(ins, noperand);
                     let v = match sz {
@@ -652,37 +623,38 @@ impl Emu {
                     };
                     return true;
                 }
-                if unlikely(mem_seg == Register::GS && self.cfg.is_x64() && !self.os.is_linux()) {
-                    // x64 Windows: GS is based at TEB.  Forward writes to teb_base + offset
-                    // so that real ntdll code can update TEB fields without writing to address 0.
-                    let teb_base = self.maps.get_mem("teb").get_base();
-                    let teb_addr = teb_base.wrapping_add(seg_offset);
-                    if self.cfg.verbose >= 3 {
-                        log::trace!(
-                            "gs:[0x{:x}] = 0x{:x}  (teb+0x{:x})",
-                            seg_offset,
-                            value,
-                            seg_offset
-                        );
+                let windows_segment = self.os.is_windows()
+                    && self.kernel.is_none()
+                    && ((mem_seg == Register::GS && self.cfg.arch.is_64bits())
+                        || (mem_seg == Register::FS && !self.cfg.arch.is_64bits()));
+                if windows_segment {
+                    let bits = (ins.memory_size().size() * 8) as u32;
+                    if mem_seg == Register::FS && seg_offset == TEB::NT_TIB_OFFSET {
+                        self.set_seh(value);
+                        return true;
                     }
-                    match (ins.memory_size().size() * 8) as u32 {
-                        8 => {
-                            let _ = self.maps.write_byte(teb_addr, value as u8);
-                        }
-                        16 => {
-                            let _ = self.maps.write_word(teb_addr, value as u16);
-                        }
-                        32 => {
-                            let _ = self.maps.write_dword(teb_addr, value as u32);
-                        }
-                        64 => {
-                            let _ = self.maps.write_qword(teb_addr, value);
-                        }
-                        _ => {
-                            let _ = self.maps.write_qword(teb_addr, value);
-                        }
+                    let last_error = if self.cfg.arch.is_64bits() {
+                        TEB64::LAST_ERROR_VALUE_OFFSET
+                    } else {
+                        TEB::LAST_ERROR_VALUE_OFFSET
+                    };
+                    if seg_offset == last_error && bits == 32 {
+                        self.set_last_error(value);
+                        return true;
                     }
-                    return true;
+                    let Some(address) = self
+                        .windows_teb()
+                        .and_then(|base| base.checked_add(seg_offset))
+                    else {
+                        return false;
+                    };
+                    return match bits {
+                        8 => self.maps.write_byte(address, value as u8),
+                        16 => self.maps.write_word(address, value as u16),
+                        32 => self.maps.write_dword(address, value as u32),
+                        64 => self.maps.write_qword(address, value),
+                        _ => false,
+                    };
                 }
                 if unlikely(mem_seg == Register::FS || mem_base == Register::GS) {
                     if self.os.is_linux() {

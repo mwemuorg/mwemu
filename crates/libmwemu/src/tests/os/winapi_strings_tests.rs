@@ -1,14 +1,75 @@
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
-use crate::windows::constants::system::FORMAT_MESSAGE_FROM_SYSTEM;
+use crate::windows::constants::system::{
+    FORMAT_MESSAGE_ALLOCATE_BUFFER, FORMAT_MESSAGE_FROM_STRING, FORMAT_MESSAGE_FROM_SYSTEM,
+};
 use itertools::iproduct;
 
+use crate::emu::Emu;
+use crate::emu32;
+use crate::kernel::windows::rtl;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers::{self, call_winapi_export as call, prepare_winapi as prepare};
-use crate::winapi::{winapi32, winapi64};
-use crate::{emu32, emu64};
+use crate::winapi::winapi32;
 
 const MARKER: u32 = 0xcccc_cccc;
+
+#[test]
+fn locale_info_writes_only_to_the_output_buffer() {
+    for is64 in [false, true] {
+        let (mut emu, output) = prepare(is64);
+        const GUARD: u64 = 0x2600_0000;
+        emu.maps
+            .create_map(
+                "scalar_guard",
+                GUARD,
+                size_of::<u32>() as u64,
+                Permission::READ_WRITE,
+            )
+            .unwrap();
+        emu.maps.write_dword(GUARD, MARKER);
+        // Both scalar arguments can happen to contain a mapped address.
+        for (kind, capacity) in [(GUARD, 32), (LOCALE_SMONTHNAME1, GUARD)] {
+            let result = call(
+                &mut emu,
+                "kernel32.dll",
+                "GetLocaleInfoW",
+                &[LOCALE_USER_DEFAULT, kind, output, capacity],
+            );
+            assert_eq!(emu.maps.read_dword(GUARD), Some(MARKER));
+            if kind == LOCALE_SMONTHNAME1 {
+                assert_eq!(result, "January".len() as u64 + 1);
+                assert_eq!(emu.maps.read_wide_string(output), "January");
+            } else {
+                assert_eq!(result, 0);
+                assert_eq!(emu.get_last_error(), ERROR_INVALID_FLAGS);
+            }
+        }
+    }
+}
+
+#[test]
+fn code_page_queries_agree_across_architectures_and_library_routes() {
+    for is64 in [false, true] {
+        let (mut emu, _) = prepare(is64);
+        for (library, (name, expected)) in iproduct!(
+            ["kernel32.dll", "kernelbase.dll"],
+            [
+                ("GetACP", CP_WINDOWS_1252),
+                ("GetOEMCP", CP_IBM437),
+                ("GetUserDefaultLCID", EN_US_LOCALE)
+            ]
+        ) {
+            emu.set_last_error(MARKER as u64);
+            assert_eq!(
+                call(&mut emu, library, name, &[]),
+                expected as u64,
+                "{library}!{name}, is64={is64}"
+            );
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+        }
+    }
+}
 
 #[test]
 fn character_navigation_returns_pointers_and_respects_boundaries() {
@@ -118,152 +179,119 @@ fn lead_byte_checks_agree_with_code_pages() {
 }
 
 #[test]
-fn rtl_init_unicode_string_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let ustr_addr = 0x100000u64;
-    let src_addr = 0x100100u64;
-    emu.maps
-        .create_map("ustr_io", 0x100000, 0x1000, Permission::READ_WRITE);
-
-    // Write L"Hello" (wide) — 5 chars + null = 12 bytes
-    let hello: [u8; 12] = [b'H', 0, b'e', 0, b'l', 0, b'l', 0, b'o', 0, 0, 0];
-    for (i, &b) in hello.iter().enumerate() {
-        emu.maps.write_byte(src_addr + i as u64, b);
+fn format_message_checks_guest_buffers_and_local_allocation() {
+    for (wide, lib) in iproduct!([false, true], ["kernel32.dll", "kernelbase.dll"]) {
+        let (mut emu, base) = prepare(wide);
+        let output = base + 64;
+        emu.maps.write_wide_string(base, "A🌱%n%0discard");
+        emu.maps.fill_range(output, 0xcc, 32);
+        let flags = u64::from(FORMAT_MESSAGE_FROM_STRING);
+        assert_eq!(
+            call(
+                &mut emu,
+                lib,
+                "FormatMessageW",
+                &[flags, base, 0, 0, output, 5, 0]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(emu.maps.read_dword(output), Some(MARKER));
+        assert_eq!(
+            call(
+                &mut emu,
+                lib,
+                "FormatMessageW",
+                &[flags, base, 0, 0, output, 6, 0]
+            ),
+            5
+        );
+        assert_eq!(emu.maps.read_wide_string(output), "A🌱\r\n");
+        assert_eq!(emu.maps.read_dword(output + 12), Some(MARKER));
+        emu.maps.fill_range(output, 0xcc, 16);
+        let flags = u64::from(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER);
+        let count = call(
+            &mut emu,
+            lib,
+            "FormatMessageA",
+            &[flags, 0, ERROR_ACCESS_DENIED, 0, output, 1, 0],
+        );
+        let ptr = if wide {
+            emu.maps.read_qword(output).unwrap()
+        } else {
+            u64::from(emu.maps.read_dword(output).unwrap())
+        };
+        assert_eq!(emu.maps.read_string(ptr), "Access is denied.\r\n");
+        assert_eq!(count, "Access is denied.\r\n".len() as u64);
+        assert_eq!(
+            emu.maps.read_dword(output + if wide { 8 } else { 4 }),
+            Some(MARKER)
+        );
+        assert_eq!(call(&mut emu, lib, "LocalFree", &[ptr]), 0);
     }
-
-    helpers::call_winapi64(
-        &mut emu,
-        winapi64::ntdll::RtlInitUnicodeString,
-        &[ustr_addr, src_addr],
-    );
-
-    let length = emu.maps.read_word(ustr_addr).unwrap();
-    let max_length = emu.maps.read_word(ustr_addr + 2).unwrap();
-    let buffer = emu.maps.read_qword(ustr_addr + 8).unwrap();
-    assert_eq!(length, 10, "Length must be 5 chars * 2 bytes = 10");
-    assert_eq!(max_length, 12, "MaximumLength must be Length + 2");
-    assert_eq!(buffer, src_addr, "Buffer must point to the source string");
 }
 
 #[test]
-fn rtl_init_ansi_string_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let astr_addr = 0x100000u64;
-    let src_addr = 0x100100u64;
-    emu.maps
-        .create_map("astr_io", 0x100000, 0x1000, Permission::READ_WRITE);
-
-    emu.maps.write_string(src_addr, "Test");
-
-    helpers::call_winapi64(
-        &mut emu,
-        winapi64::ntdll::RtlInitAnsiString,
-        &[astr_addr, src_addr],
-    );
-
-    let length = emu.maps.read_word(astr_addr).unwrap();
-    let max_length = emu.maps.read_word(astr_addr + 2).unwrap();
-    let buffer = emu.maps.read_qword(astr_addr + 8).unwrap();
-    assert_eq!(length, 4, "Length must be 4 (strlen)");
-    assert_eq!(max_length, 5, "MaximumLength must be Length + 1");
-    assert_eq!(buffer, src_addr, "Buffer must point to the source string");
-}
-
-#[test]
-fn rtl_init_unicode_string() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let dest_addr = 0x100000u64;
-    let source_addr = 0x100100u64;
-    emu.maps
-        .create_map("unistr", dest_addr, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_wide_string(source_addr, "Hello");
-
-    helpers::call_winapi64(
-        &mut emu,
-        winapi64::ntdll::RtlInitUnicodeString,
-        &[dest_addr, source_addr],
-    );
-
-    // "Hello" = 5 UTF-16 code units = 10 bytes
-    let length = emu.maps.read_word(dest_addr).unwrap();
-    let max_length = emu.maps.read_word(dest_addr + 2).unwrap();
-    let buffer = emu.maps.read_qword(dest_addr + 8).unwrap();
-
-    assert_eq!(length, 10, "UNICODE_STRING.Length should be 10 for 'Hello'");
-    assert_eq!(max_length, 12, "UNICODE_STRING.MaximumLength should be 12");
-    assert_eq!(
-        buffer, source_addr,
-        "UNICODE_STRING.Buffer should point to source"
-    );
-}
-
-#[test]
-fn rtl_init_unicode_string_null() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let dest_addr = 0x100000u64;
-    emu.maps
-        .create_map("unistr", dest_addr, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_qword(dest_addr, 0xFFFFFFFF_FFFFFFFF);
-    emu.maps.write_qword(dest_addr + 8, 0xFFFFFFFF_FFFFFFFF);
-
-    helpers::call_winapi64(
-        &mut emu,
-        winapi64::ntdll::RtlInitUnicodeString,
-        &[dest_addr, 0],
-    );
-
-    assert_eq!(emu.maps.read_qword(dest_addr).unwrap(), 0);
-    assert_eq!(emu.maps.read_qword(dest_addr + 8).unwrap(), 0);
-}
-
-#[test]
-fn rtl_init_ansi_string() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let dest_addr = 0x100000u64;
-    let source_addr = 0x100100u64;
-    emu.maps
-        .create_map("ansistr", dest_addr, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_string(source_addr, "TestStr");
-
-    helpers::call_winapi64(
-        &mut emu,
-        winapi64::ntdll::RtlInitAnsiString,
-        &[dest_addr, source_addr],
-    );
-
-    let length = emu.maps.read_word(dest_addr).unwrap();
-    let max_length = emu.maps.read_word(dest_addr + 2).unwrap();
-    let buffer = emu.maps.read_qword(dest_addr + 8).unwrap();
-
-    assert_eq!(length, 7, "ANSI_STRING.Length should be 7 for 'TestStr'");
-    assert_eq!(max_length, 8, "ANSI_STRING.MaximumLength should be 8");
-    assert_eq!(
-        buffer, source_addr,
-        "ANSI_STRING.Buffer should point to source"
-    );
-}
-
-#[test]
-fn format_message_a() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::FormatMessageA,
-        &[FORMAT_MESSAGE_FROM_SYSTEM as u64, 0, 0, 0],
-    );
-    assert_eq!(ret, 0, "FormatMessageA stub should return 0");
+fn profile_strings_share_the_guest_store_and_respect_output_units() {
+    for wide in [false, true] {
+        let (mut emu, base) = prepare(wide);
+        let dll = "kernel32.dll";
+        let alias = "kernelbase.dll";
+        let key = base + 64;
+        let value = base + 128;
+        let out = base + 192;
+        emu.maps.write_wide_string(base, "Tests");
+        emu.maps.write_wide_string(key, "Name");
+        emu.maps.write_wide_string(value, "20🌱");
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "WritePrivateProfileStringW",
+                &[base, key, value, 0]
+            ),
+            1
+        );
+        assert_eq!(
+            call(&mut emu, alias, "GetProfileIntW", &[base, key, 77]),
+            20
+        );
+        emu.maps.fill_range(out, 0xcc, 32);
+        assert_eq!(
+            call(
+                &mut emu,
+                alias,
+                "GetPrivateProfileStringW",
+                &[base, key, 0, out, 4, 0]
+            ),
+            3
+        );
+        assert_eq!(emu.maps.read_word(out + 6), Some(0));
+        assert_eq!(emu.maps.read_dword(out + 8), Some(MARKER));
+        assert_eq!(
+            call(&mut emu, dll, "GetProfileStringW", &[base, 0, 0, out, 16]),
+            5
+        );
+        assert_eq!(emu.maps.read_wide_string(out), "Name");
+        assert_eq!(emu.maps.read_word(out + 10), Some(0));
+        let (mut other, other_base) = prepare(wide);
+        other.maps.write_string(other_base, "Tests");
+        other.maps.write_string(other_base + 64, "Name");
+        assert_eq!(
+            call(
+                &mut other,
+                dll,
+                "GetProfileIntA",
+                &[other_base, other_base + 64, 77]
+            ),
+            77
+        );
+        assert_eq!(
+            call(&mut emu, alias, "WriteProfileStringW", &[base, key, 0]),
+            1
+        );
+        assert_eq!(call(&mut emu, dll, "GetProfileIntW", &[base, key, 77]), 77);
+    }
 }
 
 #[test]
@@ -515,64 +543,71 @@ fn canonical_string_exports_handle_empty_and_unicode_strings() {
 
 #[test]
 fn paired_locale_exports_use_stack_arguments_and_bound_output() {
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        // An afternoon in a leap year makes hardcoded guest-epoch output visible.
+        for (i, value) in [2024u16, 2, 0, 29, 15, 4, 5, 0].into_iter().enumerate() {
+            emu.maps.write_word(data + i as u64 * 2, value);
+        }
+        let output = data + 256;
+        for library in ["kernel32.dll", "kernelbase.dll"] {
+            for name in [
+                "GetDateFormatA",
+                "GetDateFormatW",
+                "GetDateFormatEx",
+                "GetTimeFormatA",
+                "GetTimeFormatW",
+                "GetTimeFormatEx",
+            ] {
+                let date = name.starts_with("GetDate");
+                let ex = name.ends_with("Ex");
+                let wide = ex || name.ends_with('W');
+                for (ptr, text) in [
+                    (0, if date { "1/1/2024" } else { "12:00:00 AM" }),
+                    (data, if date { "2/29/2024" } else { "3:04:05 PM" }),
+                ] {
+                    let required = text.len() as u64 + 1;
+                    let mut args = vec![if ex { 0 } else { LOCALE_USER_DEFAULT }, 0, ptr, 0, 0, 0];
+                    if date && ex {
+                        args.push(0);
+                    }
+                    assert_eq!(
+                        helpers::call_winapi_export(&mut emu, library, name, &args),
+                        required
+                    );
+                    emu.maps.memset(output, 0xa5, 64);
+                    args[4] = output;
+                    args[5] = required - 1;
+                    assert_eq!(
+                        helpers::call_winapi_export(&mut emu, library, name, &args),
+                        0
+                    );
+                    assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+                    assert_eq!(emu.maps.read_byte(output), Some(0xa5));
+                    args[5] = required;
+                    assert_eq!(
+                        helpers::call_winapi_export(&mut emu, library, name, &args),
+                        required
+                    );
+                    assert_eq!(
+                        if wide {
+                            emu.maps.read_wide_string(output)
+                        } else {
+                            emu.maps.read_string(output)
+                        },
+                        text
+                    );
+                    assert_eq!(
+                        emu.maps
+                            .read_byte(output + required * if wide { 2 } else { 1 }),
+                        Some(0xa5)
+                    );
+                }
+            }
+        }
+    }
     let (mut emu, data) = helpers::prepare_winapi(true);
     let output = data + 256;
-    for (library, name, wide, text) in [
-        ("kernel32.dll", "GetDateFormatA", false, "01/01/2024"),
-        ("kernel32.dll", "GetDateFormatW", true, "01/01/2024"),
-        ("kernel32.dll", "GetTimeFormatA", false, "00:00:00"),
-        ("kernel32.dll", "GetTimeFormatW", true, "00:00:00"),
-        ("kernelbase.dll", "GetDateFormatA", false, "11/01/2026"),
-        ("kernelbase.dll", "GetDateFormatW", true, "11/01/2026"),
-        ("kernelbase.dll", "GetTimeFormatA", false, "12:00:00"),
-        ("kernelbase.dll", "GetTimeFormatW", true, "12:00:00"),
-        ("kernelbase.dll", "GetTimeFormatEx", true, "12:00:00"),
-    ] {
-        let required = text.len() as u64 + 1;
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                library,
-                name,
-                &[LOCALE_USER_DEFAULT, 0, 0, 0, 0, 0]
-            ),
-            required
-        );
-        emu.maps.memset(output, 0xa5, 64);
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                library,
-                name,
-                &[LOCALE_USER_DEFAULT, 0, 0, 0, output, required - 1]
-            ),
-            0
-        );
-        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
-        assert_eq!(emu.maps.read_byte(output), Some(0xa5));
-        assert_eq!(
-            helpers::call_winapi_export(
-                &mut emu,
-                library,
-                name,
-                &[LOCALE_USER_DEFAULT, 0, 0, 0, output, required]
-            ),
-            required
-        );
-        assert_eq!(
-            if wide {
-                emu.maps.read_wide_string(output)
-            } else {
-                emu.maps.read_string(output)
-            },
-            text
-        );
-        assert_eq!(
-            emu.maps
-                .read_byte(output + required * if wide { 2 } else { 1 }),
-            Some(0xa5)
-        );
-    }
     for (name, wide) in [("LCMapStringA", false), ("LCMapStringW", true)] {
         if wide {
             emu.maps.write_wide_string(data, "mixed");
@@ -806,5 +841,490 @@ fn lstrlen_counts_code_units_and_preserves_last_error() {
             assert_eq!(call(&mut emu, library, api, &[0]), 0);
             assert_eq!(emu.get_last_error(), MARKER as u64);
         }
+    }
+}
+
+fn call_counted_string(emu: &mut Emu, name: &str, args: &[u64], library: Option<&str>) -> u64 {
+    if let Some(library) = library {
+        call(emu, library, name, args)
+    } else {
+        helpers::call_winapi64(emu, |emu| assert!(rtl::dispatch(name, emu)), args)
+    }
+}
+
+#[test]
+fn counted_string_initializers_share_layout_lengths_and_bounds() {
+    for (is64, library) in [
+        (false, Some("ntdll.dll")),
+        (true, Some("ntdll.dll")),
+        (false, Some("ntoskrnl.exe")),
+        (true, Some("ntoskrnl.exe")),
+        (true, None),
+    ] {
+        let (mut emu, data) = prepare(is64);
+        let output = data + 0x100;
+        let (size, pointer_offset) = if is64 { (16, 8) } else { (8, 4) };
+        // A CJK unit, a surrogate pair, and an unpaired surrogate are four raw units.
+        let unicode: Vec<u8> = [0x4e2d_u16, 0xd83d, 0xde00, 0xd800, 0]
+            .into_iter()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        for (name, input, length, terminator) in [
+            ("RtlInitUnicodeString", &unicode[..], 8, 2),
+            ("RtlInitUnicodeStringEx", &unicode[..], 8, 2),
+            ("RtlInitAnsiString", &[0x80, 0xff, 0][..], 2, 1),
+            ("RtlInitAnsiStringEx", &[0x80, 0xff, 0][..], 2, 1),
+            ("RtlInitString", &b"ABC\0"[..], 3, 1),
+            ("RtlInitUTF8String", "😀\0".as_bytes(), 4, 1),
+        ] {
+            for source in [None, Some(&input[input.len() - terminator..]), Some(input)] {
+                emu.maps.fill_range(output - 1, 0xcc, size + 2);
+                emu.set_last_error(MARKER as u64);
+                emu.regs_mut().rax = MARKER as u64;
+                let source_ptr = if let Some(bytes) = source {
+                    assert!(emu.maps.write_bytes(data, bytes));
+                    data
+                } else {
+                    0
+                };
+                let result = call_counted_string(&mut emu, name, &[output, source_ptr], library);
+                let expected = if source.is_some_and(|s| s.len() > terminator) {
+                    length
+                } else {
+                    0
+                };
+                assert_eq!(
+                    emu.maps.read_word(output),
+                    Some(expected),
+                    "{name}, is64={is64}, library={library:?}"
+                );
+                assert_eq!(
+                    emu.maps.read_word(output + 2),
+                    Some(if source.is_some() {
+                        expected + terminator as u16
+                    } else {
+                        0
+                    })
+                );
+                let buffer = if is64 {
+                    emu.maps.read_qword(output + pointer_offset)
+                } else {
+                    emu.maps.read_dword(output + pointer_offset).map(u64::from)
+                };
+                assert_eq!(buffer, Some(source_ptr));
+                assert_eq!(emu.maps.read_byte(output - 1), Some(0xcc));
+                assert_eq!(emu.maps.read_byte(output + size as u64), Some(0xcc));
+                assert_eq!(
+                    result,
+                    if name.ends_with("Ex") {
+                        STATUS_SUCCESS
+                    } else {
+                        MARKER as u64
+                    }
+                );
+                assert_eq!(emu.get_last_error(), MARKER as u64);
+                if let Some(bytes) = source {
+                    assert_eq!(emu.maps.read_bytes(data, bytes.len()), bytes);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn counted_string_initializers_cap_lengths_and_report_extended_overflow() {
+    const SOURCE: u64 = 0x5000_0000;
+    const CAPACITY: usize = 0x10002;
+    for (is64, library) in [
+        (false, Some("ntdll.dll")),
+        (true, Some("ntdll.dll")),
+        (false, Some("ntoskrnl.exe")),
+        (true, Some("ntoskrnl.exe")),
+        (true, None),
+    ] {
+        let (mut emu, output) = prepare(is64);
+        emu.maps
+            .create_map(
+                "counted_string",
+                SOURCE,
+                CAPACITY as u64,
+                Permission::READ_WRITE,
+            )
+            .unwrap();
+        for (name, extended_name, unit, max_length) in [
+            ("RtlInitUnicodeString", "RtlInitUnicodeStringEx", 2, 65532),
+            ("RtlInitAnsiString", "RtlInitAnsiStringEx", 1, 65534),
+        ] {
+            for (length, expected_length, status) in [
+                (max_length, max_length, STATUS_SUCCESS),
+                (max_length + unit, 0, STATUS_NAME_TOO_LONG),
+            ] {
+                emu.maps.fill_range(SOURCE, 1, CAPACITY);
+                emu.maps.fill_range(SOURCE + length as u64, 0, unit);
+                call_counted_string(&mut emu, name, &[output, SOURCE], library);
+                assert_eq!(emu.maps.read_word(output), Some(max_length as u16));
+                assert_eq!(
+                    emu.maps.read_word(output + 2),
+                    Some((max_length + unit) as u16)
+                );
+                assert_eq!(
+                    call_counted_string(&mut emu, extended_name, &[output, SOURCE], library),
+                    status
+                );
+                assert_eq!(emu.maps.read_word(output), Some(expected_length as u16));
+                assert_eq!(
+                    emu.maps.read_word(output + 2),
+                    Some(if status == STATUS_SUCCESS {
+                        (max_length + unit) as u16
+                    } else {
+                        0
+                    })
+                );
+                let buffer = if is64 {
+                    emu.maps.read_qword(output + 8)
+                } else {
+                    emu.maps.read_dword(output + 4).map(u64::from)
+                };
+                assert_eq!(buffer, Some(SOURCE));
+            }
+        }
+    }
+}
+
+#[test]
+fn kernel_atoms_share_names_and_keep_table_references_across_snapshots() {
+    use crate::serialization::Serialization;
+    use helpers::call_winapi_export as call;
+    for is64 in [false, true] {
+        let (mut emu, text) = helpers::prepare_winapi(is64);
+        let out = text + 64;
+        emu.maps.write_wide_string(text, "MiXeD");
+        let id = call(&mut emu, "kernel32.dll", "AddAtomW", &[text]);
+        assert!((0xc000..=0xffff).contains(&id));
+        emu.maps.write_string(text, "mixed");
+        assert_eq!(call(&mut emu, "kernelbase.dll", "AddAtomA", &[text]), id);
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "GlobalFindAtomA", &[text]),
+            0
+        );
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        assert_eq!(
+            call(&mut emu, "kernelbase.dll", "GetAtomNameW", &[id, out, 6]),
+            5
+        );
+        assert_eq!(emu.maps.read_wide_string(out), "MiXeD");
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "GetAtomNameW", &[id, out, 1]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeleteAtom", &[id]), 0);
+        assert_eq!(call(&mut emu, "kernel32.dll", "FindAtomA", &[text]), id);
+        assert_eq!(call(&mut emu, "kernelbase.dll", "DeleteAtom", &[id]), 0);
+        assert_eq!(call(&mut emu, "kernel32.dll", "FindAtomA", &[text]), 0);
+        if !is64 {
+            let local_atom = call(&mut emu, "kernel32.dll", "AddAtomA", &[text]) as u32;
+            assert_ne!(local_atom, 0);
+            assert_eq!(
+                helpers::call_winapi32(&mut emu, winapi32::kernel32::DeleteAtom, &[local_atom]),
+                0
+            );
+            assert_eq!(call(&mut emu, "kernel32.dll", "FindAtomA", &[text]), 0);
+        }
+        emu.maps.write_string(text, "#42");
+        assert_eq!(call(&mut emu, "kernel32.dll", "AddAtomA", &[text]), 42);
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "GetAtomNameA", &[42, out, 4]),
+            3
+        );
+        assert_eq!(emu.maps.read_string(out), "#42");
+    }
+}
+
+#[test]
+fn kernel_text_exports_return_guest_offsets_and_count_embedded_nuls() {
+    use helpers::call_winapi_export as call;
+    for is64 in [false, true] {
+        let (mut emu, text) = helpers::prepare_winapi(is64);
+        let needle = text + 64;
+        let dll = "kernelbase.dll";
+        emu.maps.write_wide_string(text, "--AbC--");
+        emu.maps.write_wide_string(needle, "bc");
+        assert_eq!(call(&mut emu, dll, "StrStrIW", &[text, needle]), text + 6);
+        assert_eq!(
+            call(&mut emu, dll, "StrChrW", &[text, u64::from(b'C')]),
+            text + 8
+        );
+        assert_eq!(call(&mut emu, dll, "StrChrW", &[text, u64::from(b'x')]), 0);
+        emu.maps.write_wide_string(needle, "-");
+        assert_eq!(call(&mut emu, dll, "StrTrimW", &[text, needle]), 1);
+        assert_eq!(emu.maps.read_wide_string(text), "AbC");
+        assert_eq!(call(&mut emu, dll, "StrTrimW", &[text, needle]), 0);
+        emu.maps.write_bytes(text, b"a\0b!");
+        assert_eq!(call(&mut emu, dll, "CharUpperBuffA", &[text, 3]), 3);
+        assert_eq!(
+            emu.maps.read_dword(text),
+            Some(u32::from_le_bytes(*b"A\0B!"))
+        );
+    }
+}
+
+#[test]
+fn kernel_ordinal_and_case_mapping_use_counted_utf16() {
+    use crate::windows::constants::nls::{FIND_FROMEND, LCMAP_UPPERCASE};
+    use helpers::call_winapi_export as call;
+    for is64 in [false, true] {
+        let (mut emu, text) = helpers::prepare_winapi(is64);
+        let needle = text + 64;
+        let out = text + 128;
+        emu.maps.write_wide_string(text, "\u{4e2d}A\0a");
+        emu.maps.write_wide_string(needle, "a");
+        for dll in ["kernel32.dll", "kernelbase.dll"] {
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "FindStringOrdinal",
+                    &[u64::from(FIND_FROMEND), text, 4, needle, 1, 1]
+                ),
+                3
+            );
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "FindStringOrdinal",
+                    &[0, text, 2, needle, 1, 1]
+                ),
+                1
+            );
+            emu.maps.write_bytes(out, &[0xa5; 8]);
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "LCMapStringEx",
+                    &[0, u64::from(LCMAP_UPPERCASE), text + 2, 3, out, 2, 0, 0, 0]
+                ),
+                0
+            );
+            assert_eq!(emu.maps.read_word(out), Some(0xa5a5));
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "LCMapStringEx",
+                    &[0, u64::from(LCMAP_UPPERCASE), text + 2, 3, out, 3, 0, 0, 0]
+                ),
+                3
+            );
+            assert_eq!(emu.maps.read_word(out + 4), Some(u16::from(b'A')));
+            assert_eq!(emu.maps.read_word(out + 6), Some(0xa5a5));
+        }
+    }
+}
+
+#[test]
+fn counted_nls_exports_preserve_terminators_and_result_boundaries() {
+    for is64 in [false, true] {
+        let (mut emu, src) = prepare(is64);
+        let out = src + 128;
+        for lib in ["kernel32.dll", "kernelbase.dll"] {
+            emu.maps.write_bytes(src, &[0x80, 0]);
+            for (code_page, first) in [(CP_WINDOWS_1252, 0x20ac), (CP_IBM437, 0x00c7)] {
+                for flags in [0, MB_PRECOMPOSED, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS] {
+                    emu.maps.memset(out, 0xa5, 8);
+                    let args = [u64::from(code_page), u64::from(flags), src, 2, out, 2];
+                    assert_eq!(call(&mut emu, lib, "MultiByteToWideChar", &args), 2);
+                    assert_eq!(emu.maps.read_word(out), Some(first));
+                    assert_eq!(emu.maps.read_word(out + 2), Some(0));
+                    assert_eq!(emu.maps.read_byte(out + 4), Some(0xa5));
+                }
+            }
+            emu.maps.write_bytes(src, &[0xe2, 0x82, 0xac, 0]);
+            emu.maps.memset(out, 0xa5, 8);
+            let args = [
+                CP_UTF8,
+                u64::from(MB_ERR_INVALID_CHARS),
+                src,
+                u64::from(u32::MAX),
+                out,
+                2,
+            ];
+            assert_eq!(call(&mut emu, lib, "MultiByteToWideChar", &args), 2);
+            assert_eq!(emu.maps.read_word(out), Some(0x20ac));
+            assert_eq!(emu.maps.read_word(out + 2), Some(0));
+            assert_eq!(emu.maps.read_byte(out + 4), Some(0xa5));
+            let mut bad = args;
+            bad[2] = 1;
+            bad[3] = 1;
+            assert_eq!(call(&mut emu, lib, "MultiByteToWideChar", &bad), 0);
+            assert_eq!(emu.get_last_error(), ERROR_NOACCESS);
+            for name in [
+                "GetStringTypeA",
+                "GetStringTypeW",
+                "GetStringTypeExA",
+                "GetStringTypeExW",
+            ] {
+                if name.ends_with('W') {
+                    emu.maps.write_wide_string(src, "A");
+                } else {
+                    emu.maps.write_string(src, "A");
+                }
+                emu.maps.memset(out, 0xa5, 8);
+                let args = [
+                    LOCALE_USER_DEFAULT,
+                    u64::from(CT_CTYPE1),
+                    src,
+                    u64::MAX,
+                    out,
+                ];
+                let first = usize::from(name == "GetStringTypeW");
+                assert_eq!(call(&mut emu, lib, name, &args[first..]), 1);
+                assert_eq!(
+                    emu.maps.read_word(out),
+                    Some(C1_DEFINED | C1_ALPHA | C1_UPPER | C1_XDIGIT)
+                );
+                assert_eq!(emu.maps.read_word(out + 2), Some(C1_DEFINED | C1_CNTRL));
+                assert_eq!(emu.maps.read_byte(out + 4), Some(0xa5));
+            }
+            emu.maps.write_bytes(src, b"A\0\0\0Q\0");
+            emu.maps.write_bytes(out, b"A\0\0\0Z\0");
+            assert_eq!(
+                call(&mut emu, lib, "CompareStringOrdinal", &[src, 3, out, 3, 0]),
+                CSTR_LESS_THAN
+            );
+            assert_eq!(
+                call(
+                    &mut emu,
+                    lib,
+                    "CompareStringOrdinal",
+                    &[src, u64::MAX, out, u64::MAX, 0]
+                ),
+                CSTR_EQUAL
+            );
+        }
+    }
+}
+
+#[test]
+fn account_queries_write_the_declared_width_and_roundtrip_privileges() {
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    use crate::windows::constants::errors::{ERROR_INSUFFICIENT_BUFFER, ERROR_NO_SUCH_PRIVILEGE};
+    let dll = "advapi32.dll";
+    for is64 in [false, true] {
+        let (mut emu, base) = prepare_winapi(is64);
+        let size = base + 128;
+        let luid = base + 144;
+        emu.cfg.user_name = "A\u{1f600}".to_owned();
+        emu.maps.write_qword(size, u64::MAX << 32);
+        assert_eq!(call(&mut emu, dll, "GetUserNameW", &[base, size]), 0);
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(emu.maps.read_dword(size), Some(4));
+        assert_eq!(call(&mut emu, dll, "GetUserNameW", &[base, size]), 1);
+        assert_eq!(emu.maps.read_wide_string(base), emu.cfg.user_name);
+        assert_eq!(emu.maps.read_dword(size + 4), Some(u32::MAX));
+        emu.maps.write_string(base, "SeDebugPrivilege");
+        assert_eq!(
+            call(&mut emu, dll, "LookupPrivilegeValueA", &[0, base, luid]),
+            1
+        );
+        emu.maps.write_dword(size, 32);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "LookupPrivilegeNameW",
+                &[0, luid, base, size]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_wide_string(base), "SeDebugPrivilege");
+        emu.maps.write_string(base, "MissingPrivilege");
+        assert_eq!(
+            call(&mut emu, dll, "LookupPrivilegeValueA", &[0, base, luid]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_NO_SUCH_PRIVILEGE);
+        let (sid, sid_size, domain, domain_size, sid_use) =
+            (base + 256, base + 384, base + 400, base + 512, base + 528);
+        let user = emu.cfg.user_name.clone();
+        emu.maps.write_wide_string(base, &user);
+        emu.maps.write_dword(sid_size, 64);
+        emu.maps.write_dword(domain_size, 48);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "LookupAccountNameW",
+                &[0, base, sid, sid_size, domain, domain_size, sid_use]
+            ),
+            1
+        );
+        emu.maps.write_dword(size, 0);
+        emu.maps.write_dword(domain_size, 0);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "LookupAccountSidW",
+                &[0, sid, 0, size, 0, domain_size, sid_use]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(emu.maps.read_dword(size), Some(4));
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "LookupAccountSidW",
+                &[0, sid, base, size, domain, domain_size, sid_use]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_wide_string(base), user);
+        assert_eq!(emu.maps.read_wide_string(domain), emu.cfg.host_name);
+    }
+}
+
+#[test]
+fn strsafe_counts_wide_units_and_preserves_output_guards() {
+    for wide in [false, true] {
+        let (mut emu, base) = prepare(wide);
+        let src = base + 64;
+        let count = base + 128;
+        emu.maps.write_wide_string(src, "XYZ");
+        emu.maps.fill_range(base, 0xcc, 16);
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "StringCbCopyW", &[base, 7, src]),
+            HRESULT_INSUFFICIENT_BUFFER
+        );
+        assert_eq!(emu.maps.read_wide_string(base), "XY");
+        assert_eq!(emu.maps.read_word(base + 6), Some(0xcccc));
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernelbase.dll",
+                "StringCchCopyNW",
+                &[base, 2, src, 1]
+            ),
+            S_OK
+        );
+        assert_eq!(emu.maps.read_wide_string(base), "X");
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "StringCchCatW", &[base, 5, src]),
+            S_OK
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernel32.dll",
+                "StringCchLengthW",
+                &[base, 5, count]
+            ),
+            S_OK
+        );
+        assert_eq!(emu.maps.read_dword(count), Some(4));
     }
 }

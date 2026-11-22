@@ -1,13 +1,10 @@
+use super::{command_line, map_wide_string};
 use crate::debug::console::Console;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::windows::structures::Heap32;
-use crate::windows::structures::LdrDataTableEntry;
-use crate::windows::structures::OrdinalTable;
-use crate::windows::structures::PEB;
-use crate::windows::structures::PebLdrData;
-use crate::windows::structures::RtlUserProcessParameters32;
-use crate::windows::structures::TEB;
+use crate::windows::structures::{
+    Heap32, LdrDataTableEntry, OrdinalTable, PEB, PebLdrData, RtlUserProcessParameters32, TEB,
+};
 
 pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
     let ldr_sz = PebLdrData::size() + 100;
@@ -50,29 +47,20 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     );
     let mut params_struct = RtlUserProcessParameters32::new();
 
-    let filename_len = emu.cfg.filename.len() as u64 * 2 + 2;
-    let cmdline_len = filename_len + emu.cfg.arguments.len() as u64 * 2 + 2;
+    let params = command_line(&emu.cfg.filename, &emu.cfg.arguments);
+    let filename_len = (emu.cfg.filename.encode_utf16().count() as u64 + 1) * 2;
+    let cmdline_len = (params.encode_utf16().count() as u64 + 1) * 2;
 
-    let filename = emu
-        .maps
-        .map("file_name", filename_len, Permission::READ_WRITE);
-    let cmdline = emu
-        .maps
-        .map("command_line", cmdline_len, Permission::READ_WRITE);
+    let filename = map_wide_string(&mut emu.maps, "file_name", &emu.cfg.filename, filename_len);
+    let cmdline = map_wide_string(&mut emu.maps, "command_line", &params, cmdline_len);
 
-    params_struct.image_path_name.length = filename_len as u16;
+    params_struct.image_path_name.length = (filename_len - 2) as u16;
     params_struct.image_path_name.maximum_length = filename_len as u16;
     params_struct.image_path_name.buffer = filename as u32;
 
-    params_struct.command_line.length = cmdline_len as u16;
+    params_struct.command_line.length = (cmdline_len - 2) as u16;
     params_struct.command_line.maximum_length = cmdline_len as u16;
     params_struct.command_line.buffer = cmdline as u32;
-
-    let mut params = emu.cfg.filename.clone();
-    params.push_str(&emu.cfg.arguments);
-
-    emu.maps.write_wide_string(filename, &emu.cfg.filename);
-    emu.maps.write_wide_string(cmdline, &params);
 
     params_struct.save(addr, &mut emu.maps);
 
@@ -151,7 +139,8 @@ pub fn init_peb(emu: &mut emu::Emu) {
         return;
     }
     emu.maps.memset(teb_addr, 0, TEB::map_size());
-    let teb = TEB::new(peb_addr as u32);
+    let mut teb = TEB::new(peb_addr as u32);
+    teb.thread_id = emu.current_thread().id as u32;
     teb.save(emu.maps.get_mem_mut("teb"));
 }
 

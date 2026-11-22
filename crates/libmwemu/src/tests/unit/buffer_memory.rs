@@ -1,8 +1,9 @@
 use crate::emu::Emu;
 use crate::maps::buffers::BufferKind;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::serialization::Serialization;
-use crate::tests::helpers::{call_winapi32, call_winapi64};
+use crate::tests::helpers::{call_winapi_export, call_winapi32, call_winapi64, prepare_winapi};
 use crate::winapi::common::{bstr, buffers, crt, memory_ops};
 use crate::winapi::{winapi32, winapi64};
 use crate::{emu32, emu64};
@@ -114,13 +115,29 @@ fn crt_reallocation_preserves_old_block_on_failure_and_releases_size_zero() {
 
 #[test]
 fn aligned_free_releases_the_original_owner_for_small_and_large_blocks() {
-    for (is64, size, alignment) in iproduct!([false, true], [257, 0x10000], [16, 0x1000, 0x10000]) {
+    for (is64, size, alignment) in iproduct!([false, true], [257, 0x10001], [16, 0x1000, 0x10000]) {
         let mut emu = prepare(is64);
         let address = call(&mut emu, crt::aligned_malloc, &[size, alignment], true);
         assert_ne!(address, 0);
         assert_eq!(address % alignment, 0);
         let owner = emu.maps.buffers[&address];
-        assert!(emu.maps.write_byte(address + size - 1, 0xab));
+        let last = address + size - 1;
+        assert!(emu.maps.write_byte(last, 0xab));
+        assert_eq!(
+            buffers::size(&emu, address, BufferKind::Aligned),
+            Some(size)
+        );
+        const AVX_BYTES: usize = 32;
+        let lane = last & !(AVX_BYTES as u64 - 1);
+        assert_eq!(
+            emu.maps.try_read_bytes(lane, AVX_BYTES).unwrap()[(last - lane) as usize],
+            0xab
+        );
+        if !owner.arena {
+            let end = emu.maps.get_mem_by_addr(owner.base).unwrap().get_bottom();
+            assert!(end.is_multiple_of(PAGE_SIZE));
+            assert!(emu.maps.try_read_bytes(end - 1, 2).is_none());
+        }
         call(&mut emu, crt::aligned_free, &[address], true);
         assert!(buffers::size(&emu, address, BufferKind::Aligned).is_none());
         if owner.arena {
@@ -136,23 +153,10 @@ fn bstr_uses_four_byte_prefix_and_preserves_embedded_nuls_during_reallocation() 
     for is64 in [false, true] {
         let mut emu = prepare(is64);
         emu.maps.write_bytes(DATA, &[0x16, 0x04, 0, 0, 0x41, 0]);
-        let string = call(
-            &mut emu,
-            |emu| bstr::alloc_api(emu, true, false),
-            &[DATA, 3],
-            false,
-        );
+        let string = call(&mut emu, bstr::SysAllocStringLen, &[DATA, 3], false);
         assert_ne!(string, 0);
         assert_eq!(emu.maps.read_dword(string - 4), Some(6));
-        assert_eq!(
-            call(
-                &mut emu,
-                |emu| bstr::length_api(emu, false),
-                &[string],
-                false
-            ),
-            3
-        );
+        assert_eq!(call(&mut emu, bstr::SysStringLen, &[string], false), 3);
         assert_eq!(emu.maps.read_word(string + 4), Some(0x41));
         assert_eq!(emu.maps.read_word(string + 6), Some(0));
         if is64 {
@@ -163,7 +167,7 @@ fn bstr_uses_four_byte_prefix_and_preserves_embedded_nuls_during_reallocation() 
         assert_eq!(
             call(
                 &mut emu,
-                |emu| bstr::realloc_api(emu, true),
+                bstr::SysReAllocStringLen,
                 &[DATA + 32, string, 3],
                 false
             ),
@@ -176,7 +180,7 @@ fn bstr_uses_four_byte_prefix_and_preserves_embedded_nuls_during_reallocation() 
             emu.maps.read_dword(DATA + 32).unwrap() as u64
         };
         assert_eq!(emu.maps.read_word(new), Some(0x416));
-        call(&mut emu, bstr::free_api, &[new], false);
+        call(&mut emu, bstr::SysFreeString, &[new], false);
         assert!(buffers::size(&emu, new, BufferKind::Bstr).is_none());
     }
 }
@@ -195,5 +199,64 @@ fn restored_crt_buffers_keep_owners_and_do_not_overlap_new_allocations() {
         assert_eq!(restored.maps.read_dword(old), Some(0x12345678));
         call(&mut restored, crt::free, &[old], true);
         assert_eq!(buffers::size(&restored, old, BufferKind::Crt), None);
+    }
+}
+
+#[test]
+fn rtl_memory_exports_preserve_prefix_counts_and_results() {
+    const LAST_ERROR: u64 = 123;
+    for (is64, library) in iproduct!(
+        [false, true],
+        ["kernel32.dll", "kernelbase.dll", "ntdll.dll"]
+    ) {
+        let (mut emu, data) = prepare_winapi(is64);
+        let other = data + 32;
+        emu.set_last_error(LAST_ERROR);
+        for (left, right, length, expected) in [
+            (b"abcd".as_slice(), b"abcX".as_slice(), 4, 3),
+            (b"abcd".as_slice(), b"abcd".as_slice(), 4, 4),
+            (b"abcd".as_slice(), b"Xbcd".as_slice(), 4, 0),
+            (b"ab\0x".as_slice(), b"ab\0y".as_slice(), 4, 3),
+        ] {
+            assert!(emu.maps.write_bytes(data, left));
+            assert!(emu.maps.write_bytes(other, right));
+            assert_eq!(
+                call_winapi_export(
+                    &mut emu,
+                    library,
+                    "RtlCompareMemory",
+                    &[data, other, length]
+                ),
+                expected,
+                "{library}, is64={is64}"
+            );
+            assert_eq!(emu.get_last_error(), LAST_ERROR);
+        }
+        assert_eq!(
+            call_winapi_export(&mut emu, library, "RtlCompareMemory", &[0, 0, 0]),
+            0
+        );
+        let edge = data + 0xfff;
+        assert!(emu.maps.write_byte(edge, b'X'));
+        assert_eq!(
+            call_winapi_export(&mut emu, library, "RtlCompareMemory", &[edge, data, 2]),
+            0,
+            "comparison must stop before the unreadable tail"
+        );
+        assert_eq!(
+            call_winapi_export(&mut emu, library, "RtlSecureZeroMemory", &[data, 3]),
+            data
+        );
+        assert_eq!(emu.maps.read_bytes(data, 4).as_ref(), b"\0\0\0x");
+
+        emu.maps.write_bytes(data, b"abcd");
+        emu.maps.write_bytes(other, b"----");
+        call_winapi_export(&mut emu, library, "RtlCopyMemory", &[other, data, 3]);
+        assert_eq!(emu.maps.read_bytes(other, 4).as_ref(), b"abc-");
+        call_winapi_export(&mut emu, library, "RtlMoveMemory", &[other + 1, other, 3]);
+        assert_eq!(emu.maps.read_bytes(other, 4).as_ref(), b"aabc");
+        call_winapi_export(&mut emu, library, "RtlZeroMemory", &[other + 1, 2]);
+        assert_eq!(emu.maps.read_bytes(other, 4).as_ref(), b"a\0\0c");
+        assert_eq!(emu.get_last_error(), LAST_ERROR);
     }
 }

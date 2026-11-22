@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::emu::Emu;
 use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::errors::STATUS_ACCESS_VIOLATION;
+use crate::windows::constants::errors::{STATUS_ACCESS_VIOLATION, STATUS_ILLEGAL_INSTRUCTION};
 use crate::windows::constants::exceptions::*;
 use crate::{emu32, emu64, tests::helpers};
 use itertools::iproduct;
@@ -313,17 +313,23 @@ fn access_faults_report_read_write_and_execute() {
 }
 
 #[test]
-fn instruction_fetch_fault_reaches_handler_in_step_and_run() {
-    const INACCESSIBLE: u64 = 0x500000;
-    for (is_64, cached, mapped) in iproduct!([false, true], [false, true], [false, true]) {
+fn instruction_fetch_fault_reports_first_unavailable_byte() {
+    const BOUNDARY: u64 = CODE + 0x1000;
+    for (is_64, cached, mapped, partial) in
+        iproduct!([false, true], [false, true], [false, true], [false, true])
+    {
         let mut emu = faulting_emu(is_64);
         let layout = ExceptionLayout::new(is_64);
         if mapped {
             emu.maps
-                .create_map("data", INACCESSIBLE, 0x1000, Permission::NONE)
+                .create_map("inaccessible", BOUNDARY, 0x1000, Permission::NONE)
                 .unwrap();
         }
-        emu.regs_mut().rip = INACCESSIBLE;
+        let pc = if partial { BOUNDARY - 1 } else { BOUNDARY };
+        if partial {
+            assert!(emu.maps.write_byte(pc, 0xb0)); // mov al, imm8 with the immediate missing
+        }
+        emu.set_pc(pc);
         emu.set_uef(HANDLER);
         if cached {
             assert_eq!(emu.run(Some(HANDLER_END)).unwrap(), HANDLER_END);
@@ -331,15 +337,80 @@ fn instruction_fetch_fault_reaches_handler_in_step_and_run() {
             assert!(!emu.step());
             assert_eq!(emu.pc(), HANDLER);
         }
-        let (record, _) = layout.callback_records(&emu);
-        layout.assert_access_violation(
-            &emu,
-            record,
-            INACCESSIBLE,
-            EXCEPTION_EXECUTE_FAULT,
-            INACCESSIBLE,
-        );
+        let (record, context) = layout.callback_records(&emu);
+        layout.assert_access_violation(&emu, record, pc, EXCEPTION_EXECUTE_FAULT, BOUNDARY);
+        assert_eq!(layout.pointer(&emu, context + layout.context_ip), pc);
         assert_eq!(emu.fault_count, 1);
+    }
+}
+
+#[test]
+fn instruction_fetch_at_map_end_uses_only_required_bytes() {
+    const BOUNDARY: u64 = CODE + 0x1000;
+    for (is_64, cached, split) in iproduct!([false, true], [false, true], [false, true]) {
+        let mut emu = faulting_emu(is_64);
+        let pc = BOUNDARY - 1;
+        let (next_pc, expected_al) = if split {
+            emu.maps
+                .create_map("next", BOUNDARY, 0x1000, Permission::READ_WRITE_EXECUTE)
+                .unwrap();
+            assert!(emu.maps.write_byte(pc, 0xb0)); // mov al, 42
+            assert!(emu.maps.write_byte(BOUNDARY, 42));
+            (BOUNDARY + 1, 42)
+        } else {
+            assert!(emu.maps.write_byte(pc, 0x90)); // nop at the last accessible byte
+            (BOUNDARY, 0)
+        };
+        emu.set_pc(pc);
+        if cached {
+            assert_eq!(emu.run(Some(next_pc)).unwrap(), next_pc);
+        } else {
+            assert!(emu.step());
+        }
+        assert_eq!(emu.pc(), next_pc);
+        assert_eq!(emu.regs().get_al(), expected_al);
+        assert_eq!(emu.fault_count, 0);
+
+        if split {
+            // Repeat the same fetch after revoking access to its immediate byte.
+            emu.maps
+                .get_mem_by_addr_mut(BOUNDARY)
+                .unwrap()
+                .set_permission(Permission::NONE);
+            emu.set_pc(pc);
+            emu.set_uef(HANDLER);
+            if cached {
+                assert_eq!(emu.run(Some(HANDLER)).unwrap(), HANDLER);
+            } else {
+                assert!(!emu.step());
+            }
+            let layout = ExceptionLayout::new(is_64);
+            let (record, _) = layout.callback_records(&emu);
+            layout.assert_access_violation(&emu, record, pc, EXCEPTION_EXECUTE_FAULT, BOUNDARY);
+        }
+    }
+}
+
+#[test]
+fn instruction_fetch_preserves_invalid_opcode_at_map_end() {
+    const PC: u64 = CODE + 0x1000 - 2;
+    for (is_64, cached) in iproduct!([false, true], [false, true]) {
+        let mut emu = faulting_emu(is_64);
+        let layout = ExceptionLayout::new(is_64);
+        assert!(emu.maps.write_bytes(PC, &[0xf0, 0x90])); // LOCK NOP is illegal.
+        emu.set_uef(HANDLER);
+        emu.set_pc(PC);
+        if cached {
+            assert_eq!(emu.run(Some(HANDLER)).unwrap(), HANDLER);
+        } else {
+            assert!(!emu.step());
+        }
+        let (record, _) = layout.callback_records(&emu);
+        assert_eq!(
+            emu.maps.read_dword(record),
+            Some(STATUS_ILLEGAL_INSTRUCTION)
+        );
+        assert_eq!(layout.pointer(&emu, record + layout.exception_address), PC);
     }
 }
 

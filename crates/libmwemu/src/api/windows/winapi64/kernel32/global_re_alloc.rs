@@ -26,7 +26,7 @@ pub fn GlobalReAlloc(emu: &mut emu::Emu, addr: u64) {
     };
     log_red!(
         emu,
-        "kernel32!GlobalReAlloc h:0x{:x} sz:{} flags:0x{:x} => 0x{:x}",
+        "kernel32!GlobalReAlloc handle=0x{:x} size={} flags=0x{:x} => 0x{:x}",
         handle,
         size,
         flags,

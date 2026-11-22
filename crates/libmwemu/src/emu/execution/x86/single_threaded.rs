@@ -3,7 +3,7 @@ use std::io::Write as _;
 use std::sync::atomic;
 
 use ahash::AHashMap;
-use iced_x86::{Decoder, DecoderOptions, Instruction};
+use iced_x86::Instruction;
 
 use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
@@ -55,39 +55,10 @@ impl Emu {
             return false;
         }
 
-        // code
-        let rip = self.regs().rip;
-        if !self.check_instruction_fetch(rip) {
+        let Some(ins) = self.fetch_x86_instruction(self.pc()) else {
             self.advance_pc_x86(0);
             return false;
-        }
-        let code = match self.maps.get_mem_by_addr(rip) {
-            Some(c) => c,
-            None => {
-                log::trace!(
-                    "redirecting code flow to non maped address 0x{:x}",
-                    self.regs().rip
-                );
-                Console::spawn_console(self);
-                return false;
-            }
         };
-
-        // block
-        let block = code.read_code(rip, BLOCK_LEN).to_vec();
-        if block.is_empty() {
-            return false;
-        }
-
-        // decoder
-        let mut decoder;
-        if self.cfg.is_x64() {
-            decoder = Decoder::with_ip(64, &block, self.regs().rip, DecoderOptions::NONE);
-        } else {
-            decoder = Decoder::with_ip(32, &block, self.regs().get_eip(), DecoderOptions::NONE);
-        }
-
-        let ins = decoder.decode();
         let sz = ins.len();
         let addr = ins.ip();
 
@@ -197,8 +168,7 @@ impl Emu {
 
         let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
-        let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
-        block.resize(BLOCK_LEN, 0x0);
+        let mut block = Vec::with_capacity(BLOCK_LEN);
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {

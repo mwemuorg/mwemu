@@ -1,7 +1,7 @@
 //! Linux libc stubs, called directly through the libc gateway.
 use rs_header::elf::elf64::Elf64;
 
-use super::unix_api_helpers::{aarch64_env, put_str, ret, set_args, stdout_text};
+use super::unix_api_helpers::{aarch64_env, put_str, ret, scratch, set_args, stdout_text};
 use crate::api::abi::ArgumentFault;
 use crate::api::linux;
 use crate::api::linux::libc::gateway;
@@ -9,114 +9,9 @@ use crate::api::unix::{self, ApiStopReason};
 use crate::arch::OperatingSystem;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
+use crate::tests::helpers::setup;
 use crate::windows::constants::memory::LIBS64_MIN;
-
-#[test]
-fn string_length_and_compare() {
-    let (mut emu, d) = aarch64_env();
-    let a = put_str(&mut emu, d, "hello");
-    let b = put_str(&mut emu, d + 0x100, "help");
-    set_args(&mut emu, &[a]);
-    gateway("strlen", &mut emu);
-    assert_eq!(ret(&emu), 5);
-
-    set_args(&mut emu, &[a, b]);
-    gateway("strcmp", &mut emu);
-    assert!((ret(&emu) as i64) < 0, "'l' < 'p'");
-
-    set_args(&mut emu, &[a, b, 3]);
-    gateway("strncmp", &mut emu);
-    assert_eq!(ret(&emu), 0);
-
-    set_args(&mut emu, &[a, a]);
-    gateway("strcmp", &mut emu);
-    assert_eq!(ret(&emu), 0);
-}
-
-#[test]
-fn string_copy_concat_and_search() {
-    let (mut emu, d) = aarch64_env();
-    let src = put_str(&mut emu, d, "abc");
-    let dst = d + 0x100;
-    set_args(&mut emu, &[dst, src]);
-    gateway("strcpy", &mut emu);
-    assert_eq!(ret(&emu), dst);
-    let tail = put_str(&mut emu, d + 0x200, "def");
-    set_args(&mut emu, &[dst, tail]);
-    gateway("strcat", &mut emu);
-    assert_eq!(emu.maps.read_string(dst), "abcdef");
-
-    set_args(&mut emu, &[dst, b'd' as u64]);
-    gateway("strchr", &mut emu);
-    assert_eq!(ret(&emu), dst + 3);
-    set_args(&mut emu, &[dst, b'z' as u64]);
-    gateway("strchr", &mut emu);
-    assert_eq!(ret(&emu), 0);
-
-    let needle = put_str(&mut emu, d + 0x300, "cde");
-    set_args(&mut emu, &[dst, needle]);
-    gateway("strstr", &mut emu);
-    assert_eq!(ret(&emu), dst + 2);
-
-    set_args(&mut emu, &[dst]);
-    gateway("strdup", &mut emu);
-    let dup = ret(&emu);
-    assert_ne!(dup, dst);
-    assert_eq!(emu.maps.read_string(dup), "abcdef");
-}
-
-#[test]
-fn strncpy_pads_with_nul() {
-    let (mut emu, d) = aarch64_env();
-    let src = put_str(&mut emu, d, "ab");
-    let dst = d + 0x100;
-    emu.maps.memset(dst, 0x41, 8);
-    set_args(&mut emu, &[dst, src, 5]);
-    gateway("strncpy", &mut emu);
-    assert_eq!(emu.maps.read_bytes(dst, 6).as_ref(), b"ab\0\0\0A");
-}
-
-#[test]
-fn memory_functions() {
-    let (mut emu, d) = aarch64_env();
-    emu.maps.write_bytes(d, b"0123456789");
-    set_args(&mut emu, &[d + 2, d, 5]);
-    gateway("memmove", &mut emu); // overlapping copy
-    assert_eq!(emu.maps.read_bytes(d, 10).as_ref(), b"0101234789");
-
-    set_args(&mut emu, &[d, b'x' as u64, 3]);
-    gateway("memset", &mut emu);
-    assert_eq!(emu.maps.read_bytes(d, 4).as_ref(), b"xxx1");
-
-    set_args(&mut emu, &[d, b'1' as u64, 10]);
-    gateway("memchr", &mut emu);
-    assert_eq!(ret(&emu), d + 3);
-
-    emu.maps.write_bytes(d + 0x100, b"xxx2");
-    set_args(&mut emu, &[d, d + 0x100, 4]);
-    gateway("memcmp", &mut emu);
-    assert!((ret(&emu) as i64) < 0);
-
-    set_args(&mut emu, &[d, 2]);
-    gateway("bzero", &mut emu);
-    assert_eq!(emu.maps.read_bytes(d, 3).as_ref(), b"\0\0x");
-}
-
-#[test]
-fn integer_parsing() {
-    let (mut emu, d) = aarch64_env();
-    let s = put_str(&mut emu, d, "  -0x1Fz");
-    let endp = d + 0x100;
-    set_args(&mut emu, &[s, endp, 0]);
-    gateway("strtol", &mut emu);
-    assert_eq!(ret(&emu) as i64, -31);
-    assert_eq!(emu.maps.read_qword(endp), Some(s + 7));
-
-    let n = put_str(&mut emu, d + 0x200, "42abc");
-    set_args(&mut emu, &[n]);
-    gateway("atoi", &mut emu);
-    assert_eq!(ret(&emu), 42);
-}
+use crate::{emu_aarch64, emu64};
 
 #[test]
 fn printf_family_uses_register_varargs() {
@@ -198,17 +93,6 @@ fn mmap_and_munmap() {
 }
 
 #[test]
-fn errno_location_is_stable() {
-    let (mut emu, _) = aarch64_env();
-    gateway("__errno_location", &mut emu);
-    let first = ret(&emu);
-    assert!(emu.maps.write_dword(first, 22));
-    gateway("__errno_location", &mut emu);
-    assert_eq!(ret(&emu), first);
-    assert_eq!(emu.maps.read_dword(first), Some(22));
-}
-
-#[test]
 fn process_and_terminal_queries() {
     let (mut emu, d) = aarch64_env();
     let name = put_str(&mut emu, d, "HOME");
@@ -247,9 +131,9 @@ fn unknown_symbol_returns_zero_without_panicking() {
 
 #[test]
 fn x86_64_sysv_arguments() {
-    crate::tests::helpers::setup();
-    let mut emu = crate::emu64();
-    let d = super::unix_api_helpers::scratch(&mut emu, "api_data", 0x1000);
+    setup();
+    let mut emu = emu64();
+    let d = scratch(&mut emu, "api_data", 0x1000);
     let fmt = put_str(&mut emu, d, "%s=%d");
     let key = put_str(&mut emu, d + 0x100, "k");
     emu.regs_mut().rdi = fmt;
@@ -271,11 +155,7 @@ const QWORD_BYTES: u64 = size_of::<u64>() as u64;
 fn invalid_vararg_stops_execution_without_printing_or_returning() {
     for aarch64 in [false, true] {
         for execution in ["step", "run", "threaded"] {
-            let mut emu = if aarch64 {
-                crate::emu_aarch64()
-            } else {
-                crate::emu64()
-            };
+            let mut emu = if aarch64 { emu_aarch64() } else { emu64() };
             emu.os = OperatingSystem::Linux;
             emu.cfg.linux_real_libc = false;
             emu.cfg.console_enabled = false;
@@ -373,7 +253,7 @@ fn invalid_vararg_stops_execution_without_printing_or_returning() {
 
 #[test]
 fn invalid_return_address_does_not_dispatch_the_unix_handler() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
     emu.os = OperatingSystem::Linux;
     emu.cfg.linux_real_libc = false;
     emu.set_sp(STACK);

@@ -1,8 +1,10 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
+        "CompareFileTime" => kernel32::CompareFileTime(emu),
         "GetTickCount64" => kernel32::GetTickCount64(emu),
         "QueryPerformanceFrequency" => kernel32::QueryPerformanceFrequency(emu),
         "SystemTimeToFileTime" => kernel32::SystemTimeToFileTime(emu),
@@ -43,62 +45,31 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "IsCalendarLeapMonth" => kernel32::IsCalendarLeapMonth(emu),
         "IsCalendarLeapYear" => kernel32::IsCalendarLeapYear(emu),
         "IsValidCalDateTime" => kernel32::IsValidCalDateTime(emu),
-        "NtWow64CsrBasepSetClientTimeZoneInformation" => {
-            kernel32::NtWow64CsrBasepSetClientTimeZoneInformation(emu)
-        }
+        "NtWow64CsrBasepSetClientTimeZoneInformation" => kernel32::NtWow64CsrBasepSetClientTimeZoneInformation(emu),
         "SetCalendarInfoA" => kernel32::SetCalendarInfoA(emu),
         "SetSystemTimeAdjustment" => kernel32::SetSystemTimeAdjustment(emu),
         "SetTimerQueueTimer" => kernel32::SetTimerQueueTimer(emu),
-        "timeBeginPeriod" => kernel32::timeEndPeriod(emu),
+        "timeBeginPeriod" => kernel32::timeBeginPeriod(emu),
         "timeEndPeriod" => kernel32::timeEndPeriod(emu),
         "timeGetDevCaps" => kernel32::timeGetDevCaps(emu),
         "timeGetTime" => kernel32::timeGetTime(emu),
         "TimeInit" => kernel32::TimeInit(emu),
         "UpdateCalendarDayOfWeek" => kernel32::UpdateCalendarDayOfWeek(emu),
-        "BaseFormatTimeOut" => kernel32::BaseFormatTimeOut(emu),
-        "ChangeTimerQueueTimer" => kernel32::ChangeTimerQueueTimer(emu),
-        "CreateTimerQueue" => kernel32::CreateTimerQueue(emu),
-        "CreateTimerQueueTimer" => kernel32::CreateTimerQueueTimer(emu),
-        "DeleteTimerQueueEx" => kernel32::DeleteTimerQueueEx(emu),
-        "DeleteTimerQueueTimer" => kernel32::DeleteTimerQueueTimer(emu),
-        "EnumCalendarInfoExEx" => kernel32::EnumCalendarInfoExEx(emu),
-        "EnumCalendarInfoExW" => kernel32::EnumCalendarInfoExW(emu),
-        "EnumCalendarInfoW" => kernel32::EnumCalendarInfoW(emu),
-        "EnumDateFormatsExEx" => kernel32::EnumDateFormatsExEx(emu),
-        "EnumDateFormatsExW" => kernel32::EnumDateFormatsExW(emu),
-        "EnumDateFormatsW" => kernel32::EnumDateFormatsW(emu),
-        "EnumTimeFormatsEx" => kernel32::EnumTimeFormatsEx(emu),
-        "EnumTimeFormatsW" => kernel32::EnumTimeFormatsW(emu),
-        "GetCalendarInfoEx" => kernel32::GetCalendarInfoEx(emu),
         "GetCalendarInfoW" => kernel32::GetCalendarInfoW(emu),
         "GetDateFormatA" => kernel32::GetDateFormatA(emu),
-        "GetDateFormatEx" => kernel32::GetDateFormatEx(emu),
         "GetDateFormatW" => kernel32::GetDateFormatW(emu),
-        "GetDynamicTimeZoneInformation" => kernel32::GetDynamicTimeZoneInformation(emu),
-        "GetFileTime" => kernel32::GetFileTime(emu),
-        "GetSystemTimeAdjustment" => kernel32::GetSystemTimeAdjustment(emu),
         "GetSystemTimePreciseAsFileTime" => kernel32::GetSystemTimePreciseAsFileTime(emu),
-        "GetSystemTimes" => kernel32::GetSystemTimes(emu),
         "GetTimeFormatA" => kernel32::GetTimeFormatA(emu),
-        "GetTimeFormatAWorker" => kernel32::GetTimeFormatAWorker(emu),
-        "GetTimeFormatEx" => kernel32::GetTimeFormatEx(emu),
         "GetTimeFormatW" => kernel32::GetTimeFormatW(emu),
         "GetTimeZoneInformationForYear" => kernel32::GetTimeZoneInformationForYear(emu),
         "LocalFileTimeToFileTime" => kernel32::LocalFileTimeToFileTime(emu),
         "LocalFileTimeToLocalSystemTime" => kernel32::LocalFileTimeToLocalSystemTime(emu),
         "LocalSystemTimeToLocalFileTime" => kernel32::LocalSystemTimeToLocalFileTime(emu),
         "QueryUnbiasedInterruptTime" => kernel32::QueryUnbiasedInterruptTime(emu),
-        "SetCalendarInfoW" => kernel32::SetCalendarInfoW(emu),
-        "SetDynamicTimeZoneInformation" => kernel32::SetDynamicTimeZoneInformation(emu),
-        "SetFileTime" => kernel32::SetFileTime(emu),
-        "SetLocalTime" => kernel32::SetLocalTime(emu),
-        "SetSystemTime" => kernel32::SetSystemTime(emu),
-        "SetTimeZoneInformation" => kernel32::SetTimeZoneInformation(emu),
         "SystemTimeToTzSpecificLocalTimeEx" => kernel32::SystemTimeToTzSpecificLocalTimeEx(emu),
-        "TzSpecificLocalTimeToSystemTime" => kernel32::TzSpecificLocalTimeToSystemTime(emu),
         "TzSpecificLocalTimeToSystemTimeEx" => kernel32::TzSpecificLocalTimeToSystemTimeEx(emu),
-        "timeGetSystemTime" => kernel32::timeGetSystemTime(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

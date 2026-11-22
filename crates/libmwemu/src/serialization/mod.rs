@@ -3,10 +3,14 @@ use std::{
     io::{Read as _, Write as _},
 };
 
+use serde::de::DeserializeOwned;
+
 use crate::emu::Emu;
 use crate::serialization::emu::SerializableEmu;
 use crate::serialization::legacy_maps::{LegacySerializableMaps, RangeMem64};
-use crate::serialization::native::{NativeSnapshot, NativeSnapshotV3, NativeSnapshotV4};
+use crate::serialization::native::{
+    NativeSnapshot, NativeSnapshotV3, NativeSnapshotV4, NativeSnapshotV5,
+};
 
 pub mod emu;
 mod fpu;
@@ -19,6 +23,7 @@ mod pe32;
 mod pe64;
 mod thread_context;
 
+const NATIVE_V11_MAGIC: &[u8; 8] = b"MWEMU\0\x0b\0";
 const NATIVE_V5_MAGIC: &[u8; 8] = b"MWEMU\0\x05\0";
 const NATIVE_V4_MAGIC: &[u8; 8] = b"MWEMU\0\x04\0";
 const NATIVE_V3_MAGIC: &[u8; 8] = b"MWEMU\0\x03\0";
@@ -26,33 +31,40 @@ const NATIVE_V2_MAGIC: &[u8; 8] = b"MWEMU\0\x02\0";
 
 pub struct Serialization;
 
+// Decode only the selected layout. Each snapshot contains a large emulator state.
+fn decode_native<T: DeserializeOwned + Into<Emu>>(payload: &[u8]) -> Emu {
+    bitcode::deserialize::<T>(payload).unwrap().into()
+}
+
 impl Serialization {
     pub fn serialize(emu: &Emu) -> Vec<u8> {
         let serialized = NativeSnapshot::from(emu);
-        let mut data = NATIVE_V5_MAGIC.to_vec();
+        let mut data = NATIVE_V11_MAGIC.to_vec();
         data.extend(bitcode::serialize(&serialized).unwrap());
         data
     }
 
     pub fn deserialize(data: &[u8]) -> Emu {
-        if let Some(payload) = data.strip_prefix(NATIVE_V5_MAGIC) {
-            let state: NativeSnapshot = bitcode::deserialize(payload).unwrap();
-            state.into()
-        } else if let Some(payload) = data.strip_prefix(NATIVE_V4_MAGIC) {
-            let state: NativeSnapshotV4 = bitcode::deserialize(payload).unwrap();
-            state.into()
-        } else if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
-            let state: NativeSnapshotV3 = bitcode::deserialize(payload).unwrap();
-            state.into()
-        } else if let Some(payload) = data.strip_prefix(NATIVE_V2_MAGIC) {
-            let state: SerializableEmu<LegacySerializableMaps<RangeMem64>> =
-                bitcode::deserialize(payload).unwrap();
-            state.into()
-        } else {
-            let state: SerializableEmu<LegacySerializableMaps> =
-                bitcode::deserialize(data).unwrap();
-            state.into()
+        if let Some(payload) = data.strip_prefix(NATIVE_V11_MAGIC) {
+            return decode_native::<NativeSnapshot>(payload);
         }
+        let mut emu: Emu = if let Some(payload) = data.strip_prefix(NATIVE_V5_MAGIC) {
+            decode_native::<NativeSnapshotV5>(payload)
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V4_MAGIC) {
+            decode_native::<NativeSnapshotV4>(payload)
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
+            decode_native::<NativeSnapshotV3>(payload)
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V2_MAGIC) {
+            decode_native::<SerializableEmu<LegacySerializableMaps<RangeMem64>>>(payload)
+        } else {
+            assert!(
+                !data.starts_with(b"MWEMU\0"),
+                "unsupported native snapshot version"
+            );
+            decode_native::<SerializableEmu<LegacySerializableMaps>>(data)
+        };
+        emu.restore_legacy_windows_slots();
+        emu
     }
 
     /// Directory where the per-map `.bin` dumps are written: the parent

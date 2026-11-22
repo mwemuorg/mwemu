@@ -15,7 +15,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
 use crate::maps::shared::SharedStorage;
 use crate::maps::tlb::LPF_OF;
-use crate::maps::virtual_memory::{Allocation, MemoryKind};
+use crate::maps::virtual_memory::{Allocation, MemoryKind, PAGE_SIZE, align_up};
 use crate::windows::constants::memory::*;
 
 use ahash::AHashMap;
@@ -988,6 +988,14 @@ impl Maps {
             return 0;
         }
         addr
+    }
+
+    /// Back a named guest buffer with complete read/write pages. The caller tracks its logical size.
+    pub(crate) fn alloc_rw_pages(&mut self, name: &str, size: u64) -> Option<&mut Mem64> {
+        let span = align_up(size, PAGE_SIZE)?;
+        let base = self.alloc(span)?;
+        self.create_map(name, base, span, Permission::READ_WRITE)
+            .ok()
     }
 
     pub fn map_lib(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {

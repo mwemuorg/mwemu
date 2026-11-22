@@ -1,41 +1,28 @@
+pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
+    CompareStringA, CompareStringW, FindActCtxSectionStringA, FindActCtxSectionStringW,
+    FormatMessageA, FormatMessageW, MultiByteToWideChar,
+};
+
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-mod get_calendar_info;
-pub use get_calendar_info::{GetCalendarInfoA, GetCalendarInfoW};
-
-mod compare_string;
-pub use compare_string::{CompareStringA, CompareStringW};
-
-mod find_act_ctx_section_string;
-pub use find_act_ctx_section_string::{FindActCtxSectionStringA, FindActCtxSectionStringW};
+pub use crate::api::windows::libraries::kernel32::strings_nls::{
+    lstrcmpi, lstrcmpiA, lstrcmpiW, lstrcpy, lstrcpyA, lstrcpyW, lstrcpyn, lstrcpynA, lstrcpynW,
+};
+pub use crate::api::windows::libraries::kernel32::system::{GetCalendarInfoA, GetCalendarInfoW};
 
 mod lstrcat;
 pub use lstrcat::{lstrcatA, lstrcatW};
 
-mod lstrcmpi;
-pub use lstrcmpi::{lstrcmpi, lstrcmpiA, lstrcmpiW};
-
-mod lstrcpy;
-pub use lstrcpy::{lstrcpy, lstrcpyA, lstrcpyW};
-
-mod lstrcpyn;
-pub use lstrcpyn::{lstrcpyn, lstrcpynA, lstrcpynW};
-
 mod lstrlen;
 pub use lstrlen::{lstrlenA, lstrlenW};
-
-mod multi_byte_to_wide_char;
-pub use multi_byte_to_wide_char::MultiByteToWideChar;
 
 mod wide_char_to_multi_byte;
 pub use wide_char_to_multi_byte::WideCharToMultiByte;
 
-mod format_message;
-pub use format_message::{FormatMessageA, FormatMessageW};
-
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetCalendarInfoA" => kernel32::GetCalendarInfoA(emu),
         "GetCalendarInfoW" => kernel32::GetCalendarInfoW(emu),
         "GetUserDefaultLangID" => kernel32::GetUserDefaultLangID(emu),
@@ -79,7 +66,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GlobalFindAtomW" => kernel32::GlobalFindAtomW(emu),
         "GlobalGetAtomNameA" => kernel32::GlobalGetAtomNameA(emu),
         "GlobalGetAtomNameW" => kernel32::GlobalGetAtomNameW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

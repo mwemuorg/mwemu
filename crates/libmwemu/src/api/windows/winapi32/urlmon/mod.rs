@@ -1,19 +1,6 @@
-use crate::api::windows::common::fallback;
-use crate::emu;
-use crate::winapi::winapi32::kernel32;
+use crate::emu::Emu;
+use crate::winapi::libraries;
 
-mod url_download_to_file;
-use url_download_to_file::URLDownloadToFileA;
-use url_download_to_file::URLDownloadToFileW;
-
-pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
-    let api = kernel32::guess_api_name(emu, addr);
-    let api = api.split("!").last().unwrap_or(&api);
-    match api {
-        "URLDownloadToFileA" => URLDownloadToFileA(emu),
-        "URLDownloadToFileW" => URLDownloadToFileW(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-
-    String::new()
+pub fn gateway(address: u32, emu: &mut Emu) -> String {
+    libraries::gateway("urlmon", address as u64, emu)
 }

@@ -1,16 +1,6 @@
-use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
-use crate::emu;
-use crate::winapi::policy::api_try;
+use crate::emu::Emu;
+use crate::winapi::libraries::kernel32::file_time::win_performance;
 
-pub fn QueryPerformanceCounter(emu: &mut emu::Emu) {
-    let call = WinApi(Stdcall);
-    let counter_ptr = api_try!(emu, call.arg(emu, 0));
-
-    emu.maps.write_dword(counter_ptr, 0x1);
-
-    log_red!(emu, "kernel32!QueryPerformanceCounter");
-
-    call.cleanup_args(emu, 1);
-
-    call.set_return(emu, 1);
+pub fn QueryPerformanceCounter(emu: &mut Emu) {
+    win_performance(emu, false);
 }

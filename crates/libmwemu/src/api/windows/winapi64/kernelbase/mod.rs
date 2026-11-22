@@ -1,714 +1,283 @@
-use crate::api::windows::common::memory as memory_api;
+pub use crate::winapi::libraries::kernel32::entry_points::kernelbase::{
+    __C_specific_handler, __chkstk, __misaligned_access, __wargv, _local_unwind,
+    AcquireSRWLockExclusive, AcquireSRWLockShared, CloseThreadpoolTimer, CloseThreadpoolWait,
+    CompareStringA, CompareStringOrdinal, CompareStringW, CreateActCtxW, CreateEnclave,
+    CreateIoRing, CreateProcessA, CreateProcessW, CreateRemoteThread, CreateRemoteThreadEx,
+    DeleteCriticalSection, DuplicateHandle, EnterCriticalSection, FlsFree,
+    FlushProcessWriteBuffers, FormatMessageA, FormatMessageW, FreeLibrary, GetCPInfo, GetConsoleCP,
+    GetCurrentProcessorNumber, GetLastError, GetLocaleInfoA, GetLocaleInfoEx, GetLocaleInfoW,
+    GetNativeSystemInfo, GetProcessWorkingSetSize, GetStartupInfoW, GetStringTypeA, GetStringTypeW,
+    GetSystemInfo, GetThreadLocale, GetUserDefaultLCID, GlobalFlags, GlobalLock, GlobalUnlock,
+    InitOnceBeginInitialize, InitOnceExecuteOnce, InitOnceInitialize, InitializeConditionVariable,
+    InitializeCriticalSection, InitializeCriticalSectionEx, InitializeSRWLock,
+    InterlockedDecrement, InterlockedFlushSList, InterlockedIncrement, InterlockedPopEntrySList,
+    InterlockedPushListSList, IsDebuggerPresent, IsEnclaveTypeSupported, IsProcessorFeaturePresent,
+    IsThreadpoolTimerSet, IsUserCetAvailableInEnvironment, IsValidCodePage, IsWow64Process,
+    LCMapStringA, LCMapStringW, LeaveCriticalSection, LoadLibraryA, LoadLibraryExA, LoadLibraryExW,
+    LoadLibraryW, LoadStringA, LoadStringW, MultiByteToWideChar, NotifyFeatureToggleUsage,
+    OpenPackageInfoByFullName, OpenState, OpenStateExplicit, OpenThreadToken,
+    ReleaseMutexWhenCallbackReturns, ReleaseSRWLockExclusive, ReleaseSRWLockShared,
+    ReleaseSemaphoreWhenCallbackReturns, SetLastConsoleEventActive, SetLastError,
+    SetThreadpoolTimer, SetThreadpoolTimerEx, SetThreadpoolWait, SetThreadpoolWaitEx, Sleep,
+    SleepConditionVariableCS, SleepEx, TryAcquireSRWLockExclusive, TryAcquireSRWLockShared,
+    TryEnterCriticalSection, UnmapViewOfFile, WaitForDebugEventEx, WaitForThreadpoolIoCallbacks,
+    WaitForThreadpoolTimerCallbacks, WaitForThreadpoolWaitCallbacks,
+    WaitForThreadpoolWorkCallbacks, WakeAllConditionVariable, WakeConditionVariable,
+};
+
+pub use crate::api::windows::libraries::advapi32::{
+    AreAllAccessesGranted, AreAnyAccessesGranted, GetAce, GetAclInformation, InitializeAcl,
+    MapGenericMask,
+};
+pub use crate::api::windows::registry::{
+    RegCloseKey, RegCreateKeyExA, RegCreateKeyExW, RegDeleteKeyExA, RegDeleteKeyExW,
+    RegDeleteTreeA, RegDeleteTreeW, RegDeleteValueA, RegDeleteValueW, RegEnumKeyExA, RegEnumKeyExW,
+    RegEnumValueA, RegEnumValueW, RegFlushKey, RegGetValueA, RegGetValueW, RegOpenKeyExA,
+    RegOpenKeyExW, RegQueryInfoKeyA, RegQueryInfoKeyW, RegQueryValueExA, RegQueryValueExW,
+    RegSetValueExA, RegSetValueExW,
+};
 use crate::emu;
-use crate::winapi::common::heap as heap_api;
-use crate::winapi::common::memory_ops;
-use crate::winapi::common::sections;
-use crate::winapi::common::{files, handles, modules, strings};
+use crate::winapi::common::fallback::unsupported_exports;
+use crate::winapi::libraries::kernel32::dispatch_shared;
+pub use crate::winapi::libraries::unsupported::kernelbase::{
+    ActivateActCtx, AddDllDirectory, AddVectoredContinueHandler, AppPolicyGetClrCompat,
+    AppPolicyGetCreateFileAccess, AppPolicyGetLifecycleManagement,
+    AppPolicyGetMediaFoundationCodecLoading, AppPolicyGetShowDeveloperDiagnostic,
+    AppPolicyGetThreadInitializationType, AppPolicyGetWindowingModel, AppXGetOSMaxVersionTested,
+    Beep, BuildIoRingCancelRequest, BuildIoRingFlushFile, BuildIoRingReadFile,
+    BuildIoRingReadFileScatter, BuildIoRingRegisterBuffers, BuildIoRingRegisterFileHandles,
+    BuildIoRingWriteFile, BuildIoRingWriteFileGather, CancelThreadpoolIo, CeipIsOptedIn,
+    CheckRemoteDebuggerPresent, CopyMemoryNonTemporal, CtrlRoutine, DecodeRemotePointer,
+    DecodeSystemPointer, DeviceIoControl, DisassociateCurrentThreadFromCallback,
+    DiscardVirtualMemory, EncodeRemotePointer, EncodeSystemPointer, EventActivityIdControl,
+    EventProviderEnabled, EventWrite, EventWriteEx, EventWriteString, FindActCtxSectionStringW,
+    FindPackagesByPackageFamily, FlsAlloc, FlsGetValue, FlsGetValue2, FlsSetValue,
+    FormatApplicationUserModelId, GetApplicationUserModelId, GetConsoleInputExeNameA,
+    GetConsoleInputExeNameW, GetConsoleOutputCP, GetCurrentApplicationUserModelId,
+    GetCurrentPackageFamilyName, GetCurrentPackageFullName, GetCurrentPackageId,
+    GetCurrentPackageInfo, GetCurrentPackagePath, GetCurrentProcessorNumberEx,
+    GetCurrentThreadStackLimits, GetFeatureToggleConfiguration, GetFeatureTogglesChangeToken,
+    GetIoRingInfo, GetLogicalProcessorInformationEx, GetMachineTypeAttributes,
+    GetNumaNodeProcessorMask2, GetPackageApplicationIds, GetPackageFamilyName, GetPackageFullName,
+    GetPackageId, GetPackageInfo, GetPackagePath, GetPackagePathByFullName,
+    GetPackagesByPackageFamily, GetProcessDefaultCpuSetMasks, GetProcessDefaultCpuSets,
+    GetProcessMitigationPolicy, GetProcessorSystemCycleTime, GetStagedPackagePathByFullName,
+    GetStateFolder, GetSystemAppDataKey, GetSystemCpuSetInformation, GetSystemFirmwareTable,
+    GetThreadDescription, GetThreadSelectedCpuSetMasks, GetThreadSelectedCpuSets,
+    GetTimeZoneInformationForYear, GetTraceEnableFlags, GetTraceEnableLevel, GetTraceLoggerHandle,
+    GetUserDefaultLangID, GetUserDefaultUILanguage, GetVersion, HeapSetInformation,
+    InitOnceComplete, InitializeCriticalSectionAndSpinCount, InitializeEnclave,
+    InitializeProcThreadAttributeList, InitializeSListHead, InstallELAMCertificateInfo,
+    InterlockedCompareExchange, InterlockedCompareExchange64, InterlockedExchange,
+    InterlockedExchangeAdd, InterlockedPushEntrySList, InterlockedPushListSListEx,
+    IsIoRingOpSupported, IsProcessCritical, IsWow64GuestMachineSupported, IsWow64Process2,
+    LeaveCriticalSectionWhenCallbackReturns, LoadEnclaveData, LocalFileTimeToLocalSystemTime,
+    LocalSystemTimeToLocalFileTime, OfferVirtualMemory, OutputDebugStringA, OutputDebugStringW,
+    PackageFamilyNameFromFullName, PackageFamilyNameFromId, PackageFullNameFromId,
+    PackageIdFromFullName, PackageNameAndPublisherIdFromFamilyName, ParseApplicationUserModelId,
+    PopIoRingCompletion, PrefetchVirtualMemory, QueryDepthSList, QueryIoRingCapabilities,
+    QueryProtectedPolicy, QueueUserAPC2, RaiseException, RaiseFailFastException,
+    ReadConsoleInputExA, ReadConsoleInputExW, ReclaimVirtualMemory, RegisterTraceGuidsW,
+    ResolveDelayLoadedAPI, ResolveDelayLoadsFromDll, RestoreLastError, SetConsoleInputExeNameA,
+    SetConsoleInputExeNameW, SetCriticalSectionSpinCount, SetDefaultDllDirectories,
+    SetEventWhenCallbackReturns, SetHandleCount, SetIoRingCompletionEvent, SetLocaleInfoW,
+    SetProcessDefaultCpuSetMasks, SetProcessDefaultCpuSets, SetProcessDynamicEHContinuationTargets,
+    SetProcessDynamicEnforcedCetCompatibleRanges, SetProcessMitigationPolicy,
+    SetProcessWorkingSetSize, SetProtectedPolicy, SetThreadDescription, SetThreadLocale,
+    SetThreadSelectedCpuSetMasks, SetThreadSelectedCpuSets, SetThreadStackGuarantee,
+    SetThreadToken, SetThreadpoolThreadMaximum, SleepConditionVariableSRW, StartThreadpoolIo,
+    SubmitIoRing, SubmitThreadpoolWork, SystemTimeToTzSpecificLocalTime,
+    SystemTimeToTzSpecificLocalTimeEx, TerminateProcess, TlsGetValue2, TraceEvent, TraceMessage,
+    TraceMessageVa, TzSpecificLocalTimeToSystemTimeEx, UnhandledExceptionFilter,
+    UpdateProcThreadAttribute, VirtualLock, Wow64Transition, WriteConsoleA, WriteConsoleW,
+};
 use crate::winapi::winapi64;
 
-mod write_console_output_character;
-pub use write_console_output_character::{
-    WriteConsoleOutputCharacterA, WriteConsoleOutputCharacterW,
+pub use crate::api::windows::common::process::GetCurrentProcessId;
+pub use crate::api::windows::common::threads::{
+    GetCurrentThreadId, GetThreadId, OpenThread, SuspendThread,
+};
+pub use crate::api::windows::libraries::kernel32::filesystem::{
+    GetFileAttributesA, GetFileAttributesExA, GetFileAttributesExW, GetFileAttributesW,
+};
+pub use crate::api::windows::libraries::kernel32::library_loader::*;
+
+pub use crate::api::windows::libraries::kernel32::system::{
+    GetACP, GetOEMCP, GetThreadUILanguage, SetThreadUILanguage,
+};
+pub use crate::api::windows::libraries::kernel32::{
+    CompareFileTime, DosDateTimeToFileTime, FileTimeToDosDateTime, FileTimeToLocalFileTime,
+    FileTimeToSystemTime, GetTimeZoneInformation, LocalFileTimeToFileTime, SystemTimeToFileTime,
 };
 
-mod write_console_output;
-pub use write_console_output::{WriteConsoleOutputA, WriteConsoleOutputW};
+use crate::winapi::common::files::file_entry_points;
 
-mod write_console_input;
-pub use write_console_input::{WriteConsoleInputA, WriteConsoleInputW};
+file_entry_points!(
+    "kernelbase",
+    CancelIo,
+    CancelIoEx,
+    CancelSynchronousIo,
+    CopyFile2,
+    CopyFileExW,
+    CopyFileFromAppW,
+    CopyFileW,
+    CreateDirectory2A,
+    CreateDirectory2W,
+    CreateDirectoryA,
+    CreateDirectoryExW,
+    CreateDirectoryFromAppW,
+    CreateDirectoryW,
+    CreateFile2,
+    CreateFile2FromAppW,
+    CreateFile3,
+    CreateFileFromAppW,
+    CreateFileMapping2,
+    CreateFileMappingFromApp,
+    CreateFileMappingNumaW,
+    CreateHardLinkA,
+    CreateHardLinkW,
+    CreateIoCompletionPort,
+    CreateSymbolicLinkW,
+    DefineDosDeviceW,
+    DeleteFile2A,
+    DeleteFile2W,
+    DeleteFileA,
+    DeleteFileFromAppW,
+    DeleteFileW,
+    DeleteVolumeMountPointW,
+    FindClose,
+    FindCloseChangeNotification,
+    FindFirstChangeNotificationA,
+    FindFirstChangeNotificationW,
+    FindFirstFileA,
+    FindFirstFileExA,
+    FindFirstFileExFromAppW,
+    FindFirstFileExW,
+    FindFirstFileNameW,
+    FindFirstFileW,
+    FindFirstStreamW,
+    FindFirstVolumeW,
+    FindNextChangeNotification,
+    FindNextFileA,
+    FindNextFileNameW,
+    FindNextFileW,
+    FindNextStreamW,
+    FindNextVolumeW,
+    FindVolumeClose,
+    FlushViewOfFile,
+    GetCompressedFileSizeA,
+    GetCompressedFileSizeW,
+    GetCurrentDirectoryA,
+    GetCurrentDirectoryW,
+    GetDiskFreeSpaceExA,
+    GetDiskFreeSpaceExW,
+    GetDiskSpaceInformationA,
+    GetDiskSpaceInformationW,
+    GetDiskSpaceInformationWCOS,
+    GetDriveTypeA,
+    GetDriveTypeW,
+    GetFileInformationByName,
+    GetFileSecurityW,
+    GetFileType,
+    GetFinalPathNameByHandleA,
+    GetFinalPathNameByHandleW,
+    GetLogicalDriveStringsW,
+    GetLogicalDrives,
+    GetLongPathNameA,
+    GetLongPathNameW,
+    GetMappedFileNameA,
+    GetMappedFileNameW,
+    GetOverlappedResult,
+    GetOverlappedResultEx,
+    GetQueuedCompletionStatus,
+    GetQueuedCompletionStatusEx,
+    GetShortPathNameW,
+    GetSystemDirectoryA,
+    GetSystemDirectoryW,
+    GetSystemFileCacheSize,
+    GetSystemWindowsDirectoryA,
+    GetSystemWindowsDirectoryW,
+    GetSystemWow64Directory2A,
+    GetSystemWow64Directory2W,
+    GetSystemWow64DirectoryA,
+    GetSystemWow64DirectoryW,
+    GetTempFileNameA,
+    GetTempFileNameW,
+    GetTempPath2A,
+    GetTempPath2W,
+    GetTempPathA,
+    GetTempPathW,
+    GetVolumeInformationA,
+    GetVolumeInformationByHandleW,
+    GetVolumeInformationW,
+    GetVolumeNameForVolumeMountPointW,
+    GetVolumePathNameW,
+    GetVolumePathNamesForVolumeNameW,
+    GetWindowsDirectoryA,
+    GetWindowsDirectoryW,
+    K32GetMappedFileNameA,
+    K32GetMappedFileNameW,
+    LockFile,
+    MapViewOfFile3,
+    MapViewOfFile3FromApp,
+    MapViewOfFileExNuma,
+    MapViewOfFileFromApp,
+    MapViewOfFileNuma2,
+    MoveFileExW,
+    MoveFileFromAppW,
+    MoveFileWithProgressTransactedW,
+    MoveFileWithProgressW,
+    NeedCurrentDirectoryForExePathA,
+    NeedCurrentDirectoryForExePathW,
+    OpenFileById,
+    PathFileExistsA,
+    PathFileExistsW,
+    PostQueuedCompletionStatus,
+    QueryDosDeviceW,
+    ReOpenFile,
+    ReadDirectoryChangesExW,
+    ReadDirectoryChangesW,
+    ReadFileEx,
+    ReadFileScatter,
+    RemoveDirectory2A,
+    RemoveDirectory2W,
+    RemoveDirectoryA,
+    RemoveDirectoryFromAppW,
+    RemoveDirectoryW,
+    ReplaceFileExInternal,
+    ReplaceFileFromAppW,
+    ReplaceFileW,
+    SearchPathA,
+    SearchPathW,
+    SetFileAttributesA,
+    SetFileAttributesFromAppW,
+    SetFileAttributesW,
+    SetFileInformationByHandle,
+    SetFileIoOverlappedRange,
+    SetFileSecurityW,
+    SetFileValidData,
+    SetSystemFileCacheSize,
+    UnlockFile,
+    UnlockFileEx,
+    UnmapViewOfFile2,
+    Wow64DisableWow64FsRedirection,
+    Wow64EnableWow64FsRedirection,
+    Wow64RevertWow64FsRedirection,
+    WriteFileEx,
+    WriteFileGather,
+);
 
-mod write_console;
-pub use write_console::{WriteConsoleA, WriteConsoleW};
-
-mod ver_language_name;
-pub use ver_language_name::{VerLanguageNameA, VerLanguageNameW};
-
-mod ver_find_file;
-pub use ver_find_file::{VerFindFileA, VerFindFileW};
-
-mod url_unescape;
-pub use url_unescape::{UrlUnescapeA, UrlUnescapeW};
-
-mod url_is_opaque;
-pub use url_is_opaque::{UrlIsOpaqueA, UrlIsOpaqueW};
-
-mod url_is_no_history;
-pub use url_is_no_history::{UrlIsNoHistoryA, UrlIsNoHistoryW};
-
-mod url_is;
-pub use url_is::{UrlIsA, UrlIsW};
-
-mod url_hash;
-pub use url_hash::{UrlHashA, UrlHashW};
-
-mod url_get_part;
-pub use url_get_part::{UrlGetPartA, UrlGetPartW};
-
-mod url_get_location;
-pub use url_get_location::{UrlGetLocationA, UrlGetLocationW};
-
-mod url_escape;
-pub use url_escape::{UrlEscapeA, UrlEscapeW};
-
-mod url_create_from_path;
-pub use url_create_from_path::{UrlCreateFromPathA, UrlCreateFromPathW};
-
-mod url_compare;
-pub use url_compare::{UrlCompareA, UrlCompareW};
-
-mod url_combine;
-pub use url_combine::{UrlCombineA, UrlCombineW};
-
-mod url_canonicalize;
-pub use url_canonicalize::{UrlCanonicalizeA, UrlCanonicalizeW};
-
-mod url_apply_scheme;
-pub use url_apply_scheme::{UrlApplySchemeA, UrlApplySchemeW};
-
-mod str_trim;
-pub use str_trim::{StrTrimA, StrTrimW};
-
-mod str_to_int_ex;
-pub use str_to_int_ex::{StrToIntExA, StrToIntExW};
-
-mod str_to_int;
-pub use str_to_int::{StrToIntA, StrToIntW};
-
-mod str_to_int64_ex;
-pub use str_to_int64_ex::{StrToInt64ExA, StrToInt64ExW};
-
-mod str_str;
-pub use str_str::{StrStrA, StrStrW};
-
-mod str_spn;
-pub use str_spn::{StrSpnA, StrSpnW};
-
-mod str_r_chr;
-pub use str_r_chr::{StrRChrA, StrRChrW};
-
-mod str_p_brk;
-pub use str_p_brk::{StrPBrkA, StrPBrkW};
-
-mod str_is_intl_equal;
-pub use str_is_intl_equal::{StrIsIntlEqualA, StrIsIntlEqualW};
-
-mod str_dup;
-pub use str_dup::{StrDupA, StrDupW};
-
-mod str_chr;
-pub use str_chr::{StrChrA, StrChrW};
-
-mod str_cat_buff;
-pub use str_cat_buff::{StrCatBuffA, StrCatBuffW};
-
-mod str_c_spn;
-pub use str_c_spn::{StrCSpnA, StrCSpnW};
-
-mod sh_reg_write_us_value;
-pub use sh_reg_write_us_value::{SHRegWriteUSValueA, SHRegWriteUSValueW};
-
-mod sh_reg_set_us_value;
-pub use sh_reg_set_us_value::{SHRegSetUSValueA, SHRegSetUSValueW};
-
-mod sh_reg_query_us_value;
-pub use sh_reg_query_us_value::{SHRegQueryUSValueA, SHRegQueryUSValueW};
-
-mod sh_reg_query_info_us_key;
-pub use sh_reg_query_info_us_key::{SHRegQueryInfoUSKeyA, SHRegQueryInfoUSKeyW};
-
-mod sh_reg_open_us_key;
-pub use sh_reg_open_us_key::{SHRegOpenUSKeyA, SHRegOpenUSKeyW};
-
-mod sh_reg_get_us_value;
-pub use sh_reg_get_us_value::{SHRegGetUSValueA, SHRegGetUSValueW};
-
-mod sh_reg_get_bool_us_value;
-pub use sh_reg_get_bool_us_value::{SHRegGetBoolUSValueA, SHRegGetBoolUSValueW};
-
-mod sh_reg_enum_us_value;
-pub use sh_reg_enum_us_value::{SHRegEnumUSValueA, SHRegEnumUSValueW};
-
-mod sh_reg_enum_us_key;
-pub use sh_reg_enum_us_key::{SHRegEnumUSKeyA, SHRegEnumUSKeyW};
-
-mod sh_reg_delete_us_value;
-pub use sh_reg_delete_us_value::{SHRegDeleteUSValueA, SHRegDeleteUSValueW};
-
-mod sh_reg_delete_empty_us_key;
-pub use sh_reg_delete_empty_us_key::{SHRegDeleteEmptyUSKeyA, SHRegDeleteEmptyUSKeyW};
-
-mod sh_reg_create_us_key;
-pub use sh_reg_create_us_key::{SHRegCreateUSKeyA, SHRegCreateUSKeyW};
-
-mod sh_expand_environment_strings;
-pub use sh_expand_environment_strings::{SHExpandEnvironmentStringsA, SHExpandEnvironmentStringsW};
-
-mod set_file_attributes;
-pub use set_file_attributes::{SetFileAttributesA, SetFileAttributesW};
-
-mod set_environment_variable;
-pub use set_environment_variable::{SetEnvironmentVariableA, SetEnvironmentVariableW};
-
-mod set_console_title;
-pub use set_console_title::{SetConsoleTitleA, SetConsoleTitleW};
-
-mod set_console_number_of_commands;
-pub use set_console_number_of_commands::{
-    SetConsoleNumberOfCommandsA, SetConsoleNumberOfCommandsW,
+pub use crate::winapi::common::ntdll::{
+    DecodePointer, EncodePointer, GetVersionExA, GetVersionExW, event_enabled as EventEnabled,
 };
 
-mod set_console_input_exe_name;
-pub use set_console_input_exe_name::{SetConsoleInputExeNameA, SetConsoleInputExeNameW};
+pub use crate::winapi::common::crt_arguments::{GetCommandLineA, GetCommandLineW};
 
-mod set_computer_name_ex;
-pub use set_computer_name_ex::{SetComputerNameExA, SetComputerNameExW};
-
-mod set_computer_name;
-pub use set_computer_name::{SetComputerNameA, SetComputerNameW};
-
-mod search_path;
-pub use search_path::{SearchPathA, SearchPathW};
-
-mod scroll_console_screen_buffer;
-pub use scroll_console_screen_buffer::{ScrollConsoleScreenBufferA, ScrollConsoleScreenBufferW};
-
-mod remove_directory;
-pub use remove_directory::{RemoveDirectoryA, RemoveDirectoryW};
-
-mod remove_directory2;
-pub use remove_directory2::{RemoveDirectory2A, RemoveDirectory2W};
-
-mod reg_un_load_key;
-pub use reg_un_load_key::{RegUnLoadKeyA, RegUnLoadKeyW};
-
-mod reg_set_value_ex;
-pub use reg_set_value_ex::{RegSetValueExA, RegSetValueExW};
-
-mod reg_set_key_value;
-pub use reg_set_key_value::{RegSetKeyValueA, RegSetKeyValueW};
-
-mod reg_save_key_ex;
-pub use reg_save_key_ex::{RegSaveKeyExA, RegSaveKeyExW};
-
-mod reg_restore_key;
-pub use reg_restore_key::{RegRestoreKeyA, RegRestoreKeyW};
-
-mod reg_query_value_ex;
-pub use reg_query_value_ex::{RegQueryValueExA, RegQueryValueExW};
-
-mod reg_query_multiple_values;
-pub use reg_query_multiple_values::{RegQueryMultipleValuesA, RegQueryMultipleValuesW};
-
-mod reg_query_info_key;
-pub use reg_query_info_key::{RegQueryInfoKeyA, RegQueryInfoKeyW};
-
-mod reg_open_key_ex_internal;
-pub use reg_open_key_ex_internal::{RegOpenKeyExInternalA, RegOpenKeyExInternalW};
-
-mod reg_open_key_ex;
-pub use reg_open_key_ex::{RegOpenKeyExA, RegOpenKeyExW};
-
-mod reg_load_mui_string;
-pub use reg_load_mui_string::{RegLoadMUIStringA, RegLoadMUIStringW};
-
-mod reg_load_key;
-pub use reg_load_key::{RegLoadKeyA, RegLoadKeyW};
-
-mod reg_load_app_key;
-pub use reg_load_app_key::{RegLoadAppKeyA, RegLoadAppKeyW};
-
-mod reg_get_value;
-pub use reg_get_value::{RegGetValueA, RegGetValueW};
-
-mod reg_enum_value;
-pub use reg_enum_value::{RegEnumValueA, RegEnumValueW};
-
-mod reg_enum_key_ex;
-pub use reg_enum_key_ex::{RegEnumKeyExA, RegEnumKeyExW};
-
-mod reg_delete_value;
-pub use reg_delete_value::{RegDeleteValueA, RegDeleteValueW};
-
-mod reg_delete_tree;
-pub use reg_delete_tree::{RegDeleteTreeA, RegDeleteTreeW};
-
-mod reg_delete_key_value;
-pub use reg_delete_key_value::{RegDeleteKeyValueA, RegDeleteKeyValueW};
-
-mod reg_delete_key_ex_internal;
-pub use reg_delete_key_ex_internal::{RegDeleteKeyExInternalA, RegDeleteKeyExInternalW};
-
-mod reg_delete_key_ex;
-pub use reg_delete_key_ex::{RegDeleteKeyExA, RegDeleteKeyExW};
-
-mod reg_create_key_ex_internal;
-pub use reg_create_key_ex_internal::{RegCreateKeyExInternalA, RegCreateKeyExInternalW};
-
-mod reg_create_key_ex;
-pub use reg_create_key_ex::{RegCreateKeyExA, RegCreateKeyExW};
-
-mod read_console_output_character;
-pub use read_console_output_character::{ReadConsoleOutputCharacterA, ReadConsoleOutputCharacterW};
-
-mod read_console_output;
-pub use read_console_output::{ReadConsoleOutputA, ReadConsoleOutputW};
-
-mod read_console_input_ex;
-pub use read_console_input_ex::{ReadConsoleInputExA, ReadConsoleInputExW};
-
-mod read_console_input;
-pub use read_console_input::{ReadConsoleInputA, ReadConsoleInputW};
-
-mod read_console;
-pub use read_console::{ReadConsoleA, ReadConsoleW};
-
-mod query_full_process_image_name;
-pub use query_full_process_image_name::{QueryFullProcessImageNameA, QueryFullProcessImageNameW};
-
-mod peek_console_input;
-pub use peek_console_input::{PeekConsoleInputA, PeekConsoleInputW};
-
-mod path_unquote_spaces;
-pub use path_unquote_spaces::{PathUnquoteSpacesA, PathUnquoteSpacesW};
-
-mod path_un_expand_env_strings;
-pub use path_un_expand_env_strings::{PathUnExpandEnvStringsA, PathUnExpandEnvStringsW};
-
-mod path_strip_to_root;
-pub use path_strip_to_root::{PathStripToRootA, PathStripToRootW};
-
-mod path_strip_path;
-pub use path_strip_path::{PathStripPathA, PathStripPathW};
-
-mod path_skip_root;
-pub use path_skip_root::{PathSkipRootA, PathSkipRootW};
-
-mod path_search_and_qualify;
-pub use path_search_and_qualify::{PathSearchAndQualifyA, PathSearchAndQualifyW};
-
-mod path_rename_extension;
-pub use path_rename_extension::{PathRenameExtensionA, PathRenameExtensionW};
-
-mod path_remove_file_spec;
-pub use path_remove_file_spec::{PathRemoveFileSpecA, PathRemoveFileSpecW};
-
-mod path_remove_extension;
-pub use path_remove_extension::{PathRemoveExtensionA, PathRemoveExtensionW};
-
-mod path_remove_blanks;
-pub use path_remove_blanks::{PathRemoveBlanksA, PathRemoveBlanksW};
-
-mod path_remove_backslash;
-pub use path_remove_backslash::{PathRemoveBackslashA, PathRemoveBackslashW};
-
-mod path_relative_path_to;
-pub use path_relative_path_to::{PathRelativePathToA, PathRelativePathToW};
-
-mod path_quote_spaces;
-pub use path_quote_spaces::{PathQuoteSpacesA, PathQuoteSpacesW};
-
-mod path_parse_icon_location;
-pub use path_parse_icon_location::{PathParseIconLocationA, PathParseIconLocationW};
-
-mod path_match_spec_ex;
-pub use path_match_spec_ex::{PathMatchSpecExA, PathMatchSpecExW};
-
-mod path_match_spec;
-pub use path_match_spec::{PathMatchSpecA, PathMatchSpecW};
-
-mod path_is_valid_char;
-pub use path_is_valid_char::{PathIsValidCharA, PathIsValidCharW};
-
-mod path_is_unc_server_share;
-pub use path_is_unc_server_share::{PathIsUNCServerShareA, PathIsUNCServerShareW};
-
-mod path_is_unc_server;
-pub use path_is_unc_server::{PathIsUNCServerA, PathIsUNCServerW};
-
-mod path_is_same_root;
-pub use path_is_same_root::{PathIsSameRootA, PathIsSameRootW};
-
-mod path_is_root;
-pub use path_is_root::{PathIsRootA, PathIsRootW};
-
-mod path_is_relative;
-pub use path_is_relative::{PathIsRelativeA, PathIsRelativeW};
-
-mod path_is_prefix;
-pub use path_is_prefix::{PathIsPrefixA, PathIsPrefixW};
-
-mod path_is_lfn_file_spec;
-pub use path_is_lfn_file_spec::{PathIsLFNFileSpecA, PathIsLFNFileSpecW};
-
-mod path_is_file_spec;
-pub use path_is_file_spec::{PathIsFileSpecA, PathIsFileSpecW};
-
-mod path_get_drive_number;
-pub use path_get_drive_number::{PathGetDriveNumberA, PathGetDriveNumberW};
-
-mod path_get_char_type;
-pub use path_get_char_type::{PathGetCharTypeA, PathGetCharTypeW};
-
-mod path_get_args;
-pub use path_get_args::{PathGetArgsA, PathGetArgsW};
-
-mod path_find_next_component;
-pub use path_find_next_component::{PathFindNextComponentA, PathFindNextComponentW};
-
-mod path_find_file_name;
-pub use path_find_file_name::{PathFindFileNameA, PathFindFileNameW};
-
-mod path_find_extension;
-pub use path_find_extension::{PathFindExtensionA, PathFindExtensionW};
-
-mod path_file_exists;
-pub use path_file_exists::{PathFileExistsA, PathFileExistsW};
-
-mod path_create_from_url;
-pub use path_create_from_url::{PathCreateFromUrlA, PathCreateFromUrlW};
-
-mod path_common_prefix;
-pub use path_common_prefix::{PathCommonPrefixA, PathCommonPrefixW};
-
-mod path_combine;
-pub use path_combine::{PathCombineA, PathCombineW};
-
-mod path_canonicalize;
-pub use path_canonicalize::{PathCanonicalizeA, PathCanonicalizeW};
-
-mod path_append;
-pub use path_append::{PathAppendA, PathAppendW};
-
-mod path_add_extension;
-pub use path_add_extension::{PathAddExtensionA, PathAddExtensionW};
-
-mod path_add_backslash;
-pub use path_add_backslash::{PathAddBackslashA, PathAddBackslashW};
-
-mod output_debug_string;
-pub use output_debug_string::{OutputDebugStringA, OutputDebugStringW};
-
-mod open_event;
-pub use open_event::{OpenEventA, OpenEventW};
-
-mod need_current_directory_for_exe_path;
-pub use need_current_directory_for_exe_path::{
-    NeedCurrentDirectoryForExePathA, NeedCurrentDirectoryForExePathW,
-};
-
-mod load_string;
-pub use load_string::{LoadStringA, LoadStringW};
-
-mod load_library_ex;
-pub use load_library_ex::{LoadLibraryExA, LoadLibraryExW};
-
-mod load_library;
-pub use load_library::{LoadLibraryA, LoadLibraryW};
-
-mod load_enclave_image;
-pub use load_enclave_image::{LoadEnclaveImageA, LoadEnclaveImageW};
-
-mod lc_map_string;
-pub use lc_map_string::{LCMapStringA, LCMapStringW};
-
-mod k32_get_process_image_file_name;
-pub use k32_get_process_image_file_name::{
-    K32GetProcessImageFileNameA, K32GetProcessImageFileNameW,
-};
-
-mod k32_get_module_file_name_ex;
-pub use k32_get_module_file_name_ex::{K32GetModuleFileNameExA, K32GetModuleFileNameExW};
-
-mod k32_get_module_base_name;
-pub use k32_get_module_base_name::{K32GetModuleBaseNameA, K32GetModuleBaseNameW};
-
-mod k32_get_mapped_file_name;
-pub use k32_get_mapped_file_name::{K32GetMappedFileNameA, K32GetMappedFileNameW};
-
-mod k32_get_device_driver_file_name;
-pub use k32_get_device_driver_file_name::{
-    K32GetDeviceDriverFileNameA, K32GetDeviceDriverFileNameW,
-};
-
-mod k32_get_device_driver_base_name;
-pub use k32_get_device_driver_base_name::{
-    K32GetDeviceDriverBaseNameA, K32GetDeviceDriverBaseNameW,
-};
-
-mod k32_enum_page_files;
-pub use k32_enum_page_files::{K32EnumPageFilesA, K32EnumPageFilesW};
-
-mod is_char_space;
-pub use is_char_space::{IsCharSpaceA, IsCharSpaceW};
-
-mod internet_time_to_system_time;
-pub use internet_time_to_system_time::{InternetTimeToSystemTimeA, InternetTimeToSystemTimeW};
-
-mod internet_time_from_system_time;
-pub use internet_time_from_system_time::{
-    InternetTimeFromSystemTimeA, InternetTimeFromSystemTimeW,
-};
-
-mod get_windows_directory;
-pub use get_windows_directory::{GetWindowsDirectoryA, GetWindowsDirectoryW};
-
-mod get_volume_information;
-pub use get_volume_information::{GetVolumeInformationA, GetVolumeInformationW};
-
-mod get_version_ex;
-pub use get_version_ex::{GetVersionExA, GetVersionExW};
-
-mod get_time_format;
-pub use get_time_format::{GetTimeFormatA, GetTimeFormatW};
-
-mod get_temp_path;
-pub use get_temp_path::{GetTempPathA, GetTempPathW};
-
-mod get_temp_path2;
-pub use get_temp_path2::{GetTempPath2A, GetTempPath2W};
-
-mod get_temp_file_name;
-pub use get_temp_file_name::{GetTempFileNameA, GetTempFileNameW};
-
-mod get_system_wow64_directory;
-pub use get_system_wow64_directory::{GetSystemWow64DirectoryA, GetSystemWow64DirectoryW};
-
-mod get_system_wow64_directory2;
-pub use get_system_wow64_directory2::{GetSystemWow64Directory2A, GetSystemWow64Directory2W};
-
-mod get_system_windows_directory;
-pub use get_system_windows_directory::{GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW};
-
-mod get_system_directory;
-pub use get_system_directory::{GetSystemDirectoryA, GetSystemDirectoryW};
-
-mod get_string_type;
-pub use get_string_type::{GetStringTypeA, GetStringTypeW};
-
-mod get_process_image_file_name;
-pub use get_process_image_file_name::{GetProcessImageFileNameA, GetProcessImageFileNameW};
-
-mod get_module_file_name_ex;
-pub use get_module_file_name_ex::{GetModuleFileNameExA, GetModuleFileNameExW};
-
-mod get_module_base_name;
-pub use get_module_base_name::{GetModuleBaseNameA, GetModuleBaseNameW};
-
-mod get_mapped_file_name;
-pub use get_mapped_file_name::{GetMappedFileNameA, GetMappedFileNameW};
-
-mod get_long_path_name;
-pub use get_long_path_name::{GetLongPathNameA, GetLongPathNameW};
-
-mod get_locale_info;
-pub use get_locale_info::{GetLocaleInfoA, GetLocaleInfoW};
-
-mod get_gpo_list_internal;
-pub use get_gpo_list_internal::{GetGPOListInternalA, GetGPOListInternalW};
-
-mod get_full_path_name;
-pub use get_full_path_name::{GetFullPathNameA, GetFullPathNameW};
-
-mod get_final_path_name_by_handle;
-pub use get_final_path_name_by_handle::{GetFinalPathNameByHandleA, GetFinalPathNameByHandleW};
-
-mod get_file_version_info_size_ex;
-pub use get_file_version_info_size_ex::{GetFileVersionInfoSizeExA, GetFileVersionInfoSizeExW};
-
-mod get_file_version_info_ex;
-pub use get_file_version_info_ex::{GetFileVersionInfoExA, GetFileVersionInfoExW};
-
-mod get_file_attributes_ex;
-pub use get_file_attributes_ex::{GetFileAttributesExA, GetFileAttributesExW};
-
-mod get_file_attributes;
-pub use get_file_attributes::{GetFileAttributesA, GetFileAttributesW};
-
-mod get_environment_variable;
-pub use get_environment_variable::{GetEnvironmentVariableA, GetEnvironmentVariableW};
-
-mod get_drive_type;
-pub use get_drive_type::{GetDriveTypeA, GetDriveTypeW};
-
-mod get_disk_space_information;
-pub use get_disk_space_information::{GetDiskSpaceInformationA, GetDiskSpaceInformationW};
-
-mod get_disk_free_space_ex;
-pub use get_disk_free_space_ex::{GetDiskFreeSpaceExA, GetDiskFreeSpaceExW};
-
-mod get_device_driver_file_name;
-pub use get_device_driver_file_name::{GetDeviceDriverFileNameA, GetDeviceDriverFileNameW};
-
-mod get_device_driver_base_name;
-pub use get_device_driver_base_name::{GetDeviceDriverBaseNameA, GetDeviceDriverBaseNameW};
-
-mod get_date_format;
-pub use get_date_format::{GetDateFormatA, GetDateFormatW};
-
-mod get_current_directory;
-pub use get_current_directory::{GetCurrentDirectoryA, GetCurrentDirectoryW};
-
-mod get_console_title;
-pub use get_console_title::{GetConsoleTitleA, GetConsoleTitleW};
-
-mod get_console_original_title;
-pub use get_console_original_title::{GetConsoleOriginalTitleA, GetConsoleOriginalTitleW};
-
-mod get_console_input_exe_name;
-pub use get_console_input_exe_name::{GetConsoleInputExeNameA, GetConsoleInputExeNameW};
-
-mod get_console_command_history_length;
-pub use get_console_command_history_length::{
-    GetConsoleCommandHistoryLengthA, GetConsoleCommandHistoryLengthW,
-};
-
-mod get_console_command_history;
-pub use get_console_command_history::{GetConsoleCommandHistoryA, GetConsoleCommandHistoryW};
-
-mod get_console_aliases_length;
-pub use get_console_aliases_length::{GetConsoleAliasesLengthA, GetConsoleAliasesLengthW};
-
-mod get_console_aliases;
-pub use get_console_aliases::{GetConsoleAliasesA, GetConsoleAliasesW};
-
-mod get_console_alias_exes_length;
-pub use get_console_alias_exes_length::{GetConsoleAliasExesLengthA, GetConsoleAliasExesLengthW};
-
-mod get_console_alias_exes;
-pub use get_console_alias_exes::{GetConsoleAliasExesA, GetConsoleAliasExesW};
-
-mod get_console_alias;
-pub use get_console_alias::{GetConsoleAliasA, GetConsoleAliasW};
-
-mod get_computer_name_ex;
-pub use get_computer_name_ex::{GetComputerNameExA, GetComputerNameExW};
-
-mod get_compressed_file_size;
-pub use get_compressed_file_size::{GetCompressedFileSizeA, GetCompressedFileSizeW};
-
-mod get_command_line;
-pub use get_command_line::{GetCommandLineA, GetCommandLineW};
-
-mod get_applied_gpo_list_internal;
-pub use get_applied_gpo_list_internal::{GetAppliedGPOListInternalA, GetAppliedGPOListInternalW};
-
-mod get_accept_languages;
-pub use get_accept_languages::{GetAcceptLanguagesA, GetAcceptLanguagesW};
-
-mod free_gpo_list_internal;
-pub use free_gpo_list_internal::{FreeGPOListInternalA, FreeGPOListInternalW};
-
-mod free_environment_strings;
-pub use free_environment_strings::{FreeEnvironmentStringsA, FreeEnvironmentStringsW};
-
-mod format_message;
-pub use format_message::{FormatMessageA, FormatMessageW};
-
-mod find_next_file;
-pub use find_next_file::{FindNextFileA, FindNextFileW};
-
-mod find_first_file_ex;
-pub use find_first_file_ex::{FindFirstFileExA, FindFirstFileExW};
-
-mod find_first_file;
-pub use find_first_file::{FindFirstFileA, FindFirstFileW};
-
-mod find_first_change_notification;
-pub use find_first_change_notification::{
-    FindFirstChangeNotificationA, FindFirstChangeNotificationW,
-};
-
-mod fill_console_output_character;
-pub use fill_console_output_character::{FillConsoleOutputCharacterA, FillConsoleOutputCharacterW};
-
-mod fatal_app_exit;
-pub use fatal_app_exit::{FatalAppExitA, FatalAppExitW};
-
-mod expunge_console_command_history;
-pub use expunge_console_command_history::{
-    ExpungeConsoleCommandHistoryA, ExpungeConsoleCommandHistoryW,
-};
-
-mod expand_environment_strings;
-pub use expand_environment_strings::{ExpandEnvironmentStringsA, ExpandEnvironmentStringsW};
-
-mod enum_system_locales;
-pub use enum_system_locales::{EnumSystemLocalesA, EnumSystemLocalesW};
-
-mod enum_resource_types_ex;
-pub use enum_resource_types_ex::{EnumResourceTypesExA, EnumResourceTypesExW};
-
-mod enum_resource_names_ex;
-pub use enum_resource_names_ex::{EnumResourceNamesExA, EnumResourceNamesExW};
-
-mod enum_resource_names;
-pub use enum_resource_names::{EnumResourceNamesA, EnumResourceNamesW};
-
-mod enum_resource_languages_ex;
-pub use enum_resource_languages_ex::{EnumResourceLanguagesExA, EnumResourceLanguagesExW};
-
-mod enum_page_files;
-pub use enum_page_files::{EnumPageFilesA, EnumPageFilesW};
-
-mod delete_file;
-pub use delete_file::{DeleteFileA, DeleteFileW};
-
-mod delete_file2;
-pub use delete_file2::{DeleteFile2A, DeleteFile2W};
-
-mod create_process_internal;
-pub use create_process_internal::{CreateProcessInternalA, CreateProcessInternalW};
-
-mod create_process_as_user;
-pub use create_process_as_user::{CreateProcessAsUserA, CreateProcessAsUserW};
-
-mod create_process;
-pub use create_process::{CreateProcessA, CreateProcessW};
-
-mod create_mutex_ex;
-pub use create_mutex_ex::{CreateMutexExA, CreateMutexExW};
-
-mod create_mutex;
-pub use create_mutex::{CreateMutexA, CreateMutexW};
-
-mod create_hard_link;
-pub use create_hard_link::{CreateHardLinkA, CreateHardLinkW};
-
-mod create_event_ex;
-pub use create_event_ex::{CreateEventExA, CreateEventExW};
-
-mod create_event;
-pub use create_event::{CreateEventA, CreateEventW};
-
-mod create_directory;
-pub use create_directory::{CreateDirectoryA, CreateDirectoryW};
-
-mod create_directory2;
-pub use create_directory2::{CreateDirectory2A, CreateDirectory2W};
-
-mod compare_string;
-pub use compare_string::{CompareStringA, CompareStringW};
-
-mod char_upper_buff;
-pub use char_upper_buff::{CharUpperBuffA, CharUpperBuffW};
-
-mod char_upper;
-pub use char_upper::{CharUpperA, CharUpperW};
-
-mod char_lower_buff;
-pub use char_lower_buff::{CharLowerBuffA, CharLowerBuffW};
-
-mod char_lower;
-pub use char_lower::{CharLowerA, CharLowerW};
-
-mod add_console_alias;
-pub use add_console_alias::{AddConsoleAliasA, AddConsoleAliasW};
-
+mod app_policy_get_process_termination_method;
 mod appcompat;
 mod console;
 mod diagnostics;
 mod filesystem;
-mod lc_map_string_ex;
 mod legacy_compat;
 mod library_loader;
 mod memory;
@@ -721,1743 +290,31 @@ mod strings_nls;
 mod sync;
 mod system;
 mod time_date;
-pub use lc_map_string_ex::LCMapStringEx;
-mod app_policy_get_process_termination_method;
 pub use app_policy_get_process_termination_method::AppPolicyGetProcessTerminationMethod;
-mod access_check;
-pub use access_check::AccessCheck;
-mod access_check_and_audit_alarm_w;
-pub use access_check_and_audit_alarm_w::AccessCheckAndAuditAlarmW;
-mod access_check_by_type;
-pub use access_check_by_type::AccessCheckByType;
-mod access_check_by_type_and_audit_alarm_w;
-pub use access_check_by_type_and_audit_alarm_w::AccessCheckByTypeAndAuditAlarmW;
-mod access_check_by_type_result_list;
-pub use access_check_by_type_result_list::AccessCheckByTypeResultList;
-mod access_check_by_type_result_list_and_audit_alarm_by_handle_w;
-pub use access_check_by_type_result_list_and_audit_alarm_by_handle_w::AccessCheckByTypeResultListAndAuditAlarmByHandleW;
-mod access_check_by_type_result_list_and_audit_alarm_w;
-pub use access_check_by_type_result_list_and_audit_alarm_w::AccessCheckByTypeResultListAndAuditAlarmW;
-mod acquire_state_lock;
-pub use acquire_state_lock::AcquireStateLock;
-mod add_access_allowed_ace;
-pub use add_access_allowed_ace::AddAccessAllowedAce;
-mod add_access_allowed_ace_ex;
-pub use add_access_allowed_ace_ex::AddAccessAllowedAceEx;
-mod add_access_allowed_object_ace;
-pub use add_access_allowed_object_ace::AddAccessAllowedObjectAce;
-mod add_access_denied_ace;
-pub use add_access_denied_ace::AddAccessDeniedAce;
-mod add_access_denied_ace_ex;
-pub use add_access_denied_ace_ex::AddAccessDeniedAceEx;
-mod add_access_denied_object_ace;
-pub use add_access_denied_object_ace::AddAccessDeniedObjectAce;
-mod add_ace;
-pub use add_ace::AddAce;
-mod add_audit_access_ace;
-pub use add_audit_access_ace::AddAuditAccessAce;
-mod add_audit_access_ace_ex;
-pub use add_audit_access_ace_ex::AddAuditAccessAceEx;
-mod add_audit_access_object_ace;
-pub use add_audit_access_object_ace::AddAuditAccessObjectAce;
-mod add_dependency_to_process_package_graph;
-pub use add_dependency_to_process_package_graph::AddDependencyToProcessPackageGraph;
-mod add_extension_prog_id;
-pub use add_extension_prog_id::AddExtensionProgId;
-mod add_mandatory_ace;
-pub use add_mandatory_ace::AddMandatoryAce;
-mod add_package_dependency;
-pub use add_package_dependency::AddPackageDependency;
-mod add_package_dependency2;
-pub use add_package_dependency2::AddPackageDependency2;
-mod add_package_name_aliases_by_package_dependency;
-pub use add_package_name_aliases_by_package_dependency::AddPackageNameAliasesByPackageDependency;
-mod add_package_name_aliases_by_package_full_name;
-pub use add_package_name_aliases_by_package_full_name::AddPackageNameAliasesByPackageFullName;
-mod adjust_token_groups;
-pub use adjust_token_groups::AdjustTokenGroups;
-mod adjust_token_privileges;
-pub use adjust_token_privileges::AdjustTokenPrivileges;
-mod allocate_and_initialize_sid;
-pub use allocate_and_initialize_sid::AllocateAndInitializeSid;
-mod allocate_locally_unique_id;
-pub use allocate_locally_unique_id::AllocateLocallyUniqueId;
-mod allocate_user_physical_pages2;
-pub use allocate_user_physical_pages2::AllocateUserPhysicalPages2;
-mod app_container_derive_sid_from_moniker;
-pub use app_container_derive_sid_from_moniker::AppContainerDeriveSidFromMoniker;
-mod app_container_free_memory;
-pub use app_container_free_memory::AppContainerFreeMemory;
-mod app_container_lookup_display_name_mrt_reference;
-pub use app_container_lookup_display_name_mrt_reference::AppContainerLookupDisplayNameMrtReference;
-mod app_container_lookup_moniker;
-pub use app_container_lookup_moniker::AppContainerLookupMoniker;
-mod app_container_register_sid;
-pub use app_container_register_sid::AppContainerRegisterSid;
-mod app_container_unregister_sid;
-pub use app_container_unregister_sid::AppContainerUnregisterSid;
-mod app_x_check_ppl_support;
-pub use app_x_check_ppl_support::AppXCheckPplSupport;
-mod app_x_free_memory;
-pub use app_x_free_memory::AppXFreeMemory;
-mod app_x_get_application_data;
-pub use app_x_get_application_data::AppXGetApplicationData;
-mod app_x_get_development_mode;
-pub use app_x_get_development_mode::AppXGetDevelopmentMode;
-mod app_x_get_os_min_version;
-pub use app_x_get_os_min_version::AppXGetOSMinVersion;
-mod app_x_get_package_capabilities;
-pub use app_x_get_package_capabilities::AppXGetPackageCapabilities;
-mod app_x_get_package_sid;
-pub use app_x_get_package_sid::AppXGetPackageSid;
-mod app_x_lookup_display_name;
-pub use app_x_lookup_display_name::AppXLookupDisplayName;
-mod app_x_lookup_moniker;
-pub use app_x_lookup_moniker::AppXLookupMoniker;
-mod app_x_post_success_extension;
-pub use app_x_post_success_extension::AppXPostSuccessExtension;
-mod app_x_pre_creation_extension;
-pub use app_x_pre_creation_extension::AppXPreCreationExtension;
-mod app_x_release_app_x_context;
-pub use app_x_release_app_x_context::AppXReleaseAppXContext;
-mod app_x_update_package_capabilities;
-pub use app_x_update_package_capabilities::AppXUpdatePackageCapabilities;
-mod application_user_model_id_from_product_id;
-pub use application_user_model_id_from_product_id::ApplicationUserModelIdFromProductId;
-mod are_all_accesses_granted;
-pub use are_all_accesses_granted::AreAllAccessesGranted;
-mod are_any_accesses_granted;
-pub use are_any_accesses_granted::AreAnyAccessesGranted;
-mod are_external_feature_dependencies_enabled;
-pub use are_external_feature_dependencies_enabled::AreExternalFeatureDependenciesEnabled;
-mod are_there_visible_logoff_scripts_internal;
-pub use are_there_visible_logoff_scripts_internal::AreThereVisibleLogoffScriptsInternal;
-mod are_there_visible_shutdown_scripts_internal;
-pub use are_there_visible_shutdown_scripts_internal::AreThereVisibleShutdownScriptsInternal;
-mod arm_feature_usage_subscriber_flush_notification;
-pub use arm_feature_usage_subscriber_flush_notification::ArmFeatureUsageSubscriberFlushNotification;
-mod base_dll_free_resource_id;
-pub use base_dll_free_resource_id::BaseDllFreeResourceId;
-mod base_dll_map_resource_id_w;
-pub use base_dll_map_resource_id_w::BaseDllMapResourceIdW;
-mod base_free_app_compat_data_for_process;
-pub use base_free_app_compat_data_for_process::BaseFreeAppCompatDataForProcess;
-mod base_get_console_reference;
-pub use base_get_console_reference::BaseGetConsoleReference;
-mod base_mark_file_for_delete;
-pub use base_mark_file_for_delete::BaseMarkFileForDelete;
-mod base_read_app_compat_data_for_process;
-pub use base_read_app_compat_data_for_process::BaseReadAppCompatDataForProcess;
-mod basep_adjust_object_attributes_for_private_namespace;
-pub use basep_adjust_object_attributes_for_private_namespace::BasepAdjustObjectAttributesForPrivateNamespace;
-mod basep_copy_file_callback;
-pub use basep_copy_file_callback::BasepCopyFileCallback;
-mod basep_copy_file_ex_w;
-pub use basep_copy_file_ex_w::BasepCopyFileExW;
-mod basep_notify_tracking_service;
-pub use basep_notify_tracking_service::BasepNotifyTrackingService;
-mod close_local_handle_internal;
-pub use close_local_handle_internal::CLOSE_LOCAL_HANDLE_INTERNAL;
-mod call_enclave;
-pub use call_enclave::CallEnclave;
-mod check_group_policy_enabled;
-pub use check_group_policy_enabled::CheckGroupPolicyEnabled;
-mod check_if_state_change_notification_exists;
-pub use check_if_state_change_notification_exists::CheckIfStateChangeNotificationExists;
-mod check_is_msix_package;
-pub use check_is_msix_package::CheckIsMSIXPackage;
-mod check_token_membership;
-pub use check_token_membership::CheckTokenMembership;
-mod chr_cmp_i;
-pub use chr_cmp_i::{ChrCmpIA, ChrCmpIW};
 
-mod close_state_atom;
-pub use close_state_atom::CloseStateAtom;
-mod close_state_change_notification;
-pub use close_state_change_notification::CloseStateChangeNotification;
-mod close_state_container;
-pub use close_state_container::CloseStateContainer;
-mod close_state_lock;
-pub use close_state_lock::CloseStateLock;
-mod command_line_to_argv_w;
-pub use command_line_to_argv_w::CommandLineToArgvW;
-mod commit_state_atom;
-pub use commit_state_atom::CommitStateAtom;
-mod compare_object_handles;
-pub use compare_object_handles::CompareObjectHandles;
-mod convert_auxiliary_counter_to_performance_counter;
-pub use convert_auxiliary_counter_to_performance_counter::ConvertAuxiliaryCounterToPerformanceCounter;
-mod convert_performance_counter_to_auxiliary_counter;
-pub use convert_performance_counter_to_auxiliary_counter::ConvertPerformanceCounterToAuxiliaryCounter;
-mod convert_to_auto_inherit_private_object_security;
-pub use convert_to_auto_inherit_private_object_security::ConvertToAutoInheritPrivateObjectSecurity;
-mod copy_file_from_app_w;
-pub use copy_file_from_app_w::CopyFileFromAppW;
-mod copy_memory_non_temporal;
-pub use copy_memory_non_temporal::CopyMemoryNonTemporal;
-mod copy_sid;
-pub use copy_sid::CopySid;
-mod could_multi_user_apps_behavior_be_possible_for_package;
-pub use could_multi_user_apps_behavior_be_possible_for_package::CouldMultiUserAppsBehaviorBePossibleForPackage;
-mod create_app_container_token;
-pub use create_app_container_token::CreateAppContainerToken;
-mod create_app_silo_token;
-pub use create_app_silo_token::CreateAppSiloToken;
-mod create_directory_from_app_w;
-pub use create_directory_from_app_w::CreateDirectoryFromAppW;
-mod create_file2_from_app_w;
-pub use create_file2_from_app_w::CreateFile2FromAppW;
-mod create_file_from_app_w;
-pub use create_file_from_app_w::CreateFileFromAppW;
-mod create_file_mapping2;
-pub use create_file_mapping2::CreateFileMapping2;
-mod create_private_object_security;
-pub use create_private_object_security::CreatePrivateObjectSecurity;
-mod create_private_object_security_ex;
-pub use create_private_object_security_ex::CreatePrivateObjectSecurityEx;
-mod create_private_object_security_with_multiple_inheritance;
-pub use create_private_object_security_with_multiple_inheritance::CreatePrivateObjectSecurityWithMultipleInheritance;
-mod create_pseudo_console_as_user;
-pub use create_pseudo_console_as_user::CreatePseudoConsoleAsUser;
-mod create_restricted_token;
-pub use create_restricted_token::CreateRestrictedToken;
-mod create_state_atom;
-pub use create_state_atom::CreateStateAtom;
-mod create_state_change_notification;
-pub use create_state_change_notification::CreateStateChangeNotification;
-mod create_state_container;
-pub use create_state_container::CreateStateContainer;
-mod create_state_lock;
-pub use create_state_lock::CreateStateLock;
-mod create_state_subcontainer;
-pub use create_state_subcontainer::CreateStateSubcontainer;
-mod create_well_known_sid;
-pub use create_well_known_sid::CreateWellKnownSid;
-mod cve_event_write;
-pub use cve_event_write::CveEventWrite;
-mod decode_remote_pointer;
-pub use decode_remote_pointer::DecodeRemotePointer;
-mod delay_load_failure_hook_lookup;
-pub use delay_load_failure_hook_lookup::DelayLoadFailureHookLookup;
-mod delete_ace;
-pub use delete_ace::DeleteAce;
-mod delete_enclave;
-pub use delete_enclave::DeleteEnclave;
-mod delete_file_from_app_w;
-pub use delete_file_from_app_w::DeleteFileFromAppW;
-mod delete_package_dependency;
-pub use delete_package_dependency::DeletePackageDependency;
-mod delete_persisted_registry_value;
-pub use delete_persisted_registry_value::DeletePersistedRegistryValue;
-mod delete_state_atom_value;
-pub use delete_state_atom_value::DeleteStateAtomValue;
-mod delete_state_container;
-pub use delete_state_container::DeleteStateContainer;
-mod delete_state_container_value;
-pub use delete_state_container_value::DeleteStateContainerValue;
-mod derive_capability_sids_from_name;
-pub use derive_capability_sids_from_name::DeriveCapabilitySidsFromName;
-mod destroy_private_object_security;
-pub use destroy_private_object_security::DestroyPrivateObjectSecurity;
-mod disable_predefined_handle_table_internal;
-pub use disable_predefined_handle_table_internal::DisablePredefinedHandleTableInternal;
-mod ds_bind_with_spn_ex_w;
-pub use ds_bind_with_spn_ex_w::DsBindWithSpnExW;
-mod ds_crack_names_w;
-pub use ds_crack_names_w::DsCrackNamesW;
-mod ds_free_domain_controller_info_w;
-pub use ds_free_domain_controller_info_w::DsFreeDomainControllerInfoW;
-mod ds_free_name_result_w;
-pub use ds_free_name_result_w::DsFreeNameResultW;
-mod ds_free_ngc_key;
-pub use ds_free_ngc_key::DsFreeNgcKey;
-mod ds_free_password_credentials;
-pub use ds_free_password_credentials::DsFreePasswordCredentials;
-mod ds_get_domain_controller_info_w;
-pub use ds_get_domain_controller_info_w::DsGetDomainControllerInfoW;
-mod ds_make_password_credentials_w;
-pub use ds_make_password_credentials_w::DsMakePasswordCredentialsW;
-mod ds_read_ngc_key_w;
-pub use ds_read_ngc_key_w::DsReadNgcKeyW;
-mod ds_un_bind_w;
-pub use ds_un_bind_w::DsUnBindW;
-mod ds_write_ngc_key_w;
-pub use ds_write_ngc_key_w::DsWriteNgcKeyW;
-mod duplicate_state_container_handle;
-pub use duplicate_state_container_handle::DuplicateStateContainerHandle;
-mod duplicate_token;
-pub use duplicate_token::DuplicateToken;
-mod duplicate_token_ex;
-pub use duplicate_token_ex::DuplicateTokenEx;
-mod empty_working_set;
-pub use empty_working_set::EmptyWorkingSet;
-mod encode_remote_pointer;
-pub use encode_remote_pointer::EncodeRemotePointer;
-mod enter_critical_policy_section_internal;
-pub use enter_critical_policy_section_internal::EnterCriticalPolicySectionInternal;
-mod enum_device_drivers;
-pub use enum_device_drivers::EnumDeviceDrivers;
-mod enum_dynamic_time_zone_information;
-pub use enum_dynamic_time_zone_information::EnumDynamicTimeZoneInformation;
-mod enum_process_modules;
-pub use enum_process_modules::EnumProcessModules;
-mod enum_process_modules_ex;
-pub use enum_process_modules_ex::EnumProcessModulesEx;
-mod enum_processes;
-pub use enum_processes::EnumProcesses;
-mod enumerate_extension_names;
-pub use enumerate_extension_names::EnumerateExtensionNames;
-mod enumerate_state_atom_values;
-pub use enumerate_state_atom_values::EnumerateStateAtomValues;
-mod enumerate_state_container_items;
-pub use enumerate_state_container_items::EnumerateStateContainerItems;
-mod equal_domain_sid;
-pub use equal_domain_sid::EqualDomainSid;
-mod equal_prefix_sid;
-pub use equal_prefix_sid::EqualPrefixSid;
-mod equal_sid;
-pub use equal_sid::EqualSid;
-mod event_activity_id_control;
-pub use event_activity_id_control::EventActivityIdControl;
-mod event_provider_enabled;
-pub use event_provider_enabled::EventProviderEnabled;
 mod event_unregister;
 pub use event_unregister::EventUnregister;
-mod event_write;
-pub use event_write::EventWrite;
-mod event_write_ex;
-pub use event_write_ex::EventWriteEx;
-mod event_write_string;
-pub use event_write_string::EventWriteString;
-mod extension_prog_id_exists;
-pub use extension_prog_id_exists::ExtensionProgIdExists;
-mod find_first_file_ex_from_app_w;
-pub use find_first_file_ex_from_app_w::FindFirstFileExFromAppW;
-mod find_first_free_ace;
-pub use find_first_free_ace::FindFirstFreeAce;
-mod find_package_dependency;
-pub use find_package_dependency::FindPackageDependency;
-mod force_sync_fg_policy_internal;
-pub use force_sync_fg_policy_internal::ForceSyncFgPolicyInternal;
-mod format_application_user_model_id_a;
-pub use format_application_user_model_id_a::FormatApplicationUserModelIdA;
-mod free_sid;
-pub use free_sid::FreeSid;
-mod generate_gp_notification_internal;
-pub use generate_gp_notification_internal::GenerateGPNotificationInternal;
-mod get_ace;
-pub use get_ace::GetAce;
-mod get_acl_information;
-pub use get_acl_information::GetAclInformation;
-mod get_adjust_object_attributes_for_private_namespace_routine;
-pub use get_adjust_object_attributes_for_private_namespace_routine::GetAdjustObjectAttributesForPrivateNamespaceRoutine;
-mod get_alternate_package_roots;
-pub use get_alternate_package_roots::GetAlternatePackageRoots;
-mod get_api_set_module_base_name;
-pub use get_api_set_module_base_name::GetApiSetModuleBaseName;
-mod get_app_data_folder;
-pub use get_app_data_folder::GetAppDataFolder;
-mod get_app_model_version;
-pub use get_app_model_version::GetAppModelVersion;
-mod get_application_user_model_id_from_token;
-pub use get_application_user_model_id_from_token::GetApplicationUserModelIdFromToken;
-mod get_cp_file_name_from_registry;
-pub use get_cp_file_name_from_registry::GetCPFileNameFromRegistry;
-mod get_cp_hash_node;
-pub use get_cp_hash_node::GetCPHashNode;
-mod get_calendar;
-pub use get_calendar::GetCalendar;
-mod get_comm_ports;
-pub use get_comm_ports::GetCommPorts;
-mod get_current_package_application_context;
-pub use get_current_package_application_context::GetCurrentPackageApplicationContext;
-mod get_current_package_application_resources_context;
-pub use get_current_package_application_resources_context::GetCurrentPackageApplicationResourcesContext;
-mod get_current_package_context;
-pub use get_current_package_context::GetCurrentPackageContext;
-mod get_current_package_globalization_context;
-pub use get_current_package_globalization_context::GetCurrentPackageGlobalizationContext;
-mod get_current_package_info2;
-pub use get_current_package_info2::GetCurrentPackageInfo2;
-mod get_current_package_info3;
-pub use get_current_package_info3::GetCurrentPackageInfo3;
-mod get_current_package_info_package_name_aliases;
-pub use get_current_package_info_package_name_aliases::GetCurrentPackageInfo_PackageNameAliases;
-mod get_current_package_path2;
-pub use get_current_package_path2::GetCurrentPackagePath2;
-mod get_current_package_resources_context;
-pub use get_current_package_resources_context::GetCurrentPackageResourcesContext;
-mod get_current_package_security_context;
-pub use get_current_package_security_context::GetCurrentPackageSecurityContext;
-mod get_current_target_platform_context;
-pub use get_current_target_platform_context::GetCurrentTargetPlatformContext;
-mod get_developer_drive_enablement_state;
-pub use get_developer_drive_enablement_state::GetDeveloperDriveEnablementState;
-mod get_disk_space_information_wcos;
-pub use get_disk_space_information_wcos::GetDiskSpaceInformationWCOS;
-mod get_dynamic_time_zone_information_effective_years;
-pub use get_dynamic_time_zone_information_effective_years::GetDynamicTimeZoneInformationEffectiveYears;
-mod get_effective_package_status_for_user;
-pub use get_effective_package_status_for_user::GetEffectivePackageStatusForUser;
-mod get_effective_package_status_for_user_sid;
-pub use get_effective_package_status_for_user_sid::GetEffectivePackageStatusForUserSid;
-mod get_eight_bit_string_to_unicode_size_routine;
-pub use get_eight_bit_string_to_unicode_size_routine::GetEightBitStringToUnicodeSizeRoutine;
-mod get_eight_bit_string_to_unicode_string_routine;
-pub use get_eight_bit_string_to_unicode_string_routine::GetEightBitStringToUnicodeStringRoutine;
-mod get_extension_application_user_model_id;
-pub use get_extension_application_user_model_id::GetExtensionApplicationUserModelId;
-mod get_extension_prog_ids;
-pub use get_extension_prog_ids::GetExtensionProgIds;
-mod get_extension_property;
-pub use get_extension_property::GetExtensionProperty;
-mod get_extension_property2;
-pub use get_extension_property2::GetExtensionProperty2;
-mod get_fallback_display_name;
-pub use get_fallback_display_name::GetFallbackDisplayName;
-mod get_feature_toggle_configuration;
-pub use get_feature_toggle_configuration::GetFeatureToggleConfiguration;
-mod get_feature_toggles_change_token;
-pub use get_feature_toggles_change_token::GetFeatureTogglesChangeToken;
-mod get_file_attributes_ex_from_app_w;
-pub use get_file_attributes_ex_from_app_w::GetFileAttributesExFromAppW;
-mod get_file_security_w;
-pub use get_file_security_w::GetFileSecurityW;
-mod get_file_version_info_by_handle;
-pub use get_file_version_info::GetFileVersionInfoW;
-pub use get_file_version_info_by_handle::GetFileVersionInfoByHandle;
-pub use get_file_version_info_size::GetFileVersionInfoSizeW;
-mod get_gaming_device_model_information;
-pub use get_gaming_device_model_information::GetGamingDeviceModelInformation;
-mod get_hive_path;
-pub use get_hive_path::GetHivePath;
-mod get_id_for_package_dependency_context;
-pub use get_id_for_package_dependency_context::GetIdForPackageDependencyContext;
-mod get_integrated_display_size;
-pub use get_integrated_display_size::GetIntegratedDisplaySize;
-mod get_is_edp_enabled;
-pub use get_is_edp_enabled::GetIsEdpEnabled;
-mod get_is_wdag_enabled;
-pub use get_is_wdag_enabled::GetIsWdagEnabled;
-mod get_kernel_object_security;
-pub use get_kernel_object_security::GetKernelObjectSecurity;
-mod get_length_sid;
-pub use get_length_sid::GetLengthSid;
-mod get_locale_info_helper;
-pub use get_locale_info_helper::GetLocaleInfoHelper;
-mod get_memory_numa_closest_initiator_node;
-pub use get_memory_numa_closest_initiator_node::GetMemoryNumaClosestInitiatorNode;
-mod get_memory_numa_performance_information;
-pub use get_memory_numa_performance_information::GetMemoryNumaPerformanceInformation;
-mod get_module_information;
-pub use get_module_information::GetModuleInformation;
-mod get_named_locale_hash_node;
-pub use get_named_locale_hash_node::GetNamedLocaleHashNode;
-mod get_next_fg_policy_refresh_info_internal;
-pub use get_next_fg_policy_refresh_info_internal::GetNextFgPolicyRefreshInfoInternal;
-mod get_os_manufacturing_mode;
-pub use get_os_manufacturing_mode::GetOsManufacturingMode;
-mod get_os_safe_boot_mode;
-pub use get_os_safe_boot_mode::GetOsSafeBootMode;
-mod get_package_application_context;
-pub use get_package_application_context::GetPackageApplicationContext;
-mod get_package_application_property;
-pub use get_package_application_property::GetPackageApplicationProperty;
-mod get_package_application_property_string;
-pub use get_package_application_property_string::GetPackageApplicationPropertyString;
-mod get_package_application_resources_context;
-pub use get_package_application_resources_context::GetPackageApplicationResourcesContext;
-mod get_package_context;
-pub use get_package_context::GetPackageContext;
-mod get_package_dependency_information;
-pub use get_package_dependency_information::GetPackageDependencyInformation;
-mod get_package_family_name_from_file_path;
-pub use get_package_family_name_from_file_path::GetPackageFamilyNameFromFilePath;
-mod get_package_family_name_from_prog_id;
-pub use get_package_family_name_from_prog_id::GetPackageFamilyNameFromProgId;
-mod get_package_family_name_from_token;
-pub use get_package_family_name_from_token::GetPackageFamilyNameFromToken;
-mod get_package_full_name_from_token;
-pub use get_package_full_name_from_token::GetPackageFullNameFromToken;
-mod get_package_globalization_context;
-pub use get_package_globalization_context::GetPackageGlobalizationContext;
-mod get_package_globalization_property;
-pub use get_package_globalization_property::GetPackageGlobalizationProperty;
-mod get_package_graph_revision_id;
-pub use get_package_graph_revision_id::GetPackageGraphRevisionId;
-mod get_package_info2;
-pub use get_package_info2::GetPackageInfo2;
-mod get_package_info3;
-pub use get_package_info3::GetPackageInfo3;
-mod get_package_name_aliases_by_package_full_name;
-pub use get_package_name_aliases_by_package_full_name::GetPackageNameAliasesByPackageFullName;
-mod get_package_os_max_version_tested;
-pub use get_package_os_max_version_tested::GetPackageOSMaxVersionTested;
-mod get_package_path_by_full_name2;
-pub use get_package_path_by_full_name2::GetPackagePathByFullName2;
-mod get_package_path_on_volume;
-pub use get_package_path_on_volume::GetPackagePathOnVolume;
-mod get_package_property;
-pub use get_package_property::GetPackageProperty;
-mod get_package_property_string;
-pub use get_package_property_string::GetPackagePropertyString;
-mod get_package_resources_context;
-pub use get_package_resources_context::GetPackageResourcesContext;
-mod get_package_resources_property;
-pub use get_package_resources_property::GetPackageResourcesProperty;
-mod get_package_security_context;
-pub use get_package_security_context::GetPackageSecurityContext;
-mod get_package_security_property;
-pub use get_package_security_property::GetPackageSecurityProperty;
-mod get_package_status;
-pub use get_package_status::GetPackageStatus;
-mod get_package_status_for_user;
-pub use get_package_status_for_user::GetPackageStatusForUser;
-mod get_package_status_for_user_sid;
-pub use get_package_status_for_user_sid::GetPackageStatusForUserSid;
-mod get_package_target_platform_property;
-pub use get_package_target_platform_property::GetPackageTargetPlatformProperty;
-mod get_package_volume_sis_path;
-pub use get_package_volume_sis_path::GetPackageVolumeSisPath;
-mod get_packaged_data_for_file;
-pub use get_packaged_data_for_file::GetPackagedDataForFile;
-mod get_performance_info;
-pub use get_performance_info::GetPerformanceInfo;
-mod get_persisted_file_location_w;
-pub use get_persisted_file_location_w::GetPersistedFileLocationW;
-mod get_persisted_registry_location_w;
-pub use get_persisted_registry_location_w::GetPersistedRegistryLocationW;
-mod get_persisted_registry_value_w;
-pub use get_persisted_registry_value_w::GetPersistedRegistryValueW;
-mod get_previous_fg_policy_refresh_info_internal;
-pub use get_previous_fg_policy_refresh_info_internal::GetPreviousFgPolicyRefreshInfoInternal;
-mod get_private_object_security;
-pub use get_private_object_security::GetPrivateObjectSecurity;
-mod get_proc_address_for_caller;
-pub use get_proc_address_for_caller::GetProcAddressForCaller;
-mod get_process_memory_info;
-pub use get_process_memory_info::GetProcessMemoryInfo;
-mod get_processes_using_package_dependency;
-pub use get_processes_using_package_dependency::GetProcessesUsingPackageDependency;
-mod get_protocol_aumid;
-pub use get_protocol_aumid::GetProtocolAumid;
-mod get_protocol_property;
-pub use get_protocol_property::GetProtocolProperty;
-mod get_ptr_cal_data;
-pub use get_ptr_cal_data::GetPtrCalData;
-mod get_ptr_cal_data_array;
-pub use get_ptr_cal_data_array::GetPtrCalDataArray;
-mod get_publisher_cache_folder;
-pub use get_publisher_cache_folder::GetPublisherCacheFolder;
-mod get_publisher_root_folder;
-pub use get_publisher_root_folder::GetPublisherRootFolder;
-mod get_registry_extension_flags;
-pub use get_registry_extension_flags::GetRegistryExtensionFlags;
-mod get_registry_value_with_fallback_w;
-pub use get_registry_value_with_fallback_w::GetRegistryValueWithFallbackW;
-mod get_resolved_package_full_name_for_package_dependency;
-pub use get_resolved_package_full_name_for_package_dependency::GetResolvedPackageFullNameForPackageDependency;
-mod get_resolved_package_full_name_for_package_dependency2;
-pub use get_resolved_package_full_name_for_package_dependency2::GetResolvedPackageFullNameForPackageDependency2;
-mod get_roaming_last_observed_change_time;
-pub use get_roaming_last_observed_change_time::GetRoamingLastObservedChangeTime;
-mod get_runtime_attestation_report;
-pub use get_runtime_attestation_report::GetRuntimeAttestationReport;
-mod get_secure_system_app_data_folder;
-pub use get_secure_system_app_data_folder::GetSecureSystemAppDataFolder;
-mod get_security_descriptor_control;
-pub use get_security_descriptor_control::GetSecurityDescriptorControl;
-mod get_security_descriptor_dacl;
-pub use get_security_descriptor_dacl::GetSecurityDescriptorDacl;
-mod get_security_descriptor_group;
-pub use get_security_descriptor_group::GetSecurityDescriptorGroup;
-mod get_security_descriptor_length;
-pub use get_security_descriptor_length::GetSecurityDescriptorLength;
-mod get_security_descriptor_owner;
-pub use get_security_descriptor_owner::GetSecurityDescriptorOwner;
-mod get_security_descriptor_rm_control;
-pub use get_security_descriptor_rm_control::GetSecurityDescriptorRMControl;
-mod get_security_descriptor_sacl;
-pub use get_security_descriptor_sacl::GetSecurityDescriptorSacl;
-mod get_serialized_atom_bytes;
-pub use get_serialized_atom_bytes::GetSerializedAtomBytes;
-mod get_shared_local_folder;
-pub use get_shared_local_folder::GetSharedLocalFolder;
-mod get_sid_identifier_authority;
-pub use get_sid_identifier_authority::GetSidIdentifierAuthority;
-mod get_sid_length_required;
-pub use get_sid_length_required::GetSidLengthRequired;
-mod get_sid_sub_authority;
-pub use get_sid_sub_authority::GetSidSubAuthority;
-mod get_sid_sub_authority_count;
-pub use get_sid_sub_authority_count::GetSidSubAuthorityCount;
-mod get_staged_package_origin;
-pub use get_staged_package_origin::GetStagedPackageOrigin;
-mod get_staged_package_path_by_full_name2;
-pub use get_staged_package_path_by_full_name2::GetStagedPackagePathByFullName2;
-mod get_state_container_depth;
-pub use get_state_container_depth::GetStateContainerDepth;
-mod get_state_root_folder;
-pub use get_state_root_folder::GetStateRootFolder;
-mod get_state_root_folder_base;
-pub use get_state_root_folder_base::GetStateRootFolderBase;
-mod get_state_settings_folder;
-pub use get_state_settings_folder::GetStateSettingsFolder;
-mod get_state_version;
-pub use get_state_version::GetStateVersion;
-mod get_string_table_entry;
-pub use get_string_table_entry::GetStringTableEntry;
-mod get_system_app_data_folder;
-pub use get_system_app_data_folder::GetSystemAppDataFolder;
-mod get_system_leap_second_information;
-pub use get_system_leap_second_information::GetSystemLeapSecondInformation;
-mod get_system_metadata_path;
-pub use get_system_metadata_path::GetSystemMetadataPath;
-mod get_system_metadata_path_for_package;
-pub use get_system_metadata_path_for_package::GetSystemMetadataPathForPackage;
-mod get_system_metadata_path_for_package_family;
-pub use get_system_metadata_path_for_package_family::GetSystemMetadataPathForPackageFamily;
-mod get_system_state_root_folder;
-pub use get_system_state_root_folder::GetSystemStateRootFolder;
-mod get_system_time_adjustment_precise;
-pub use get_system_time_adjustment_precise::GetSystemTimeAdjustmentPrecise;
-mod get_target_platform_context;
-pub use get_target_platform_context::GetTargetPlatformContext;
-mod get_trace_enable_flags;
-pub use get_trace_enable_flags::GetTraceEnableFlags;
-mod get_trace_enable_level;
-pub use get_trace_enable_level::GetTraceEnableLevel;
-mod get_trace_logger_handle;
-pub use get_trace_logger_handle::GetTraceLoggerHandle;
-mod get_unicode_string_to_eight_bit_size_routine;
-pub use get_unicode_string_to_eight_bit_size_routine::GetUnicodeStringToEightBitSizeRoutine;
-mod get_unicode_string_to_eight_bit_string_routine;
-pub use get_unicode_string_to_eight_bit_string_routine::GetUnicodeStringToEightBitStringRoutine;
-mod get_user_info;
-pub use get_user_info::GetUserInfo;
-mod get_user_info_word;
-pub use get_user_info_word::GetUserInfoWord;
-mod get_user_override_string;
-pub use get_user_override_string::GetUserOverrideString;
-mod get_user_override_word;
-pub use get_user_override_word::GetUserOverrideWord;
-mod get_windows_account_domain_sid;
-pub use get_windows_account_domain_sid::GetWindowsAccountDomainSid;
-mod get_ws_changes;
-pub use get_ws_changes::GetWsChanges;
-mod get_ws_changes_ex;
-pub use get_ws_changes_ex::GetWsChangesEx;
-mod guard_check_long_jump_target;
-pub use guard_check_long_jump_target::GuardCheckLongJumpTarget;
-mod has_policy_foreground_processing_completed_internal;
-pub use has_policy_foreground_processing_completed_internal::HasPolicyForegroundProcessingCompletedInternal;
-mod hash_data;
-pub use hash_data::HashData;
-mod impersonate_anonymous_token;
-pub use impersonate_anonymous_token::ImpersonateAnonymousToken;
-mod impersonate_logged_on_user;
-pub use impersonate_logged_on_user::ImpersonateLoggedOnUser;
-mod impersonate_named_pipe_client;
-pub use impersonate_named_pipe_client::ImpersonateNamedPipeClient;
-mod impersonate_self;
-pub use impersonate_self::ImpersonateSelf;
-mod increment_package_status_version;
-pub use increment_package_status_version::IncrementPackageStatusVersion;
-mod initialize_acl;
-pub use initialize_acl::InitializeAcl;
-mod initialize_process_for_ws_watch;
-pub use initialize_process_for_ws_watch::InitializeProcessForWsWatch;
-mod initialize_security_descriptor;
-pub use initialize_security_descriptor::InitializeSecurityDescriptor;
-mod initialize_sid;
-pub use initialize_sid::InitializeSid;
-mod internal_lcid_to_name;
-pub use internal_lcid_to_name::InternalLcidToName;
-mod internal_enum_calendar_info;
-pub use internal_enum_calendar_info::Internal_EnumCalendarInfo;
-mod internal_enum_date_formats;
-pub use internal_enum_date_formats::Internal_EnumDateFormats;
-mod internal_enum_language_group_locales;
-pub use internal_enum_language_group_locales::Internal_EnumLanguageGroupLocales;
-mod internal_enum_system_code_pages;
-pub use internal_enum_system_code_pages::Internal_EnumSystemCodePages;
-mod internal_enum_system_language_groups;
-pub use internal_enum_system_language_groups::Internal_EnumSystemLanguageGroups;
-mod internal_enum_system_locales;
-pub use internal_enum_system_locales::Internal_EnumSystemLocales;
-mod internal_enum_time_formats;
-pub use internal_enum_time_formats::Internal_EnumTimeFormats;
-mod internal_enum_ui_languages;
-pub use internal_enum_ui_languages::Internal_EnumUILanguages;
-mod invalidate_app_model_version_cache;
-pub use invalidate_app_model_version_cache::InvalidateAppModelVersionCache;
-mod is_api_set_implemented;
-pub use is_api_set_implemented::IsApiSetImplemented;
-mod is_char_blank_w;
-pub use is_char_blank_w::IsCharBlankW;
-mod is_char_cntrl_w;
-pub use is_char_cntrl_w::IsCharCntrlW;
-mod is_char_digit_w;
-pub use is_char_digit_w::IsCharDigitW;
-mod is_char_punct_w;
-pub use is_char_punct_w::IsCharPunctW;
-mod is_char_x_digit_w;
-pub use is_char_x_digit_w::IsCharXDigitW;
-mod is_developer_mode_enabled;
-pub use is_developer_mode_enabled::IsDeveloperModeEnabled;
-mod is_developer_mode_policy_applied;
-pub use is_developer_mode_policy_applied::IsDeveloperModePolicyApplied;
-mod is_internet_esc_enabled;
-pub use is_internet_esc_enabled::IsInternetESCEnabled;
-mod is_mrt_resource_redirection_enabled;
-pub use is_mrt_resource_redirection_enabled::IsMrtResourceRedirectionEnabled;
-mod is_on_demand_registration_supported_for_extension_category;
-pub use is_on_demand_registration_supported_for_extension_category::IsOnDemandRegistrationSupportedForExtensionCategory;
-mod is_sideloading_enabled;
-pub use is_sideloading_enabled::IsSideloadingEnabled;
-mod is_sideloading_policy_applied;
-pub use is_sideloading_policy_applied::IsSideloadingPolicyApplied;
-mod is_sync_foreground_policy_refresh;
-pub use is_sync_foreground_policy_refresh::IsSyncForegroundPolicyRefresh;
-mod is_time_zone_redirection_enabled;
-pub use is_time_zone_redirection_enabled::IsTimeZoneRedirectionEnabled;
-mod is_token_restricted;
-pub use is_token_restricted::IsTokenRestricted;
-mod is_valid_acl;
-pub use is_valid_acl::IsValidAcl;
-mod is_valid_relative_security_descriptor;
-pub use is_valid_relative_security_descriptor::IsValidRelativeSecurityDescriptor;
-mod is_valid_security_descriptor;
-pub use is_valid_security_descriptor::IsValidSecurityDescriptor;
-mod is_valid_sid;
-pub use is_valid_sid::IsValidSid;
-mod is_well_known_sid;
-pub use is_well_known_sid::IsWellKnownSid;
-mod kernel_base_get_global_data;
-pub use kernel_base_get_global_data::KernelBaseGetGlobalData;
-mod kernelbase_post_init;
-pub use kernelbase_post_init::KernelbasePostInit;
-mod leave_critical_policy_section_internal;
-pub use leave_critical_policy_section_internal::LeaveCriticalPolicySectionInternal;
-mod load_string_by_reference;
-pub use load_string_by_reference::LoadStringByReference;
-mod log_staged_feature_usage;
-pub use log_staged_feature_usage::LogStagedFeatureUsage;
-mod make_absolute_sd;
-pub use make_absolute_sd::MakeAbsoluteSD;
-mod make_absolute_sd2;
-pub use make_absolute_sd2::MakeAbsoluteSD2;
-mod make_self_relative_sd;
-pub use make_self_relative_sd::MakeSelfRelativeSD;
-mod map_generic_mask;
-pub use map_generic_mask::MapGenericMask;
-mod map_predefined_handle_internal;
-pub use map_predefined_handle_internal::MapPredefinedHandleInternal;
-mod map_view_of_file3;
-pub use map_view_of_file3::MapViewOfFile3;
-mod map_view_of_file3_from_app;
-pub use map_view_of_file3_from_app::MapViewOfFile3FromApp;
-mod map_view_of_file_numa2;
-pub use map_view_of_file_numa2::MapViewOfFileNuma2;
-mod move_file_from_app_w;
-pub use move_file_from_app_w::MoveFileFromAppW;
-mod move_file_with_progress_transacted_w;
-pub use move_file_with_progress_transacted_w::MoveFileWithProgressTransactedW;
-mod msix_is_system_package_by_app_user_model_id;
-pub use msix_is_system_package_by_app_user_model_id::MsixIsSystemPackageByAppUserModelId;
-mod msix_is_system_package_by_package_full_name;
-pub use msix_is_system_package_by_package_full_name::MsixIsSystemPackageByPackageFullName;
-mod named_pipe_event_enum;
-pub use named_pipe_event_enum::NamedPipeEventEnum;
-mod named_pipe_event_select;
-pub use named_pipe_event_select::NamedPipeEventSelect;
-mod nls_dispatch_ansi_enum_proc;
-pub use nls_dispatch_ansi_enum_proc::NlsDispatchAnsiEnumProc;
-mod nls_get_acp_from_locale;
-pub use nls_get_acp_from_locale::NlsGetACPFromLocale;
-mod nls_is_user_default_locale;
-pub use nls_is_user_default_locale::NlsIsUserDefaultLocale;
-mod nls_validate_locale;
-pub use nls_validate_locale::NlsValidateLocale;
-mod notify_feature_toggle_usage;
-pub use notify_feature_toggle_usage::NotifyFeatureToggleUsage;
-mod notify_redirected_string_change;
-pub use notify_redirected_string_change::NotifyRedirectedStringChange;
-mod object_close_audit_alarm_w;
-pub use object_close_audit_alarm_w::ObjectCloseAuditAlarmW;
-mod object_delete_audit_alarm_w;
-pub use object_delete_audit_alarm_w::ObjectDeleteAuditAlarmW;
-mod object_open_audit_alarm_w;
-pub use object_open_audit_alarm_w::ObjectOpenAuditAlarmW;
-mod object_privilege_audit_alarm_w;
-pub use object_privilege_audit_alarm_w::ObjectPrivilegeAuditAlarmW;
-mod open_comm_port;
-pub use open_comm_port::OpenCommPort;
-mod open_dedicated_memory_partition;
-pub use open_dedicated_memory_partition::OpenDedicatedMemoryPartition;
+
 mod open_file_mapping_from_app;
 pub use open_file_mapping_from_app::OpenFileMappingFromApp;
-mod open_globalization_user_settings_key;
-pub use open_globalization_user_settings_key::OpenGlobalizationUserSettingsKey;
-mod open_package_info_by_full_name_for_machine;
-pub use open_package_info_by_full_name_for_machine::OpenPackageInfoByFullNameForMachine;
-mod open_package_info_by_full_name_for_user;
-pub use open_package_info_by_full_name_for_user::OpenPackageInfoByFullNameForUser;
-mod open_reg_key;
-pub use open_reg_key::OpenRegKey;
-mod open_state_atom;
-pub use open_state_atom::OpenStateAtom;
-mod open_state_explicit_for_user_sid;
-pub use open_state_explicit_for_user_sid::OpenStateExplicitForUserSid;
-mod open_state_explicit_for_user_sid_string;
-pub use open_state_explicit_for_user_sid_string::OpenStateExplicitForUserSidString;
-mod override_roaming_data_modification_times_in_range;
-pub use override_roaming_data_modification_times_in_range::OverrideRoamingDataModificationTimesInRange;
-mod package_family_name_from_full_name_a;
-pub use package_family_name_from_full_name_a::PackageFamilyNameFromFullNameA;
-mod package_family_name_from_id_a;
-pub use package_family_name_from_id_a::PackageFamilyNameFromIdA;
-mod package_family_name_from_product_id;
-pub use package_family_name_from_product_id::PackageFamilyNameFromProductId;
-mod package_full_name_from_id_a;
-pub use package_full_name_from_id_a::PackageFullNameFromIdA;
-mod package_full_name_from_product_id;
-pub use package_full_name_from_product_id::PackageFullNameFromProductId;
-mod package_id_from_full_name_a;
-pub use package_id_from_full_name_a::PackageIdFromFullNameA;
-mod package_id_from_product_id;
-pub use package_id_from_product_id::PackageIdFromProductId;
-mod package_is_effective_supported_users_multiple;
-pub use package_is_effective_supported_users_multiple::PackageIsEffectiveSupportedUsersMultiple;
-mod package_name_and_publisher_id_from_family_name_a;
-pub use package_name_and_publisher_id_from_family_name_a::PackageNameAndPublisherIdFromFamilyNameA;
-mod package_publisher_add_user_if_necessary;
-pub use package_publisher_add_user_if_necessary::PackagePublisherAddUserIfNecessary;
-mod package_publisher_id_from_publisher;
-pub use package_publisher_id_from_publisher::PackagePublisherIdFromPublisher;
-mod package_relative_application_id_from_product_id;
-pub use package_relative_application_id_from_product_id::PackageRelativeApplicationIdFromProductId;
-mod package_sid_from_family_name;
-pub use package_sid_from_family_name::PackageSidFromFamilyName;
-mod package_sid_from_product_id;
-pub use package_sid_from_product_id::PackageSidFromProductId;
-mod parse_application_user_model_id_a;
-pub use parse_application_user_model_id_a::ParseApplicationUserModelIdA;
-mod parse_url;
-pub use parse_url::{ParseURLA, ParseURLW};
 
-mod path_alloc_canonicalize;
-pub use path_alloc_canonicalize::PathAllocCanonicalize;
-mod path_alloc_combine;
-pub use path_alloc_combine::PathAllocCombine;
-mod path_cch_add_backslash;
-pub use path_cch_add_backslash::PathCchAddBackslash;
-mod path_cch_add_extension;
-pub use path_cch_add_extension::PathCchAddExtension;
-mod path_cch_append;
-pub use path_cch_append::PathCchAppend;
-mod path_cch_canonicalize;
-pub use path_cch_canonicalize::PathCchCanonicalize;
-mod path_cch_combine;
-pub use path_cch_combine::PathCchCombine;
-mod path_cch_find_extension;
-pub use path_cch_find_extension::PathCchFindExtension;
-mod path_cch_is_root;
-pub use path_cch_is_root::PathCchIsRoot;
-mod path_cch_remove_backslash;
-pub use path_cch_remove_backslash::PathCchRemoveBackslash;
-mod path_cch_remove_extension;
-pub use path_cch_remove_extension::PathCchRemoveExtension;
-mod path_cch_remove_file_spec;
-pub use path_cch_remove_file_spec::PathCchRemoveFileSpec;
-mod path_cch_rename_extension;
-pub use path_cch_rename_extension::PathCchRenameExtension;
-mod path_cch_skip_root;
-pub use path_cch_skip_root::PathCchSkipRoot;
-mod path_cch_strip_prefix;
-pub use path_cch_strip_prefix::PathCchStripPrefix;
-mod path_cch_strip_to_root;
-pub use path_cch_strip_to_root::PathCchStripToRoot;
-mod path_create_from_url_alloc;
-pub use path_create_from_url_alloc::PathCreateFromUrlAlloc;
-mod path_is_unc;
-pub use path_is_unc::{PathIsUNCA, PathIsUNCW};
-mod path_is_unc_ex;
-
-pub use path_is_unc_ex::PathIsUNCEx;
-mod path_is_url;
-pub use path_is_url::{PathIsURLA, PathIsURLW};
-
-mod pcw_add_query_item;
-pub use pcw_add_query_item::PcwAddQueryItem;
-mod pcw_clear_counter_set_security;
-pub use pcw_clear_counter_set_security::PcwClearCounterSetSecurity;
-mod pcw_collect_data;
-pub use pcw_collect_data::PcwCollectData;
-mod pcw_complete_notification;
-pub use pcw_complete_notification::PcwCompleteNotification;
-mod pcw_create_notifier;
-pub use pcw_create_notifier::PcwCreateNotifier;
-mod pcw_create_query;
-pub use pcw_create_query::PcwCreateQuery;
-mod pcw_disconnect_counter_set;
-pub use pcw_disconnect_counter_set::PcwDisconnectCounterSet;
-mod pcw_enumerate_instances;
-pub use pcw_enumerate_instances::PcwEnumerateInstances;
-mod pcw_is_notifier_alive;
-pub use pcw_is_notifier_alive::PcwIsNotifierAlive;
-mod pcw_query_counter_set_security;
-pub use pcw_query_counter_set_security::PcwQueryCounterSetSecurity;
-mod pcw_read_notification_data;
-pub use pcw_read_notification_data::PcwReadNotificationData;
-mod pcw_register_counter_set;
-pub use pcw_register_counter_set::PcwRegisterCounterSet;
-mod pcw_remove_query_item;
-pub use pcw_remove_query_item::PcwRemoveQueryItem;
-mod pcw_send_notification;
-pub use pcw_send_notification::PcwSendNotification;
-mod pcw_send_stateless_notification;
-pub use pcw_send_stateless_notification::PcwSendStatelessNotification;
-mod pcw_set_counter_set_security;
-pub use pcw_set_counter_set_security::PcwSetCounterSetSecurity;
-mod pcw_set_query_item_user_data;
-pub use pcw_set_query_item_user_data::PcwSetQueryItemUserData;
-mod perf_create_instance;
-pub use perf_create_instance::PerfCreateInstance;
-mod perf_decrement_u_long_counter_value;
-pub use perf_decrement_u_long_counter_value::PerfDecrementULongCounterValue;
-mod perf_decrement_u_long_long_counter_value;
-pub use perf_decrement_u_long_long_counter_value::PerfDecrementULongLongCounterValue;
-mod perf_delete_instance;
-pub use perf_delete_instance::PerfDeleteInstance;
-mod perf_increment_u_long_counter_value;
-pub use perf_increment_u_long_counter_value::PerfIncrementULongCounterValue;
-mod perf_increment_u_long_long_counter_value;
-pub use perf_increment_u_long_long_counter_value::PerfIncrementULongLongCounterValue;
-mod perf_query_instance;
-pub use perf_query_instance::PerfQueryInstance;
-mod perf_set_counter_ref_value;
-pub use perf_set_counter_ref_value::PerfSetCounterRefValue;
-mod perf_set_counter_set_info;
-pub use perf_set_counter_set_info::PerfSetCounterSetInfo;
-mod perf_set_u_long_counter_value;
-pub use perf_set_u_long_counter_value::PerfSetULongCounterValue;
-mod perf_set_u_long_long_counter_value;
-pub use perf_set_u_long_long_counter_value::PerfSetULongLongCounterValue;
-mod perf_start_provider;
-pub use perf_start_provider::PerfStartProvider;
-mod perf_start_provider_ex;
-pub use perf_start_provider_ex::PerfStartProviderEx;
-mod perf_stop_provider;
-pub use perf_stop_provider::PerfStopProvider;
-mod pool_per_app_key_state_internal;
-pub use pool_per_app_key_state_internal::PoolPerAppKeyStateInternal;
-mod privilege_check;
-pub use privilege_check::PrivilegeCheck;
-mod privileged_service_audit_alarm_w;
-pub use privileged_service_audit_alarm_w::PrivilegedServiceAuditAlarmW;
-mod product_id_from_package_family_name;
-pub use product_id_from_package_family_name::ProductIdFromPackageFamilyName;
-mod psm_create_key;
-pub use psm_create_key::PsmCreateKey;
-mod psm_create_key_with_dynamic_id;
-pub use psm_create_key_with_dynamic_id::PsmCreateKeyWithDynamicId;
-mod psm_equal_application;
-pub use psm_equal_application::PsmEqualApplication;
-mod psm_equal_package;
-pub use psm_equal_package::PsmEqualPackage;
-mod psm_get_application_name_from_key;
-pub use psm_get_application_name_from_key::PsmGetApplicationNameFromKey;
-mod psm_get_aumid_from_key;
-pub use psm_get_aumid_from_key::PsmGetAumidFromKey;
-mod psm_get_dynamic_id_from_key;
-pub use psm_get_dynamic_id_from_key::PsmGetDynamicIdFromKey;
-mod psm_get_key_from_process;
-pub use psm_get_key_from_process::PsmGetKeyFromProcess;
-mod psm_get_key_from_token;
-pub use psm_get_key_from_token::PsmGetKeyFromToken;
-mod psm_get_package_full_name_from_key;
-pub use psm_get_package_full_name_from_key::PsmGetPackageFullNameFromKey;
-mod psm_is_child_key;
-pub use psm_is_child_key::PsmIsChildKey;
-mod psm_is_dynamic_key;
-pub use psm_is_dynamic_key::PsmIsDynamicKey;
-mod psm_is_valid_key;
-pub use psm_is_valid_key::PsmIsValidKey;
-mod publish_state_change_notification;
-pub use publish_state_change_notification::PublishStateChangeNotification;
-mod publisher_from_package_full_name;
-pub use publisher_from_package_full_name::PublisherFromPackageFullName;
-mod qi_search;
-pub use qi_search::QISearch;
-mod query_auxiliary_counter_frequency;
-pub use query_auxiliary_counter_frequency::QueryAuxiliaryCounterFrequency;
-mod query_globalization_user_settings_status;
-pub use query_globalization_user_settings_status::QueryGlobalizationUserSettingsStatus;
-mod query_interrupt_time;
-pub use query_interrupt_time::QueryInterruptTime;
-mod query_interrupt_time_precise;
-pub use query_interrupt_time_precise::QueryInterruptTimePrecise;
-mod query_optional_delay_loaded;
-pub use query_optional_delay_loaded::QueryOptionalDelayLoadedAPI;
-mod query_partition_information;
-pub use query_partition_information::QueryPartitionInformation;
-mod query_security_access_mask;
-pub use query_security_access_mask::QuerySecurityAccessMask;
-mod query_state_atom_value_info;
-pub use query_state_atom_value_info::QueryStateAtomValueInfo;
-mod query_state_container_created_new;
-pub use query_state_container_created_new::QueryStateContainerCreatedNew;
-mod query_state_container_item_info;
-pub use query_state_container_item_info::QueryStateContainerItemInfo;
-mod query_unbiased_interrupt_time_precise;
-pub use query_unbiased_interrupt_time_precise::QueryUnbiasedInterruptTimePrecise;
-mod query_virtual_memory_information;
-pub use query_virtual_memory_information::QueryVirtualMemoryInformation;
-mod query_working_set;
-pub use query_working_set::QueryWorkingSet;
-mod query_working_set_ex;
-pub use query_working_set_ex::QueryWorkingSetEx;
-mod quirk_get_data;
-pub use quirk_get_data::QuirkGetData;
-mod quirk_get_data2;
-pub use quirk_get_data2::QuirkGetData2;
-mod quirk_is_enabled;
-pub use quirk_is_enabled::QuirkIsEnabled;
-mod quirk_is_enabled2;
-pub use quirk_is_enabled2::QuirkIsEnabled2;
-mod quirk_is_enabled3;
-pub use quirk_is_enabled3::QuirkIsEnabled3;
-mod quirk_is_enabled_for_package;
-pub use quirk_is_enabled_for_package::QuirkIsEnabledForPackage;
-mod quirk_is_enabled_for_package2;
-pub use quirk_is_enabled_for_package2::QuirkIsEnabledForPackage2;
-mod quirk_is_enabled_for_package3;
-pub use quirk_is_enabled_for_package3::QuirkIsEnabledForPackage3;
-mod quirk_is_enabled_for_package4;
-pub use quirk_is_enabled_for_package4::QuirkIsEnabledForPackage4;
-mod quirk_is_enabled_for_process;
-pub use quirk_is_enabled_for_process::QuirkIsEnabledForProcess;
-mod raise_custom_system_event_trigger;
-pub use raise_custom_system_event_trigger::RaiseCustomSystemEventTrigger;
-mod read_state_atom_value;
-pub use read_state_atom_value::ReadStateAtomValue;
-mod read_state_container_value;
-pub use read_state_container_value::ReadStateContainerValue;
-mod record_feature_usage2;
-pub use record_feature_usage2::RecordFeatureUsage2;
-mod refresh_package_info;
-pub use refresh_package_info::RefreshPackageInfo;
-mod refresh_policy_ex_internal;
-pub use refresh_policy_ex_internal::RefreshPolicyExInternal;
-mod refresh_policy_internal;
-pub use refresh_policy_internal::RefreshPolicyInternal;
-mod reg_krn_get_app_key_event_address_internal;
-pub use reg_krn_get_app_key_event_address_internal::RegKrnGetAppKeyEventAddressInternal;
-mod reg_krn_get_app_key_loaded;
-pub use reg_krn_get_app_key_loaded::RegKrnGetAppKeyLoaded;
-mod reg_krn_get_classes_enum_table_address_internal;
-pub use reg_krn_get_classes_enum_table_address_internal::RegKrnGetClassesEnumTableAddressInternal;
-mod reg_krn_get_hkey_classes_root_address;
-pub use reg_krn_get_hkey_classes_root_address::RegKrnGetHKEY_ClassesRootAddress;
-mod reg_krn_get_termsrv_registry_extension_flags;
-pub use reg_krn_get_termsrv_registry_extension_flags::RegKrnGetTermsrvRegistryExtensionFlags;
-mod reg_krn_reset_app_key_loaded;
-pub use reg_krn_reset_app_key_loaded::RegKrnResetAppKeyLoaded;
-mod reg_krn_set_dll_has_thread_state_global;
-pub use reg_krn_set_dll_has_thread_state_global::RegKrnSetDllHasThreadStateGlobal;
-mod reg_krn_set_termsrv_registry_extension_flags;
-pub use reg_krn_set_termsrv_registry_extension_flags::RegKrnSetTermsrvRegistryExtensionFlags;
-mod register_gp_notification_internal;
-pub use register_gp_notification_internal::RegisterGPNotificationInternal;
-mod register_state_change_notification;
-pub use register_state_change_notification::RegisterStateChangeNotification;
-mod register_state_lock;
-pub use register_state_lock::RegisterStateLock;
-mod register_trace_guids_w;
-pub use register_trace_guids_w::RegisterTraceGuidsW;
-mod release_packaged_data_for_file;
-pub use release_packaged_data_for_file::ReleasePackagedDataForFile;
-mod release_state_lock;
-pub use release_state_lock::ReleaseStateLock;
-mod remap_predefined_handle_internal;
-pub use remap_predefined_handle_internal::RemapPredefinedHandleInternal;
-mod remove_directory_from_app_w;
-pub use remove_directory_from_app_w::RemoveDirectoryFromAppW;
-mod remove_extension_prog_ids;
-pub use remove_extension_prog_ids::RemoveExtensionProgIds;
-mod remove_package_dependency;
-pub use remove_package_dependency::RemovePackageDependency;
-mod remove_package_status;
-pub use remove_package_status::RemovePackageStatus;
-mod remove_package_status_for_user;
-pub use remove_package_status_for_user::RemovePackageStatusForUser;
-mod replace_file_ex_internal;
-pub use replace_file_ex_internal::ReplaceFileExInternal;
-mod replace_file_from_app_w;
-pub use replace_file_from_app_w::ReplaceFileFromAppW;
-mod reset_state;
-pub use reset_state::ResetState;
-mod restore_thread_preferred_ui_languages;
-pub use restore_thread_preferred_ui_languages::RestoreThreadPreferredUILanguages;
-mod revert_to_self;
-pub use revert_to_self::RevertToSelf;
-mod rsop_logging_enabled_internal;
-pub use rsop_logging_enabled_internal::RsopLoggingEnabledInternal;
-mod sh_co_create_instance;
-pub use sh_co_create_instance::SHCoCreateInstance;
-mod sh_load_indirect_string;
-pub use sh_load_indirect_string::SHLoadIndirectString;
-mod sh_load_indirect_string_internal;
-pub use sh_load_indirect_string_internal::SHLoadIndirectStringInternal;
-mod sh_reg_close_us_key;
-pub use sh_reg_close_us_key::SHRegCloseUSKey;
-mod sh_truncate_string;
-pub use sh_truncate_string::SHTruncateString;
-mod save_alternate_package_root_path;
-pub use save_alternate_package_root_path::SaveAlternatePackageRootPath;
-mod save_state_root_folder_path;
-pub use save_state_root_folder_path::SaveStateRootFolderPath;
-mod set_acl_information;
-pub use set_acl_information::SetAclInformation;
-mod set_client_dynamic_time_zone_information;
-pub use set_client_dynamic_time_zone_information::SetClientDynamicTimeZoneInformation;
-mod set_client_time_zone_information;
-pub use set_client_time_zone_information::SetClientTimeZoneInformation;
-mod set_extension_property;
-pub use set_extension_property::SetExtensionProperty;
-mod set_file_attributes_from_app_w;
-pub use set_file_attributes_from_app_w::SetFileAttributesFromAppW;
-mod set_file_security_w;
-pub use set_file_security_w::SetFileSecurityW;
-mod set_is_developer_mode_enabled;
-pub use set_is_developer_mode_enabled::SetIsDeveloperModeEnabled;
-mod set_is_sideloading_enabled;
-pub use set_is_sideloading_enabled::SetIsSideloadingEnabled;
-mod set_kernel_object_security;
-pub use set_kernel_object_security::SetKernelObjectSecurity;
-mod set_persisted_registry_bool;
-pub use set_persisted_registry_bool::SetPersistedRegistryBOOL;
-mod set_persisted_registry_dword;
-pub use set_persisted_registry_dword::SetPersistedRegistryDWORD;
-mod set_persisted_registry_string;
-pub use set_persisted_registry_string::SetPersistedRegistryString;
-mod set_persisted_registry_value;
-pub use set_persisted_registry_value::SetPersistedRegistryValue;
-mod set_private_object_security;
-pub use set_private_object_security::SetPrivateObjectSecurity;
-mod set_private_object_security_ex;
-pub use set_private_object_security_ex::SetPrivateObjectSecurityEx;
-mod set_process_group_affinity;
-pub use set_process_group_affinity::SetProcessGroupAffinity;
-mod set_process_valid_call_targets;
-pub use set_process_valid_call_targets::SetProcessValidCallTargets;
-mod set_process_valid_call_targets_for_mapped_view;
-pub use set_process_valid_call_targets_for_mapped_view::SetProcessValidCallTargetsForMappedView;
-mod set_protocol_property;
-pub use set_protocol_property::SetProtocolProperty;
-mod set_roaming_last_observed_change_time;
-pub use set_roaming_last_observed_change_time::SetRoamingLastObservedChangeTime;
-mod set_security_access_mask;
-pub use set_security_access_mask::SetSecurityAccessMask;
-mod set_security_descriptor_control;
-pub use set_security_descriptor_control::SetSecurityDescriptorControl;
-mod set_security_descriptor_dacl;
-pub use set_security_descriptor_dacl::SetSecurityDescriptorDacl;
-mod set_security_descriptor_group;
-pub use set_security_descriptor_group::SetSecurityDescriptorGroup;
-mod set_security_descriptor_owner;
-pub use set_security_descriptor_owner::SetSecurityDescriptorOwner;
-mod set_security_descriptor_rm_control;
-pub use set_security_descriptor_rm_control::SetSecurityDescriptorRMControl;
-mod set_security_descriptor_sacl;
-pub use set_security_descriptor_sacl::SetSecurityDescriptorSacl;
-mod set_state_version;
-pub use set_state_version::SetStateVersion;
-mod set_system_time_adjustment_precise;
-pub use set_system_time_adjustment_precise::SetSystemTimeAdjustmentPrecise;
-mod set_thread_preferred_ui_languages2;
-pub use set_thread_preferred_ui_languages2::SetThreadPreferredUILanguages2;
-mod set_token_information;
-pub use set_token_information::SetTokenInformation;
-mod shared_local_is_enabled;
-pub use shared_local_is_enabled::SharedLocalIsEnabled;
-mod special_mb_to_wc;
-pub use special_mb_to_wc::SpecialMBToWC;
-mod str_c_spn_i;
-pub use str_c_spn_i::{StrCSpnIA, StrCSpnIW};
-
-mod str_cat_chain_w;
-pub use str_cat_chain_w::StrCatChainW;
-mod str_chr_a_mb;
-pub use str_chr_a_mb::StrChrA_MB;
-mod str_chr_i;
-pub use str_chr_i::{StrChrIA, StrChrIW};
-
-mod str_chr_niw;
-pub use str_chr_niw::StrChrNIW;
-mod str_chr_nw;
-pub use str_chr_nw::StrChrNW;
-mod str_cmp_c;
-pub use str_cmp_c::{StrCmpCA, StrCmpCW};
-
-mod str_cmp_ic;
-pub use str_cmp_ic::{StrCmpICA, StrCmpICW};
-
-mod str_cmp_iw;
-pub use str_cmp_iw::StrCmpIW;
-mod str_cmp_logical_w;
-pub use str_cmp_logical_w::StrCmpLogicalW;
-mod str_cmp_n;
-pub use str_cmp_n::{StrCmpNA, StrCmpNW};
-mod str_cmp_nc;
-pub use str_cmp_nc::{StrCmpNCA, StrCmpNCW};
-
-mod str_cmp_ni;
-pub use str_cmp_ni::{StrCmpNIA, StrCmpNIW};
-mod str_cmp_nic;
-
-pub use str_cmp_nic::{StrCmpNICA, StrCmpNICW};
-
-mod str_cmp_w;
-pub use str_cmp_w::StrCmpW;
-mod str_cpy_nw;
-pub use str_cpy_nw::StrCpyNW;
-mod str_cpy_nx;
-pub use str_cpy_nx::{StrCpyNXA, StrCpyNXW};
-
-mod str_r_chr_i;
-pub use str_r_chr_i::{StrRChrIA, StrRChrIW};
-
-mod str_r_str_i;
-pub use str_r_str_i::{StrRStrIA, StrRStrIW};
-
-mod str_str_i;
-pub use str_str_i::{StrStrIA, StrStrIW};
-
-mod str_str_niw;
-pub use str_str_niw::StrStrNIW;
-mod str_str_nw;
-pub use str_str_nw::StrStrNW;
-mod subscribe_edp_enabled_state_change;
-pub use subscribe_edp_enabled_state_change::SubscribeEdpEnabledStateChange;
-mod subscribe_feature_usage_flush;
-pub use subscribe_feature_usage_flush::SubscribeFeatureUsageFlush;
-mod subscribe_state_change_notification;
-pub use subscribe_state_change_notification::SubscribeStateChangeNotification;
-mod subscribe_wdag_enabled_state_change;
-pub use subscribe_wdag_enabled_state_change::SubscribeWdagEnabledStateChange;
-mod terminate_enclave;
-pub use terminate_enclave::TerminateEnclave;
-mod terminate_process_on_memory_exhaustion;
-pub use terminate_process_on_memory_exhaustion::TerminateProcessOnMemoryExhaustion;
-mod test_close;
-pub use test_close::TestClose;
-mod test_control_reporting;
-pub use test_control_reporting::TestControlReporting;
-mod test_create;
-pub use test_create::TestCreate;
-mod test_open;
-pub use test_open::TestOpen;
-mod test_query_data;
-pub use test_query_data::TestQueryData;
-mod test_recover_results;
-pub use test_recover_results::TestRecoverResults;
-mod test_report;
-pub use test_report::TestReport;
-mod test_unlock_data;
-pub use test_unlock_data::TestUnlockData;
-mod trace_event;
-pub use trace_event::TraceEvent;
-mod trace_message;
-pub use trace_message::TraceMessage;
-mod trace_message_va;
-pub use trace_message_va::TraceMessageVa;
-mod try_create_package_dependency;
-pub use try_create_package_dependency::TryCreatePackageDependency;
-mod try_create_package_dependency2;
-pub use try_create_package_dependency2::TryCreatePackageDependency2;
-mod unmap_view_of_file2;
-pub use unmap_view_of_file2::UnmapViewOfFile2;
-mod unregister_gp_notification_internal;
-pub use unregister_gp_notification_internal::UnregisterGPNotificationInternal;
-mod unregister_state_change_notification;
-pub use unregister_state_change_notification::UnregisterStateChangeNotification;
-mod unregister_state_lock;
-pub use unregister_state_lock::UnregisterStateLock;
-mod unregister_trace_guids;
-pub use unregister_trace_guids::UnregisterTraceGuids;
-mod unsubscribe_edp_enabled_state_change;
-pub use unsubscribe_edp_enabled_state_change::UnsubscribeEdpEnabledStateChange;
-mod unsubscribe_feature_usage_flush;
-pub use unsubscribe_feature_usage_flush::UnsubscribeFeatureUsageFlush;
-mod unsubscribe_state_change_notification;
-pub use unsubscribe_state_change_notification::UnsubscribeStateChangeNotification;
-mod unsubscribe_wdag_enabled_state_change;
-pub use unsubscribe_wdag_enabled_state_change::UnsubscribeWdagEnabledStateChange;
-mod update_package_status;
-pub use update_package_status::UpdatePackageStatus;
-mod update_package_status_for_user;
-pub use update_package_status_for_user::UpdatePackageStatusForUser;
-mod update_package_status_for_user_sid;
-pub use update_package_status_for_user_sid::UpdatePackageStatusForUserSid;
-mod url_fixup_w;
-pub use url_fixup_w::UrlFixupW;
-pub use ver_query_value::VerQueryValueW;
-mod verify_application_user_model_id;
-pub use verify_application_user_model_id::VerifyApplicationUserModelId;
-mod verify_application_user_model_id_a;
-pub use verify_application_user_model_id_a::VerifyApplicationUserModelIdA;
-mod verify_package_family_name;
-pub use verify_package_family_name::VerifyPackageFamilyName;
-mod verify_package_family_name_a;
-pub use verify_package_family_name_a::VerifyPackageFamilyNameA;
-mod verify_package_full_name;
-pub use verify_package_full_name::VerifyPackageFullName;
-mod verify_package_full_name_a;
-pub use verify_package_full_name_a::VerifyPackageFullNameA;
-mod verify_package_id;
-pub use verify_package_id::VerifyPackageId;
-mod verify_package_id_a;
-pub use verify_package_id_a::VerifyPackageIdA;
-mod verify_package_name;
-pub use verify_package_name::VerifyPackageName;
-mod verify_package_name_a;
-pub use verify_package_name_a::VerifyPackageNameA;
-mod verify_package_publisher;
-pub use verify_package_publisher::VerifyPackagePublisher;
-mod verify_package_publisher_a;
-pub use verify_package_publisher_a::VerifyPackagePublisherA;
-mod verify_package_relative_application_id;
-pub use verify_package_relative_application_id::VerifyPackageRelativeApplicationId;
-mod verify_package_relative_application_id_a;
-pub use verify_package_relative_application_id_a::VerifyPackageRelativeApplicationIdA;
-mod virtual_alloc2;
-pub use virtual_alloc2::VirtualAlloc2;
-mod virtual_alloc2_from_app;
-pub use virtual_alloc2_from_app::VirtualAlloc2FromApp;
 mod virtual_alloc_from_app;
 pub use virtual_alloc_from_app::VirtualAllocFromApp;
 mod virtual_protect_from_app;
 pub use virtual_protect_from_app::VirtualProtectFromApp;
-mod virtual_unlock_ex;
-pub use virtual_unlock_ex::VirtualUnlockEx;
-mod wts_get_service_session_id;
-pub use wts_get_service_session_id::WTSGetServiceSessionId;
-mod wts_is_server_container;
-pub use wts_is_server_container::WTSIsServerContainer;
-mod wait_for_machine_policy_foreground_processing_internal;
-pub use wait_for_machine_policy_foreground_processing_internal::WaitForMachinePolicyForegroundProcessingInternal;
-mod wait_for_user_policy_foreground_processing_internal;
-pub use wait_for_user_policy_foreground_processing_internal::WaitForUserPolicyForegroundProcessingInternal;
-mod wait_on_address;
-pub use wait_on_address::WaitOnAddress;
-mod wake_by_address_all;
-pub use wake_by_address_all::WakeByAddressAll;
-mod wake_by_address_single;
-pub use wake_by_address_single::WakeByAddressSingle;
-mod wer_set_max_process_hold_milliseconds;
-pub use wer_set_max_process_hold_milliseconds::WerSetMaxProcessHoldMilliseconds;
-mod werp_notify_load_string_resource;
-pub use werp_notify_load_string_resource::WerpNotifyLoadStringResource;
-mod werp_notify_use_string_resource;
-pub use werp_notify_use_string_resource::WerpNotifyUseStringResource;
-mod wil_failure_notify_watchers;
-pub use wil_failure_notify_watchers::WilFailureNotifyWatchers;
-mod wil_failure_watcher_resume;
-pub use wil_failure_watcher_resume::WilFailureWatcherResume;
-mod wil_failure_watcher_subscribe;
-pub use wil_failure_watcher_subscribe::WilFailureWatcherSubscribe;
-mod wil_failure_watcher_suspend;
-pub use wil_failure_watcher_suspend::WilFailureWatcherSuspend;
-mod wil_failure_watcher_unsubscribe;
-pub use wil_failure_watcher_unsubscribe::WilFailureWatcherUnsubscribe;
-mod wow64_set_thread_default_guest_machine;
-pub use wow64_set_thread_default_guest_machine::Wow64SetThreadDefaultGuestMachine;
-mod write_state_atom_value;
-pub use write_state_atom_value::WriteStateAtomValue;
-mod write_state_container_value;
-pub use write_state_container_value::WriteStateContainerValue;
-mod _add_mui_string_to_cache;
-pub use _add_mui_string_to_cache::_AddMUIStringToCache;
-mod _get_mui_string_from_cache;
-pub use _get_mui_string_from_cache::_GetMUIStringFromCache;
-mod _open_mui_string_cache;
-pub use _open_mui_string_cache::_OpenMuiStringCache;
-mod __fc_query_config;
-pub use __fc_query_config::__FC_Query_Config;
-mod __fc_query_system;
-pub use __fc_query_system::__FC_Query_System;
-mod __fc_report;
-pub use __fc_report::__FC_Report;
-mod __fc_subscribe;
-pub use __fc_subscribe::__FC_Subscribe;
-mod __fc_unsubscribe;
-pub use __fc_unsubscribe::__FC_Unsubscribe;
 mod __argc;
 pub use __argc::__argc;
-mod __dllonexit3;
-pub use __dllonexit3::__dllonexit3;
-mod __wargv;
-pub use __wargv::__wargv;
-mod __wgetmainargs;
-pub use __wgetmainargs::__wgetmainargs;
-mod _amsg_exit;
-pub use _amsg_exit::_amsg_exit;
-mod _c_exit;
-pub use _c_exit::_c_exit;
-mod _cexit;
-pub use _cexit::_cexit;
-mod _invalid_parameter;
-pub use _invalid_parameter::_invalid_parameter;
-mod _onexit;
-pub use _onexit::_onexit;
-mod _purecall;
-pub use _purecall::_purecall;
-mod _time64;
-pub use _time64::_time64;
-mod hgets;
-pub use hgets::hgets;
-mod hwprintf;
-pub use hwprintf::hwprintf;
-mod time;
-pub use time::time;
-mod wprintf;
-pub use wprintf::wprintf;
-mod acquire_srw_lock_exclusive;
-pub use acquire_srw_lock_exclusive::AcquireSRWLockExclusive;
-mod acquire_srw_lock_shared;
-pub use acquire_srw_lock_shared::AcquireSRWLockShared;
-mod activate_act_ctx;
-pub use activate_act_ctx::ActivateActCtx;
-mod add_dll_directory;
-pub use add_dll_directory::AddDllDirectory;
-mod add_ref_act_ctx;
-pub use add_ref_act_ctx::AddRefActCtx;
-mod add_resource_attribute_ace;
-pub use add_resource_attribute_ace::AddResourceAttributeAce;
-mod add_sid_to_boundary_descriptor;
-pub use add_sid_to_boundary_descriptor::AddSIDToBoundaryDescriptor;
-mod add_scoped_policy_id_ace;
-pub use add_scoped_policy_id_ace::AddScopedPolicyIDAce;
-mod add_vectored_continue_handler;
-pub use add_vectored_continue_handler::AddVectoredContinueHandler;
-mod add_vectored_exception_handler;
-pub use add_vectored_exception_handler::AddVectoredExceptionHandler;
-mod alloc_console;
-pub use alloc_console::AllocConsole;
-mod alloc_console_with_options;
-pub use alloc_console_with_options::AllocConsoleWithOptions;
-mod allocate_user_physical_pages;
-pub use allocate_user_physical_pages::AllocateUserPhysicalPages;
-mod allocate_user_physical_pages_numa;
-pub use allocate_user_physical_pages_numa::AllocateUserPhysicalPagesNuma;
-mod app_policy_get_clr_compat;
-pub use app_policy_get_clr_compat::AppPolicyGetClrCompat;
-mod app_policy_get_create_file_access;
-pub use app_policy_get_create_file_access::AppPolicyGetCreateFileAccess;
-mod app_policy_get_lifecycle_management;
-pub use app_policy_get_lifecycle_management::AppPolicyGetLifecycleManagement;
-mod app_policy_get_media_foundation_codec_loading;
-pub use app_policy_get_media_foundation_codec_loading::AppPolicyGetMediaFoundationCodecLoading;
-mod app_policy_get_show_developer_diagnostic;
-pub use app_policy_get_show_developer_diagnostic::AppPolicyGetShowDeveloperDiagnostic;
-mod app_policy_get_thread_initialization_type;
-pub use app_policy_get_thread_initialization_type::AppPolicyGetThreadInitializationType;
-mod app_policy_get_windowing_model;
-pub use app_policy_get_windowing_model::AppPolicyGetWindowingModel;
-mod app_x_get_os_max_version_tested;
-pub use app_x_get_os_max_version_tested::AppXGetOSMaxVersionTested;
-mod are_file_apis_ansi;
-pub use are_file_apis_ansi::AreFileApisANSI;
-mod are_short_names_enabled;
-pub use are_short_names_enabled::AreShortNamesEnabled;
-mod attach_console;
-pub use attach_console::AttachConsole;
-mod base_check_appcompat_cache;
-pub use base_check_appcompat_cache::BaseCheckAppcompatCache;
-mod base_check_appcompat_cache_ex;
-pub use base_check_appcompat_cache_ex::BaseCheckAppcompatCacheEx;
-mod base_cleanup_appcompat_cache_support;
-pub use base_cleanup_appcompat_cache_support::BaseCleanupAppcompatCacheSupport;
-mod base_dump_appcompat_cache;
-pub use base_dump_appcompat_cache::BaseDumpAppcompatCache;
-mod base_flush_appcompat_cache;
-pub use base_flush_appcompat_cache::BaseFlushAppcompatCache;
-mod base_format_object_attributes;
-pub use base_format_object_attributes::BaseFormatObjectAttributes;
-mod base_get_named_object_directory;
-pub use base_get_named_object_directory::BaseGetNamedObjectDirectory;
-mod base_init_appcompat_cache_support;
-pub use base_init_appcompat_cache_support::BaseInitAppcompatCacheSupport;
-mod base_is_appcompat_infrastructure_disabled;
-pub use base_is_appcompat_infrastructure_disabled::BaseIsAppcompatInfrastructureDisabled;
-mod base_update_appcompat_cache;
-pub use base_update_appcompat_cache::BaseUpdateAppcompatCache;
-mod beep;
-pub use beep::Beep;
-mod build_io_ring_cancel_request;
-pub use build_io_ring_cancel_request::BuildIoRingCancelRequest;
-mod build_io_ring_flush_file;
-pub use build_io_ring_flush_file::BuildIoRingFlushFile;
-mod build_io_ring_read_file;
-pub use build_io_ring_read_file::BuildIoRingReadFile;
-mod build_io_ring_read_file_scatter;
-pub use build_io_ring_read_file_scatter::BuildIoRingReadFileScatter;
-mod build_io_ring_register_buffers;
-pub use build_io_ring_register_buffers::BuildIoRingRegisterBuffers;
-mod build_io_ring_register_file_handles;
-pub use build_io_ring_register_file_handles::BuildIoRingRegisterFileHandles;
-mod build_io_ring_write_file;
-pub use build_io_ring_write_file::BuildIoRingWriteFile;
-mod build_io_ring_write_file_gather;
-pub use build_io_ring_write_file_gather::BuildIoRingWriteFileGather;
-mod call_named_pipe_w;
-pub use call_named_pipe_w::CallNamedPipeW;
-mod callback_may_run_long;
-pub use callback_may_run_long::CallbackMayRunLong;
-mod cancel_io;
-pub use cancel_io::CancelIo;
-mod cancel_io_ex;
-pub use cancel_io_ex::CancelIoEx;
-mod cancel_synchronous_io;
-pub use cancel_synchronous_io::CancelSynchronousIo;
-mod cancel_threadpool_io;
-pub use cancel_threadpool_io::CancelThreadpoolIo;
-mod cancel_waitable_timer;
-pub use cancel_waitable_timer::CancelWaitableTimer;
-mod ceip_is_opted_in;
-pub use ceip_is_opted_in::CeipIsOptedIn;
-mod change_timer_queue_timer;
-pub use change_timer_queue_timer::ChangeTimerQueueTimer;
-mod check_allow_decrypted_remote_destination_policy;
-pub use check_allow_decrypted_remote_destination_policy::CheckAllowDecryptedRemoteDestinationPolicy;
-mod check_remote_debugger_present;
-pub use check_remote_debugger_present::CheckRemoteDebuggerPresent;
-mod check_token_capability;
-pub use check_token_capability::CheckTokenCapability;
-mod check_token_membership_ex;
-pub use check_token_membership_ex::CheckTokenMembershipEx;
-mod clear_comm_break;
-pub use clear_comm_break::ClearCommBreak;
-mod clear_comm_error;
-pub use clear_comm_error::ClearCommError;
-mod close_io_ring;
-pub use close_io_ring::CloseIoRing;
-mod close_package_info;
-pub use close_package_info::ClosePackageInfo;
-mod close_private_namespace;
-pub use close_private_namespace::ClosePrivateNamespace;
-mod close_pseudo_console;
-pub use close_pseudo_console::ClosePseudoConsole;
-mod close_state;
-pub use close_state::CloseState;
-mod close_threadpool;
-pub use close_threadpool::CloseThreadpool;
-mod close_threadpool_cleanup_group;
-pub use close_threadpool_cleanup_group::CloseThreadpoolCleanupGroup;
-mod close_threadpool_cleanup_group_members;
-pub use close_threadpool_cleanup_group_members::CloseThreadpoolCleanupGroupMembers;
-mod close_threadpool_io;
-pub use close_threadpool_io::CloseThreadpoolIo;
-mod close_threadpool_timer;
-pub use close_threadpool_timer::CloseThreadpoolTimer;
-mod close_threadpool_wait;
-pub use close_threadpool_wait::CloseThreadpoolWait;
-mod close_threadpool_work;
-pub use close_threadpool_work::CloseThreadpoolWork;
-mod compare_file_time;
-pub use compare_file_time::CompareFileTime;
-mod compare_string_ex;
-pub use compare_string_ex::CompareStringEx;
-mod compare_string_ordinal;
-pub use compare_string_ordinal::CompareStringOrdinal;
-mod connect_named_pipe;
-pub use connect_named_pipe::ConnectNamedPipe;
-mod continue_debug_event;
-pub use continue_debug_event::ContinueDebugEvent;
-mod convert_default_locale;
-pub use convert_default_locale::ConvertDefaultLocale;
-mod convert_fiber_to_thread;
-pub use convert_fiber_to_thread::ConvertFiberToThread;
-mod convert_thread_to_fiber;
-pub use convert_thread_to_fiber::ConvertThreadToFiber;
-mod convert_thread_to_fiber_ex;
-pub use convert_thread_to_fiber_ex::ConvertThreadToFiberEx;
-mod copy_context;
-pub use copy_context::CopyContext;
-mod copy_file2;
-pub use copy_file2::CopyFile2;
-mod copy_file_ex_w;
-pub use copy_file_ex_w::CopyFileExW;
-mod copy_file_w;
-pub use copy_file_w::CopyFileW;
-mod create_act_ctx_w;
-pub use create_act_ctx_w::CreateActCtxW;
-mod create_boundary_descriptor_w;
-pub use create_boundary_descriptor_w::CreateBoundaryDescriptorW;
-mod create_console_screen_buffer;
-pub use create_console_screen_buffer::CreateConsoleScreenBuffer;
-mod create_directory_ex_w;
-pub use create_directory_ex_w::CreateDirectoryExW;
-mod create_enclave;
-pub use create_enclave::CreateEnclave;
-mod create_fiber;
-pub use create_fiber::CreateFiber;
-mod create_fiber_ex;
-pub use create_fiber_ex::CreateFiberEx;
-mod create_file2;
-pub use create_file2::CreateFile2;
-mod create_file3;
-pub use create_file3::CreateFile3;
-mod create_file_mapping_from_app;
-pub use create_file_mapping_from_app::CreateFileMappingFromApp;
-mod create_file_mapping_numa_w;
-pub use create_file_mapping_numa_w::CreateFileMappingNumaW;
+
+pub use crate::winapi::common::threads::{
+    AddVectoredExceptionHandler, RemoveVectoredExceptionHandler, TlsAlloc, TlsFree, TlsGetValue,
+    TlsSetValue,
+};
+
 mod create_file_mapping_w;
 pub use create_file_mapping_w::CreateFileMappingW;
-mod create_io_completion_port;
-pub use create_io_completion_port::CreateIoCompletionPort;
-mod create_io_ring;
-pub use create_io_ring::CreateIoRing;
-mod create_memory_resource_notification;
-pub use create_memory_resource_notification::CreateMemoryResourceNotification;
-mod create_named_pipe_w;
-pub use create_named_pipe_w::CreateNamedPipeW;
-mod create_pipe;
-pub use create_pipe::CreatePipe;
-mod create_private_namespace_w;
-pub use create_private_namespace_w::CreatePrivateNamespaceW;
-mod create_pseudo_console;
-pub use create_pseudo_console::CreatePseudoConsole;
-mod create_remote_thread;
-pub use create_remote_thread::CreateRemoteThread;
-mod create_remote_thread_ex;
-pub use create_remote_thread_ex::CreateRemoteThreadEx;
-mod create_semaphore_ex_w;
-pub use create_semaphore_ex_w::CreateSemaphoreExW;
-mod create_semaphore_w;
-pub use create_semaphore_w::CreateSemaphoreW;
-mod create_symbolic_link_w;
-pub use create_symbolic_link_w::CreateSymbolicLinkW;
 mod create_thread;
 pub use create_thread::CreateThread;
-mod create_threadpool;
-pub use create_threadpool::CreateThreadpool;
-mod create_threadpool_cleanup_group;
-pub use create_threadpool_cleanup_group::CreateThreadpoolCleanupGroup;
-mod create_threadpool_io;
-pub use create_threadpool_io::CreateThreadpoolIo;
-mod create_threadpool_timer;
-pub use create_threadpool_timer::CreateThreadpoolTimer;
-mod create_threadpool_wait;
-pub use create_threadpool_wait::CreateThreadpoolWait;
-mod create_threadpool_work;
-pub use create_threadpool_work::CreateThreadpoolWork;
-mod create_timer_queue;
-pub use create_timer_queue::CreateTimerQueue;
-mod create_timer_queue_timer;
-pub use create_timer_queue_timer::CreateTimerQueueTimer;
-mod create_waitable_timer_ex_w;
-pub use create_waitable_timer_ex_w::CreateWaitableTimerExW;
-mod create_waitable_timer_w;
-pub use create_waitable_timer_w::CreateWaitableTimerW;
-mod ctrl_routine;
-pub use ctrl_routine::CtrlRoutine;
-mod deactivate_act_ctx;
-pub use deactivate_act_ctx::DeactivateActCtx;
-mod debug_active_process;
-pub use debug_active_process::DebugActiveProcess;
-mod debug_active_process_stop;
-pub use debug_active_process_stop::DebugActiveProcessStop;
-mod debug_break;
-pub use debug_break::DebugBreak;
-mod decode_pointer;
-pub use decode_pointer::DecodePointer;
-mod decode_system_pointer;
-pub use decode_system_pointer::DecodeSystemPointer;
-mod define_dos_device_w;
-pub use define_dos_device_w::DefineDosDeviceW;
-mod delay_load_failure_hook;
-pub use delay_load_failure_hook::DelayLoadFailureHook;
-mod delete_boundary_descriptor;
-pub use delete_boundary_descriptor::DeleteBoundaryDescriptor;
-mod delete_critical_section;
-pub use delete_critical_section::DeleteCriticalSection;
-mod delete_fiber;
-pub use delete_fiber::DeleteFiber;
-mod delete_proc_thread_attribute_list;
-pub use delete_proc_thread_attribute_list::DeleteProcThreadAttributeList;
-mod delete_synchronization_barrier;
-pub use delete_synchronization_barrier::DeleteSynchronizationBarrier;
-mod delete_timer_queue;
-pub use delete_timer_queue::DeleteTimerQueue;
-mod delete_timer_queue_ex;
-pub use delete_timer_queue_ex::DeleteTimerQueueEx;
-mod delete_timer_queue_timer;
-pub use delete_timer_queue_timer::DeleteTimerQueueTimer;
-mod delete_volume_mount_point_w;
-pub use delete_volume_mount_point_w::DeleteVolumeMountPointW;
-mod device_io_control;
-pub use device_io_control::DeviceIoControl;
-mod disable_thread_library_calls;
-pub use disable_thread_library_calls::DisableThreadLibraryCalls;
-mod disassociate_current_thread_from_callback;
-pub use disassociate_current_thread_from_callback::DisassociateCurrentThreadFromCallback;
-mod discard_virtual_memory;
-pub use discard_virtual_memory::DiscardVirtualMemory;
-mod disconnect_named_pipe;
-pub use disconnect_named_pipe::DisconnectNamedPipe;
-mod dns_hostname_to_computer_name_ex_w;
-pub use dns_hostname_to_computer_name_ex_w::DnsHostnameToComputerNameExW;
-mod duplicate_handle;
-pub use duplicate_handle::DuplicateHandle;
-mod enable_process_optional_x_state_features;
-pub use enable_process_optional_x_state_features::EnableProcessOptionalXStateFeatures;
-mod encode_pointer;
-pub use encode_pointer::EncodePointer;
-mod encode_system_pointer;
-pub use encode_system_pointer::EncodeSystemPointer;
-mod enter_critical_section;
-pub use enter_critical_section::EnterCriticalSection;
-mod enter_synchronization_barrier;
-pub use enter_synchronization_barrier::EnterSynchronizationBarrier;
-mod enum_calendar_info_ex_ex;
-pub use enum_calendar_info_ex_ex::EnumCalendarInfoExEx;
-mod enum_calendar_info_ex_w;
-pub use enum_calendar_info_ex_w::EnumCalendarInfoExW;
-mod enum_calendar_info_w;
-pub use enum_calendar_info_w::EnumCalendarInfoW;
-mod enum_date_formats_ex_ex;
-pub use enum_date_formats_ex_ex::EnumDateFormatsExEx;
-mod enum_date_formats_ex_w;
-pub use enum_date_formats_ex_w::EnumDateFormatsExW;
-mod enum_date_formats_w;
-pub use enum_date_formats_w::EnumDateFormatsW;
-mod enum_language_group_locales_w;
-pub use enum_language_group_locales_w::EnumLanguageGroupLocalesW;
-mod enum_system_code_pages_w;
-pub use enum_system_code_pages_w::EnumSystemCodePagesW;
-mod enum_system_firmware_tables;
-pub use enum_system_firmware_tables::EnumSystemFirmwareTables;
-mod enum_system_geo_id;
-pub use enum_system_geo_id::EnumSystemGeoID;
-mod enum_system_geo_names;
-pub use enum_system_geo_names::EnumSystemGeoNames;
-mod enum_system_language_groups_w;
-pub use enum_system_language_groups_w::EnumSystemLanguageGroupsW;
-mod enum_system_locales_ex;
-pub use enum_system_locales_ex::EnumSystemLocalesEx;
-mod enum_time_formats_ex;
-pub use enum_time_formats_ex::EnumTimeFormatsEx;
-mod enum_time_formats_w;
-pub use enum_time_formats_w::EnumTimeFormatsW;
-mod enum_ui_languages_w;
-pub use enum_ui_languages_w::EnumUILanguagesW;
-mod escape_comm_function;
-pub use escape_comm_function::EscapeCommFunction;
-mod event_enabled;
-pub use event_enabled::EventEnabled;
+
 mod event_register;
 pub use event_register::EventRegister;
 mod event_set_information;
@@ -2468,1151 +325,88 @@ mod exit_process;
 pub use exit_process::ExitProcess;
 mod exit_thread;
 pub use exit_thread::ExitThread;
-mod file_time_to_local_file_time;
-pub use file_time_to_local_file_time::FileTimeToLocalFileTime;
-mod file_time_to_system_time;
-pub use file_time_to_system_time::FileTimeToSystemTime;
-mod fill_console_output_attribute;
-pub use fill_console_output_attribute::FillConsoleOutputAttribute;
-mod find_act_ctx_section_guid;
-pub use find_act_ctx_section_guid::FindActCtxSectionGuid;
-mod find_act_ctx_section_string_w;
-pub use find_act_ctx_section_string_w::FindActCtxSectionStringW;
-mod find_close;
-pub use find_close::FindClose;
-mod find_close_change_notification;
-pub use find_close_change_notification::FindCloseChangeNotification;
-mod find_first_file_name_w;
-pub use find_first_file_name_w::FindFirstFileNameW;
-mod find_first_stream_w;
-pub use find_first_stream_w::FindFirstStreamW;
-mod find_first_volume_w;
-pub use find_first_volume_w::FindFirstVolumeW;
-mod find_nls_string;
-pub use find_nls_string::FindNLSString;
-mod find_nls_string_ex;
-pub use find_nls_string_ex::FindNLSStringEx;
-mod find_next_change_notification;
-pub use find_next_change_notification::FindNextChangeNotification;
-mod find_next_file_name_w;
-pub use find_next_file_name_w::FindNextFileNameW;
-mod find_next_stream_w;
-pub use find_next_stream_w::FindNextStreamW;
-mod find_next_volume_w;
-pub use find_next_volume_w::FindNextVolumeW;
-mod find_packages_by_package_family;
-pub use find_packages_by_package_family::FindPackagesByPackageFamily;
-mod find_resource_ex_w;
-pub use find_resource_ex_w::FindResourceExW;
-mod find_resource_w;
-pub use find_resource_w::FindResourceW;
-mod find_string_ordinal;
-pub use find_string_ordinal::FindStringOrdinal;
-mod find_volume_close;
-pub use find_volume_close::FindVolumeClose;
-mod fls_alloc;
-pub use fls_alloc::FlsAlloc;
-mod fls_free;
-pub use fls_free::FlsFree;
-mod fls_get_value;
-pub use fls_get_value::FlsGetValue;
-mod fls_get_value2;
-pub use fls_get_value2::FlsGetValue2;
-mod fls_set_value;
-pub use fls_set_value::FlsSetValue;
-mod flush_console_input_buffer;
-pub use flush_console_input_buffer::FlushConsoleInputBuffer;
+
 mod flush_instruction_cache;
 pub use flush_instruction_cache::FlushInstructionCache;
-mod flush_process_write_buffers;
-pub use flush_process_write_buffers::FlushProcessWriteBuffers;
-mod flush_view_of_file;
-pub use flush_view_of_file::FlushViewOfFile;
-mod fold_string_w;
-pub use fold_string_w::FoldStringW;
-mod format_application_user_model_id;
-pub use format_application_user_model_id::FormatApplicationUserModelId;
-mod free_console;
-pub use free_console::FreeConsole;
-mod free_library;
-pub use free_library::FreeLibrary;
-mod free_library_and_exit_thread;
-pub use free_library_and_exit_thread::FreeLibraryAndExitThread;
-mod free_library_when_callback_returns;
-pub use free_library_when_callback_returns::FreeLibraryWhenCallbackReturns;
-mod free_resource;
-pub use free_resource::FreeResource;
-mod free_user_physical_pages;
-pub use free_user_physical_pages::FreeUserPhysicalPages;
-mod generate_console_ctrl_event;
-pub use generate_console_ctrl_event::GenerateConsoleCtrlEvent;
-mod get_acp;
-pub use get_acp::GetACP;
-mod get_app_container_ace;
-pub use get_app_container_ace::GetAppContainerAce;
-mod get_app_container_named_object_path;
-pub use get_app_container_named_object_path::GetAppContainerNamedObjectPath;
-mod get_application_recovery_callback;
-pub use get_application_recovery_callback::GetApplicationRecoveryCallback;
-mod get_application_restart_settings;
-pub use get_application_restart_settings::GetApplicationRestartSettings;
-mod get_application_user_model_id;
-pub use get_application_user_model_id::GetApplicationUserModelId;
-mod get_cp_info;
-pub use get_cp_info::GetCPInfo;
-mod get_cp_info_ex_w;
-pub use get_cp_info_ex_w::GetCPInfoExW;
-mod get_cached_signing_level;
-pub use get_cached_signing_level::GetCachedSigningLevel;
-mod get_calendar_info_ex;
-pub use get_calendar_info_ex::GetCalendarInfoEx;
+
 mod get_calendar_info_w;
+pub use crate::winapi::common::handles::{GetConsoleMode, SetConsoleMode};
 pub use get_calendar_info_w::GetCalendarInfoW;
-mod get_comm_config;
-pub use get_comm_config::GetCommConfig;
-mod get_comm_mask;
-pub use get_comm_mask::GetCommMask;
-mod get_comm_modem_status;
-pub use get_comm_modem_status::GetCommModemStatus;
-mod get_comm_properties;
-pub use get_comm_properties::GetCommProperties;
-mod get_comm_state;
-pub use get_comm_state::GetCommState;
-mod get_comm_timeouts;
-pub use get_comm_timeouts::GetCommTimeouts;
-mod get_console_cp;
-pub use get_console_cp::GetConsoleCP;
-mod get_console_cursor_info;
-pub use get_console_cursor_info::GetConsoleCursorInfo;
-mod get_console_display_mode;
-pub use get_console_display_mode::GetConsoleDisplayMode;
-mod get_console_font_size;
-pub use get_console_font_size::GetConsoleFontSize;
-mod get_console_history_info;
-pub use get_console_history_info::GetConsoleHistoryInfo;
-mod get_console_mode;
-pub use get_console_mode::GetConsoleMode;
-mod get_console_output_cp;
-pub use get_console_output_cp::GetConsoleOutputCP;
-mod get_console_process_list;
-pub use get_console_process_list::GetConsoleProcessList;
-mod get_console_screen_buffer_info;
-pub use get_console_screen_buffer_info::GetConsoleScreenBufferInfo;
-mod get_console_screen_buffer_info_ex;
-pub use get_console_screen_buffer_info_ex::GetConsoleScreenBufferInfoEx;
-mod get_console_selection_info;
-pub use get_console_selection_info::GetConsoleSelectionInfo;
-mod get_console_window;
-pub use get_console_window::GetConsoleWindow;
-mod get_currency_format_ex;
-pub use get_currency_format_ex::GetCurrencyFormatEx;
-mod get_currency_format_w;
-pub use get_currency_format_w::GetCurrencyFormatW;
-mod get_current_act_ctx;
-pub use get_current_act_ctx::GetCurrentActCtx;
-mod get_current_application_user_model_id;
-pub use get_current_application_user_model_id::GetCurrentApplicationUserModelId;
-mod get_current_console_font;
-pub use get_current_console_font::GetCurrentConsoleFont;
-mod get_current_console_font_ex;
-pub use get_current_console_font_ex::GetCurrentConsoleFontEx;
-mod get_current_package_family_name;
-pub use get_current_package_family_name::GetCurrentPackageFamilyName;
-mod get_current_package_full_name;
-pub use get_current_package_full_name::GetCurrentPackageFullName;
-mod get_current_package_id;
-pub use get_current_package_id::GetCurrentPackageId;
-mod get_current_package_info;
-pub use get_current_package_info::GetCurrentPackageInfo;
-mod get_current_package_path;
-pub use get_current_package_path::GetCurrentPackagePath;
-mod get_current_process_id;
-pub use get_current_process_id::GetCurrentProcessId;
-mod get_current_processor_number;
-pub use get_current_processor_number::GetCurrentProcessorNumber;
-mod get_current_processor_number_ex;
-pub use get_current_processor_number_ex::GetCurrentProcessorNumberEx;
-mod get_current_thread_id;
-pub use get_current_thread_id::GetCurrentThreadId;
-mod get_current_thread_stack_limits;
-pub use get_current_thread_stack_limits::GetCurrentThreadStackLimits;
-mod get_date_format_ex;
-pub use get_date_format_ex::GetDateFormatEx;
-mod get_duration_format_ex;
-pub use get_duration_format_ex::GetDurationFormatEx;
-mod get_dynamic_time_zone_information;
-pub use get_dynamic_time_zone_information::GetDynamicTimeZoneInformation;
-mod get_enabled_x_state_features;
-pub use get_enabled_x_state_features::GetEnabledXStateFeatures;
-mod get_environment_strings;
-pub use get_environment_strings::{
-    GetEnvironmentStrings, GetEnvironmentStringsA, GetEnvironmentStringsW,
+
+pub use crate::winapi::libraries::kernel32::{
+    GetLocalTime, GetSystemTime, GetSystemTimeAsFileTime, GetSystemTimePreciseAsFileTime,
 };
 
-mod get_era_name_counted_string;
-pub use get_era_name_counted_string::GetEraNameCountedString;
-mod get_error_mode;
-pub use get_error_mode::GetErrorMode;
-mod get_exit_code_process;
-pub use get_exit_code_process::GetExitCodeProcess;
-mod get_exit_code_thread;
-pub use get_exit_code_thread::GetExitCodeThread;
-mod get_file_information_by_handle;
-pub use get_file_information_by_handle::GetFileInformationByHandle;
-mod get_file_information_by_handle_ex;
-pub use get_file_information_by_handle_ex::GetFileInformationByHandleEx;
-mod get_file_information_by_name;
-pub use get_file_information_by_name::GetFileInformationByName;
-mod get_file_mui_info;
-pub use get_file_mui_info::GetFileMUIInfo;
-mod get_file_mui_path;
-pub use get_file_mui_path::GetFileMUIPath;
-mod get_file_time;
-pub use get_file_time::GetFileTime;
-mod get_file_type;
-pub use get_file_type::GetFileType;
-mod get_geo_info_ex;
-pub use get_geo_info_ex::GetGeoInfoEx;
-mod get_geo_info_w;
-pub use get_geo_info_w::GetGeoInfoW;
-mod get_handle_information;
-pub use get_handle_information::GetHandleInformation;
-mod get_io_ring_info;
-pub use get_io_ring_info::GetIoRingInfo;
-mod get_large_page_minimum;
-pub use get_large_page_minimum::GetLargePageMinimum;
-mod get_largest_console_window_size;
-pub use get_largest_console_window_size::GetLargestConsoleWindowSize;
-mod get_last_error;
-pub use get_last_error::GetLastError;
-mod get_local_time;
-pub use get_local_time::GetLocalTime;
-mod get_locale_info_ex;
-pub use get_locale_info_ex::GetLocaleInfoEx;
-mod get_logical_drive_strings_w;
-pub use get_logical_drive_strings_w::GetLogicalDriveStringsW;
-mod get_logical_drives;
-pub use get_logical_drives::GetLogicalDrives;
-mod get_logical_processor_information;
-pub use get_logical_processor_information::GetLogicalProcessorInformation;
-mod get_logical_processor_information_ex;
-pub use get_logical_processor_information_ex::GetLogicalProcessorInformationEx;
-mod get_machine_type_attributes;
-pub use get_machine_type_attributes::GetMachineTypeAttributes;
-mod get_memory_error_handling_capabilities;
-pub use get_memory_error_handling_capabilities::GetMemoryErrorHandlingCapabilities;
-mod get_nls_version;
-pub use get_nls_version::GetNLSVersion;
-mod get_nls_version_ex;
-pub use get_nls_version_ex::GetNLSVersionEx;
-mod get_named_pipe_attribute;
-pub use get_named_pipe_attribute::GetNamedPipeAttribute;
-mod get_named_pipe_client_computer_name_w;
-pub use get_named_pipe_client_computer_name_w::GetNamedPipeClientComputerNameW;
-mod get_named_pipe_handle_state_w;
-pub use get_named_pipe_handle_state_w::GetNamedPipeHandleStateW;
-mod get_named_pipe_info;
-pub use get_named_pipe_info::GetNamedPipeInfo;
-mod get_native_system_info;
-pub use get_native_system_info::GetNativeSystemInfo;
-mod get_numa_highest_node_number;
-pub use get_numa_highest_node_number::GetNumaHighestNodeNumber;
-mod get_numa_node_processor_mask2;
-pub use get_numa_node_processor_mask2::GetNumaNodeProcessorMask2;
-mod get_numa_node_processor_mask_ex;
-pub use get_numa_node_processor_mask_ex::GetNumaNodeProcessorMaskEx;
-mod get_numa_proximity_node_ex;
-pub use get_numa_proximity_node_ex::GetNumaProximityNodeEx;
-mod get_number_format_ex;
-pub use get_number_format_ex::GetNumberFormatEx;
-mod get_number_format_w;
-pub use get_number_format_w::GetNumberFormatW;
-mod get_number_of_console_input_events;
-pub use get_number_of_console_input_events::GetNumberOfConsoleInputEvents;
-mod get_number_of_console_mouse_buttons;
-pub use get_number_of_console_mouse_buttons::GetNumberOfConsoleMouseButtons;
-mod get_oemcp;
-pub use get_oemcp::GetOEMCP;
-mod get_overlapped_result;
-pub use get_overlapped_result::GetOverlappedResult;
-mod get_overlapped_result_ex;
-pub use get_overlapped_result_ex::GetOverlappedResultEx;
-mod get_package_application_ids;
-pub use get_package_application_ids::GetPackageApplicationIds;
-mod get_package_family_name;
-pub use get_package_family_name::GetPackageFamilyName;
-mod get_package_full_name;
-pub use get_package_full_name::GetPackageFullName;
-mod get_package_id;
-pub use get_package_id::GetPackageId;
-mod get_package_info;
-pub use get_package_info::GetPackageInfo;
-mod get_package_path;
-pub use get_package_path::GetPackagePath;
-mod get_package_path_by_full_name;
-pub use get_package_path_by_full_name::GetPackagePathByFullName;
-mod get_packages_by_package_family;
-pub use get_packages_by_package_family::GetPackagesByPackageFamily;
-mod get_physically_installed_system_memory;
-pub use get_physically_installed_system_memory::GetPhysicallyInstalledSystemMemory;
-mod get_priority_class;
-pub use get_priority_class::GetPriorityClass;
-mod get_proc_address;
-pub use get_proc_address::GetProcAddress;
-mod get_process_default_cpu_set_masks;
-pub use get_process_default_cpu_set_masks::GetProcessDefaultCpuSetMasks;
-mod get_process_default_cpu_sets;
-pub use get_process_default_cpu_sets::GetProcessDefaultCpuSets;
-mod get_process_group_affinity;
-pub use get_process_group_affinity::GetProcessGroupAffinity;
-mod get_process_handle_count;
-pub use get_process_handle_count::GetProcessHandleCount;
-mod get_process_heap;
-pub use get_process_heap::GetProcessHeap;
-mod get_process_heaps;
-pub use get_process_heaps::GetProcessHeaps;
-mod get_process_id;
-pub use get_process_id::GetProcessId;
-mod get_process_id_of_thread;
-pub use get_process_id_of_thread::GetProcessIdOfThread;
-mod get_process_information;
-pub use get_process_information::GetProcessInformation;
-mod get_process_mitigation_policy;
-pub use get_process_mitigation_policy::GetProcessMitigationPolicy;
-mod get_process_preferred_ui_languages;
-pub use get_process_preferred_ui_languages::GetProcessPreferredUILanguages;
-mod get_process_priority_boost;
-pub use get_process_priority_boost::GetProcessPriorityBoost;
-mod get_process_shutdown_parameters;
-pub use get_process_shutdown_parameters::GetProcessShutdownParameters;
-mod get_process_times;
-pub use get_process_times::GetProcessTimes;
-mod get_process_version;
-pub use get_process_version::GetProcessVersion;
-mod get_process_working_set_size;
-pub use get_process_working_set_size::GetProcessWorkingSetSize;
-mod get_process_working_set_size_ex;
-pub use get_process_working_set_size_ex::GetProcessWorkingSetSizeEx;
-mod get_processor_system_cycle_time;
-pub use get_processor_system_cycle_time::GetProcessorSystemCycleTime;
-mod get_product_info;
-pub use get_product_info::GetProductInfo;
-mod get_queued_completion_status;
-pub use get_queued_completion_status::GetQueuedCompletionStatus;
-mod get_queued_completion_status_ex;
-pub use get_queued_completion_status_ex::GetQueuedCompletionStatusEx;
-mod get_short_path_name_w;
-pub use get_short_path_name_w::GetShortPathNameW;
-mod get_staged_package_path_by_full_name;
-pub use get_staged_package_path_by_full_name::GetStagedPackagePathByFullName;
-mod get_startup_info_w;
-pub use get_startup_info_w::GetStartupInfoW;
-mod get_state_folder;
-pub use get_state_folder::GetStateFolder;
-mod get_string_scripts;
-pub use get_string_scripts::GetStringScripts;
-mod get_string_type_ex_w;
-pub use get_string_type_ex_w::GetStringTypeExW;
-mod get_system_app_data_key;
-pub use get_system_app_data_key::GetSystemAppDataKey;
-mod get_system_cpu_set_information;
-pub use get_system_cpu_set_information::GetSystemCpuSetInformation;
-mod get_system_default_lcid;
-pub use get_system_default_lcid::GetSystemDefaultLCID;
-mod get_system_default_lang_id;
-pub use get_system_default_lang_id::GetSystemDefaultLangID;
-mod get_system_default_locale_name;
-pub use get_system_default_locale_name::GetSystemDefaultLocaleName;
-mod get_system_default_ui_language;
-pub use get_system_default_ui_language::GetSystemDefaultUILanguage;
-mod get_system_file_cache_size;
-pub use get_system_file_cache_size::GetSystemFileCacheSize;
-mod get_system_firmware_table;
-pub use get_system_firmware_table::GetSystemFirmwareTable;
-mod get_system_info;
-pub use get_system_info::GetSystemInfo;
-mod get_system_preferred_ui_languages;
-pub use get_system_preferred_ui_languages::GetSystemPreferredUILanguages;
-mod get_system_time;
-pub use get_system_time::GetSystemTime;
-mod get_system_time_adjustment;
-pub use get_system_time_adjustment::GetSystemTimeAdjustment;
-mod get_system_time_as_file_time;
-pub use get_system_time_as_file_time::GetSystemTimeAsFileTime;
-mod get_system_time_precise_as_file_time;
-pub use get_system_time_precise_as_file_time::GetSystemTimePreciseAsFileTime;
-mod get_system_times;
-pub use get_system_times::GetSystemTimes;
+pub use crate::winapi::common::heap::{GetProcessHeap, GetProcessHeaps};
+
 mod get_thread_context;
 pub use get_thread_context::GetThreadContext;
-mod get_thread_description;
-pub use get_thread_description::GetThreadDescription;
-mod get_thread_enabled_x_state_features;
-pub use get_thread_enabled_x_state_features::GetThreadEnabledXStateFeatures;
-mod get_thread_error_mode;
-pub use get_thread_error_mode::GetThreadErrorMode;
-mod get_thread_group_affinity;
-pub use get_thread_group_affinity::GetThreadGroupAffinity;
-mod get_thread_io_pending_flag;
-pub use get_thread_io_pending_flag::GetThreadIOPendingFlag;
-mod get_thread_id;
-pub use get_thread_id::GetThreadId;
-mod get_thread_ideal_processor_ex;
-pub use get_thread_ideal_processor_ex::GetThreadIdealProcessorEx;
-mod get_thread_information;
-pub use get_thread_information::GetThreadInformation;
-mod get_thread_locale;
-pub use get_thread_locale::GetThreadLocale;
-mod get_thread_preferred_ui_languages;
-pub use get_thread_preferred_ui_languages::GetThreadPreferredUILanguages;
-mod get_thread_priority;
-pub use get_thread_priority::GetThreadPriority;
-mod get_thread_priority_boost;
-pub use get_thread_priority_boost::GetThreadPriorityBoost;
-mod get_thread_selected_cpu_set_masks;
-pub use get_thread_selected_cpu_set_masks::GetThreadSelectedCpuSetMasks;
-mod get_thread_selected_cpu_sets;
-pub use get_thread_selected_cpu_sets::GetThreadSelectedCpuSets;
-mod get_thread_times;
-pub use get_thread_times::GetThreadTimes;
-mod get_thread_ui_language;
-pub use get_thread_ui_language::GetThreadUILanguage;
+
 mod get_tick_count;
 pub use get_tick_count::GetTickCount;
 mod get_tick_count64;
 pub use get_tick_count64::GetTickCount64;
-mod get_time_format_ex;
-pub use get_time_format_ex::GetTimeFormatEx;
-mod get_time_zone_information;
-pub use get_time_zone_information::GetTimeZoneInformation;
-mod get_time_zone_information_for_year;
-pub use get_time_zone_information_for_year::GetTimeZoneInformationForYear;
-mod get_ui_language_info;
-pub use get_ui_language_info::GetUILanguageInfo;
-mod get_user_default_geo_name;
-pub use get_user_default_geo_name::GetUserDefaultGeoName;
-mod get_user_default_lcid;
-pub use get_user_default_lcid::GetUserDefaultLCID;
-mod get_user_default_lang_id;
-pub use get_user_default_lang_id::GetUserDefaultLangID;
-mod get_user_default_locale_name;
-pub use get_user_default_locale_name::GetUserDefaultLocaleName;
-mod get_user_default_ui_language;
-pub use get_user_default_ui_language::GetUserDefaultUILanguage;
-mod get_user_geo_id;
-pub use get_user_geo_id::GetUserGeoID;
-mod get_user_preferred_ui_languages;
-pub use get_user_preferred_ui_languages::GetUserPreferredUILanguages;
-mod get_version;
-pub use get_version::GetVersion;
-mod get_volume_information_by_handle_w;
-pub use get_volume_information_by_handle_w::GetVolumeInformationByHandleW;
-mod get_volume_name_for_volume_mount_point_w;
-pub use get_volume_name_for_volume_mount_point_w::GetVolumeNameForVolumeMountPointW;
-mod get_volume_path_name_w;
-pub use get_volume_path_name_w::GetVolumePathNameW;
-mod get_volume_path_names_for_volume_name_w;
-pub use get_volume_path_names_for_volume_name_w::GetVolumePathNamesForVolumeNameW;
-mod get_write_watch;
-pub use get_write_watch::GetWriteWatch;
-mod get_x_state_features_mask;
-pub use get_x_state_features_mask::GetXStateFeaturesMask;
+
 mod global_alloc;
 pub use global_alloc::GlobalAlloc;
-mod global_flags;
-pub use global_flags::GlobalFlags;
 mod global_free;
+pub use crate::winapi::libraries::kernel32::memory::GlobalHandle;
 pub use global_free::GlobalFree;
-mod global_handle;
-pub use global_handle::GlobalHandle;
-mod global_lock;
-pub use global_lock::GlobalLock;
-mod global_memory_status_ex;
-pub use global_memory_status_ex::GlobalMemoryStatusEx;
 mod global_re_alloc;
 pub use global_re_alloc::GlobalReAlloc;
 mod global_size;
 pub use global_size::GlobalSize;
-mod global_unlock;
-pub use global_unlock::GlobalUnlock;
 mod heap_alloc;
 pub use heap_alloc::HeapAlloc;
-mod heap_compact;
-pub use heap_compact::HeapCompact;
 mod heap_create;
 pub use heap_create::HeapCreate;
 mod heap_destroy;
 pub use heap_destroy::HeapDestroy;
 mod heap_free;
 pub use heap_free::HeapFree;
-mod heap_lock;
-pub use heap_lock::HeapLock;
-mod heap_query_information;
-pub use heap_query_information::HeapQueryInformation;
 mod heap_re_alloc;
 pub use heap_re_alloc::HeapReAlloc;
-mod heap_set_information;
-pub use heap_set_information::HeapSetInformation;
+
 mod heap_size;
 pub use heap_size::HeapSize;
-mod heap_summary;
-pub use heap_summary::HeapSummary;
-mod heap_unlock;
-pub use heap_unlock::HeapUnlock;
-mod heap_validate;
-pub use heap_validate::HeapValidate;
-mod heap_walk;
-pub use heap_walk::HeapWalk;
-mod idn_to_ascii;
-pub use idn_to_ascii::IdnToAscii;
-mod idn_to_nameprep_unicode;
-pub use idn_to_nameprep_unicode::IdnToNameprepUnicode;
-mod idn_to_unicode;
-pub use idn_to_unicode::IdnToUnicode;
-mod init_once_begin_initialize;
-pub use init_once_begin_initialize::InitOnceBeginInitialize;
-mod init_once_complete;
-pub use init_once_complete::InitOnceComplete;
-mod init_once_execute_once;
-pub use init_once_execute_once::InitOnceExecuteOnce;
-mod init_once_initialize;
-pub use init_once_initialize::InitOnceInitialize;
-mod initialize_condition_variable;
-pub use initialize_condition_variable::InitializeConditionVariable;
-mod initialize_context;
-pub use initialize_context::InitializeContext;
-mod initialize_context2;
-pub use initialize_context2::InitializeContext2;
-mod initialize_critical_section;
-pub use initialize_critical_section::InitializeCriticalSection;
-mod initialize_critical_section_and_spin_count;
-pub use initialize_critical_section_and_spin_count::InitializeCriticalSectionAndSpinCount;
-mod initialize_critical_section_ex;
-pub use initialize_critical_section_ex::InitializeCriticalSectionEx;
-mod initialize_enclave;
-pub use initialize_enclave::InitializeEnclave;
-mod initialize_proc_thread_attribute_list;
-pub use initialize_proc_thread_attribute_list::InitializeProcThreadAttributeList;
-mod initialize_s_list_head;
-pub use initialize_s_list_head::InitializeSListHead;
-mod initialize_srw_lock;
-pub use initialize_srw_lock::InitializeSRWLock;
-mod initialize_synchronization_barrier;
-pub use initialize_synchronization_barrier::InitializeSynchronizationBarrier;
-mod install_elam_certificate_info;
-pub use install_elam_certificate_info::InstallELAMCertificateInfo;
-mod interlocked_flush_s_list;
-pub use interlocked_flush_s_list::InterlockedFlushSList;
-mod interlocked_pop_entry_s_list;
-pub use interlocked_pop_entry_s_list::InterlockedPopEntrySList;
-mod interlocked_push_entry_s_list;
-pub use interlocked_push_entry_s_list::InterlockedPushEntrySList;
-mod interlocked_push_list_s_list;
-pub use interlocked_push_list_s_list::InterlockedPushListSList;
-mod interlocked_push_list_s_list_ex;
-pub use interlocked_push_list_s_list_ex::InterlockedPushListSListEx;
-mod is_debugger_present;
-pub use is_debugger_present::IsDebuggerPresent;
-mod is_enclave_type_supported;
-pub use is_enclave_type_supported::IsEnclaveTypeSupported;
-mod is_io_ring_op_supported;
-pub use is_io_ring_op_supported::IsIoRingOpSupported;
-mod is_nls_defined_string;
-pub use is_nls_defined_string::IsNLSDefinedString;
-mod is_normalized_string;
-pub use is_normalized_string::IsNormalizedString;
-mod is_process_critical;
-pub use is_process_critical::IsProcessCritical;
-mod is_process_in_job;
-pub use is_process_in_job::IsProcessInJob;
-mod is_processor_feature_present;
-pub use is_processor_feature_present::IsProcessorFeaturePresent;
-mod is_thread_a_fiber;
-pub use is_thread_a_fiber::IsThreadAFiber;
-mod is_threadpool_timer_set;
-pub use is_threadpool_timer_set::IsThreadpoolTimerSet;
-mod is_user_cet_available_in_environment;
-pub use is_user_cet_available_in_environment::IsUserCetAvailableInEnvironment;
-mod is_valid_code_page;
-pub use is_valid_code_page::IsValidCodePage;
-mod is_valid_language_group;
-pub use is_valid_language_group::IsValidLanguageGroup;
-mod is_valid_locale;
-pub use is_valid_locale::IsValidLocale;
-mod is_valid_locale_name;
-pub use is_valid_locale_name::IsValidLocaleName;
-mod is_valid_nls_version;
-pub use is_valid_nls_version::IsValidNLSVersion;
-mod is_wow64_guest_machine_supported;
-pub use is_wow64_guest_machine_supported::IsWow64GuestMachineSupported;
-mod is_wow64_process;
-pub use is_wow64_process::IsWow64Process;
-mod is_wow64_process2;
-pub use is_wow64_process2::IsWow64Process2;
-mod k32_empty_working_set;
-pub use k32_empty_working_set::K32EmptyWorkingSet;
-mod k32_enum_device_drivers;
-pub use k32_enum_device_drivers::K32EnumDeviceDrivers;
-mod k32_enum_process_modules;
-pub use k32_enum_process_modules::K32EnumProcessModules;
-mod k32_enum_process_modules_ex;
-pub use k32_enum_process_modules_ex::K32EnumProcessModulesEx;
-mod k32_enum_processes;
-pub use k32_enum_processes::K32EnumProcesses;
-mod k32_get_module_information;
-pub use k32_get_module_information::K32GetModuleInformation;
-mod k32_get_performance_info;
-pub use k32_get_performance_info::K32GetPerformanceInfo;
-mod k32_get_process_memory_info;
-pub use k32_get_process_memory_info::K32GetProcessMemoryInfo;
-mod k32_get_ws_changes;
-pub use k32_get_ws_changes::K32GetWsChanges;
-mod k32_get_ws_changes_ex;
-pub use k32_get_ws_changes_ex::K32GetWsChangesEx;
-mod k32_initialize_process_for_ws_watch;
-pub use k32_initialize_process_for_ws_watch::K32InitializeProcessForWsWatch;
-mod k32_query_working_set;
-pub use k32_query_working_set::K32QueryWorkingSet;
-mod k32_query_working_set_ex;
-pub use k32_query_working_set_ex::K32QueryWorkingSetEx;
-mod lcid_to_locale_name;
-pub use lcid_to_locale_name::LCIDToLocaleName;
-mod leave_critical_section;
-pub use leave_critical_section::LeaveCriticalSection;
-mod leave_critical_section_when_callback_returns;
-pub use leave_critical_section_when_callback_returns::LeaveCriticalSectionWhenCallbackReturns;
-mod load_app_init_dlls;
-pub use load_app_init_dlls::LoadAppInitDlls;
-mod load_enclave_data;
-pub use load_enclave_data::LoadEnclaveData;
-mod load_packaged_library;
-pub use load_packaged_library::LoadPackagedLibrary;
-mod load_resource;
-pub use load_resource::LoadResource;
-mod load_string_base_ex_w;
-pub use load_string_base_ex_w::LoadStringBaseExW;
-mod local_file_time_to_file_time;
-pub use local_file_time_to_file_time::LocalFileTimeToFileTime;
-mod local_file_time_to_local_system_time;
-pub use local_file_time_to_local_system_time::LocalFileTimeToLocalSystemTime;
-mod local_flags;
-pub use local_flags::LocalFlags;
+
 mod local_free;
 pub use local_free::LocalFree;
-mod local_lock;
-pub use local_lock::LocalLock;
 mod local_re_alloc;
 pub use local_re_alloc::LocalReAlloc;
 mod local_size;
 pub use local_size::LocalSize;
-mod local_system_time_to_local_file_time;
-pub use local_system_time_to_local_file_time::LocalSystemTimeToLocalFileTime;
-mod local_unlock;
-pub use local_unlock::LocalUnlock;
-mod locale_name_to_lcid;
-pub use locale_name_to_lcid::LocaleNameToLCID;
-mod locate_x_state_feature;
-pub use locate_x_state_feature::LocateXStateFeature;
-mod lock_file;
-pub use lock_file::LockFile;
-mod lock_file_ex;
-pub use lock_file_ex::LockFileEx;
-mod lock_resource;
-pub use lock_resource::LockResource;
-mod map_user_physical_pages;
-pub use map_user_physical_pages::MapUserPhysicalPages;
+
 mod map_view_of_file;
 pub use map_view_of_file::MapViewOfFile;
 mod map_view_of_file_ex;
+pub use crate::winapi::libraries::kernel32::misc::MulDiv;
 pub use map_view_of_file_ex::MapViewOfFileEx;
-mod map_view_of_file_ex_numa;
-pub use map_view_of_file_ex_numa::MapViewOfFileExNuma;
-mod map_view_of_file_from_app;
-pub use map_view_of_file_from_app::MapViewOfFileFromApp;
-mod move_file_ex_w;
-pub use move_file_ex_w::MoveFileExW;
-mod move_file_with_progress_w;
-pub use move_file_with_progress_w::MoveFileWithProgressW;
-mod mul_div;
-pub use mul_div::MulDiv;
-mod multi_byte_to_wide_char;
-pub use multi_byte_to_wide_char::MultiByteToWideChar;
-mod nls_check_policy;
-pub use nls_check_policy::NlsCheckPolicy;
-mod nls_get_cache_update_count;
-pub use nls_get_cache_update_count::NlsGetCacheUpdateCount;
-mod nls_update_locale;
-pub use nls_update_locale::NlsUpdateLocale;
-mod nls_update_system_locale;
-pub use nls_update_system_locale::NlsUpdateSystemLocale;
-mod normalize_string;
-pub use normalize_string::NormalizeString;
-mod notify_mount_mgr;
-pub use notify_mount_mgr::NotifyMountMgr;
-mod offer_virtual_memory;
-pub use offer_virtual_memory::OfferVirtualMemory;
-mod open_file_by_id;
-pub use open_file_by_id::OpenFileById;
+
 mod open_file_mapping_w;
 pub use open_file_mapping_w::OpenFileMappingW;
-mod open_mutex_w;
-pub use open_mutex_w::OpenMutexW;
-mod open_package_info_by_full_name;
-pub use open_package_info_by_full_name::OpenPackageInfoByFullName;
-mod open_private_namespace_w;
-pub use open_private_namespace_w::OpenPrivateNamespaceW;
-mod open_process;
-pub use open_process::OpenProcess;
-mod open_process_token;
-pub use open_process_token::OpenProcessToken;
-mod open_semaphore_w;
-pub use open_semaphore_w::OpenSemaphoreW;
-mod open_state;
-pub use open_state::OpenState;
-mod open_state_explicit;
-pub use open_state_explicit::OpenStateExplicit;
-mod open_thread;
-pub use open_thread::OpenThread;
-mod open_thread_token;
-pub use open_thread_token::OpenThreadToken;
-mod open_waitable_timer_w;
-pub use open_waitable_timer_w::OpenWaitableTimerW;
-mod package_family_name_from_full_name;
-pub use package_family_name_from_full_name::PackageFamilyNameFromFullName;
-mod package_family_name_from_id;
-pub use package_family_name_from_id::PackageFamilyNameFromId;
-mod package_full_name_from_id;
-pub use package_full_name_from_id::PackageFullNameFromId;
-mod package_id_from_full_name;
-pub use package_id_from_full_name::PackageIdFromFullName;
-mod package_name_and_publisher_id_from_family_name;
-pub use package_name_and_publisher_id_from_family_name::PackageNameAndPublisherIdFromFamilyName;
-mod parse_application_user_model_id;
-pub use parse_application_user_model_id::ParseApplicationUserModelId;
-mod peek_named_pipe;
-pub use peek_named_pipe::PeekNamedPipe;
-mod pop_io_ring_completion;
-pub use pop_io_ring_completion::PopIoRingCompletion;
-mod post_queued_completion_status;
-pub use post_queued_completion_status::PostQueuedCompletionStatus;
-mod prefetch_virtual_memory;
-pub use prefetch_virtual_memory::PrefetchVirtualMemory;
-mod priv_copy_file_ex_w;
-pub use priv_copy_file_ex_w::PrivCopyFileExW;
-mod process_id_to_session_id;
-pub use process_id_to_session_id::ProcessIdToSessionId;
-mod pss_capture_snapshot;
-pub use pss_capture_snapshot::PssCaptureSnapshot;
-mod pss_duplicate_snapshot;
-pub use pss_duplicate_snapshot::PssDuplicateSnapshot;
-mod pss_free_snapshot;
-pub use pss_free_snapshot::PssFreeSnapshot;
-mod pss_query_snapshot;
-pub use pss_query_snapshot::PssQuerySnapshot;
-mod pss_walk_marker_create;
-pub use pss_walk_marker_create::PssWalkMarkerCreate;
-mod pss_walk_marker_free;
-pub use pss_walk_marker_free::PssWalkMarkerFree;
-mod pss_walk_marker_get_position;
-pub use pss_walk_marker_get_position::PssWalkMarkerGetPosition;
-mod pss_walk_marker_seek_to_beginning;
-pub use pss_walk_marker_seek_to_beginning::PssWalkMarkerSeekToBeginning;
-mod pss_walk_marker_set_position;
-pub use pss_walk_marker_set_position::PssWalkMarkerSetPosition;
-mod pss_walk_snapshot;
-pub use pss_walk_snapshot::PssWalkSnapshot;
-mod pulse_event;
-pub use pulse_event::PulseEvent;
-mod purge_comm;
-pub use purge_comm::PurgeComm;
-mod query_act_ctx_settings_w;
-pub use query_act_ctx_settings_w::QueryActCtxSettingsW;
-mod query_act_ctx_w;
-pub use query_act_ctx_w::QueryActCtxW;
-mod query_depth_s_list;
-pub use query_depth_s_list::QueryDepthSList;
-mod query_dos_device_w;
-pub use query_dos_device_w::QueryDosDeviceW;
-mod query_idle_processor_cycle_time;
-pub use query_idle_processor_cycle_time::QueryIdleProcessorCycleTime;
-mod query_idle_processor_cycle_time_ex;
-pub use query_idle_processor_cycle_time_ex::QueryIdleProcessorCycleTimeEx;
-mod query_io_ring_capabilities;
-pub use query_io_ring_capabilities::QueryIoRingCapabilities;
-mod query_memory_resource_notification;
-pub use query_memory_resource_notification::QueryMemoryResourceNotification;
+
 mod query_performance_counter;
 pub use query_performance_counter::QueryPerformanceCounter;
 mod query_performance_frequency;
 pub use query_performance_frequency::QueryPerformanceFrequency;
-mod query_process_affinity_update_mode;
-pub use query_process_affinity_update_mode::QueryProcessAffinityUpdateMode;
-mod query_process_cycle_time;
-pub use query_process_cycle_time::QueryProcessCycleTime;
-mod query_protected_policy;
-pub use query_protected_policy::QueryProtectedPolicy;
-mod query_thread_cycle_time;
-pub use query_thread_cycle_time::QueryThreadCycleTime;
-mod query_threadpool_stack_information;
-pub use query_threadpool_stack_information::QueryThreadpoolStackInformation;
-mod query_unbiased_interrupt_time;
-pub use query_unbiased_interrupt_time::QueryUnbiasedInterruptTime;
-mod queue_user_apc;
-pub use queue_user_apc::QueueUserAPC;
-mod queue_user_apc2;
-pub use queue_user_apc2::QueueUserAPC2;
-mod queue_user_work_item;
-pub use queue_user_work_item::QueueUserWorkItem;
-mod raise_exception;
-pub use raise_exception::RaiseException;
-mod raise_fail_fast_exception;
-pub use raise_fail_fast_exception::RaiseFailFastException;
-mod re_open_file;
-pub use re_open_file::ReOpenFile;
-mod read_console_output_attribute;
-pub use read_console_output_attribute::ReadConsoleOutputAttribute;
-mod read_directory_changes_ex_w;
-pub use read_directory_changes_ex_w::ReadDirectoryChangesExW;
-mod read_directory_changes_w;
-pub use read_directory_changes_w::ReadDirectoryChangesW;
-mod read_file_ex;
-pub use read_file_ex::ReadFileEx;
-mod read_file_scatter;
-pub use read_file_scatter::ReadFileScatter;
+
 mod read_process_memory;
 pub use read_process_memory::ReadProcessMemory;
-mod reclaim_virtual_memory;
-pub use reclaim_virtual_memory::ReclaimVirtualMemory;
-mod reg_close_key;
-pub use reg_close_key::RegCloseKey;
-mod reg_copy_tree_w;
-pub use reg_copy_tree_w::RegCopyTreeW;
-mod reg_disable_predefined_cache_ex;
-pub use reg_disable_predefined_cache_ex::RegDisablePredefinedCacheEx;
-mod reg_flush_key;
-pub use reg_flush_key::RegFlushKey;
-mod reg_get_key_security;
-pub use reg_get_key_security::RegGetKeySecurity;
-mod reg_notify_change_key_value;
-pub use reg_notify_change_key_value::RegNotifyChangeKeyValue;
-mod reg_open_current_user;
-pub use reg_open_current_user::RegOpenCurrentUser;
-mod reg_open_user_classes_root;
-pub use reg_open_user_classes_root::RegOpenUserClassesRoot;
-mod reg_set_key_security;
-pub use reg_set_key_security::RegSetKeySecurity;
-mod register_application_restart;
-pub use register_application_restart::RegisterApplicationRestart;
-mod register_bad_memory_notification;
-pub use register_bad_memory_notification::RegisterBadMemoryNotification;
-mod register_wait_for_single_object_ex;
-pub use register_wait_for_single_object_ex::RegisterWaitForSingleObjectEx;
-mod release_act_ctx;
-pub use release_act_ctx::ReleaseActCtx;
-mod release_mutex;
-pub use release_mutex::ReleaseMutex;
-mod release_mutex_when_callback_returns;
-pub use release_mutex_when_callback_returns::ReleaseMutexWhenCallbackReturns;
-mod release_pseudo_console;
-pub use release_pseudo_console::ReleasePseudoConsole;
-mod release_srw_lock_exclusive;
-pub use release_srw_lock_exclusive::ReleaseSRWLockExclusive;
-mod release_srw_lock_shared;
-pub use release_srw_lock_shared::ReleaseSRWLockShared;
-mod release_semaphore;
-pub use release_semaphore::ReleaseSemaphore;
-mod release_semaphore_when_callback_returns;
-pub use release_semaphore_when_callback_returns::ReleaseSemaphoreWhenCallbackReturns;
-mod remove_dll_directory;
-pub use remove_dll_directory::RemoveDllDirectory;
-mod remove_vectored_continue_handler;
-pub use remove_vectored_continue_handler::RemoveVectoredContinueHandler;
-mod remove_vectored_exception_handler;
-pub use remove_vectored_exception_handler::RemoveVectoredExceptionHandler;
-mod replace_file_w;
-pub use replace_file_w::ReplaceFileW;
-mod reset_event;
-pub use reset_event::ResetEvent;
-mod reset_write_watch;
-pub use reset_write_watch::ResetWriteWatch;
-mod resize_pseudo_console;
-pub use resize_pseudo_console::ResizePseudoConsole;
-mod resolve_delay_loaded;
-pub use resolve_delay_loaded::ResolveDelayLoadedAPI;
-mod resolve_delay_loads_from_dll;
-pub use resolve_delay_loads_from_dll::ResolveDelayLoadsFromDll;
-mod resolve_locale_name;
-pub use resolve_locale_name::ResolveLocaleName;
-mod restore_last_error;
-pub use restore_last_error::RestoreLastError;
+
+pub use crate::winapi::registry::RegOpenCurrentUser;
+
 mod resume_thread;
 pub use resume_thread::ResumeThread;
-mod set_cached_signing_level;
-pub use set_cached_signing_level::SetCachedSigningLevel;
-mod set_calendar_info_w;
-pub use set_calendar_info_w::SetCalendarInfoW;
-mod set_comm_break;
-pub use set_comm_break::SetCommBreak;
-mod set_comm_config;
-pub use set_comm_config::SetCommConfig;
-mod set_comm_mask;
-pub use set_comm_mask::SetCommMask;
-mod set_comm_state;
-pub use set_comm_state::SetCommState;
-mod set_comm_timeouts;
-pub use set_comm_timeouts::SetCommTimeouts;
-mod set_computer_name_ex2_w;
-pub use set_computer_name_ex2_w::SetComputerNameEx2W;
-mod set_console_active_screen_buffer;
-pub use set_console_active_screen_buffer::SetConsoleActiveScreenBuffer;
-mod set_console_cp;
-pub use set_console_cp::SetConsoleCP;
-mod set_console_ctrl_handler;
-pub use set_console_ctrl_handler::SetConsoleCtrlHandler;
-mod set_console_cursor_info;
-pub use set_console_cursor_info::SetConsoleCursorInfo;
-mod set_console_cursor_position;
-pub use set_console_cursor_position::SetConsoleCursorPosition;
-mod set_console_display_mode;
-pub use set_console_display_mode::SetConsoleDisplayMode;
-mod set_console_history_info;
-pub use set_console_history_info::SetConsoleHistoryInfo;
-mod set_console_mode;
-pub use set_console_mode::SetConsoleMode;
-mod set_console_output_cp;
-pub use set_console_output_cp::SetConsoleOutputCP;
-mod set_console_screen_buffer_info_ex;
-pub use set_console_screen_buffer_info_ex::SetConsoleScreenBufferInfoEx;
-mod set_console_screen_buffer_size;
-pub use set_console_screen_buffer_size::SetConsoleScreenBufferSize;
-mod set_console_text_attribute;
-pub use set_console_text_attribute::SetConsoleTextAttribute;
-mod set_console_window_info;
-pub use set_console_window_info::SetConsoleWindowInfo;
-mod set_critical_section_spin_count;
-pub use set_critical_section_spin_count::SetCriticalSectionSpinCount;
-mod set_current_console_font_ex;
-pub use set_current_console_font_ex::SetCurrentConsoleFontEx;
-mod set_default_dll_directories;
-pub use set_default_dll_directories::SetDefaultDllDirectories;
-mod set_dynamic_time_zone_information;
-pub use set_dynamic_time_zone_information::SetDynamicTimeZoneInformation;
-mod set_environment_strings_w;
-pub use set_environment_strings_w::SetEnvironmentStringsW;
-mod set_error_mode;
-pub use set_error_mode::SetErrorMode;
-mod set_event;
-pub use set_event::SetEvent;
-mod set_event_when_callback_returns;
-pub use set_event_when_callback_returns::SetEventWhenCallbackReturns;
-mod set_file_apis_to_ansi;
-pub use set_file_apis_to_ansi::SetFileApisToANSI;
-mod set_file_apis_to_oem;
-pub use set_file_apis_to_oem::SetFileApisToOEM;
-mod set_file_information_by_handle;
-pub use set_file_information_by_handle::SetFileInformationByHandle;
-mod set_file_io_overlapped_range;
-pub use set_file_io_overlapped_range::SetFileIoOverlappedRange;
-mod set_file_time;
-pub use set_file_time::SetFileTime;
-mod set_file_valid_data;
-pub use set_file_valid_data::SetFileValidData;
-mod set_handle_count;
-pub use set_handle_count::SetHandleCount;
-mod set_handle_information;
-pub use set_handle_information::SetHandleInformation;
-mod set_io_ring_completion_event;
-pub use set_io_ring_completion_event::SetIoRingCompletionEvent;
-mod set_last_console_event_active;
-pub use set_last_console_event_active::SetLastConsoleEventActive;
-mod set_last_error;
-pub use set_last_error::SetLastError;
-mod set_local_time;
-pub use set_local_time::SetLocalTime;
-mod set_locale_info_w;
-pub use set_locale_info_w::SetLocaleInfoW;
-mod set_named_pipe_handle_state;
-pub use set_named_pipe_handle_state::SetNamedPipeHandleState;
-mod set_priority_class;
-pub use set_priority_class::SetPriorityClass;
-mod set_process_affinity_update_mode;
-pub use set_process_affinity_update_mode::SetProcessAffinityUpdateMode;
-mod set_process_default_cpu_set_masks;
-pub use set_process_default_cpu_set_masks::SetProcessDefaultCpuSetMasks;
-mod set_process_default_cpu_sets;
-pub use set_process_default_cpu_sets::SetProcessDefaultCpuSets;
-mod set_process_dynamic_eh_continuation_targets;
-pub use set_process_dynamic_eh_continuation_targets::SetProcessDynamicEHContinuationTargets;
-mod set_process_dynamic_enforced_cet_compatible_ranges;
-pub use set_process_dynamic_enforced_cet_compatible_ranges::SetProcessDynamicEnforcedCetCompatibleRanges;
-mod set_process_information;
-pub use set_process_information::SetProcessInformation;
-mod set_process_mitigation_policy;
-pub use set_process_mitigation_policy::SetProcessMitigationPolicy;
-mod set_process_preferred_ui_languages;
-pub use set_process_preferred_ui_languages::SetProcessPreferredUILanguages;
-mod set_process_priority_boost;
-pub use set_process_priority_boost::SetProcessPriorityBoost;
-mod set_process_shutdown_parameters;
-pub use set_process_shutdown_parameters::SetProcessShutdownParameters;
-mod set_process_working_set_size;
-pub use set_process_working_set_size::SetProcessWorkingSetSize;
-mod set_process_working_set_size_ex;
-pub use set_process_working_set_size_ex::SetProcessWorkingSetSizeEx;
-mod set_protected_policy;
-pub use set_protected_policy::SetProtectedPolicy;
-mod set_std_handle;
-pub use set_std_handle::SetStdHandle;
-mod set_std_handle_ex;
-pub use set_std_handle_ex::SetStdHandleEx;
-mod set_system_file_cache_size;
-pub use set_system_file_cache_size::SetSystemFileCacheSize;
-mod set_system_time;
-pub use set_system_time::SetSystemTime;
-mod set_system_time_adjustment;
-pub use set_system_time_adjustment::SetSystemTimeAdjustment;
+
 mod set_thread_context;
 pub use set_thread_context::SetThreadContext;
-mod set_thread_description;
-pub use set_thread_description::SetThreadDescription;
-mod set_thread_error_mode;
-pub use set_thread_error_mode::SetThreadErrorMode;
-mod set_thread_group_affinity;
-pub use set_thread_group_affinity::SetThreadGroupAffinity;
-mod set_thread_ideal_processor;
-pub use set_thread_ideal_processor::SetThreadIdealProcessor;
-mod set_thread_ideal_processor_ex;
-pub use set_thread_ideal_processor_ex::SetThreadIdealProcessorEx;
-mod set_thread_information;
-pub use set_thread_information::SetThreadInformation;
-mod set_thread_locale;
-pub use set_thread_locale::SetThreadLocale;
-mod set_thread_preferred_ui_languages;
-pub use set_thread_preferred_ui_languages::SetThreadPreferredUILanguages;
-mod set_thread_priority;
-pub use set_thread_priority::SetThreadPriority;
-mod set_thread_priority_boost;
-pub use set_thread_priority_boost::SetThreadPriorityBoost;
-mod set_thread_selected_cpu_set_masks;
-pub use set_thread_selected_cpu_set_masks::SetThreadSelectedCpuSetMasks;
-mod set_thread_selected_cpu_sets;
-pub use set_thread_selected_cpu_sets::SetThreadSelectedCpuSets;
-mod set_thread_stack_guarantee;
-pub use set_thread_stack_guarantee::SetThreadStackGuarantee;
-mod set_thread_token;
-pub use set_thread_token::SetThreadToken;
-mod set_thread_ui_language;
-pub use set_thread_ui_language::SetThreadUILanguage;
-mod set_threadpool_stack_information;
-pub use set_threadpool_stack_information::SetThreadpoolStackInformation;
-mod set_threadpool_thread_maximum;
-pub use set_threadpool_thread_maximum::SetThreadpoolThreadMaximum;
-mod set_threadpool_thread_minimum;
-pub use set_threadpool_thread_minimum::SetThreadpoolThreadMinimum;
-mod set_threadpool_timer;
-pub use set_threadpool_timer::SetThreadpoolTimer;
-mod set_threadpool_timer_ex;
-pub use set_threadpool_timer_ex::SetThreadpoolTimerEx;
-mod set_threadpool_wait;
-pub use set_threadpool_wait::SetThreadpoolWait;
-mod set_threadpool_wait_ex;
-pub use set_threadpool_wait_ex::SetThreadpoolWaitEx;
-mod set_time_zone_information;
-pub use set_time_zone_information::SetTimeZoneInformation;
-mod set_user_geo_id;
-pub use set_user_geo_id::SetUserGeoID;
-mod set_user_geo_name;
-pub use set_user_geo_name::SetUserGeoName;
-mod set_waitable_timer;
-pub use set_waitable_timer::SetWaitableTimer;
-mod set_waitable_timer_ex;
-pub use set_waitable_timer_ex::SetWaitableTimerEx;
-mod set_x_state_features_mask;
-pub use set_x_state_features_mask::SetXStateFeaturesMask;
-mod setup_comm;
-pub use setup_comm::SetupComm;
-mod signal_object_and_wait;
-pub use signal_object_and_wait::SignalObjectAndWait;
-mod sizeof_resource;
-pub use sizeof_resource::SizeofResource;
-mod sleep;
-pub use sleep::Sleep;
-mod sleep_condition_variable_cs;
-pub use sleep_condition_variable_cs::SleepConditionVariableCS;
-mod sleep_condition_variable_srw;
-pub use sleep_condition_variable_srw::SleepConditionVariableSRW;
-mod sleep_ex;
-pub use sleep_ex::SleepEx;
-mod start_threadpool_io;
-pub use start_threadpool_io::StartThreadpoolIo;
-mod submit_io_ring;
-pub use submit_io_ring::SubmitIoRing;
-mod submit_threadpool_work;
-pub use submit_threadpool_work::SubmitThreadpoolWork;
-mod suspend_thread;
-pub use suspend_thread::SuspendThread;
-mod switch_to_fiber;
-pub use switch_to_fiber::SwitchToFiber;
-mod switch_to_thread;
-pub use switch_to_thread::SwitchToThread;
-mod system_time_to_file_time;
-pub use system_time_to_file_time::SystemTimeToFileTime;
-mod system_time_to_tz_specific_local_time;
-pub use system_time_to_tz_specific_local_time::SystemTimeToTzSpecificLocalTime;
-mod system_time_to_tz_specific_local_time_ex;
-pub use system_time_to_tz_specific_local_time_ex::SystemTimeToTzSpecificLocalTimeEx;
-mod terminate_process;
-pub use terminate_process::TerminateProcess;
-mod terminate_thread;
-pub use terminate_thread::TerminateThread;
-mod tls_alloc;
-pub use tls_alloc::TlsAlloc;
-mod tls_free;
-pub use tls_free::TlsFree;
-mod tls_get_value;
-pub use tls_get_value::TlsGetValue;
-mod tls_get_value2;
-pub use tls_get_value2::TlsGetValue2;
-mod tls_set_value;
-pub use tls_set_value::TlsSetValue;
-mod transact_named_pipe;
-pub use transact_named_pipe::TransactNamedPipe;
-mod transmit_comm_char;
-pub use transmit_comm_char::TransmitCommChar;
-mod try_acquire_srw_lock_exclusive;
-pub use try_acquire_srw_lock_exclusive::TryAcquireSRWLockExclusive;
-mod try_acquire_srw_lock_shared;
-pub use try_acquire_srw_lock_shared::TryAcquireSRWLockShared;
-mod try_enter_critical_section;
-pub use try_enter_critical_section::TryEnterCriticalSection;
-mod try_submit_threadpool_callback;
-pub use try_submit_threadpool_callback::TrySubmitThreadpoolCallback;
-mod tz_specific_local_time_to_system_time;
-pub use tz_specific_local_time_to_system_time::TzSpecificLocalTimeToSystemTime;
-mod tz_specific_local_time_to_system_time_ex;
-pub use tz_specific_local_time_to_system_time_ex::TzSpecificLocalTimeToSystemTimeEx;
-mod unhandled_exception_filter;
-pub use unhandled_exception_filter::UnhandledExceptionFilter;
-mod unlock_file;
-pub use unlock_file::UnlockFile;
-mod unlock_file_ex;
-pub use unlock_file_ex::UnlockFileEx;
-mod unmap_view_of_file;
-pub use unmap_view_of_file::UnmapViewOfFile;
+
 mod unmap_view_of_file_ex;
 pub use unmap_view_of_file_ex::UnmapViewOfFileEx;
-mod unregister_application_restart;
-pub use unregister_application_restart::UnregisterApplicationRestart;
-mod unregister_bad_memory_notification;
-pub use unregister_bad_memory_notification::UnregisterBadMemoryNotification;
-mod unregister_wait_ex;
-pub use unregister_wait_ex::UnregisterWaitEx;
-mod update_proc_thread_attribute;
-pub use update_proc_thread_attribute::UpdateProcThreadAttribute;
+
 mod ver_set_condition_mask;
 pub use ver_set_condition_mask::VerSetConditionMask;
-mod verify_scripts;
-pub use verify_scripts::VerifyScripts;
 mod virtual_alloc;
 pub use virtual_alloc::VirtualAlloc;
 mod virtual_alloc_ex;
@@ -3623,8 +417,7 @@ mod virtual_free;
 pub use virtual_free::VirtualFree;
 mod virtual_free_ex;
 pub use virtual_free_ex::VirtualFreeEx;
-mod virtual_lock;
-pub use virtual_lock::VirtualLock;
+
 mod virtual_protect;
 pub use virtual_protect::VirtualProtect;
 mod virtual_protect_ex;
@@ -3633,100 +426,12 @@ mod virtual_query;
 pub use virtual_query::VirtualQuery;
 mod virtual_query_ex;
 pub use virtual_query_ex::VirtualQueryEx;
-mod virtual_unlock;
-pub use virtual_unlock::VirtualUnlock;
-mod wait_comm_event;
-pub use wait_comm_event::WaitCommEvent;
-mod wait_for_debug_event;
-pub use wait_for_debug_event::WaitForDebugEvent;
-mod wait_for_debug_event_ex;
-pub use wait_for_debug_event_ex::WaitForDebugEventEx;
-mod wait_for_multiple_objects;
-pub use wait_for_multiple_objects::WaitForMultipleObjects;
-mod wait_for_multiple_objects_ex;
-pub use wait_for_multiple_objects_ex::WaitForMultipleObjectsEx;
-mod wait_for_single_object;
-pub use wait_for_single_object::WaitForSingleObject;
-mod wait_for_single_object_ex;
-pub use wait_for_single_object_ex::WaitForSingleObjectEx;
-mod wait_for_threadpool_io_callbacks;
-pub use wait_for_threadpool_io_callbacks::WaitForThreadpoolIoCallbacks;
-mod wait_for_threadpool_timer_callbacks;
-pub use wait_for_threadpool_timer_callbacks::WaitForThreadpoolTimerCallbacks;
-mod wait_for_threadpool_wait_callbacks;
-pub use wait_for_threadpool_wait_callbacks::WaitForThreadpoolWaitCallbacks;
-mod wait_for_threadpool_work_callbacks;
-pub use wait_for_threadpool_work_callbacks::WaitForThreadpoolWorkCallbacks;
-mod wait_named_pipe_w;
-pub use wait_named_pipe_w::WaitNamedPipeW;
-mod wake_all_condition_variable;
-pub use wake_all_condition_variable::WakeAllConditionVariable;
-mod wake_condition_variable;
-pub use wake_condition_variable::WakeConditionVariable;
-mod wer_get_flags;
-pub use wer_get_flags::WerGetFlags;
-mod wer_register_additional_process;
-pub use wer_register_additional_process::WerRegisterAdditionalProcess;
-mod wer_register_app_local_dump;
-pub use wer_register_app_local_dump::WerRegisterAppLocalDump;
-mod wer_register_custom_metadata;
-pub use wer_register_custom_metadata::WerRegisterCustomMetadata;
-mod wer_register_excluded_memory_block;
-pub use wer_register_excluded_memory_block::WerRegisterExcludedMemoryBlock;
-mod wer_register_file;
-pub use wer_register_file::WerRegisterFile;
-mod wer_register_memory_block;
-pub use wer_register_memory_block::WerRegisterMemoryBlock;
-mod wer_register_runtime_exception_module;
-pub use wer_register_runtime_exception_module::WerRegisterRuntimeExceptionModule;
-mod wer_set_flags;
-pub use wer_set_flags::WerSetFlags;
-mod wer_unregister_additional_process;
-pub use wer_unregister_additional_process::WerUnregisterAdditionalProcess;
-mod wer_unregister_app_local_dump;
-pub use wer_unregister_app_local_dump::WerUnregisterAppLocalDump;
-mod wer_unregister_custom_metadata;
-pub use wer_unregister_custom_metadata::WerUnregisterCustomMetadata;
-mod wer_unregister_excluded_memory_block;
-pub use wer_unregister_excluded_memory_block::WerUnregisterExcludedMemoryBlock;
-mod wer_unregister_file;
-pub use wer_unregister_file::WerUnregisterFile;
-mod wer_unregister_memory_block;
-pub use wer_unregister_memory_block::WerUnregisterMemoryBlock;
-mod wer_unregister_runtime_exception_module;
-pub use wer_unregister_runtime_exception_module::WerUnregisterRuntimeExceptionModule;
+
 mod wide_char_to_multi_byte;
 pub use wide_char_to_multi_byte::WideCharToMultiByte;
-mod wow64_disable_wow64_fs_redirection;
-pub use wow64_disable_wow64_fs_redirection::Wow64DisableWow64FsRedirection;
-mod wow64_enable_wow64_fs_redirection;
-pub use wow64_enable_wow64_fs_redirection::Wow64EnableWow64FsRedirection;
-mod wow64_get_thread_context;
-pub use wow64_get_thread_context::Wow64GetThreadContext;
-mod wow64_revert_wow64_fs_redirection;
-pub use wow64_revert_wow64_fs_redirection::Wow64RevertWow64FsRedirection;
-mod wow64_set_thread_context;
-pub use wow64_set_thread_context::Wow64SetThreadContext;
-mod wow64_suspend_thread;
-pub use wow64_suspend_thread::Wow64SuspendThread;
-mod write_console_output_attribute;
-pub use write_console_output_attribute::WriteConsoleOutputAttribute;
-mod write_file_ex;
-pub use write_file_ex::WriteFileEx;
-mod write_file_gather;
-pub use write_file_gather::WriteFileGather;
+
 mod write_process_memory;
 pub use write_process_memory::WriteProcessMemory;
-mod zombify_act_ctx;
-pub use zombify_act_ctx::ZombifyActCtx;
-mod __c_specific_handler;
-pub use __c_specific_handler::__C_specific_handler;
-mod __chkstk;
-pub use __chkstk::__chkstk;
-mod __misaligned_access;
-pub use __misaligned_access::__misaligned_access;
-mod _local_unwind;
-pub use _local_unwind::_local_unwind;
 mod lstrcmp;
 pub use lstrcmp::{lstrcmp, lstrcmpA, lstrcmpW};
 
@@ -3739,66 +444,24 @@ pub use lstrcpyn::{lstrcpyn, lstrcpynA, lstrcpynW};
 mod lstrlen;
 pub use lstrlen::{lstrlen, lstrlenA, lstrlenW};
 
-mod interlocked_compare_exchange;
-pub use interlocked_compare_exchange::InterlockedCompareExchange;
-mod interlocked_compare_exchange64;
-pub use interlocked_compare_exchange64::InterlockedCompareExchange64;
-mod interlocked_decrement;
-pub use interlocked_decrement::InterlockedDecrement;
-mod interlocked_exchange;
-pub use interlocked_exchange::InterlockedExchange;
-mod interlocked_exchange_add;
-pub use interlocked_exchange_add::InterlockedExchangeAdd;
-mod interlocked_increment;
-pub use interlocked_increment::InterlockedIncrement;
-mod wow64_transition;
-pub use wow64_transition::Wow64Transition;
-mod get_file_version_info;
-use get_file_version_info::GetFileVersionInfoA;
-mod get_file_version_info_size;
-use get_file_version_info_size::GetFileVersionInfoSizeA;
-mod get_token_information;
-pub use get_token_information::GetTokenInformation;
+pub use crate::winapi::common::security::{GetTokenInformation, OpenProcessToken};
 mod local_alloc;
 use local_alloc::LocalAlloc;
 mod set_unhandled_exception_filter;
 use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
-mod ver_query_value;
-use ver_query_value::VerQueryValueA;
-mod _exit;
-use _exit::_exit;
 mod _initterm;
 use _initterm::_initterm;
 mod _initterm_e;
 use _initterm_e::_initterm_e;
-mod atexit;
-use atexit::atexit;
-mod exit;
-use exit::exit;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
-    let api = api.split("!").last().unwrap_or(&api);
-    if winapi64::registry::gateway(api, emu) {
-        return String::new();
-    }
-    if sections::dispatch(api, emu) {
-        return String::new();
-    }
-    if memory_ops::dispatch(api, emu) {
-        return String::new();
-    }
-    if heap_api::dispatch(api, emu) {
-        return String::new();
-    }
-    if memory_api::dispatch(api, emu) {
-        return String::new();
-    }
-    if modules::dispatch(api, "kernelbase", emu)
-        || files::dispatch(api, "kernelbase", emu)
-        || strings::dispatch(api, "kernelbase", emu)
-        || handles::dispatch(api, "kernelbase", emu)
-    {
+    let api = api.rsplit('!').next().unwrap_or(&api);
+    gateway_by_name(addr, api, emu)
+}
+
+pub(super) fn gateway_by_name(addr: u64, api: &str, emu: &mut emu::Emu) -> String {
+    if dispatch_shared(api, "kernelbase", emu) {
         return String::new();
     }
     if appcompat::dispatch(api, addr, emu)
@@ -3821,88 +484,42 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         return String::new();
     }
 
-    winapi64::kernel32::gateway(addr, emu)
+    winapi64::kernel32::gateway_by_name(addr, api, emu)
 }
 
-/*
-DWORD GetFileVersionInfoSizeA(
-  [in]            LPCSTR  lptstrFilename,
-  [out, optional] LPDWORD lpdwHandle
+unsupported_exports!(
+    "kernelbase",
+    DeleteTimerQueue,
+    EnumSystemGeoID,
+    EnumSystemGeoNames,
+    GetGeoInfoEx,
+    GetUserDefaultGeoName,
+    GetUserGeoID,
+    IsThreadAFiber,
+    IsValidLocale,
+    LocalFlags,
+    RegisterApplicationRestart,
+    SetSystemTimeAdjustment,
+    SetUserGeoID,
+    SetUserGeoName,
+    UnregisterApplicationRestart,
+    WerSetFlags,
+    Wow64SuspendThread
 );
-*/
-/*
-BOOL GetFileVersionInfoA(
-  [in]  LPCSTR lptstrFilename,
-        DWORD  dwHandle,
-  [in]  DWORD  dwLen,
-  [out] LPVOID lpData
+
+unsupported_exports!(
+    "kernelbase",
+    CloseIoRing,
+    ClosePackageInfo,
+    CloseState,
+    CloseThreadpool,
+    CloseThreadpoolCleanupGroup,
+    CloseThreadpoolCleanupGroupMembers,
+    CloseThreadpoolIo,
+    CloseThreadpoolWork,
+    DeleteProcThreadAttributeList,
+    FreeLibraryWhenCallbackReturns,
+    RemoveDllDirectory,
+    RemoveVectoredContinueHandler,
+    UnregisterTraceGuids,
 );
-*/
-/*
-BOOL VerQueryValueA(
-  [in]  LPCVOID pBlock,
-  [in]  LPCSTR  lpSubBlock,
-  [out] LPVOID  *lplpBuffer,
-  [out] PUINT   puLen
-);
-*/
-// Setting `process_terminated` alone does not end the current run: the loop
-// runs on `is_running`, and `process_terminated` is only read once, before it
-// starts. Returning from here would resume at the caller and re-run main.
-// `stop()` sets both, which is what kernel32!ExitProcess and msvcrt!exit do.
-/*
-DWORD CharLowerBuffW(
-  [in, out] LPWSTR lpsz,
-  [in]      DWORD  cchLength
-);
-*/
-fn expand_env_vars(src: &str) -> String {
-    let mut result = String::with_capacity(src.len());
-    let mut chars = src.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch == '%' {
-            let mut var_name = String::new();
-            let mut found_end = false;
-            while let Some(&next) = chars.peek() {
-                if next == '%' {
-                    chars.next();
-                    found_end = true;
-                    break;
-                }
-                var_name.push(next);
-                chars.next();
-            }
-            if found_end && !var_name.is_empty() {
-                let val = match var_name.to_uppercase().as_str() {
-                    "SYSTEMROOT" | "WINDIR" => "C:\\Windows",
-                    "SYSTEMDRIVE" => "C:",
-                    "USERPROFILE" => "C:\\Users\\User",
-                    "TEMP" | "TMP" => "C:\\Users\\User\\AppData\\Local\\Temp",
-                    "APPDATA" => "C:\\Users\\User\\AppData\\Roaming",
-                    "LOCALAPPDATA" => "C:\\Users\\User\\AppData\\Local",
-                    "PROGRAMFILES" => "C:\\Program Files",
-                    "PROGRAMDATA" => "C:\\ProgramData",
-                    "HOMEDRIVE" => "C:",
-                    "HOMEPATH" => "\\Users\\User",
-                    "COMSPEC" => "C:\\Windows\\system32\\cmd.exe",
-                    "PATH" => "C:\\Windows\\system32;C:\\Windows",
-                    "USERNAME" => "User",
-                    "COMPUTERNAME" => "DESKTOP-MWEMU",
-                    _ => {
-                        result.push('%');
-                        result.push_str(&var_name);
-                        result.push('%');
-                        continue;
-                    }
-                };
-                result.push_str(val);
-            } else {
-                result.push('%');
-                result.push_str(&var_name);
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}

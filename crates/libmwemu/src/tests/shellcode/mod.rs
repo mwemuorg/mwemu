@@ -1,3 +1,4 @@
+mod sc32lin_int80;
 mod sc32lin_rshell;
 mod sc32win_donut;
 mod sc32win_peb_ldr_rot;

@@ -16,7 +16,7 @@ pub fn __0exception__QAE_ABV0__Z(emu: &mut emu::Emu) {
     }
     log_red!(
         emu,
-        "msvcrt!exception::exception(copy) this:0x{:x} other:0x{:x}",
+        "msvcrt!exception::exception(copy) this=0x{:x} other=0x{:x}",
         this,
         other
     );

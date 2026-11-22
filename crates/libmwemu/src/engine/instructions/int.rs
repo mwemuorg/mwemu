@@ -31,11 +31,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             0x80 => {
                 // Do not set `emu.linux` here: it would mis-route later `syscall` on PE/SSDT.
                 if emu.os.is_linux() {
-                    if emu.cfg.is_x64() {
-                        linux::syscall64::gateway(emu);
-                    } else {
-                        linux::syscall32::gateway(emu);
-                    }
+                    linux::syscall32::gateway(emu);
                 } else if emu.cfg.is_x64() {
                     windows::syscall64::gateway(emu);
                 } else {

@@ -1,0 +1,48 @@
+use crate::api::dispatch_api;
+use crate::emu::Emu;
+use crate::winapi::libraries::user32::exports;
+
+pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
+    dispatch_api!(api, {
+        "DdeAbandonTransaction" => exports::DdeAbandonTransaction(emu),
+        "DdeAccessData" => exports::DdeAccessData(emu),
+        "DdeAddData" => exports::DdeAddData(emu),
+        "DdeClientTransaction" => exports::DdeClientTransaction(emu),
+        "DdeCmpStringHandles" => exports::DdeCmpStringHandles(emu),
+        "DdeConnect" => exports::DdeConnect(emu),
+        "DdeConnectList" => exports::DdeConnectList(emu),
+        "DdeCreateDataHandle" => exports::DdeCreateDataHandle(emu),
+        "DdeCreateStringHandleA" => exports::DdeCreateStringHandleA(emu),
+        "DdeCreateStringHandleW" => exports::DdeCreateStringHandleW(emu),
+        "DdeDisconnect" => exports::DdeDisconnect(emu),
+        "DdeDisconnectList" => exports::DdeDisconnectList(emu),
+        "DdeEnableCallback" => exports::DdeEnableCallback(emu),
+        "DdeFreeDataHandle" => exports::DdeFreeDataHandle(emu),
+        "DdeFreeStringHandle" => exports::DdeFreeStringHandle(emu),
+        "DdeGetData" => exports::DdeGetData(emu),
+        "DdeGetLastError" => exports::DdeGetLastError(emu),
+        "DdeGetQualityOfService" => exports::DdeGetQualityOfService(emu),
+        "DdeImpersonateClient" => exports::DdeImpersonateClient(emu),
+        "DdeInitializeA" => exports::DdeInitializeA(emu),
+        "DdeInitializeW" => exports::DdeInitializeW(emu),
+        "DdeKeepStringHandle" => exports::DdeKeepStringHandle(emu),
+        "DdeNameService" => exports::DdeNameService(emu),
+        "DdePostAdvise" => exports::DdePostAdvise(emu),
+        "DdeQueryConvInfo" => exports::DdeQueryConvInfo(emu),
+        "DdeQueryNextServer" => exports::DdeQueryNextServer(emu),
+        "DdeQueryStringA" => exports::DdeQueryStringA(emu),
+        "DdeQueryStringW" => exports::DdeQueryStringW(emu),
+        "DdeReconnect" => exports::DdeReconnect(emu),
+        "DdeSetQualityOfService" => exports::DdeSetQualityOfService(emu),
+        "DdeSetUserHandle" => exports::DdeSetUserHandle(emu),
+        "DdeUnaccessData" => exports::DdeUnaccessData(emu),
+        "DdeUninitialize" => exports::DdeUninitialize(emu),
+        "FreeDDElParam" => exports::FreeDDElParam(emu),
+        "PackDDElParam" => exports::PackDDElParam(emu),
+        "ReuseDDElParam" => exports::ReuseDDElParam(emu),
+        "UnpackDDElParam" => exports::UnpackDDElParam(emu),
+    },
+        handled(()) => true,
+        fallback => false,
+    )
+}

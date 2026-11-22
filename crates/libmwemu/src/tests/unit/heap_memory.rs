@@ -1283,21 +1283,6 @@ fn global_alloc_no_overlap() {
 }
 
 #[test]
-fn gdip_alloc_gateway_creates_writable_buffer() {
-    const BUFFER_MARKER: u8 = 0x5a;
-    let (mut emu, _) = helpers::prepare_winapi(false);
-    for size in [1, 256, 4097] {
-        let address = helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipAlloc", &[size]);
-        assert_ne!(address, 0);
-        assert_eq!(emu.maps.get_mem_size(address), Some(size as usize));
-        assert!(emu.maps.fill_range(address, BUFFER_MARKER, size as usize));
-        assert_eq!(emu.maps.read_byte(address), Some(BUFFER_MARKER));
-        assert_eq!(emu.maps.read_byte(address + size - 1), Some(BUFFER_MARKER));
-        assert!(emu.api_policy.last_outcome.is_none());
-    }
-}
-
-#[test]
 fn ntdll32_heap_size_aliases_use_allocation_ownership() {
     const REQUESTED_SIZE: u64 = 257;
     let (mut emu, handle, _) = prepare(false, false);
@@ -1313,5 +1298,33 @@ fn ntdll32_heap_size_aliases_use_allocation_ownership() {
             "{api} must reject an interior pointer"
         );
         assert!(emu.api_policy.last_outcome.is_none());
+    }
+}
+
+#[test]
+fn gdiplus_allocation_routes_share_heap_ownership() {
+    for is64 in [false, true] {
+        let (mut emu, _) = helpers::prepare_winapi(is64);
+        for size in [0, 1, 256, 4097] {
+            let address =
+                helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipAlloc", &[size]);
+            assert_ne!(address, 0);
+            assert_eq!(
+                heap::owned_size(&emu, 0, address),
+                Some(size.max(1) as usize)
+            );
+            assert!(emu.maps.fill_range(address, 0xa5, size.max(1) as usize));
+            assert_eq!(emu.maps.read_byte(address), Some(0xa5));
+            assert_eq!(emu.maps.read_byte(address + size.max(1) - 1), Some(0xa5));
+            assert!(emu.api_policy.last_outcome.is_none());
+            helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipFree", &[address]);
+            assert_eq!(heap::owned_size(&emu, 0, address), None);
+        }
+        let too_large = emu.maps.max_alloc_size + 1;
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipAlloc", &[too_large]),
+            0
+        );
+        helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipFree", &[0]);
     }
 }

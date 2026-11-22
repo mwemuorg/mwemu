@@ -14,7 +14,7 @@ use crate::windows::constants::errors::*;
 /// Log a parameter-validation failure, set `ERROR_INVALID_PARAMETER`, return 0.
 pub(crate) fn fail(emu: &mut Emu, label: &str, ctx: &str, reason: &str) {
     let call = WinApi(Stdcall);
-    log_red!(emu, "kernel32!{} {} = 0 reason: {}", label, ctx, reason);
+    log_red!(emu, "kernel32!{} {} = 0 reason={}", label, ctx, reason);
     set_last_error(emu, ERROR_INVALID_PARAMETER as u32);
     call.set_return(emu, 0);
 }

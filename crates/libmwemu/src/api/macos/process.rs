@@ -2,7 +2,8 @@
 //! itself (snapshot/restore, zombies) lives in `threading::process`.
 use super::libc_extra::trace;
 use crate::api::abi::unix::UnixApi;
-use crate::api::unix::api_try;
+use crate::api::dispatch_api;
+use crate::api::unix::{self, api_try};
 use crate::emu::Emu;
 use crate::threading::process::AtFork;
 
@@ -11,17 +12,18 @@ const RUSAGE_SIZE: u64 = 144;
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
-    match name {
+    dispatch_api!(name, {
         "fork" | "vfork" => api_fork(emu, name),
         "waitpid" => api_waitpid(emu),
         "wait" => api_wait(emu),
         "wait4" => api_wait4(emu),
-        "getpid" => api_getpid(emu),
-        "getppid" => api_getppid(emu),
+        "getpid" => unix::getpid(emu),
+        "getppid" => unix::getppid(emu),
         "pthread_atfork" => api_pthread_atfork(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn api_fork(emu: &mut Emu, name: &str) {
@@ -86,20 +88,6 @@ fn api_wait4(emu: &mut Emu) {
         emu.maps.memset(rusage, 0, RUSAGE_SIZE as usize);
     }
     call.set_return(emu, ret);
-}
-
-fn api_getpid(emu: &mut Emu) {
-    let call = UnixApi;
-    let pid = emu.processes.pid;
-    trace(emu, &format!("getpid() -> {}", pid));
-    call.set_return(emu, pid);
-}
-
-fn api_getppid(emu: &mut Emu) {
-    let call = UnixApi;
-    let ppid = emu.processes.ppid;
-    trace(emu, &format!("getppid() -> {}", ppid));
-    call.set_return(emu, ppid);
 }
 
 fn api_pthread_atfork(emu: &mut Emu) {
