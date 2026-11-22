@@ -532,7 +532,7 @@ impl Console {
                     log::trace!("pos = 0x{:x}", emu.pos);
                 }
                 "c" => {
-                    emu.exp += 1;
+                    emu.exp = u64::MAX;
                     emu.is_running.store(1, atomic::Ordering::Relaxed);
                     return;
                 }
