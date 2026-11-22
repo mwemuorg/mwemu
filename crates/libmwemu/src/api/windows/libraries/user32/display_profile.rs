@@ -157,7 +157,11 @@ fn parameters(emu: &mut Emu, api: &str) {
         "user32!{api} action={action:#x} parameter={parameter:#x} output={output:#x} flags={flags:#x}"
     );
     if action as u32 != SPI_GETWORKAREA {
-        policy::unsupported(emu, "user32", api, emu.pc());
+        log::warn!(
+            "unsupported {api}(ui_action={action:#x}, ui_param={parameter:#x}, pv_param={output:#x}, f_win_ini={flags:#x})"
+        );
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, 4);
         return;
     }
     let values = [0, 0, SCREEN_WIDTH, WORK_HEIGHT].map(i32::to_le_bytes);

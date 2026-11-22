@@ -2,6 +2,7 @@
 - Windows Drivers simulation + harness similar to Linux drivers harness
 - In MacOS more tests are applied than for Linux
 - end the WinAPI full-coverage kernel32 98.9%→100%, winhttp 13%→más, iphlpapi 2.6%→más, gdi32 10%→más
+- fix 'c' mwemu console command, to coninue after console is spawned is necesary to pres enter severa ltimes to emulate several instructions and then type c, there is a weird bug there.
 
 
 # For  Drivers Windows 
