@@ -983,6 +983,20 @@ pub(crate) fn raise_exception(emu: &mut Emu, library: &str) {
         {
             emu.dispatch_structured_exception(&record);
         }
+        // If the exception went unhandled and dispatch_unhandled_exception
+        // stopped the emulator, resume so the binary can keep running.
+        // On real Windows this would go through the kernel's second-chance
+        // path; here we just continue from the caller of RaiseException.
+        if emu.process_terminated && !emu.force_break {
+            log::warn!(
+                "RaiseException: unhandled 0x{:x} at 0x{:x} — resuming",
+                code,
+                record.address,
+            );
+            emu.process_terminated = false;
+            emu.is_running
+                .store(1, std::sync::atomic::Ordering::Relaxed);
+        }
     } else {
         emu.dispatch_vectored_exception(&record, 0);
     }

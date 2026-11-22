@@ -11,6 +11,7 @@ mod memory;
 mod misc;
 mod string;
 mod sync;
+mod unwind;
 
 #[cfg(test)]
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
@@ -39,6 +40,7 @@ pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         || memory::dispatch(api, emu)
         || string::dispatch(api, emu)
         || sync::dispatch(api, emu)
+        || unwind::dispatch(api, emu)
         || misc::dispatch(api, emu)
 }
 

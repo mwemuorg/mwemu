@@ -22,4 +22,5 @@ mod sse_moves;
 mod sse_packed_float;
 mod sse_scalar_arith;
 mod stack64_test;
+mod unwind64;
 mod x86tester_regressions;
