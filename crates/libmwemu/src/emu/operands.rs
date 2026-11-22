@@ -1,3 +1,5 @@
+use crate::arch::Arch;
+use crate::windows::constants::exceptions::WOW64_USER_CODE_SELECTOR;
 use crate::windows::constants::nls::*;
 use iced_x86::{Instruction, OpKind, Register};
 
@@ -14,6 +16,11 @@ use crate::{
 };
 
 impl Emu {
+    pub(crate) fn windows_i386_user_cs(&self) -> Option<u16> {
+        (self.cfg.arch == Arch::X86 && self.os.is_windows() && !self.kernel_driver_active())
+            .then_some(WOW64_USER_CODE_SELECTOR)
+    }
+
     /// Decode the jump parameter
     pub fn get_jump_value(&mut self, ins: &Instruction, noperand: u32) -> Option<u64> {
         match ins.op_kind(noperand) {
@@ -509,7 +516,13 @@ impl Emu {
         let op_kind = ins.op_kind(noperand);
 
         if op_kind == OpKind::Register {
-            Some(self.regs().get_reg(ins.op_register(noperand)))
+            let reg = ins.op_register(noperand);
+            if reg == Register::CS
+                && let Some(cs) = self.windows_i386_user_cs()
+            {
+                return Some(cs as u64);
+            }
+            Some(self.regs().get_reg(reg))
         } else if op_kind == OpKind::Memory {
             self.handle_memory_get_operand(ins, noperand, do_derref)
                 .or_else(|| {
@@ -1049,7 +1062,11 @@ impl Emu {
 
                 if do_derref {
                     let size = ins.memory_size().size();
-                    let bytes = self.read_instruction_bytes::<16>(mem_addr, size)?;
+                    let bytes = self.read_instruction_bytes::<16>(
+                        mem_addr,
+                        size,
+                        ExceptionType::ReadingXmmOperand,
+                    )?;
                     u128::from_le_bytes(bytes)
                 } else {
                     mem_addr as u128
@@ -1123,8 +1140,11 @@ impl Emu {
                 };
 
                 if do_derref {
-                    let bytes =
-                        self.read_instruction_bytes::<32>(mem_addr, ins.memory_size().size())?;
+                    let bytes = self.read_instruction_bytes::<32>(
+                        mem_addr,
+                        ins.memory_size().size(),
+                        ExceptionType::ReadingXmmOperand,
+                    )?;
                     regs64::U256::from_little_endian(&bytes)
                 } else {
                     regs64::U256::from(mem_addr)
@@ -1158,10 +1178,11 @@ impl Emu {
     }
 
     /// Read exactly the encoded operand width, including across adjacent maps.
-    fn read_instruction_bytes<const N: usize>(
+    pub(crate) fn read_instruction_bytes<const N: usize>(
         &mut self,
         addr: u64,
         size: usize,
+        fault: ExceptionType,
     ) -> Option<[u8; N]> {
         if size > N {
             return None;
@@ -1174,13 +1195,8 @@ impl Emu {
             self.hooks.hook_on_memory_read = Some(hook);
         }
         if !self.maps.can_access_range(addr, size, Permission::READ) {
-            log::trace!("/!\\ exception reading SIMD operand at 0x{:x}", addr);
-            self.memory_exception(
-                ExceptionType::ReadingXmmOperand,
-                addr,
-                size,
-                MemoryAccess::Read,
-            );
+            log::trace!("/!\\ exception reading memory operand at 0x{:x}", addr);
+            self.memory_exception(fault, addr, size, MemoryAccess::Read);
             return None;
         }
         let mut bytes = [0; N];

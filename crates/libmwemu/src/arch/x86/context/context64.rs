@@ -48,30 +48,38 @@ pub struct Context64 {
 }
 
 impl Context64 {
-    const RAX_OFFSET: u64 = 120;
-    const RCX_OFFSET: u64 = 128;
-    const RDX_OFFSET: u64 = 136;
-    const RBX_OFFSET: u64 = 144;
-    const RBP_OFFSET: u64 = 160;
-    const RSI_OFFSET: u64 = 168;
-    const RDI_OFFSET: u64 = 176;
-    const R8_OFFSET: u64 = 184;
-    const R9_OFFSET: u64 = 192;
-    const R10_OFFSET: u64 = 200;
-    const R11_OFFSET: u64 = 208;
-    const R12_OFFSET: u64 = 216;
-    const R13_OFFSET: u64 = 224;
-    const R14_OFFSET: u64 = 232;
-    const R15_OFFSET: u64 = 240;
-    pub const RSP_OFFSET: u64 = 152;
-    pub const RIP_OFFSET: u64 = 248;
-    const DR0_OFFSET: u64 = 72;
-    const DR1_OFFSET: u64 = 80;
-    const DR2_OFFSET: u64 = 88;
-    const DR3_OFFSET: u64 = 96;
-    const DR6_OFFSET: u64 = 104;
-    const DR7_OFFSET: u64 = 112;
+    pub const FLAGS_OFFSET: u64 = 0x30;
+    pub const EFLAGS_OFFSET: u64 = 0x44;
+    pub const RSP_OFFSET: u64 = 0x98;
+    pub const RIP_OFFSET: u64 = 0xf8;
     pub const INTEGER_CONTROL_SIZE: u64 = 0x100;
+
+    pub(crate) const MXCSR_OFFSET: u64 = 0x34;
+    pub(crate) const RAX_OFFSET: u64 = 0x78;
+    pub(crate) const FXSAVE_MXCSR_OFFSET: u64 = 0x118;
+    pub(crate) const XMM0_OFFSET: u64 = 0x1a0;
+    pub(crate) const GUEST_SIZE: u64 = 0x4d0;
+
+    const DR0_OFFSET: u64 = 0x48;
+    const DR1_OFFSET: u64 = 0x50;
+    const DR2_OFFSET: u64 = 0x58;
+    const DR3_OFFSET: u64 = 0x60;
+    const DR6_OFFSET: u64 = 0x68;
+    const DR7_OFFSET: u64 = 0x70;
+    const RCX_OFFSET: u64 = 0x80;
+    const RDX_OFFSET: u64 = 0x88;
+    const RBX_OFFSET: u64 = 0x90;
+    const RBP_OFFSET: u64 = 0xa0;
+    const RSI_OFFSET: u64 = 0xa8;
+    const RDI_OFFSET: u64 = 0xb0;
+    const R8_OFFSET: u64 = 0xb8;
+    const R9_OFFSET: u64 = 0xc0;
+    const R10_OFFSET: u64 = 0xc8;
+    const R11_OFFSET: u64 = 0xd0;
+    const R12_OFFSET: u64 = 0xd8;
+    const R13_OFFSET: u64 = 0xe0;
+    const R14_OFFSET: u64 = 0xe8;
+    const R15_OFFSET: u64 = 0xf0;
 
     /// Transfer only the supported register groups selected by ContextFlags.
     pub(crate) fn load_selected(&mut self, addr: u64, maps: &Maps, flags: u32) {
@@ -129,9 +137,6 @@ impl Context64 {
             maps.write_dword(addr + Self::EFLAGS_OFFSET, eflags);
         }
     }
-
-    pub const FLAGS_OFFSET: u64 = 0x30;
-    pub const EFLAGS_OFFSET: u64 = 0x44;
 
     pub fn size() -> usize {
         std::mem::size_of::<Self>()

@@ -56,6 +56,8 @@ pub enum ApiStopReason {
     InvalidMemory,
     BanzaiDisabled,
     InvalidArgument(ArgumentError),
+    CallbackFailed,
+    UnsupportedUnwind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,6 +215,54 @@ fn stop(emu: &mut Emu, call: ApiCall, reason: ApiStopReason) {
     {
         Serialization::dump(emu, filename);
     }
+}
+
+/// A synchronous guest callback can enter another Windows API before it returns.
+pub(crate) fn invoke_callback<const N: usize>(
+    emu: &mut Emu,
+    library: &str,
+    api: &str,
+    callback: u64,
+    args: [u64; N],
+) -> Option<u64> {
+    let outer_entry = emu.api_policy.entry.take();
+    let outer_return = emu.gateway_return;
+    let result = if emu.cfg.is_x64() {
+        emu.call64(callback, &args)
+    } else {
+        emu.call32(callback, &args.map(|arg| arg as u32))
+            .map(u64::from)
+    };
+    match result {
+        Ok(value) => {
+            emu.gateway_return = outer_return;
+            emu.api_policy.entry = outer_entry;
+            Some(value)
+        }
+        Err(error) => {
+            log::warn!("{library}!{api} callback={callback:#x} failed: {error}");
+            callback_failed(emu, library, api);
+            None
+        }
+    }
+}
+
+pub(crate) fn callback_failed(emu: &mut Emu, library: &str, api: &str) {
+    if emu.api_policy.stopped()
+        || emu.process_terminated
+        || emu.current_thread().exit_value.is_some()
+    {
+        return;
+    }
+    let mut context = call_context(emu, library, api, emu.pc());
+    context.pc = emu.pc();
+    context.stack_pointer = emu.sp();
+    stop(emu, context, ApiStopReason::CallbackFailed);
+}
+
+pub(crate) fn invalid_unwind(emu: &mut Emu, library: &str, name: &str, reason: ApiStopReason) {
+    let context = call_context(emu, library, name, emu.pc());
+    stop(emu, context, reason);
 }
 
 pub(crate) fn argument_fault(emu: &mut Emu, error: ArgumentError) {
@@ -447,7 +497,6 @@ fn builtin_recipe(library: &str, name: &str, mode: ApiMode, route: ApiRoute) -> 
             | "OOBEComplete"
             | "RemoveSecureMemoryCacheCallback"
             | "RequestWakeupLatency"
-            | "SetProcessDEPPolicy"
             | "SetUserGeoID"
             | "SetUserGeoName"
             | "UnregisterWait"
@@ -496,7 +545,6 @@ fn builtin_recipe(library: &str, name: &str, mode: ApiMode, route: ApiRoute) -> 
             | "EnumSystemLanguageGroupsA"
             | "EnumTimeFormatsA"
             | "EnumUILanguagesA"
-            | "GetProcessDEPPolicy"
             | "GetThreadSelectorEntry"
             | "Heap32First"
             | "RegisterWaitUntilOOBECompleted"

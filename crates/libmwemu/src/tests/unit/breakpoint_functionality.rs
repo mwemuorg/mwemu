@@ -44,7 +44,8 @@ pub fn breakpoint_functionality() {
     emu.load_code(&sample!("exe64win_msgbox.bin"));
     assert!(!emu.maps.is_allocated(0));
     emu.bp.clear_bp();
-    emu.bp.add_bp(0x1400011d6);
+    const STARTUP_BREAKPOINT_RVA: u64 = 0x11d6;
+    emu.bp.add_bp(emu.base + STARTUP_BREAKPOINT_RVA);
     emu.run(None);
     assert!(!emu.maps.is_allocated(0));
     assert_eq!(emu.pos, 4);

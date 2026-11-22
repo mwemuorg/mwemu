@@ -1,8 +1,11 @@
+use crate::windows::peb::{peb32, peb64};
+use crate::windows::structures::{RtlUserProcessParameters32, RtlUserProcessParameters64};
+use goblin::pe::dll_characteristic::IMAGE_DLLCHARACTERISTICS_NX_COMPAT;
 use itertools::iproduct;
+use rs_header::pe::pe32::PE32;
 
-use crate::api::windows::common::memory::read_pointer;
+use crate::api::windows::common::memory::{read_pointer, write_pointer};
 use crate::emu::{Emu, object_handle::ServiceObject};
-use crate::emu64;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
 use crate::syscall::windows::{ntapi::ntapi32, syscall64};
@@ -11,13 +14,122 @@ use crate::threading::context::ThreadContext;
 use crate::winapi::common::strings;
 use crate::winapi::winapi64;
 use crate::windows::constants::errors::*;
+use crate::windows::constants::exceptions::{
+    EXCEPTION_CONTINUE_EXECUTION32, EXCEPTION_CONTINUE_SEARCH, EXCEPTION_EXECUTE_HANDLER,
+};
 use crate::windows::constants::process::*;
 use crate::windows::constants::syscalls::{
     WIN64_NTQUERYINFORMATIONPROCESS, WIN64_NTQUERYINFORMATIONTHREAD,
 };
 use crate::windows::constants::system::*;
+use crate::{emu_aarch64, emu64};
 
 const SYSTEM_BASIC_INFORMATION_SIZE: u64 = 64;
+
+#[test]
+fn process_dep_policy_tracks_opt_in_and_permanent_settings() {
+    let call = helpers::call_winapi_export;
+    let dll = "kernel32.dll";
+    let (mut emu, out) = helpers::prepare_winapi(false);
+    let query = [NT_CURRENT_PROCESS, out, out + 4];
+    assert_eq!(
+        call(&mut emu, dll, "GetSystemDEPPolicy", &[]),
+        u64::from(DEP_OPT_IN)
+    );
+    assert_eq!(call(&mut emu, dll, "GetProcessDEPPolicy", &query), 1);
+    assert_eq!(emu.maps.read_dword(out), Some(0));
+    assert_eq!(emu.maps.read_dword(out + 4), Some(0));
+
+    for (flags, result, error) in [
+        (0, 1, ERROR_ENVVAR_NOT_FOUND),
+        (
+            PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION,
+            0,
+            ERROR_INVALID_PARAMETER,
+        ),
+        (4, 0, ERROR_INVALID_PARAMETER),
+        (PROCESS_DEP_ENABLE, 1, ERROR_ENVVAR_NOT_FOUND),
+        (0, 0, ERROR_ACCESS_DENIED),
+        (PROCESS_DEP_ENABLE, 0, ERROR_ACCESS_DENIED),
+    ] {
+        emu.set_last_error(ERROR_ENVVAR_NOT_FOUND);
+        assert_eq!(
+            call(&mut emu, dll, "SetProcessDEPPolicy", &[flags.into()]),
+            result
+        );
+        assert_eq!(emu.get_last_error(), error);
+    }
+    let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
+    assert_eq!(call(&mut restored, dll, "GetProcessDEPPolicy", &query), 1);
+    assert_eq!(restored.maps.read_dword(out), Some(PROCESS_DEP_ENABLE));
+    assert_eq!(restored.maps.read_dword(out + 4), Some(1));
+}
+
+#[test]
+fn process_dep_policy_checks_image_process_and_outputs() {
+    let call = helpers::call_winapi_export;
+    let dll = "kernel32.dll";
+    let both = PROCESS_DEP_ENABLE | PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION;
+    for is64 in [false, true] {
+        let (mut emu, out) = helpers::prepare_winapi(is64);
+        if !is64 {
+            let mut image = PE32::parse("nx.exe", helpers::LOADER32);
+            image.opt.dll_characteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT;
+            emu.pe32 = Some(image);
+        }
+        assert_eq!(
+            call(&mut emu, dll, "SetProcessDEPPolicy", &[both.into()]),
+            0
+        );
+        assert_eq!(
+            emu.get_last_error(),
+            if is64 {
+                ERROR_NOT_SUPPORTED
+            } else {
+                ERROR_ACCESS_DENIED
+            }
+        );
+        let query = [NT_CURRENT_PROCESS, out, out + 4];
+        assert_eq!(call(&mut emu, dll, "GetProcessDEPPolicy", &query), 1);
+        assert_eq!(emu.maps.read_dword(out), Some(both));
+        assert_eq!(emu.maps.read_dword(out + 4), Some(1));
+
+        let pid = call(&mut emu, dll, "GetCurrentProcessId", &[]);
+        let handle = call(
+            &mut emu,
+            dll,
+            "OpenProcess",
+            &[PROCESS_QUERY_LIMITED_INFORMATION.into(), 0, pid],
+        );
+        assert_ne!(handle, 0);
+        for (handle, error) in [(handle, ERROR_ACCESS_DENIED), (0, ERROR_INVALID_HANDLE)] {
+            assert_eq!(
+                call(
+                    &mut emu,
+                    dll,
+                    "GetProcessDEPPolicy",
+                    &[handle, out, out + 4]
+                ),
+                0
+            );
+            assert_eq!(emu.get_last_error(), error);
+        }
+    }
+
+    let (mut emu, out) = helpers::prepare_winapi(false);
+    assert_eq!(
+        call(&mut emu, dll, "SetProcessDEPPolicy", &[both.into()]),
+        1
+    );
+    emu.set_hook_on_exception(|_, _, _| false);
+    helpers::call_winapi32(
+        &mut emu,
+        |emu| helpers::invoke_winapi_export(emu, dll, "GetProcessDEPPolicy"),
+        &[NT_CURRENT_PROCESS as u32, out as u32, 0],
+    );
+    assert_eq!(emu.fault_count, 1);
+    assert_eq!(emu.maps.read_dword(out), Some(both));
+}
 
 #[test]
 fn close_handle_preserves_objects_owned_by_other_subsystems() {
@@ -32,6 +144,114 @@ fn close_handle_preserves_objects_owned_by_other_subsystems() {
         );
         assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
         assert!(emu.handle_management.close_service_object(service));
+    }
+}
+
+#[test]
+fn top_level_filter_shares_registration_and_returns_the_guest_disposition() {
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, info) = helpers::prepare_winapi(is64);
+        let record = info + 0x100;
+        let context = info + 0x200;
+        let callback = info + 0x1000;
+        emu.maps
+            .create_map("filter", callback, 0x1000, Permission::READ_WRITE_EXECUTE)
+            .unwrap();
+        let width = if is64 { 8 } else { 4 };
+        assert!(write_pointer(&mut emu, info, record));
+        assert!(write_pointer(&mut emu, info + width, context));
+        emu.maps.write_dword(record, STATUS_ILLEGAL_INSTRUCTION);
+
+        // The guest increments a counter at ContextRecord+4 and returns the LONG at ContextRecord.
+        let body: &[u8] = if is64 {
+            &[0x48, 0x8b, 0x49, 8, 0xff, 0x41, 4, 0x8b, 0x01, 0xc3]
+        } else {
+            &[
+                0x8b, 0x4c, 0x24, 4, 0x8b, 0x49, 4, 0xff, 0x41, 4, 0x8b, 0x01, 0xc2, 4, 0,
+            ]
+        };
+        emu.maps.write_bytes(callback, body);
+        let filter = "UnhandledExceptionFilter";
+        let set = "SetUnhandledExceptionFilter";
+        let execute = u64::from(EXCEPTION_EXECUTE_HANDLER);
+        assert_eq!(call(&mut emu, "kernelbase.dll", filter, &[info]), execute);
+        assert_eq!(call(&mut emu, "kernel32.dll", set, &[callback]), 0);
+
+        let stack = emu.sp();
+        emu.threads.push(ThreadContext::new(17, emu.cfg.arch));
+        emu.current_thread_id = 1;
+        emu.regs_mut().rsp = stack;
+        emu.regs_mut().rip = callback + 64;
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        assert_eq!(call(&mut emu, "kernelbase.dll", set, &[callback]), callback);
+        for (index, (result, expected)) in [
+            (
+                EXCEPTION_CONTINUE_EXECUTION32,
+                EXCEPTION_CONTINUE_EXECUTION32,
+            ),
+            (EXCEPTION_EXECUTE_HANDLER, EXCEPTION_EXECUTE_HANDLER),
+            (EXCEPTION_CONTINUE_SEARCH, EXCEPTION_EXECUTE_HANDLER),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            emu.maps.write_dword(context, result);
+            assert_eq!(
+                call(&mut emu, "kernel32.dll", filter, &[info]),
+                u64::from(expected)
+            );
+            assert_eq!(emu.maps.read_dword(context + 4), Some(index as u32 + 1));
+        }
+
+        let peb = callback + 0x1000;
+        emu.maps
+            .create_map("peb", peb, 0x1000, Permission::READ_WRITE)
+            .unwrap();
+        emu.maps.write_byte(peb + PEB_BEING_DEBUGGED_OFFSET, 1);
+        assert_eq!(
+            call(&mut emu, "kernelbase.dll", filter, &[info]),
+            u64::from(EXCEPTION_CONTINUE_SEARCH)
+        );
+        assert_eq!(emu.maps.read_dword(context + 4), Some(3));
+        assert_eq!(call(&mut emu, "kernelbase.dll", set, &[0]), callback);
+        emu.current_thread_id = 0;
+        assert_eq!(emu.uef(), 0);
+    }
+}
+
+#[test]
+fn top_level_filter_recovers_the_active_threads_legacy_registration() {
+    use crate::serialization::native::NativeSnapshotV5;
+    use crate::threading::context::ArchThreadState;
+
+    let (mut emu, first_filter) = helpers::prepare_winapi(false);
+    let worker_filter = first_filter + 64;
+    emu.set_uef(first_filter);
+    emu.threads.push(ThreadContext::new(17, emu.cfg.arch));
+    emu.current_thread_id = 1;
+    if let ArchThreadState::X86 { uef, .. } = &mut emu.current_thread_mut().arch {
+        *uef = worker_filter;
+    }
+    let mut legacy = b"MWEMU\0\x05\0".to_vec();
+    legacy.extend(bitcode::serialize(&NativeSnapshotV5::from(&emu)).unwrap());
+    let mut restored = Serialization::deserialize(&legacy);
+    assert_eq!(restored.uef(), worker_filter);
+    restored.current_thread_id = 0;
+    assert_eq!(restored.uef(), worker_filter);
+}
+
+#[test]
+fn top_level_filter_uses_the_api_policy_on_unmodeled_architectures() {
+    for (library, name) in [
+        ("kernel32.dll", "UnhandledExceptionFilter"),
+        ("kernelbase.dll", "SetUnhandledExceptionFilter"),
+        ("ntdll.dll", "RtlSetUnhandledExceptionFilter"),
+    ] {
+        let mut emu = emu_aarch64();
+        helpers::invoke_winapi_export(&mut emu, library, name);
+        assert!(emu.api_stopped(), "{library}!{name}");
     }
 }
 
@@ -694,11 +914,36 @@ fn environment_variables_share_routes_widths_and_owned_state() {
 fn environment_blocks_encoding_expansion_and_release_share_one_model() {
     for (is64, library) in iproduct!([false, true], ["kernel32.dll", "kernelbase.dll"]) {
         let (mut emu, data) = helpers::prepare_winapi(is64);
+        let env_slot = if is64 {
+            peb64::init_arguments(&mut emu) + RtlUserProcessParameters64::ENVIRONMENT_OFFSET
+        } else {
+            peb32::init_arguments(&mut emu) + RtlUserProcessParameters32::ENVIRONMENT_OFFSET
+        };
+        let read_environment = |emu: &Emu| {
+            if is64 {
+                emu.maps.read_qword(env_slot)
+            } else {
+                emu.maps.read_dword(env_slot).map(u64::from)
+            }
+        };
+        let original = read_environment(&emu).unwrap();
+        assert!(!emu.maps.read_wide_string(original).is_empty());
         let output = data + 0x200;
         emu.maps.write_wide_string(data, "NAME=café €\0EMPTY=\0\0");
         assert_eq!(
             helpers::call_winapi_export(&mut emu, library, "SetEnvironmentStringsW", &[data]),
             1
+        );
+        let process_block = read_environment(&emu).unwrap();
+        let expected: Vec<u8> = "NAME=café €\0EMPTY=\0\0"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        assert_eq!(
+            emu.maps
+                .try_read_bytes(process_block, expected.len())
+                .as_deref(),
+            Some(expected.as_slice())
         );
         assert!(emu.maps.write_bytes(data, b"name\0"));
         assert_eq!(
@@ -807,6 +1052,15 @@ fn environment_blocks_encoding_expansion_and_release_share_one_model() {
             3
         );
         assert_eq!(emu.maps.read_bytes(output, 4).as_ref(), b"A?B\0");
+        emu.maps.write_wide_string(data, "\0");
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, library, "SetEnvironmentStringsW", &[data]),
+            1
+        );
+        assert_eq!(
+            emu.maps.read_dword(read_environment(&emu).unwrap()),
+            Some(0)
+        );
     }
 }
 

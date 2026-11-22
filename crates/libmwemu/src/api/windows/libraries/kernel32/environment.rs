@@ -91,7 +91,9 @@ fn set_value(emu: &mut Emu, name: u64, value: u64, encoding: Encoding) -> Result
     } else {
         Some(encoding.read(emu, value)?)
     };
-    environment_store::process(emu).set(name, value);
+    let mut environment = environment_store::process(emu).clone();
+    environment.set(name, value);
+    environment_store::replace(emu, environment)?;
     Ok(1)
 }
 
@@ -136,18 +138,7 @@ fn expand_value(
 
 fn get_strings(emu: &mut Emu, api: &str, encoding: Encoding) {
     log_red!(emu, "kernel32!{api}");
-    let mut text = Vec::new();
-    for (name, value) in &environment_store::process(emu).variables {
-        text.extend(name);
-        text.push(b'=' as u16);
-        text.extend(value);
-        text.push(0);
-    }
-    if text.is_empty() {
-        text.push(0);
-    }
-    text.push(0);
-    let bytes = encoding.encode(&text);
+    let bytes = environment_store::process(emu).block(encoding);
     let result = allocate_block(emu, &bytes);
     set_result(emu, result);
 }
@@ -188,10 +179,9 @@ fn set_strings(emu: &mut Emu, api: &str, encoding: Encoding) {
     let call = WinApi(Stdcall);
     let block = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernel32!{api} block={block:#x}");
-    let result = read_block(emu, block, encoding).map(|environment| {
-        emu.environment = Some(environment);
-        1
-    });
+    let result = read_block(emu, block, encoding)
+        .and_then(|environment| environment_store::replace(emu, environment))
+        .map(|()| 1);
     call.cleanup_args(emu, 1);
     set_result(emu, result);
 }

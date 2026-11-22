@@ -25,6 +25,25 @@ impl Default for LdrDataTableEntry64 {
 }
 
 impl LdrDataTableEntry64 {
+    pub(crate) const BOOTSTRAP_LOAD_REASON: u32 = 9;
+
+    pub(crate) const IN_MEMORY_ORDER_LINKS_OFFSET: u64 = 0x10;
+    pub(crate) const IN_INITIALIZATION_ORDER_LINKS_OFFSET: u64 = 0x20;
+    pub(crate) const DLL_BASE_OFFSET: u64 = 0x30;
+    pub(crate) const FULL_DLL_NAME_OFFSET: u64 = 0x48;
+    pub(crate) const BASE_DLL_NAME_OFFSET: u64 = 0x58;
+    pub(crate) const HASH_LINKS_OFFSET: u64 = 0x70;
+    pub(crate) const DDAG_NODE_OFFSET: u64 = 0x98;
+    pub(crate) const BASE_ADDRESS_INDEX_NODE_OFFSET: u64 = 0xc8;
+    pub(crate) const LOAD_REASON_OFFSET: u64 = 0x10c;
+
+    const ENTRY_POINT_OFFSET: u64 = 0x38;
+    const SIZE_OF_IMAGE_OFFSET: u64 = 0x40;
+    const FLAGS_OFFSET: u64 = 0x68;
+    const LOAD_COUNT_OFFSET: u64 = 0x6c;
+    const TLS_INDEX_OFFSET: u64 = 0x6e;
+    const TIME_DATE_STAMP_OFFSET: u64 = 0x80;
+
     pub fn size() -> u64 {
         0x120
     }
@@ -50,35 +69,51 @@ impl LdrDataTableEntry64 {
     pub fn load(addr: u64, maps: &Maps) -> LdrDataTableEntry64 {
         LdrDataTableEntry64 {
             in_load_order_links: ListEntry64::load(addr, maps),
-            in_memory_order_links: ListEntry64::load(addr + 0x10, maps),
-            in_initialization_order_links: ListEntry64::load(addr + 0x20, maps),
-            dll_base: maps.read_qword(addr + 0x30).unwrap_or(0),
-            entry_point: maps.read_qword(addr + 0x38).unwrap_or(0),
-            size_of_image: maps.read_dword(addr + 0x40).unwrap_or(0), // dword aligned to qword
-            full_dll_name: UnicodeString64::load(addr + 0x48, maps),
-            base_dll_name: UnicodeString64::load(addr + 0x58, maps),
-            flags: maps.read_dword(addr + 0x68).unwrap_or(0),
-            load_count: maps.read_word(addr + 0x6c).unwrap_or(0),
-            tls_index: maps.read_word(addr + 0x6e).unwrap_or(0),
-            hash_links: ListEntry64::load(addr + 0x70, maps),
-            time_date_stamp: maps.read_dword(addr + 0x80).unwrap_or(0),
+            in_memory_order_links: ListEntry64::load(
+                addr + Self::IN_MEMORY_ORDER_LINKS_OFFSET,
+                maps,
+            ),
+            in_initialization_order_links: ListEntry64::load(
+                addr + Self::IN_INITIALIZATION_ORDER_LINKS_OFFSET,
+                maps,
+            ),
+            dll_base: maps.read_qword(addr + Self::DLL_BASE_OFFSET).unwrap_or(0),
+            entry_point: maps
+                .read_qword(addr + Self::ENTRY_POINT_OFFSET)
+                .unwrap_or(0),
+            size_of_image: maps
+                .read_dword(addr + Self::SIZE_OF_IMAGE_OFFSET)
+                .unwrap_or(0),
+            full_dll_name: UnicodeString64::load(addr + Self::FULL_DLL_NAME_OFFSET, maps),
+            base_dll_name: UnicodeString64::load(addr + Self::BASE_DLL_NAME_OFFSET, maps),
+            flags: maps.read_dword(addr + Self::FLAGS_OFFSET).unwrap_or(0),
+            load_count: maps.read_word(addr + Self::LOAD_COUNT_OFFSET).unwrap_or(0),
+            tls_index: maps.read_word(addr + Self::TLS_INDEX_OFFSET).unwrap_or(0),
+            hash_links: ListEntry64::load(addr + Self::HASH_LINKS_OFFSET, maps),
+            time_date_stamp: maps
+                .read_dword(addr + Self::TIME_DATE_STAMP_OFFSET)
+                .unwrap_or(0),
         }
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
         self.in_load_order_links.save(addr, maps);
-        self.in_memory_order_links.save(addr + 0x10, maps);
-        self.in_initialization_order_links.save(addr + 0x20, maps);
-        maps.write_qword(addr + 0x30, self.dll_base);
-        maps.write_qword(addr + 0x38, self.entry_point);
-        maps.write_dword(addr + 0x40, self.size_of_image);
-        self.full_dll_name.save(addr + 0x48, maps);
-        self.base_dll_name.save(addr + 0x58, maps);
-        maps.write_dword(addr + 0x68, self.flags);
-        maps.write_word(addr + 0x6c, self.load_count);
-        maps.write_word(addr + 0x6e, self.tls_index);
-        self.hash_links.save(addr + 0x70, maps);
-        maps.write_dword(addr + 0x80, self.time_date_stamp);
+        self.in_memory_order_links
+            .save(addr + Self::IN_MEMORY_ORDER_LINKS_OFFSET, maps);
+        self.in_initialization_order_links
+            .save(addr + Self::IN_INITIALIZATION_ORDER_LINKS_OFFSET, maps);
+        maps.write_qword(addr + Self::DLL_BASE_OFFSET, self.dll_base);
+        maps.write_qword(addr + Self::ENTRY_POINT_OFFSET, self.entry_point);
+        maps.write_dword(addr + Self::SIZE_OF_IMAGE_OFFSET, self.size_of_image);
+        self.full_dll_name
+            .save(addr + Self::FULL_DLL_NAME_OFFSET, maps);
+        self.base_dll_name
+            .save(addr + Self::BASE_DLL_NAME_OFFSET, maps);
+        maps.write_dword(addr + Self::FLAGS_OFFSET, self.flags);
+        maps.write_word(addr + Self::LOAD_COUNT_OFFSET, self.load_count);
+        maps.write_word(addr + Self::TLS_INDEX_OFFSET, self.tls_index);
+        self.hash_links.save(addr + Self::HASH_LINKS_OFFSET, maps);
+        maps.write_dword(addr + Self::TIME_DATE_STAMP_OFFSET, self.time_date_stamp);
     }
 
     pub fn print(&self) {

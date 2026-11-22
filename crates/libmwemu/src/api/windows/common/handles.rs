@@ -1,7 +1,7 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::memory::{
-    read_array, read_guest_bytes, writable_pointer, write_pointer,
+    pointer_size, read_array, read_guest_bytes, writable_pointer, write_pointer,
 };
 use crate::winapi::common::{ipc, nt_api, process, sections, security};
 use crate::winapi::environment_store::Encoding;
@@ -171,11 +171,104 @@ pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     match nt_api::normalize(api).as_ref() {
         "NtClose" => native_close(emu, call),
         "NtDuplicateObject" => duplicate(emu, "ntdll", call),
+        "NtQueryObject" => native_query_object(emu, call),
         "NtOpenProcessToken" => security::native_open_process_token(emu, call),
         "NtOpenProcess" => process::native_open_process(emu, call),
         _ => return false,
     }
     true
+}
+
+fn type_name(emu: &Emu, handle: u64) -> Option<&'static str> {
+    let pseudo = if emu.cfg.arch.is_64bits() {
+        handle
+    } else {
+        handle as u32 as i32 as i64 as u64
+    };
+    match pseudo {
+        NT_CURRENT_PROCESS => return Some("Process"),
+        NT_CURRENT_THREAD => return Some("Thread"),
+        _ => {}
+    }
+    if emu.file_handles.contains_key(&handle) || emu.console_handles.contains(&handle) {
+        Some("File")
+    } else if emu.section_handles.contains_key(&handle)
+        || emu.file_section_names.contains_key(&handle)
+    {
+        Some("Section")
+    } else if emu.known_dll_dir_handles.contains(&handle) {
+        Some("Directory")
+    } else if emu.symbolic_link_targets.contains_key(&handle) {
+        Some("SymbolicLink")
+    } else {
+        emu.handle_management.native_type_name(handle)
+    }
+}
+
+fn write_object_type(emu: &mut Emu, name: &str, output: u64, capacity: u32, returned: u64) -> u64 {
+    // PUBLIC_OBJECT_TYPE_INFORMATION starts with UNICODE_STRING and 22 reserved ULONGs.
+    let width = pointer_size(emu);
+    let header_size = 2 * width as usize + size_of::<[u32; 22]>();
+    let text: Vec<u8> = name
+        .encode_utf16()
+        .chain(Some(0))
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let written = header_size + text.len();
+    // The WOW64 thunk checks the aligned size, then reports the bytes copied to the 32-bit layout.
+    let required = written.next_multiple_of(size_of::<u64>());
+    if returned != 0
+        && !emu
+            .maps
+            .validate_write_range(returned, size_of::<u32>() as u64)
+    {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    if (capacity as usize) < required {
+        if returned != 0 {
+            emu.maps.write_dword(returned, required as u32);
+        }
+        return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    if output == 0 || !emu.maps.validate_write_range(output, required as u64) {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    let mut bytes = vec![0; written];
+    bytes[..2].copy_from_slice(&((text.len() - 2) as u16).to_le_bytes());
+    bytes[2..4].copy_from_slice(&(text.len() as u16).to_le_bytes());
+    bytes[header_size..].copy_from_slice(&text);
+    emu.maps.write_bytes(output, &bytes);
+    write_pointer(emu, output + width, output + header_size as u64);
+    if returned != 0 {
+        let length = if width == 4 { written } else { required };
+        emu.maps.write_dword(returned, length as u32);
+    }
+    STATUS_SUCCESS
+}
+
+fn native_query_object(emu: &mut Emu, call: WindowsAbi) {
+    const OBJECT_TYPE_INFORMATION: u32 = 2;
+    let [handle, class, output, capacity, returned] = api_try!(emu, call.args(emu));
+    let class = class as u32;
+    log_red!(
+        emu,
+        "ntdll!NtQueryObject handle={handle:#x} class={class} capacity={}",
+        capacity as u32
+    );
+    if class != OBJECT_TYPE_INFORMATION {
+        policy::unsupported_with_abi(emu, "ntdll", "NtQueryObject", emu.pc(), call);
+        return;
+    }
+    let status = if let Some(name) = type_name(emu, handle) {
+        write_object_type(emu, name, output, capacity as u32, returned)
+    } else if emu.handle_management.contains_handle(handle) {
+        policy::unsupported_with_abi(emu, "ntdll", "NtQueryObject", emu.pc(), call);
+        return;
+    } else {
+        STATUS_INVALID_HANDLE
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 5);
 }
 
 fn native_close(emu: &mut Emu, call: WindowsAbi) {

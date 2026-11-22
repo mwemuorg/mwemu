@@ -1,6 +1,7 @@
 use itertools::iproduct;
 
 use crate::context::{context32::Context32, context64::Context64};
+use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
 use crate::tests::helpers;
@@ -270,6 +271,37 @@ fn windows_thread_context_targets_the_handle_and_selected_registers() {
         }
         assert_eq!(regs.rsp, original_sp);
         assert_eq!(regs.rbx, 0x123456);
+        if !is_64 {
+            const DR0_OFFSET: u64 = 4;
+            const DR7_OFFSET: u64 = 24;
+            emu.maps
+                .write_dword(address + flags_offset, WOW64_CONTEXT_DEBUG_REGISTERS);
+            emu.maps.write_dword(address + DR0_OFFSET, 0x600100);
+            emu.maps.write_dword(address + DR7_OFFSET, 1);
+            assert_eq!(
+                helpers::call_winapi_export(
+                    &mut emu,
+                    library,
+                    "SetThreadContext",
+                    &[handle, address]
+                ),
+                1
+            );
+            assert_eq!(emu.threads[1].regs_x86().dr0, 0x600100);
+            assert_eq!(emu.threads[1].regs_x86().dr7, 1);
+            assert_eq!(emu.regs().dr7, 0);
+            emu.maps.write_dword(address + DR0_OFFSET, 0);
+            assert_eq!(
+                helpers::call_winapi_export(
+                    &mut emu,
+                    library,
+                    "GetThreadContext",
+                    &[handle, address]
+                ),
+                1
+            );
+            assert_eq!(emu.maps.read_dword(address + DR0_OFFSET), Some(0x600100));
+        }
         assert_eq!(
             helpers::call_winapi_export(&mut emu, library, "SetThreadContext", &[0, address]),
             0
@@ -852,6 +884,169 @@ fn kernel_address_wait_compares_guest_bytes_and_uses_timeout_as_a_value() {
             call(&mut emu, dll, "WakeByAddressSingle", &[ptr]);
             assert_eq!(emu.maps.read_qword(ptr), Some(0x800));
         }
+    }
+}
+
+// Increment the DWORD addressed by PFLS_CALLBACK_FUNCTION's argument.
+fn fls_counter_callback(emu: &mut Emu, is64: bool) -> u64 {
+    const CODE: u64 = 0x2800_0000;
+    emu.maps
+        .create_map("fls_callback", CODE, 4096, Permission::READ_WRITE_EXECUTE)
+        .unwrap();
+    let body: &[u8] = if is64 {
+        &[0xff, 0x01, 0xc3] // inc dword ptr [rcx]; ret
+    } else {
+        &[0x8b, 0x44, 0x24, 4, 0xff, 0x00, 0xc2, 4, 0] // mov eax,[esp+4]; inc dword ptr [eax]; ret 4
+    };
+    emu.maps.write_bytes(CODE, body);
+    emu.regs_mut().rip = CODE + 64;
+    CODE
+}
+
+#[test]
+fn fls_free_calls_on_the_freeing_thread_and_drains_values_set_by_callbacks() {
+    use helpers::call_winapi_export as call;
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let code = fls_counter_callback(&mut emu, is64);
+        let child = data + 4;
+        let replacement = data + 8;
+        emu.cfg.enable_threading = true;
+        emu.maps.write_bytes(code + 64, &[0xeb, 0xfe]); // main thread waits here
+        emu.maps.write_byte(code + 96, 0x90); // the runnable child executes a NOP
+        call(
+            &mut emu,
+            "kernel32.dll",
+            "CreateThread",
+            &[0, 0, code + 96, 0, 0, 0],
+        );
+        assert_eq!(emu.threads.len(), 2);
+        let slot = call(&mut emu, "kernel32.dll", "FlsAlloc", &[code]);
+        call(&mut emu, "kernelbase.dll", "FlsSetValue", &[slot, data]);
+        emu.current_thread_id = 1;
+        call(&mut emu, "kernel32.dll", "FlsSetValue", &[slot, child]);
+        emu.current_thread_id = 0;
+        emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+            if pc == code {
+                assert_eq!(emu.current_thread_id, 0);
+                let saved = *emu.regs();
+                let argument = if is64 {
+                    saved.rcx
+                } else {
+                    u64::from(emu.maps.read_dword(saved.rsp + 4).unwrap())
+                };
+                if argument == data {
+                    assert_eq!(call(emu, "kernel32.dll", "FlsGetValue", &[slot]), 0);
+                    assert_ne!(call(emu, "kernel32.dll", "FlsAlloc", &[0]), slot);
+                    assert_eq!(
+                        call(emu, "kernel32.dll", "FlsSetValue", &[slot, replacement]),
+                        1
+                    );
+                }
+                *emu.regs_mut() = saved;
+            }
+            true
+        });
+        assert_eq!(call(&mut emu, "kernelbase.dll", "FlsFree", &[slot]), 1);
+        for address in [data, child, replacement] {
+            assert_eq!(emu.maps.read_dword(address), Some(1));
+        }
+        assert_eq!(emu.current_thread_id, 0);
+        assert!(emu.cfg.enable_threading);
+        assert_eq!(call(&mut emu, "kernel32.dll", "FlsAlloc", &[0]), slot);
+        emu.cfg.max_instructions = Some(emu.instruction_count + 256);
+        assert_eq!(emu.run(Some(code + 97)).unwrap(), code + 97);
+    }
+}
+
+#[test]
+fn fls_callback_failure_preserves_the_guest_fault_and_never_returns_success() {
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let missing = fls_counter_callback(&mut emu, is64) + 0x2000;
+        let slot = helpers::call_winapi_export(&mut emu, "kernel32.dll", "FlsAlloc", &[missing]);
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "FlsSetValue", &[slot, data]);
+        let free = |emu: &mut Emu| helpers::invoke_winapi_export(emu, "kernel32.dll", "FlsFree");
+        if is64 {
+            helpers::call_winapi64(&mut emu, free, &[slot]);
+        } else {
+            helpers::call_winapi32(&mut emu, free, &[slot as u32]);
+        }
+        assert_eq!(emu.pc(), missing);
+        assert!(emu.fault_count > 0);
+        assert!(emu.process_terminated);
+        assert_eq!(emu.current_thread().exit_value, None);
+        assert_eq!(emu.windows_fls_slots[slot as usize], Some(missing));
+    }
+}
+
+#[test]
+fn fls_exit_callbacks_follow_thread_and_process_termination_contracts() {
+    use helpers::call_winapi_export as call;
+    for (is64, api) in iproduct!(
+        [false, true],
+        [
+            "ExitThread",
+            "ExitProcess",
+            "NtTerminateThread",
+            "TerminateProcess"
+        ]
+    ) {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let code = fls_counter_callback(&mut emu, is64);
+        let slot = call(&mut emu, "kernel32.dll", "FlsAlloc", &[code]);
+        call(&mut emu, "kernel32.dll", "FlsSetValue", &[slot, data]);
+        emu.cfg.enable_threading = true;
+        let child_handle = call(
+            &mut emu,
+            "kernel32.dll",
+            "CreateThread",
+            &[0, 0, code + 64, 0, 0, 0],
+        );
+        emu.current_thread_id = 1;
+        call(&mut emu, "kernel32.dll", "FlsSetValue", &[slot, data + 4]);
+        emu.current_thread_id = 0;
+        let graceful = matches!(api, "ExitThread" | "ExitProcess");
+        emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+            if graceful && pc == code {
+                let saved = *emu.regs();
+                assert_eq!(call(emu, "kernel32.dll", "FlsGetValue", &[slot]), data);
+                *emu.regs_mut() = saved;
+            }
+            true
+        });
+        match api {
+            "NtTerminateThread" => {
+                call(&mut emu, "ntdll.dll", api, &[child_handle, 23]);
+            }
+            "TerminateProcess" => {
+                call(&mut emu, "kernel32.dll", api, &[NT_CURRENT_PROCESS, 23]);
+            }
+            _ => {
+                call(&mut emu, "kernel32.dll", api, &[23]);
+            }
+        }
+        assert_eq!(
+            emu.maps.read_dword(data),
+            Some(u32::from(graceful)),
+            "{api}"
+        );
+        assert_eq!(emu.maps.read_dword(data + 4), Some(0), "{api}");
+        if api == "NtTerminateThread" {
+            assert_eq!(emu.threads[1].exit_value, Some(23));
+            assert_eq!(emu.threads[0].exit_value, None);
+            // Forced termination retains that fiber's value for a later process-wide FlsFree.
+            assert_eq!(call(&mut emu, "kernel32.dll", "FlsFree", &[slot]), 1);
+            assert_eq!(emu.maps.read_dword(data), Some(1));
+            assert_eq!(emu.maps.read_dword(data + 4), Some(1));
+            continue;
+        }
+        assert_eq!(emu.threads[0].exit_value, Some(23), "{api}");
+        assert_eq!(
+            emu.threads[1].exit_value.is_some(),
+            api.ends_with("Process"),
+            "{api}"
+        );
     }
 }
 

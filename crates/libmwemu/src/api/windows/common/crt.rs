@@ -4,7 +4,7 @@ use crate::api::abi::windows::{
 };
 use crate::api::windows::libraries::msvcrt::strings::{
     dispatch_bounded, dispatch_character, dispatch_float, dispatch_integer, dispatch_text,
-    dispatch_tokens, dispatch_units, dispatch_wide_search,
+    dispatch_tokens, dispatch_units, dispatch_wide_search, string_operation,
 };
 use crate::arch::Arch;
 use crate::emu::Emu;
@@ -14,11 +14,16 @@ use crate::maps::mem64::Permission;
 use crate::threading::context::CrtThreadState;
 use crate::winapi::common::memory::read_array;
 use crate::winapi::common::memory::{pointer_size, read_pointer, write_pointer};
-use crate::winapi::common::{buffers, crt_arguments, crt_callbacks, crt_environment};
+use crate::winapi::common::{
+    buffers, crt_arguments, crt_callbacks, crt_environment, crt_signals, seh4,
+};
 use crate::winapi::common::{threads, trace};
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::crt::*;
 use crate::windows::constants::errors::ERROR_NOT_ENOUGH_MEMORY;
+
+const X87_PRECISION_SHIFT: u16 = 8;
+const X87_PRECISION_MASK: u16 = 0b11 << X87_PRECISION_SHIFT;
 
 const DEFAULT_RANDOM_SEED: u32 = 1;
 const RANDOM_MULTIPLIER: u32 = 214013;
@@ -153,6 +158,20 @@ fn task_free_impl(emu: &mut Emu) {
     call.cleanup_args(emu, 1);
 }
 
+pub(crate) fn dispatch_memory(api: &str, emu: &mut Emu) -> bool {
+    let (handler, parameters): (fn(&mut Emu), &str) = match api {
+        "memcpy" | "memmove" => (copy, "destination source size"),
+        "memset" => (fill, "destination value size"),
+        "strrchr" => (
+            |emu| string_operation(emu, "strrchr", 2),
+            "string character",
+        ),
+        _ => return false,
+    };
+    trace::invoke(emu, WinApi(Cdecl), api, parameters, true, handler);
+    true
+}
+
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     let call = WinApi(Cdecl);
     let (handler, parameters, returns_value): (fn(&mut Emu), &str, bool) = match api {
@@ -163,9 +182,7 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "_aligned_malloc" => (aligned_malloc, "size alignment", true),
         "_aligned_free" => (aligned_free, "address", false),
         "_msize" => (msize, "address", true),
-        "memcpy" | "memmove" => (copy, "destination source size", true),
-        "memset" => (fill, "destination value size", true),
-        _ => return false,
+        _ => return dispatch_memory(api, emu),
     };
     trace::invoke(emu, call, api, parameters, returns_value, handler);
     true
@@ -402,7 +419,39 @@ fn srand(emu: &mut Emu, runtime: Runtime) {
     log_red!(emu, "{}!srand seed={seed}", runtime.library());
 }
 
+fn controlfp_s(emu: &mut Emu, runtime: Runtime) {
+    let call = WinApi(Cdecl);
+    let [output, value, mask] = api_try!(emu, call.args(emu));
+    log_red!(
+        emu,
+        "{}!_controlfp_s current={output:#x} value={value:#x} mask={mask:#x}",
+        runtime.library()
+    );
+    if emu.cfg.arch == Arch::X86 && output == 0 && mask as u32 == _MCW_PC {
+        let precision = match (value as u32) & _MCW_PC {
+            _PC_24 => Some(0),
+            _PC_53 => Some(2),
+            _PC_64 => Some(3),
+            _ => None,
+        };
+        if let Some(precision) = precision {
+            let word = emu.fpu().get_ctrl();
+            emu.fpu_mut()
+                .set_ctrl((word & !X87_PRECISION_MASK) | (precision << X87_PRECISION_SHIFT));
+            call.set_return(emu, 0);
+            return;
+        }
+    }
+    policy::unsupported_with_abi(emu, runtime.library(), "_controlfp_s", emu.pc(), call);
+}
+
 pub(crate) fn dispatch_runtime(api: &str, emu: &mut Emu, runtime: Runtime) -> bool {
+    if matches!(runtime, Runtime::Ucrt) && crt_signals::dispatch(emu, api) {
+        return true;
+    }
+    if seh4::dispatch(emu, runtime.library(), api) {
+        return true;
+    }
     let handler = match api {
         "_ftol" if emu.cfg.arch == Arch::X86 => {
             float_to_integer(emu, api, runtime);
@@ -467,7 +516,6 @@ pub(crate) fn dispatch_runtime(api: &str, emu: &mut Emu, runtime: Runtime) -> bo
         | "set_unexpected"
         | "signal"
         | "_controlfp"
-        | "_controlfp_s"
         | "swprintf"
         | "sscanf"
         | "sscanf_s"
@@ -490,6 +538,7 @@ pub(crate) fn dispatch_runtime(api: &str, emu: &mut Emu, runtime: Runtime) -> bo
             policy::unsupported_with_abi(emu, runtime.library(), api, emu.pc(), WinApi(Cdecl));
             return true;
         }
+        "_controlfp_s" => controlfp_s,
         "_errno" => errno,
         "_get_errno" => get_errno,
         "_set_errno" => set_errno,

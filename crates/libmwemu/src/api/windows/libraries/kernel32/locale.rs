@@ -180,6 +180,26 @@ fn ascii_ctype2(byte: u8) -> u16 {
     }
 }
 
+fn latin_ctype1(unit: u16) -> Option<u16> {
+    let category = match char::from_u32(unit as u32)? {
+        c if c.is_ascii() => return Some(ascii_ctype1(c as u8)),
+        '\u{85}' => C1_CNTRL | C1_SPACE,
+        '\u{80}'..='\u{9f}' => C1_CNTRL,
+        '\u{a0}' => C1_BLANK | C1_SPACE,
+        '\u{ad}' => C1_PUNCT | C1_CNTRL,
+        '²' | '³' | '¹' => C1_PUNCT | C1_DIGIT,
+        'ª' | 'µ' | 'º' => C1_PUNCT | C1_ALPHA | C1_LOWER,
+        'À'..='Ö' | 'Ø'..='Þ' | 'Œ' | 'Š' | 'Ÿ' | 'Ž' => C1_ALPHA | C1_UPPER,
+        'ß'..='ö' | 'ø'..='ÿ' | 'œ' | 'š' | 'ž' | 'ƒ' => C1_ALPHA | C1_LOWER,
+        'ˆ' | '˜' | '€' | '™' => 0,
+        '¡'..='ÿ' | '–'..='—' | '‘'..='‚' | '“'..='„' | '†'..='•' | '…' | '‰' | '‹' | '›' => {
+            C1_PUNCT
+        }
+        _ => return None,
+    };
+    Some(C1_DEFINED | category)
+}
+
 fn ascii_ctype3(byte: u8) -> u16 {
     match byte {
         b'A'..=b'Z' | b'a'..=b'z' => C3_HALFWIDTH | C3_ALPHA,
@@ -216,27 +236,29 @@ pub(crate) fn character_types(emu: &mut Emu, library: &str, api: &str) {
         if count == 0 || types == 0 || types == source {
             return Err(ERROR_INVALID_PARAMETER);
         }
-        let classify = match info_type {
-            CT_CTYPE1 => ascii_ctype1,
-            CT_CTYPE2 => ascii_ctype2,
-            CT_CTYPE3 => ascii_ctype3,
-            _ => return Err(ERROR_INVALID_FLAGS),
-        };
+        if !matches!(info_type, CT_CTYPE1 | CT_CTYPE2 | CT_CTYPE3) {
+            return Err(ERROR_INVALID_FLAGS);
+        }
         let mut units = source_units(emu, source, count.max(-1), wide)?;
         if count < 0 {
             units.push(0);
         }
-        if units.iter().any(|&c| c > 0x7f) {
-            return Ok(false);
+        let mut bytes = Vec::with_capacity(units.len() * size_of::<u16>());
+        for unit in units {
+            let value = match info_type {
+                CT_CTYPE1 => latin_ctype1(unit),
+                CT_CTYPE2 if unit <= 0x7f => Some(ascii_ctype2(unit as u8)),
+                CT_CTYPE3 if unit <= 0x7f => Some(ascii_ctype3(unit as u8)),
+                _ => None,
+            };
+            let Some(value) = value else {
+                return Ok(false);
+            };
+            bytes.extend_from_slice(&value.to_le_bytes());
         }
-        let len = units.len() as u64 * size_of::<u16>() as u64;
-        if !emu.maps.validate_write_range(types, len) {
+        if !emu.maps.validate_write_range(types, bytes.len() as u64) {
             return Err(ERROR_NOACCESS);
         }
-        let bytes: Vec<_> = units
-            .iter()
-            .flat_map(|&c| classify(c as u8).to_le_bytes())
-            .collect();
         emu.maps
             .write_bytes(types, &bytes)
             .then_some(true)

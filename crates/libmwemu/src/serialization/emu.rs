@@ -1,3 +1,4 @@
+use rand_chacha::ChaCha12Rng;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::sync::{Arc, atomic};
@@ -381,6 +382,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             sockets: SocketState::default(),
             oem_file_names: false,
             process_error_mode: 0,
+            process_dep_flags: 0,
             ipc: Default::default(),
             priorities: Default::default(),
             last_luid: 0x10000,
@@ -389,11 +391,15 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             console_cursor: Default::default(),
             windows_tls_slots: Vec::new(),
             windows_fls_slots: Vec::new(),
+            fls_cleanup: Default::default(),
             veh_registration_ids: Vec::new(),
             last_veh_id: 0,
             app_user_model_id: Vec::new(),
             registry: Default::default(),
+            crypto: Default::default(),
+            runtime_function_tables: Vec::new(),
             guest_windows: Default::default(),
+            user_timers: Default::default(),
             com_apartments: Default::default(),
             keyboard_state: Default::default(),
             environment: None,
@@ -406,7 +412,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             run_until_ret,
             rng: {
                 use rand::SeedableRng as _;
-                rand::rngs::StdRng::from_os_rng()
+                ChaCha12Rng::from_os_rng()
             },
             rng_seed: None,
             // Platform & loaded binary
@@ -481,6 +487,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             api_resolve_cache: HashMap::new(),
             api_addr_name_cache: HashMap::new(),
             export_indexes: Default::default(),
+            guest_dlls: Default::default(),
             symbolic_link_targets: HashMap::new(),
             ssdt_pad_stack: Vec::new(),
         };
@@ -541,7 +548,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
                             *thread_tls64 = tls64;
                             // V1–V5 stored values per thread and had no process allocation bitmap.
                             if emu.windows_fls_slots.len() < fls.len() {
-                                emu.windows_fls_slots.resize(fls.len(), true);
+                                emu.windows_fls_slots.resize(fls.len(), Some(0));
                             }
                             *thread_fls = fls;
                             *thread_fs = fs;

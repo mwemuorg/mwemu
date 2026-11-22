@@ -5,6 +5,7 @@
 
 use std::{mem, sync::atomic::Ordering};
 
+use crate::api::abi::windows::{X64_REGISTER_ARGS, X64_STACK_ALIGNMENT};
 use crate::emu::Emu;
 use crate::err::MwemuError;
 
@@ -14,9 +15,7 @@ use crate::err::MwemuError;
 /// etc.) do. A depth beyond this most likely indicates a bug in the
 /// emulator infrastructure.
 const MAX_CALL_DEPTH: u32 = 32;
-const X64_REGISTER_ARGUMENTS: usize = 4;
 const X64_STACK_SLOT_SIZE: u64 = size_of::<u64>() as u64;
-const X64_STACK_ALIGNMENT: u64 = 16;
 
 impl Emu {
     /// Emulate a host-initiated call until `ret_addr` is reached.
@@ -115,7 +114,7 @@ impl Emu {
 
     fn push_call64_frame(&mut self, args: &[u64], ret_addr: u64) -> Result<(), MwemuError> {
         let orig_stack = self.regs().rsp;
-        let payload_size = (args.len().max(X64_REGISTER_ARGUMENTS) as u64)
+        let payload_size = (args.len().max(X64_REGISTER_ARGS) as u64)
             .checked_mul(X64_STACK_SLOT_SIZE)
             .ok_or_else(|| MwemuError::new("call64 frame size overflow"))?;
         let unaligned_sp = orig_stack
@@ -130,10 +129,10 @@ impl Emu {
         // Push high addresses first: stack arguments, shadow slots, return address.
         let values = args
             .iter()
-            .skip(X64_REGISTER_ARGUMENTS)
+            .skip(X64_REGISTER_ARGS)
             .rev()
             .copied()
-            .chain([0; X64_REGISTER_ARGUMENTS])
+            .chain([0; X64_REGISTER_ARGS])
             .chain([ret_addr]);
         for value in values {
             if !self.stack_push64(value) {

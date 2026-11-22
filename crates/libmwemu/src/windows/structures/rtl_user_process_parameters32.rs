@@ -16,6 +16,12 @@ impl Default for RtlUserProcessParameters32 {
 }
 
 impl RtlUserProcessParameters32 {
+    pub const ENVIRONMENT_OFFSET: u64 = 0x48;
+
+    const RESERVED2_OFFSET: u64 = 0x10;
+    const IMAGE_PATH_NAME_OFFSET: u64 = 0x38;
+    const COMMAND_LINE_OFFSET: u64 = 0x40;
+
     pub fn new() -> Self {
         Self {
             reserved1: [0; 16],
@@ -26,15 +32,20 @@ impl RtlUserProcessParameters32 {
     }
 
     pub fn size() -> usize {
-        72
+        Self::ENVIRONMENT_OFFSET as usize + size_of::<u32>()
     }
 
     pub fn save(&mut self, addr: u64, maps: &mut Maps) {
         maps.write_bytes(addr, &self.reserved1);
         for (i, val) in self.reserved2.iter().enumerate() {
-            maps.write_dword(addr + 16 + (i * 4) as u64, *val);
+            maps.write_dword(
+                addr + Self::RESERVED2_OFFSET + (i * size_of::<u32>()) as u64,
+                *val,
+            );
         }
-        self.image_path_name.save(addr + 16 + 40, maps);
-        self.command_line.save(addr + 16 + 40 + 8, maps)
+        self.image_path_name
+            .save(addr + Self::IMAGE_PATH_NAME_OFFSET, maps);
+        self.command_line
+            .save(addr + Self::COMMAND_LINE_OFFSET, maps)
     }
 }

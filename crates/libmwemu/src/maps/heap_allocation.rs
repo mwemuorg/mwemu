@@ -295,6 +295,27 @@ impl O1Heap {
         self.requests.get(&address).copied()
     }
 
+    pub(crate) fn external_blocks(&self) -> impl Iterator<Item = u64> + '_ {
+        self.requests
+            .keys()
+            .copied()
+            .filter(|&addr| self.is_external(addr))
+    }
+
+    pub(crate) fn is_external(&self, address: u64) -> bool {
+        address
+            .checked_sub(self.base)
+            .is_none_or(|offset| offset >= self.diagnostics.capacity as u64)
+    }
+
+    pub(crate) fn record_external(&mut self, address: u64, size: usize) {
+        self.requests.insert(address, size);
+    }
+
+    pub(crate) fn forget_external(&mut self, address: u64) {
+        self.requests.remove(&address);
+    }
+
     pub fn record_request(&mut self, address: u64, size: usize) {
         if self.check_fragment_exists(address) {
             self.requests.insert(address, size);

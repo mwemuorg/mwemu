@@ -6,9 +6,11 @@ mod mutation;
 mod names;
 mod search;
 mod volume;
+pub(crate) use information::native_query_file;
 pub(crate) use volume::drive_number_type;
 
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::winapi::common::guest_files::{self, GuestFileRead};
 use crate::winapi::common::memory::read_pointer;
 use crate::winapi::common::memory::{pointer_size, read_array, read_guest_bytes, write_pointer};
 use crate::winapi::common::{file_names, heap, ipc, ntdll};
@@ -17,6 +19,7 @@ use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::process::*;
+use crate::windows::constants::security::GENERIC_READ;
 use goblin::pe::header::COFF_MACHINE_X86;
 use std::io::{self, SeekFrom};
 
@@ -294,26 +297,15 @@ pub(crate) fn create_file(emu: &mut Emu, api: &str, wide: bool) {
         emu,
         "{api} path={name:?} access={access:#x} disposition={disposition}"
     );
-    let result = attributes.and_then(|flags| {
-        let name = name?;
-        if let Some(result) = ipc::open(emu, &name, access, disposition, flags) {
-            return result.map(|handle| (handle, false));
+    let result = match (attributes, name) {
+        (Ok(flags), Ok(name)) => {
+            let Some(result) = open_file(emu, name, access, disposition, flags, share) else {
+                return;
+            };
+            result
         }
-        FileHandle::open(name, access, disposition, flags, share)
-            .map(|(file, existed)| {
-                (
-                    u64::from(emu.handle_management.insert_file_handle(file)),
-                    existed,
-                )
-            })
-            .map_err(|error| {
-                error
-                    .downcast_ref::<io::Error>()
-                    .map_or(ERROR_INVALID_PARAMETER, |e| {
-                        io_error(e, ERROR_ACCESS_DENIED)
-                    })
-            })
-    });
+        (Err(error), _) | (_, Err(error)) => Err(error),
+    };
     let handle = match result {
         Ok((handle, existed)) => {
             if matches!(disposition as usize, OPEN_ALWAYS | CREATE_ALWAYS) {
@@ -336,6 +328,54 @@ pub(crate) fn create_file(emu: &mut Emu, api: &str, wide: bool) {
     };
     call.set_return(emu, handle);
     call.cleanup_args(emu, if extended { 5 } else { 7 });
+}
+
+fn open_file(
+    emu: &mut Emu,
+    name: String,
+    access: u32,
+    disposition: u32,
+    flags: u32,
+    share: u32,
+) -> Option<Result<(u64, bool), u64>> {
+    if let Some(result) = ipc::open(emu, &name, access, disposition, flags) {
+        return Some(result.map(|handle| (handle, false)));
+    }
+    if disposition as usize == OPEN_EXISTING
+        && matches!(access, GENERIC_READ | FILE_READ_DATA)
+        && flags as usize
+            & (FILE_FLAG_DELETE_ON_CLOSE | FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED)
+            == 0
+    {
+        match guest_files::read_file(emu, &name, share) {
+            GuestFileRead::File(bytes) => {
+                let file = FileHandle::from_guest_bytes(name, bytes, access, flags, share);
+                return Some(Ok((
+                    u64::from(emu.handle_management.insert_file_handle(file)),
+                    true,
+                )));
+            }
+            GuestFileRead::Failed(status) => return Some(Err(guest_files::win32_error(status))),
+            GuestFileRead::Stopped => return None,
+            GuestFileRead::NotIntercepted => {}
+        }
+    }
+    Some(
+        FileHandle::open(name, access, disposition, flags, share)
+            .map(|(file, existed)| {
+                (
+                    u64::from(emu.handle_management.insert_file_handle(file)),
+                    existed,
+                )
+            })
+            .map_err(|error| {
+                error
+                    .downcast_ref::<io::Error>()
+                    .map_or(ERROR_INVALID_PARAMETER, |e| {
+                        io_error(e, ERROR_ACCESS_DENIED)
+                    })
+            }),
+    )
 }
 
 fn extended_attributes(emu: &Emu, pointer: u64) -> Result<u32, u64> {
@@ -503,6 +543,7 @@ fn transfer(
     buffer: u64,
     size: usize,
     write: bool,
+    offset: Option<u64>,
 ) -> Result<usize, u64> {
     if size as u64 > emu.maps.max_alloc_size {
         return Err(ERROR_NOT_ENOUGH_MEMORY);
@@ -515,7 +556,9 @@ fn transfer(
     if size != 0 && !accessible {
         return Err(ERROR_NOACCESS);
     }
-    if let Some(result) = ipc::transfer(emu, handle, buffer, size, write) {
+    if offset.is_none()
+        && let Some(result) = ipc::transfer(emu, handle, buffer, size, write)
+    {
         return result;
     }
     if write {
@@ -548,11 +591,20 @@ fn transfer(
         let remaining = file
             .length()
             .map_err(|e| io_error(&e, ERROR_READ_FAULT))?
-            .saturating_sub(file.get_position());
+            .saturating_sub(offset.unwrap_or_else(|| file.get_position()));
         let mut bytes = vec![0; (size as u64).min(remaining) as usize];
-        let read = file
-            .read(&mut bytes)
-            .map_err(|e| io_error(&e, ERROR_READ_FAULT))?;
+        let original_position = file.get_position();
+        let seek = offset.filter(|_| !bytes.is_empty());
+        if let Some(start) = seek {
+            file.seek(SeekFrom::Start(start))
+                .map_err(|e| io_error(&e, ERROR_READ_FAULT))?;
+        }
+        let read = file.read(&mut bytes).map_err(|error| {
+            if seek.is_some() {
+                let _ = file.seek(SeekFrom::Start(original_position));
+            }
+            io_error(&error, ERROR_READ_FAULT)
+        })?;
         if read != 0 && !emu.maps.write_bytes(buffer, &bytes[..read]) {
             return Err(ERROR_NOACCESS);
         }
@@ -587,7 +639,7 @@ pub(crate) fn read_write_file(emu: &mut Emu, api: &str, write: bool) {
         if overlapped != 0 {
             Err(ERROR_NOT_SUPPORTED)
         } else {
-            transfer(emu, handle, buffer, size, write)
+            transfer(emu, handle, buffer, size, write, None)
         }
     };
     let success = match result {
@@ -716,8 +768,12 @@ fn get_file_type(emu: &mut Emu, api: &str) {
     let call = WinApi(Stdcall);
     let handle = api_try!(emu, call.arg(emu, 0));
     let uri = helper::handler_get_uri(handle);
-    let ty = if file(emu, handle).is_ok() {
-        FILE_TYPE_DISK
+    let ty = if let Ok(guest) = file(emu, handle) {
+        if guest.is_null_device() {
+            FILE_TYPE_CHAR
+        } else {
+            FILE_TYPE_DISK
+        }
     } else if emu.ipc.contains(handle)
         || uri.starts_with("pipe://")
         || uri.starts_with("named_pipe://")
@@ -938,7 +994,7 @@ pub(crate) fn nt_transfer_file(emu: &mut Emu, write: bool) {
     let call = WinApi(Stdcall);
     let [handle, event, apc, context, iosb, buf, len, offset, key] = api_try!(emu, call.args(emu));
     log_red!(emu, "{api} handle=0x{:x} size={}", handle, len as u32);
-    if event != 0 || apc != 0 || context != 0 || offset != 0 || key != 0 {
+    if event != 0 || apc != 0 || context != 0 || (write && offset != 0) || key != 0 {
         policy::unsupported(emu, "ntdll", api, emu.pc());
         return;
     }
@@ -946,7 +1002,25 @@ pub(crate) fn nt_transfer_file(emu: &mut Emu, write: bool) {
     let status = if iosb == 0 || !emu.maps.validate_write_range(iosb, width * 2) {
         STATUS_ACCESS_VIOLATION
     } else {
-        let result = transfer(emu, handle, buf, len as u32 as usize, write);
+        let byte_offset = if offset == 0 {
+            Ok(None)
+        } else {
+            match emu.maps.read_qword(offset).map(|value| value as i64) {
+                Some(FILE_USE_FILE_POINTER_POSITION) => Ok(None),
+                Some(value) if value >= 0 => Ok(Some(value as u64)),
+                Some(_) => Err(STATUS_INVALID_PARAMETER),
+                None => Err(STATUS_ACCESS_VIOLATION),
+            }
+        };
+        let offset = match byte_offset {
+            Ok(offset) => offset,
+            Err(status) => {
+                call.set_return(emu, status);
+                call.cleanup_args(emu, 9);
+                return;
+            }
+        };
+        let result = transfer(emu, handle, buf, len as u32 as usize, write, offset);
         let (status, bytes) = match result {
             Ok(0) if !write && len as u32 != 0 && file(emu, handle).is_ok() => {
                 (STATUS_END_OF_FILE, 0)
@@ -977,19 +1051,7 @@ pub(crate) fn native_path(emu: &mut Emu) {
             "ntdll!RtlDosPathNameToNtPathName_U path={:?}",
             String::from_utf16_lossy(&units)
         );
-        let full = file_names::absolute_path(&emu.cfg.cwd_path, units).ok()?;
-        let sep = b'\\' as u16;
-        let mut name: Vec<u16> = r"\??\".encode_utf16().collect();
-        if full.starts_with(&[sep, sep, b'?' as u16, sep])
-            || full.starts_with(&[sep, sep, b'.' as u16, sep])
-        {
-            name.extend_from_slice(&full[4..]);
-        } else if full.starts_with(&[sep, sep]) {
-            name.extend(r"UNC\".encode_utf16());
-            name.extend_from_slice(&full[2..]);
-        } else {
-            name.extend(full);
-        }
+        let (name, last) = file_names::native_path(&emu.cfg.cwd_path, units).ok()?;
         let size = u16::try_from(name.len().checked_add(1)?.checked_mul(2)?).ok()?;
         if descriptor == 0
             || !emu.maps.validate_write_range(descriptor, 2 * width)
@@ -999,11 +1061,6 @@ pub(crate) fn native_path(emu: &mut Emu) {
             return None;
         }
         let buffer = heap::heap_allocate(emu, 0, u64::from(size))?;
-        let last = name
-            .iter()
-            .rposition(|&c| c == sep)
-            .map(|i| i + 1)
-            .filter(|&i| i < name.len());
         let bytes: Vec<_> = name
             .into_iter()
             .chain(Some(0))
@@ -1030,20 +1087,9 @@ pub(crate) fn native_path(emu: &mut Emu) {
     call.set_return(emu, u64::from(result.is_some()));
     call.cleanup_args(emu, 4);
 }
-pub(crate) fn native_create_file(emu: &mut Emu) {
-    const FILE_OPEN: u32 = 1;
-    const FILE_CREATE: u32 = 2;
-    const FILE_OPEN_IF: u32 = 3;
-    const FILE_OVERWRITE: u32 = 4;
-    const FILE_OVERWRITE_IF: u32 = 5;
-    const FILE_SYNCHRONOUS_IO_ALERT: u32 = 0x10;
-    const FILE_SYNCHRONOUS_IO_NONALERT: u32 = 0x20;
-    const FILE_NON_DIRECTORY_FILE: u32 = 0x40;
-    const OBJ_CASE_INSENSITIVE: u32 = 0x40;
-    const FILE_OPENED: u64 = 1;
-    const FILE_CREATED: u64 = 2;
-    const FILE_OVERWRITTEN: u64 = 3;
+pub(crate) fn native_open_file(emu: &mut Emu, api: &str) {
     let call = WinApi(Stdcall);
+    let open = api == "NtOpenFile";
     let [
         out,
         access,
@@ -1056,7 +1102,24 @@ pub(crate) fn native_create_file(emu: &mut Emu) {
         options,
         ea,
         ea_len,
-    ] = api_try!(emu, call.args(emu));
+    ] = if open {
+        let [out, access, object, io, share, options] = api_try!(emu, call.args(emu));
+        [
+            out,
+            access,
+            object,
+            io,
+            0,
+            0,
+            share,
+            u64::from(FILE_OPEN),
+            options,
+            0,
+            0,
+        ]
+    } else {
+        api_try!(emu, call.args(emu))
+    };
     let width = pointer_size(emu);
     let result = (|| {
         if out == 0
@@ -1084,7 +1147,7 @@ pub(crate) fn native_create_file(emu: &mut Emu) {
                 .maps
                 .read_dword(object + 3 * width)
                 .ok_or(STATUS_ACCESS_VIOLATION)?
-                & !OBJ_CASE_INSENSITIVE
+                & !(OBJ_CASE_INSENSITIVE | OBJ_OPENIF)
                 != 0
             || ea != 0
             || ea_len as u32 != 0
@@ -1098,6 +1161,20 @@ pub(crate) fn native_create_file(emu: &mut Emu) {
             return Err(STATUS_NOT_SUPPORTED);
         }
         let native = ntdll::read_unicode_string(emu, field(2)?)?;
+        if native.eq_ignore_ascii_case(r"\??\NUL") || native.eq_ignore_ascii_case(r"\Device\Null") {
+            if disposition as u32 != FILE_OPEN {
+                return Err(STATUS_NOT_SUPPORTED);
+            }
+            let file =
+                FileHandle::null_device(native, access as u32, attributes as u32, share as u32);
+            let handle = emu.handle_management.insert_file_handle(file);
+            write_pointer(emu, out, u64::from(handle));
+            // The null device completes the create request with zero Information.
+            return Ok(0);
+        }
+        if open && access as u32 & !(GENERIC_READ | FILE_GENERIC_READ) != 0 {
+            return Err(STATUS_NOT_SUPPORTED);
+        }
         let path = native.strip_prefix(r"\??\").ok_or(STATUS_NOT_SUPPORTED)?;
         let bytes = path.as_bytes();
         if !matches!(bytes,[drive,b':',b'\\',..] if drive.is_ascii_alphabetic()) {
@@ -1122,6 +1199,7 @@ pub(crate) fn native_create_file(emu: &mut Emu) {
         .map_err(
             |e| match e.downcast_ref::<io::Error>().map(io::Error::kind) {
                 Some(io::ErrorKind::NotFound) => STATUS_OBJECT_NAME_NOT_FOUND,
+                Some(io::ErrorKind::NotADirectory) => STATUS_OBJECT_PATH_NOT_FOUND,
                 Some(io::ErrorKind::AlreadyExists) => STATUS_OBJECT_NAME_COLLISION,
                 Some(io::ErrorKind::PermissionDenied) => STATUS_ACCESS_DENIED,
                 _ => STATUS_INVALID_PARAMETER,
@@ -1139,15 +1217,18 @@ pub(crate) fn native_create_file(emu: &mut Emu) {
         Ok(info)
     })();
     if result == Err(STATUS_NOT_SUPPORTED) {
-        policy::unsupported(emu, "ntdll", "NtCreateFile", emu.pc());
+        policy::unsupported(emu, "ntdll", api, emu.pc());
         return;
     }
     let status = result.err().unwrap_or(STATUS_SUCCESS);
-    if io != 0 && emu.maps.validate_write_range(io, 2 * width) {
-        write_pointer(emu, io, status);
-        write_pointer(emu, io + width, result.unwrap_or(0));
+    if let Ok(information) = result {
+        write_pointer(emu, io, STATUS_SUCCESS);
+        write_pointer(emu, io + width, information);
     }
-    log_red!(emu, "NtCreateFile object={object:#x} status={status:#x}");
+    log_red!(
+        emu,
+        "ntdll!{api} object={object:#x} access={access:#x} status={status:#x}"
+    );
     call.set_return(emu, status);
-    call.cleanup_args(emu, 11);
+    call.cleanup_args(emu, if open { 6 } else { 11 });
 }

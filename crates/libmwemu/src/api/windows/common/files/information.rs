@@ -1,11 +1,17 @@
 use std::{fs::File, io};
 
-use super::{attribute_bits, attribute_data, file, file_names, io_error, read_array};
+use super::{
+    BYTES_PER_SECTOR, SECTORS_PER_CLUSTER, attribute_bits, attribute_data, file, file_names,
+    io_error, read_array,
+};
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
+use crate::emu::object_handle::FileHandle;
+use crate::winapi::common::memory::{pointer_size, write_pointer};
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
+use crate::windows::structures::FileStandardInformation;
 
 const BY_HANDLE_INFORMATION_SIZE: usize = 13 * size_of::<u32>();
 const ATTRIBUTE_TAG_SIZE: usize = 2 * size_of::<u32>();
@@ -39,6 +45,67 @@ fn identity(_: &File, metadata: &std::fs::Metadata) -> io::Result<FileIdentity> 
 #[cfg(not(any(windows, unix)))]
 fn identity(_: &File, _: &std::fs::Metadata) -> io::Result<FileIdentity> {
     Err(io::ErrorKind::Unsupported.into())
+}
+
+fn standard_information(guest: &FileHandle) -> io::Result<FileStandardInformation> {
+    let links = match guest.open_file() {
+        Ok(file) => identity(file, &file.metadata()?)?.links,
+        // A file supplied by the guest has one directory entry and no host metadata.
+        Err(error) if error.kind() == io::ErrorKind::Unsupported => 1,
+        Err(error) => return Err(error),
+    };
+    let length = if guest.is_dir() { 0 } else { guest.length()? };
+    let cluster = u64::from(SECTORS_PER_CLUSTER) * u64::from(BYTES_PER_SECTOR);
+    let allocation = length
+        .checked_next_multiple_of(cluster)
+        .ok_or(io::ErrorKind::InvalidData)?;
+    Ok(FileStandardInformation {
+        allocation_size: allocation,
+        end_of_file: length,
+        number_of_links: links,
+        delete_pending: u8::from(links == 0),
+        directory: u8::from(guest.is_dir()),
+    })
+}
+
+pub(crate) fn native_query_file(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let [handle, io, output, capacity, class] = api_try!(emu, call.args(emu));
+    let class = class as u32;
+    log_red!(
+        emu,
+        "ntdll!NtQueryInformationFile handle={handle:#x} class={class} capacity={}",
+        capacity as u32
+    );
+    if class != FILE_STANDARD_INFORMATION {
+        policy::unsupported(emu, "ntdll", "NtQueryInformationFile", emu.pc());
+        return;
+    }
+    let size = FileStandardInformation::size();
+    let width = pointer_size(emu);
+    let status = if (capacity as u32) < size {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else if io == 0
+        || !emu.maps.validate_write_range(io, width * 2)
+        || output == 0
+        || !emu.maps.validate_write_range(output, u64::from(size))
+    {
+        STATUS_ACCESS_VIOLATION
+    } else if let Ok(guest) = file(emu, handle) {
+        match standard_information(guest) {
+            Ok(info) => {
+                emu.maps.write_bytes(output, &info.to_bytes());
+                write_pointer(emu, io, STATUS_SUCCESS);
+                write_pointer(emu, io + width, u64::from(size));
+                STATUS_SUCCESS
+            }
+            Err(_) => STATUS_UNSUCCESSFUL,
+        }
+    } else {
+        STATUS_INVALID_HANDLE
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 5);
 }
 
 fn information(file: &File, extended: bool) -> io::Result<Option<Vec<u8>>> {

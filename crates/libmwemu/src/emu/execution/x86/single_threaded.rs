@@ -94,7 +94,9 @@ impl Emu {
             }
         }
         // emulate
-        let result_ok = if Self::is_rep_string_instruction(&ins) {
+        let result_ok = if engine::execution_breakpoint(self, addr) {
+            false
+        } else if Self::is_rep_string_instruction(&ins) {
             self.execute_x86_rep_fully(&ins, sz)
         } else {
             engine::emulate_instruction(self, &ins, sz, true)
@@ -155,10 +157,9 @@ impl Emu {
             || !self.bp.addr.is_empty()
             || !self.bp.instruction.is_empty();
 
-        let mut looped: AHashMap<u64, u32> = AHashMap::new();
+        let mut looped: AHashMap<u64, u64> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
-        let mut window_counter: u64 = 0;
         let mut code_writes: Vec<(u64, u64)> = Vec::new();
 
         // ntdll!RtlRaiseStatus, resolved from the mapped ntdll's export table.
@@ -174,10 +175,9 @@ impl Emu {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 let pc = self.pc();
 
-                // Getting here mid-REP (cache exhausted, refetch, console...) loses
-                // the decoded instruction and its size, so the REP must be decoded
-                // again; rcx/rsi/rdi already carry its progress.
-                self.rep = None;
+                // A refetched REP keeps its progress in the guest registers. Count
+                // another visit only when the guest enters the instruction again.
+                let mut resumed_rep = self.rep.take().map(|_| prev_addr);
 
                 // A host-call return target need not contain executable bytes.
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
@@ -449,13 +449,12 @@ impl Emu {
                     }
 
                     // --- Loop detection (skip during REP) ---
-                    if self.rep.is_none() {
+                    if self.rep.is_none() && resumed_rep.take() != Some(addr) {
                         let loop_hit = self.observe_loop_progress(
                             addr,
                             &mut prev_addr,
                             &mut repeat_counter,
                             &mut looped,
-                            &mut window_counter,
                             "infinite loop found",
                         )?;
                         if loop_hit {
@@ -482,7 +481,14 @@ impl Emu {
                     }
 
                     // --- x86 REP prefix handling ---
-                    if self.handle_x86_rep_pre_execution(x86_ins, sz) {
+                    let previous_fault_count = self.fault_count;
+                    let debug_fault =
+                        self.rep.is_none() && engine::execution_breakpoint(self, addr);
+                    if !debug_fault && self.handle_x86_rep_pre_execution(x86_ins, sz) {
+                        if self.force_reload {
+                            self.force_reload = false;
+                            break;
+                        }
                         inner_running = self.instruction_cache_can_decode();
                         continue;
                     }
@@ -504,8 +510,8 @@ impl Emu {
                         self.run_until_ret && x86_ins.mnemonic() == iced_x86::Mnemonic::Ret;
 
                     // --- Emulate ---
-                    let previous_fault_count = self.fault_count;
-                    let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
+                    let emulation_ok =
+                        !debug_fault && engine::emulate_instruction(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
                     self.check_api_stop()?;
 
@@ -589,8 +595,8 @@ impl Emu {
 
                     // A clone() just created a second thread: hand over to the
                     // scheduling loop so both get to run.
-                    if self.cfg.enable_threading && self.threads.len() > 1 {
-                        return self.run_multi_threaded_x86(end_addr);
+                    if self.should_schedule_x86_threads() {
+                        return self.run_multi_threaded_x86_with_visits(end_addr, looped);
                     }
 
                     // RET is fully emulated before run_until_ret stops at its architectural target.

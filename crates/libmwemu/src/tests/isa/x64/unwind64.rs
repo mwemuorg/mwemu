@@ -1,547 +1,222 @@
+use super::exception_pdata64::build_minimal_pe64;
 use crate::context::context64::Context64;
-use crate::maps::mem64::Permission;
-use crate::tests::helpers;
+use crate::emu::Emu;
+use crate::exception::types::{ExceptionRecord, MemoryAccess};
+use crate::tests::helpers::{call_winapi64, invoke_winapi_export, prepare_winapi};
+use crate::windows::constants::errors::STATUS_UNWIND;
 use crate::windows::constants::exceptions::*;
-use crate::*;
 
-const PE_BASE: u64 = 0x140000000;
-const PE_SIZE: u64 = 0x10000;
-const PDATA_RVA: u32 = 0x1000;
-const CODE_BEGIN_RVA: u32 = 0x2000;
-const CODE_END_RVA: u32 = 0x3000;
-const UNWIND_INFO_RVA: u32 = 0x4000;
-const TARGET_IP_RVA: u32 = 0x6000;
+const IMAGE: u64 = 0x1_4000_0000;
+const FUNCTION: u64 = IMAGE + 0x2000;
+const BODY: u64 = FUNCTION + 0x80;
+const HANDLER_RVA: u32 = 0x5000;
+const HANDLER: u64 = IMAGE + HANDLER_RVA as u64;
+const OUTER_PC: u64 = IMAGE + 0x6000;
+const CONTINUATION: u64 = OUTER_PC + 0x10;
+const CALLER_PC: u64 = IMAGE + 0x7000;
 
-fn build_pe_with_unwind_codes(emu: &mut emu::Emu, uwop_codes: &[u16]) {
-    emu.maps
-        .create_map("test.pe", PE_BASE, PE_SIZE, Permission::READ_WRITE_EXECUTE)
-        .expect("create PE map");
-
-    // DOS header
-    emu.maps.write_word(PE_BASE, 0x5A4D);
-    let pe_hdr_off: u32 = 0x80;
-    emu.maps.write_dword(PE_BASE + 0x3C, pe_hdr_off);
-
-    let pe = PE_BASE + pe_hdr_off as u64;
-    emu.maps.write_dword(pe, 0x00004550);
-    emu.maps.write_word(pe + 4, 0x8664);
-    emu.maps.write_word(pe + 20, 0xF0);
-    emu.maps.write_word(pe + 24, 0x020B);
-    emu.maps.write_dword(pe + 0x50, PE_SIZE as u32);
-    emu.maps.write_dword(pe + 0x84, 16);
-
-    // .pdata
-    emu.maps.write_dword(pe + 0xA0, PDATA_RVA);
-    emu.maps.write_dword(pe + 0xA4, 12);
-
-    let pdata_addr = PE_BASE + PDATA_RVA as u64;
-    emu.maps.write_dword(pdata_addr, CODE_BEGIN_RVA);
-    emu.maps.write_dword(pdata_addr + 4, CODE_END_RVA);
-    emu.maps.write_dword(pdata_addr + 8, UNWIND_INFO_RVA);
-
-    // UNWIND_INFO
-    let ui = PE_BASE + UNWIND_INFO_RVA as u64;
-    let version_flags: u8 = 1 | (UNW_FLAG_NHANDLER << 3);
-    emu.maps.write_byte(ui, version_flags);
-    emu.maps.write_byte(ui + 1, 0);
-    emu.maps.write_byte(ui + 2, uwop_codes.len() as u8);
-    emu.maps.write_byte(ui + 3, 0);
-
-    for (idx, &code) in uwop_codes.iter().enumerate() {
-        emu.maps.write_word(ui + 4 + idx as u64 * 2, code);
+fn image(emu: &mut Emu, flags: u8, prolog: &[u8], unwind_codes: &[[u8; 2]]) {
+    let info = build_minimal_pe64(emu, IMAGE, HANDLER_RVA);
+    emu.maps.write_bytes(FUNCTION, prolog);
+    emu.maps.write_byte(BODY, 0x90);
+    emu.maps.write_bytes(
+        info,
+        &[
+            1 | (flags << 3),
+            prolog.len() as u8,
+            unwind_codes.len() as u8,
+            0,
+        ],
+    );
+    for (index, code) in unwind_codes.iter().enumerate() {
+        emu.maps.write_bytes(info + 4 + index as u64 * 2, code);
+    }
+    if flags != UNW_FLAG_NHANDLER {
+        let aligned_slots = unwind_codes.len().next_multiple_of(2);
+        emu.maps
+            .write_dword(info + 4 + aligned_slots as u64 * 2, HANDLER_RVA);
     }
 }
 
-fn uwop_push_nonvol(reg: u8) -> u16 {
-    (reg as u16) << 12
-}
-
-fn uwop_alloc_small(size: u16) -> u16 {
-    let info = size / 8 - 1;
-    (info << 12) | (2 << 8)
-}
-
-/// Call RtlUnwindEx through the ntdll dispatch.
-/// Sets up rcx..r9 and calls try_dispatch directly.
-fn call_rtl_unwind_ex(emu: &mut emu::Emu, target_frame: u64, target_ip: u64, return_value: u64) {
-    emu.regs_mut().rcx = target_frame;
-    emu.regs_mut().rdx = target_ip;
-    emu.regs_mut().r8 = 0;
-    emu.regs_mut().r9 = return_value;
-
-    use crate::api::windows::winapi64::ntdll;
-    ntdll::try_dispatch("RtlUnwindEx", emu);
-}
-
-#[test]
-fn unwind_push_nonvol_restores_rbx() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-
-    let codes = [uwop_push_nonvol(3)]; // rbx = index 3
-    build_pe_with_unwind_codes(&mut emu, &codes);
-
-    // Simulate the state mid-function after `push rbx`:
-    //   [rsp]   = saved rbx value
-    //   [rsp+8] = return address to caller
-    let saved_rbx: u64 = 0xDEAD_BEEF_CAFE_1234;
-    let rsp = emu.regs().rsp;
-    emu.maps.write_qword(rsp, saved_rbx);
-    let fake_ret: u64 = PE_BASE + 0x9000;
-    emu.maps.write_qword(rsp + 8, fake_ret);
-
-    emu.regs_mut().rbx = 0; // corrupted
-    emu.regs_mut().rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x100;
-
-    let target_ip = PE_BASE + TARGET_IP_RVA as u64;
-    let return_value: u64 = 0x42;
-    call_rtl_unwind_ex(&mut emu, 0, target_ip, return_value);
-
-    assert_eq!(
-        emu.regs().rbx,
-        saved_rbx,
-        "rbx should be restored by UWOP_PUSH_NONVOL"
+fn ntdll_call(emu: &mut Emu, api: &str, args: &[u64]) {
+    emu.gateway_return = emu.pc();
+    call_winapi64(emu, |emu| invoke_winapi_export(emu, "ntdll.dll", api), args);
+    assert!(
+        !emu.api_policy.stopped(),
+        "{api}: {:?}",
+        emu.api_policy.last_outcome
     );
-    assert_eq!(emu.regs().rax, return_value, "rax should hold ReturnValue");
-    assert_eq!(emu.regs().rip, target_ip, "rip should jump to TargetIp");
 }
 
 #[test]
-fn unwind_alloc_small_adjusts_rsp() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
+fn both_unwind_exports_restore_nonvolatile_registers_and_stop_at_the_target_frame() {
+    const SAVED_RBX: u64 = 0x1111_2222_3333_4444;
+    const SAVED_RBP: u64 = 0x5555_6666_7777_8888;
+    const RETURN_VALUE: u64 = 0x1234_5678_9abc_def0;
+    for api in ["RtlUnwindEx", "RtlUnwind"] {
+        let (mut emu, context) = prepare_winapi(true);
+        // push rbp; push rbx; sub rsp, 0x38. This includes all six outgoing argument slots.
+        let prolog = [0x55, 0x53, 0x48, 0x83, 0xec, 0x38];
+        let codes = [
+            [6, 0x62], // UWOP_ALLOC_SMALL(0x38)
+            [2, 0x30], // UWOP_PUSH_NONVOL(RBX)
+            [1, 0x50], // UWOP_PUSH_NONVOL(RBP)
+        ];
+        image(&mut emu, UNW_FLAG_NHANDLER, &prolog, &codes);
+        let sp = emu.sp();
+        let target_frame = sp + 0x50;
+        emu.maps.write_qword(sp + 0x38, SAVED_RBX);
+        emu.maps.write_qword(sp + 0x40, SAVED_RBP);
+        emu.maps.write_qword(sp + 0x48, OUTER_PC);
+        emu.maps.write_qword(target_frame, CALLER_PC);
+        emu.regs_mut().rbx = 0;
+        emu.regs_mut().rbp = 0;
+        emu.set_pc(BODY);
+        let args = [target_frame, CONTINUATION, 0, RETURN_VALUE, context, 0];
+        let arg_count = if api == "RtlUnwindEx" { 6 } else { 4 };
+        ntdll_call(&mut emu, api, &args[..arg_count]);
 
-    // Function did `sub rsp, 0x20` → UWOP_ALLOC_SMALL(0x20)
-    let codes = [uwop_alloc_small(0x20)];
-    build_pe_with_unwind_codes(&mut emu, &codes);
-
-    let rsp = emu.regs().rsp;
-    emu.regs_mut().rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x50;
-
-    // After undoing alloc, rsp += 0x20, then the return address is there.
-    let fake_ret: u64 = PE_BASE + 0x9000;
-    emu.maps.write_qword(rsp + 0x20, fake_ret);
-
-    let target_ip = PE_BASE + TARGET_IP_RVA as u64;
-    call_rtl_unwind_ex(&mut emu, 0, target_ip, 0);
-
-    assert_eq!(emu.regs().rip, target_ip, "should transfer to target_ip");
+        assert_eq!((emu.pc(), emu.sp()), (CONTINUATION, target_frame), "{api}");
+        assert_eq!(emu.regs().rax, RETURN_VALUE, "{api}");
+        assert_eq!(
+            (emu.regs().rbx, emu.regs().rbp),
+            (SAVED_RBX, SAVED_RBP),
+            "{api}"
+        );
+        if api == "RtlUnwindEx" {
+            assert_eq!(
+                emu.maps.read_qword(context + Context64::RIP_OFFSET),
+                Some(CONTINUATION)
+            );
+            assert_eq!(
+                emu.maps.read_qword(context + Context64::RSP_OFFSET),
+                Some(target_frame)
+            );
+        }
+    }
 }
 
 #[test]
-fn unwind_push_and_alloc_combined() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
+fn rtl_unwind_with_no_target_frame_delivers_the_exit_unwind_record() {
+    let (mut emu, _) = prepare_winapi(true);
+    image(&mut emu, UNW_FLAG_NHANDLER, &[], &[]);
+    emu.set_uef(HANDLER);
+    emu.set_pc(OUTER_PC);
+    emu.maps.write_qword(emu.sp(), 0);
+    ntdll_call(&mut emu, "RtlUnwind", &[0, CONTINUATION, 0, 0]);
 
-    // Typical prolog: push rbp; sub rsp, 0x20
-    // Unwind codes in reverse prolog order: alloc first, then push
-    let codes = [
-        uwop_alloc_small(0x20), // undo sub rsp, 0x20
-        uwop_push_nonvol(5),    // undo push rbp (reg 5)
-    ];
-    build_pe_with_unwind_codes(&mut emu, &codes);
-
-    // Stack layout after prolog:
-    //   [rsp]          = 0x20 bytes of locals
-    //   [rsp + 0x20]   = saved rbp
-    //   [rsp + 0x28]   = return address
-    let rsp = emu.regs().rsp;
-    let saved_rbp: u64 = 0xAAAA_BBBB_CCCC_DDDD;
-    emu.maps.write_qword(rsp + 0x20, saved_rbp);
-    let fake_ret: u64 = PE_BASE + 0x9000;
-    emu.maps.write_qword(rsp + 0x28, fake_ret);
-
-    emu.regs_mut().rbp = 0;
-    emu.regs_mut().rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x50;
-
-    let target_ip = PE_BASE + TARGET_IP_RVA as u64;
-    let ret_val: u64 = 0x99;
-    call_rtl_unwind_ex(&mut emu, 0, target_ip, ret_val);
-
-    assert_eq!(emu.regs().rbp, saved_rbp, "rbp should be restored");
-    assert_eq!(emu.regs().rax, ret_val, "rax should hold ReturnValue");
-    assert_eq!(emu.regs().rip, target_ip, "should jump to target_ip");
-}
-
-#[test]
-fn unwind_with_target_frame_stops_at_frame() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-
-    // No UWOP codes — leaf function
-    build_pe_with_unwind_codes(&mut emu, &[]);
-
-    // RIP outside function range → treated as leaf
-    let rsp = emu.regs().rsp;
-    emu.regs_mut().rip = PE_BASE + 0x8000;
-
-    let fake_ret: u64 = PE_BASE + 0x9000;
-    emu.maps.write_qword(rsp, fake_ret);
-
-    let target_frame = rsp + 8;
-    let target_ip = PE_BASE + TARGET_IP_RVA as u64;
-    call_rtl_unwind_ex(&mut emu, target_frame, target_ip, 0x55);
-
+    assert_eq!(emu.pc(), HANDLER);
+    let record = emu
+        .maps
+        .read_qword(emu.regs().rcx)
+        .expect("EXCEPTION_POINTERS.ExceptionRecord");
+    assert_eq!(emu.maps.read_dword(record), Some(STATUS_UNWIND));
     assert_eq!(
-        emu.regs().rsp,
-        target_frame,
-        "rsp should be set to TargetFrame"
+        emu.maps.read_dword(record + ExceptionRecord::FLAGS_OFFSET),
+        Some(EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)
     );
-    assert_eq!(emu.regs().rip, target_ip, "should jump to target_ip");
-    assert_eq!(emu.regs().rax, 0x55, "rax should hold ReturnValue");
 }
 
-const HANDLER_RVA: u32 = 0x5000;
-
-/// Build a PE64 with one RUNTIME_FUNCTION that has UNW_FLAG_EHANDLER
-/// and a handler at HANDLER_RVA that returns ExceptionContinueExecution (0).
-fn build_pe_with_ehandler(emu: &mut emu::Emu) {
-    emu.maps
-        .create_map("test.pe", PE_BASE, PE_SIZE, Permission::READ_WRITE_EXECUTE)
-        .expect("create PE map");
-
-    emu.maps.write_word(PE_BASE, 0x5A4D);
-    let pe_hdr_off: u32 = 0x80;
-    emu.maps.write_dword(PE_BASE + 0x3C, pe_hdr_off);
-
-    let pe = PE_BASE + pe_hdr_off as u64;
-    emu.maps.write_dword(pe, 0x00004550);
-    emu.maps.write_word(pe + 4, 0x8664);
-    emu.maps.write_word(pe + 20, 0xF0);
-    emu.maps.write_word(pe + 24, 0x020B);
-    emu.maps.write_dword(pe + 0x50, PE_SIZE as u32);
-    emu.maps.write_dword(pe + 0x84, 16);
-
-    emu.maps.write_dword(pe + 0xA0, PDATA_RVA);
-    emu.maps.write_dword(pe + 0xA4, 12);
-
-    let pdata_addr = PE_BASE + PDATA_RVA as u64;
-    emu.maps.write_dword(pdata_addr, CODE_BEGIN_RVA);
-    emu.maps.write_dword(pdata_addr + 4, CODE_END_RVA);
-    emu.maps.write_dword(pdata_addr + 8, UNWIND_INFO_RVA);
-
-    // UNWIND_INFO with UNW_FLAG_EHANDLER, 0 codes
-    let ui = PE_BASE + UNWIND_INFO_RVA as u64;
-    let version_flags: u8 = 1 | (UNW_FLAG_EHANDLER << 3);
-    emu.maps.write_byte(ui, version_flags);
-    emu.maps.write_byte(ui + 1, 0);
-    emu.maps.write_byte(ui + 2, 0);
-    emu.maps.write_byte(ui + 3, 0);
-    emu.maps.write_dword(ui + 4, HANDLER_RVA);
-
-    // Handler code: xor eax, eax; ret  (returns ContinueExecution=0)
-    let handler = PE_BASE + HANDLER_RVA as u64;
-    emu.maps.write_byte(handler, 0x31);
-    emu.maps.write_byte(handler + 1, 0xC0);
-    emu.maps.write_byte(handler + 2, 0xC3);
-}
-
-#[test]
-fn rtl_dispatch_exception_calls_ehandler() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-    build_pe_with_ehandler(&mut emu);
-
-    let faulting_rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x100;
-    emu.regs_mut().rip = faulting_rip;
-
-    // Allocate EXCEPTION_RECORD + CONTEXT in guest memory.
-    let block = emu.maps.alloc(0x800).expect("alloc");
-    emu.maps
-        .create_map("test_disp_block", block, 0x800, Permission::READ_WRITE)
-        .expect("map");
-
-    let record_addr = block;
-    let context_addr = block + 0x100;
-
-    // EXCEPTION_RECORD: code=0xC0000005, flags=0
-    emu.maps.write_dword(record_addr, 0xC0000005);
-    emu.maps.write_dword(record_addr + 4, 0);
-    emu.maps.write_qword(record_addr + 8, 0);
-    emu.maps.write_qword(record_addr + 0x10, faulting_rip);
-    emu.maps.write_dword(record_addr + 0x18, 0);
-
-    // Save CONTEXT from current regs.
-    let ctx = Context64::new(emu.regs());
-    ctx.save(context_addr, &mut emu.maps);
+fn dispatch_fixture(flags: u8, fault_pc: u64) -> (Emu, u64, u64, u64) {
+    let (mut emu, context) = prepare_winapi(true);
+    let record = context + 0x600;
+    // push rbp; sub rsp, 0x20. Without a frame register the establisher is the fault RSP.
+    let prolog = [0x55, 0x48, 0x83, 0xec, 0x20];
+    let codes = [[5, 0x32], [1, 0x50]];
+    image(&mut emu, flags, &prolog, &codes);
+    let fault_sp = emu.sp();
+    emu.set_pc(fault_pc);
+    emu.maps.write_qword(fault_sp + 0x20, 0xc031);
+    emu.maps.write_qword(fault_sp + 0x28, OUTER_PC);
+    emu.maps.write_qword(fault_sp + 0x30, 0);
+    Context64::new(emu.regs()).save(context, &mut emu.maps);
     emu.maps.write_dword(
-        context_addr + Context64::FLAGS_OFFSET,
+        context + Context64::FLAGS_OFFSET,
         CONTEXT_CONTROL | CONTEXT_INTEGER,
     );
-
-    // Call RtlDispatchException via ntdll dispatch.
-    emu.regs_mut().rcx = record_addr;
-    emu.regs_mut().rdx = context_addr;
-    use crate::api::windows::winapi64::ntdll;
-    ntdll::try_dispatch("RtlDispatchException", &mut emu);
-
-    assert_eq!(emu.regs().rax, 1, "should return TRUE (handler found)");
-    assert!(!emu.process_terminated);
+    ExceptionRecord::access_violation(fault_pc, 0, MemoryAccess::Read).save(
+        &mut emu.maps,
+        record,
+        true,
+    );
+    emu.set_pc(CALLER_PC);
+    emu.set_sp(fault_sp - 0x100);
+    (emu, record, context, fault_sp)
 }
 
 #[test]
-fn rtl_dispatch_exception_returns_false_when_no_handler() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-    build_pe_with_ehandler(&mut emu);
-
-    // RIP outside the RUNTIME_FUNCTION range — no .pdata match
-    let rip_outside = PE_BASE + 0x8000;
-    emu.regs_mut().rip = rip_outside;
-
-    let block = emu.maps.alloc(0x800).expect("alloc");
-    emu.maps
-        .create_map("test_disp_none", block, 0x800, Permission::READ_WRITE)
-        .expect("map");
-
-    let record_addr = block;
-    let context_addr = block + 0x100;
-
-    emu.maps.write_dword(record_addr, 0xC0000005);
-    emu.maps.write_dword(record_addr + 4, 0);
-    emu.maps.write_qword(record_addr + 8, 0);
-    emu.maps.write_qword(record_addr + 0x10, rip_outside);
-    emu.maps.write_dword(record_addr + 0x18, 0);
-
-    let ctx = Context64::new(emu.regs());
-    ctx.save(context_addr, &mut emu.maps);
-    emu.maps.write_dword(
-        context_addr + Context64::FLAGS_OFFSET,
-        CONTEXT_CONTROL | CONTEXT_INTEGER,
+fn rtl_dispatch_exception_returns_to_the_api_caller_after_the_guest_handler_returns() {
+    let (mut emu, record, context, fault_sp) = dispatch_fixture(UNW_FLAG_EHANDLER, BODY);
+    let caller_sp = emu.sp();
+    let caller_rbx = 0xcafe_babe;
+    emu.regs_mut().rbx = caller_rbx;
+    // mov [r8 + CONTEXT.Rax],rdx; xor eax,eax (ExceptionContinueExecution); ret
+    emu.maps.write_bytes(
+        HANDLER,
+        &[
+            0x49,
+            0x89,
+            0x50,
+            Context64::RAX_OFFSET as u8,
+            0x31,
+            0xc0,
+            0xc3,
+        ],
     );
+    ntdll_call(&mut emu, "RtlDispatchException", &[record, context]);
 
-    emu.regs_mut().rcx = record_addr;
-    emu.regs_mut().rdx = context_addr;
-    use crate::api::windows::winapi64::ntdll;
-    ntdll::try_dispatch("RtlDispatchException", &mut emu);
-
-    assert_eq!(emu.regs().rax, 0, "should return FALSE (no handler)");
-}
-
-const DATA_RVA: u32 = 0x7000;
-
-/// Build a PE64 with one RUNTIME_FUNCTION whose UNWIND_INFO has
-/// UNW_FLAG_UHANDLER, two UWOP codes (ALLOC_SMALL(0x20), PUSH_NONVOL(RBP)),
-/// and a handler that stores EstablisherFrame at DATA_RVA then returns 0.
-fn build_pe_with_uhandler_and_prologue(emu: &mut emu::Emu) {
-    emu.maps
-        .create_map("test.pe", PE_BASE, PE_SIZE, Permission::READ_WRITE_EXECUTE)
-        .expect("create PE map");
-
-    emu.maps.write_word(PE_BASE, 0x5A4D);
-    let pe_hdr_off: u32 = 0x80;
-    emu.maps.write_dword(PE_BASE + 0x3C, pe_hdr_off);
-
-    let pe = PE_BASE + pe_hdr_off as u64;
-    emu.maps.write_dword(pe, 0x00004550);
-    emu.maps.write_word(pe + 4, 0x8664);
-    emu.maps.write_word(pe + 20, 0xF0);
-    emu.maps.write_word(pe + 24, 0x020B);
-    emu.maps.write_dword(pe + 0x50, PE_SIZE as u32);
-    emu.maps.write_dword(pe + 0x84, 16);
-
-    emu.maps.write_dword(pe + 0xA0, PDATA_RVA);
-    emu.maps.write_dword(pe + 0xA4, 12);
-
-    let pdata_addr = PE_BASE + PDATA_RVA as u64;
-    emu.maps.write_dword(pdata_addr, CODE_BEGIN_RVA);
-    emu.maps.write_dword(pdata_addr + 4, CODE_END_RVA);
-    emu.maps.write_dword(pdata_addr + 8, UNWIND_INFO_RVA);
-
-    let ui = PE_BASE + UNWIND_INFO_RVA as u64;
-    // version=1, flags=UNW_FLAG_EHANDLER(1)
-    emu.maps.write_byte(ui, 1 | (UNW_FLAG_EHANDLER << 3));
-    emu.maps.write_byte(ui + 1, 0); // prolog size
-    emu.maps.write_byte(ui + 2, 2); // 2 unwind codes
-    emu.maps.write_byte(ui + 3, 0); // no frame register
-
-    // Code 0: UWOP_ALLOC_SMALL, info=3 → undo sub rsp, 3*8+8 = 0x20
-    emu.maps.write_word(ui + 4, (3u16 << 12) | (2 << 8));
-    // Code 1: UWOP_PUSH_NONVOL, info=5 (RBP) → undo push rbp
-    emu.maps.write_word(ui + 6, 5u16 << 12);
-    // After 2 codes (offset 8), handler_rva:
-    emu.maps.write_dword(ui + 8, HANDLER_RVA);
-
-    // Handler: store EstablisherFrame (rdx) at DATA_ADDR then return 0.
-    // mov rax, DATA_ADDR (48 B8 <8 bytes>)
-    // mov [rax], rdx    (48 89 10)
-    // xor eax, eax      (31 C0)
-    // ret                (C3)
-    let handler = PE_BASE + HANDLER_RVA as u64;
-    let data_addr = PE_BASE + DATA_RVA as u64;
-    let code: [u8; 16] = [
-        0x48,
-        0xB8,
-        (data_addr & 0xFF) as u8,
-        ((data_addr >> 8) & 0xFF) as u8,
-        ((data_addr >> 16) & 0xFF) as u8,
-        ((data_addr >> 24) & 0xFF) as u8,
-        ((data_addr >> 32) & 0xFF) as u8,
-        ((data_addr >> 40) & 0xFF) as u8,
-        ((data_addr >> 48) & 0xFF) as u8,
-        ((data_addr >> 56) & 0xFF) as u8,
-        0x48,
-        0x89,
-        0x10, // mov [rax], rdx
-        0x31,
-        0xC0, // xor eax, eax
-        0xC3, // ret
-    ];
-    emu.maps.write_bytes(handler, &code);
-}
-
-fn build_pe_with_uhandler(emu: &mut emu::Emu) {
-    emu.maps
-        .create_map("test.pe", PE_BASE, PE_SIZE, Permission::READ_WRITE_EXECUTE)
-        .expect("create PE map");
-
-    emu.maps.write_word(PE_BASE, 0x5A4D);
-    let pe_hdr_off: u32 = 0x80;
-    emu.maps.write_dword(PE_BASE + 0x3C, pe_hdr_off);
-
-    let pe = PE_BASE + pe_hdr_off as u64;
-    emu.maps.write_dword(pe, 0x00004550);
-    emu.maps.write_word(pe + 4, 0x8664);
-    emu.maps.write_word(pe + 20, 0xF0);
-    emu.maps.write_word(pe + 24, 0x020B);
-    emu.maps.write_dword(pe + 0x50, PE_SIZE as u32);
-    emu.maps.write_dword(pe + 0x84, 16);
-
-    emu.maps.write_dword(pe + 0xA0, PDATA_RVA);
-    emu.maps.write_dword(pe + 0xA4, 12);
-
-    let pdata_addr = PE_BASE + PDATA_RVA as u64;
-    emu.maps.write_dword(pdata_addr, CODE_BEGIN_RVA);
-    emu.maps.write_dword(pdata_addr + 4, CODE_END_RVA);
-    emu.maps.write_dword(pdata_addr + 8, UNWIND_INFO_RVA);
-
-    let ui = PE_BASE + UNWIND_INFO_RVA as u64;
-    let version_flags: u8 = 1 | (UNW_FLAG_UHANDLER << 3);
-    emu.maps.write_byte(ui, version_flags);
-    emu.maps.write_byte(ui + 1, 0);
-    emu.maps.write_byte(ui + 2, 0);
-    emu.maps.write_byte(ui + 3, 0);
-    emu.maps.write_dword(ui + 4, HANDLER_RVA);
-
-    let handler = PE_BASE + HANDLER_RVA as u64;
-    emu.maps.write_byte(handler, 0x31);
-    emu.maps.write_byte(handler + 1, 0xC0);
-    emu.maps.write_byte(handler + 2, 0xC3);
-}
-
-#[test]
-fn rtl_dispatch_exception_uhandler_fallback_handles_exception() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-    build_pe_with_uhandler(&mut emu);
-
-    let faulting_rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x100;
-    emu.regs_mut().rip = faulting_rip;
-
-    let block = emu.maps.alloc(0x800).expect("alloc");
-    emu.maps
-        .create_map("test_disp_uhandler", block, 0x800, Permission::READ_WRITE)
-        .expect("map");
-
-    let record_addr = block;
-    let context_addr = block + 0x100;
-
-    emu.maps.write_dword(record_addr, 0xe0465043);
-    emu.maps.write_dword(record_addr + 4, 1);
-    emu.maps.write_qword(record_addr + 8, 0);
-    emu.maps.write_qword(record_addr + 0x10, faulting_rip);
-    emu.maps.write_dword(record_addr + 0x18, 0);
-
-    let ctx = Context64::new(emu.regs());
-    ctx.save(context_addr, &mut emu.maps);
-    emu.maps.write_dword(
-        context_addr + Context64::FLAGS_OFFSET,
-        CONTEXT_CONTROL | CONTEXT_INTEGER,
-    );
-
-    emu.regs_mut().rcx = record_addr;
-    emu.regs_mut().rdx = context_addr;
-    use crate::api::windows::winapi64::ntdll;
-    ntdll::try_dispatch("RtlDispatchException", &mut emu);
-
+    assert_eq!(emu.pc(), HANDLER);
     assert_eq!(
-        emu.regs().rax,
-        1,
-        "UHANDLER fallback pass should handle the exception — returns TRUE"
+        (emu.regs().rcx, emu.regs().rdx, emu.regs().r8),
+        (record, fault_sp, context)
     );
+    // Direct gateway entry can leave the caller's pending PC reload for the first step.
+    for _ in 0..4 {
+        assert!(emu.step());
+        if emu.eh_ctx() == 0 {
+            break;
+        }
+    }
+    assert_eq!(emu.last_ret.1, HANDLER + 6);
+    assert_eq!((emu.pc(), emu.sp()), (CALLER_PC, caller_sp));
+    assert_eq!((emu.regs().rax, emu.regs().rbx), (1, caller_rbx));
+    assert_eq!(
+        emu.maps.read_qword(context + Context64::RAX_OFFSET),
+        Some(fault_sp)
+    );
+    assert_eq!(
+        emu.maps.read_qword(context + Context64::RIP_OFFSET),
+        Some(BODY)
+    );
+    assert_eq!(
+        emu.maps.read_qword(context + Context64::RSP_OFFSET),
+        Some(fault_sp)
+    );
+    assert_eq!(emu.eh_ctx(), 0);
 }
 
-/// Verify that EstablisherFrame is computed AFTER applying UWOP codes,
-/// matching real Windows RtlVirtualUnwind behaviour. The handler stores
-/// the value it receives in rdx at a known guest address so we can
-/// compare it against the expected post-unwind RSP.
 #[test]
-fn dispatch_establisher_frame_is_post_unwind_rsp() {
-    helpers::setup();
-    let mut emu = emu64();
-    emu.init_stack64();
-    build_pe_with_uhandler_and_prologue(&mut emu);
+fn rtl_dispatch_exception_returns_false_for_a_termination_handler_or_a_leaf() {
+    for (flags, fault_pc) in [(UNW_FLAG_UHANDLER, BODY), (UNW_FLAG_EHANDLER, OUTER_PC)] {
+        let (mut emu, record, context, fault_sp) = dispatch_fixture(flags, fault_pc);
+        let caller_sp = emu.sp();
+        emu.regs_mut().rax = 1;
+        ntdll_call(&mut emu, "RtlDispatchException", &[record, context]);
 
-    let fault_rsp = emu.regs().rsp;
-    let faulting_rip = PE_BASE + CODE_BEGIN_RVA as u64 + 0x100;
-    emu.regs_mut().rip = faulting_rip;
-
-    // Stack layout after prologue (push rbp; sub rsp, 0x20):
-    //   [rsp + 0x00 .. 0x20)  = locals (zero)
-    //   [rsp + 0x20]          = saved rbp
-    //   [rsp + 0x28]          = return address (0 = end of stack)
-    let saved_rbp: u64 = 0xDEAD_BEEF_1234_5678;
-    emu.maps.write_qword(fault_rsp + 0x20, saved_rbp);
-    emu.maps.write_qword(fault_rsp + 0x28, 0);
-
-    let block = emu.maps.alloc(0x800).expect("alloc");
-    emu.maps
-        .create_map("test_ef_block", block, 0x800, Permission::READ_WRITE)
-        .expect("map");
-
-    let record_addr = block;
-    let context_addr = block + 0x100;
-
-    emu.maps.write_dword(record_addr, 0xe0465043);
-    emu.maps.write_dword(record_addr + 4, 1);
-    emu.maps.write_qword(record_addr + 8, 0);
-    emu.maps.write_qword(record_addr + 0x10, faulting_rip);
-    emu.maps.write_dword(record_addr + 0x18, 0);
-
-    let ctx = Context64::new(emu.regs());
-    ctx.save(context_addr, &mut emu.maps);
-    emu.maps.write_dword(
-        context_addr + Context64::FLAGS_OFFSET,
-        CONTEXT_CONTROL | CONTEXT_INTEGER,
-    );
-
-    // Sentinel so we can tell if the handler was actually called.
-    let data_addr = PE_BASE + DATA_RVA as u64;
-    emu.maps.write_qword(data_addr, 0xBAD_BAD);
-
-    emu.regs_mut().rcx = record_addr;
-    emu.regs_mut().rdx = context_addr;
-    use crate::api::windows::winapi64::ntdll;
-    ntdll::try_dispatch("RtlDispatchException", &mut emu);
-
-    assert_eq!(emu.regs().rax, 1, "handler should handle the exception");
-
-    let stored_frame = emu.maps.read_qword(data_addr).unwrap();
-    // After UWOP_ALLOC_SMALL(0x20) + UWOP_PUSH_NONVOL(RBP):
-    //   RSP += 0x20 (undo alloc) → fault_rsp + 0x20
-    //   RSP += 8 (undo push)    → fault_rsp + 0x28
-    // The return-address pop has NOT happened yet at handler call time.
-    let expected_frame = fault_rsp + 0x28;
-    assert_eq!(
-        stored_frame, expected_frame,
-        "EstablisherFrame must be RSP after UWOP codes (0x{:x}), got 0x{:x}",
-        expected_frame, stored_frame,
-    );
+        assert_eq!((emu.pc(), emu.sp()), (CALLER_PC, caller_sp));
+        assert_eq!(emu.regs().rax, 0);
+        assert_eq!(emu.eh_ctx(), 0);
+        assert_eq!(
+            emu.maps.read_dword(record + ExceptionRecord::FLAGS_OFFSET),
+            Some(0)
+        );
+        assert_eq!(
+            emu.maps.read_qword(context + Context64::RIP_OFFSET),
+            Some(fault_pc)
+        );
+        assert_eq!(
+            emu.maps.read_qword(context + Context64::RSP_OFFSET),
+            Some(fault_sp)
+        );
+    }
 }

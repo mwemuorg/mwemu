@@ -21,6 +21,7 @@ pub const STAP_ALLOW_CONTROLS: u32 = 0x2;
 pub const STAP_ALLOW_WEBCONTENT: u32 = 0x4;
 
 pub const WS_CHILD: u32 = 0x4000_0000;
+pub const WS_VISIBLE: u32 = 0x1000_0000;
 pub const WS_DISABLED: u32 = 0x0800_0000;
 
 pub const GWL_STYLE: i32 = -16;
@@ -28,3 +29,15 @@ pub const GWL_EXSTYLE: i32 = -20;
 pub const GWLP_HINSTANCE: i32 = -6;
 pub const GWLP_ID: i32 = -12;
 pub const GWLP_USERDATA: i32 = -21;
+
+pub const WM_QUIT: u32 = 0x0012;
+pub const WM_KEYFIRST: u32 = 0x0100;
+pub const WM_KEYLAST: u32 = 0x0109;
+pub const WM_TIMER: u32 = 0x0113;
+pub const WM_APP: u32 = 0x8000;
+
+pub const PM_REMOVE: u32 = 1;
+pub const QS_TIMER: u32 = 0x0010;
+
+pub const USER_TIMER_MINIMUM: u32 = 10;
+pub const USER_TIMER_MAXIMUM: u32 = 0x7fff_ffff;

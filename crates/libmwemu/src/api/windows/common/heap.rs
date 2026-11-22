@@ -5,6 +5,7 @@ use crate::emu::object_handle::HeapHandle;
 use crate::exception::types::ExceptionType;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{PAGE_SIZE, align_up, protection_for};
 use crate::winapi::common::memory::{self, pointer_size, write_pointer};
 use crate::winapi::common::trace;
 use crate::winapi::policy::{self, api_try};
@@ -85,7 +86,24 @@ pub(crate) fn allocate(emu: &mut Emu, handle: u64, size: u64, flags: u64) -> Opt
     if padded as u64 > emu.maps.max_alloc_size {
         return None;
     }
-    let address = emu.heap_arena_mut(arena)?.allocate(padded)?;
+    let address = match emu.heap_arena_mut(arena)?.allocate(padded) {
+        Some(address) => address,
+        None if maximum == 0 => {
+            // A growable heap can satisfy a request outside its initial arena.
+            let span = align_up(padded as u64, PAGE_SIZE)?;
+            let address = emu.maps.alloc(span)?;
+            let permission = emu
+                .maps
+                .get_mem_by_addr(emu.heap_arenas[arena].base())?
+                .permission();
+            emu.maps
+                .reserve_private(address, span, protection_for(permission), permission, true)
+                .ok()?;
+            emu.heap_arenas[arena].record_external(address, size);
+            return Some(address);
+        }
+        None => return None,
+    };
     emu.heap_arena_mut(arena)?.record_request(address, size);
     let valid = emu
         .maps
@@ -117,6 +135,13 @@ pub(crate) fn heap_free(emu: &mut Emu, handle: u64, address: u64) -> bool {
     let Some(heap) = emu.heap_arena_mut(arena) else {
         return false;
     };
+    if heap.is_external(address) && heap.requested_size(address).is_some() {
+        if emu.maps.release_memory(address).is_err() {
+            return false;
+        }
+        emu.heap_arenas[arena].forget_external(address);
+        return true;
+    }
     if !heap.check_fragment_exists(address) {
         return false;
     }
@@ -146,24 +171,42 @@ pub(crate) fn reallocate(
     let old_size = owned_size(emu, handle, address)?;
     let copied = old_size.min(size);
     if emu.cfg.memory_guard {
-        if flags & HEAP_REALLOC_IN_PLACE_ONLY != 0 {
-            return None;
-        }
-        let new_address = allocate(emu, handle, size as u64, flags)?;
-        if !emu.maps.copy_range(new_address, address, copied) {
-            heap_free(emu, handle, new_address);
-            return None;
-        }
-        heap_free(emu, handle, address);
-        return Some(new_address);
+        return move_allocation(emu, handle, address, size, copied, flags);
     }
-    // Plan using independent metadata. Failure leaves the live arena and bytes intact.
-    let mut candidate = emu.heap_arena_mut(arena)?.clone();
     let padded = size.max(usize::try_from(emu.cfg.heap_alloc_min_size).ok()?);
     if padded as u64 > emu.maps.max_alloc_size {
         return None;
     }
-    let result = candidate.reallocate(address, padded)?;
+    if emu.heap_arenas.get(arena)?.is_external(address) {
+        let block = emu.maps.allocation_at(address)?;
+        if block.base == address && padded as u64 <= block.size {
+            if !emu
+                .maps
+                .can_access_range(address, size, Permission::READ_WRITE)
+            {
+                return None;
+            }
+            if flags & HEAP_ZERO_MEMORY != 0
+                && size > old_size
+                && !emu
+                    .maps
+                    .fill_range(address.checked_add(old_size as u64)?, 0, size - old_size)
+            {
+                return None;
+            }
+            emu.heap_arenas[arena].record_external(address, size);
+            return Some(address);
+        }
+        return move_allocation(emu, handle, address, size, copied, flags);
+    }
+    // Plan using independent metadata. Failure leaves the live arena and bytes intact.
+    let mut candidate = emu.heap_arena_mut(arena)?.clone();
+    let Some(result) = candidate.reallocate(address, padded) else {
+        if maximum != 0 {
+            return None;
+        }
+        return move_allocation(emu, handle, address, size, copied, flags);
+    };
     candidate.record_request(result.new_addr, size);
     if flags & HEAP_REALLOC_IN_PLACE_ONLY != 0 && result.new_addr != address {
         return None;
@@ -186,6 +229,25 @@ pub(crate) fn reallocate(
     }
     *emu.heap_arena_mut(arena)? = candidate;
     Some(result.new_addr)
+}
+
+fn move_allocation(
+    emu: &mut Emu,
+    handle: u64,
+    address: u64,
+    size: usize,
+    copied: usize,
+    flags: u64,
+) -> Option<u64> {
+    if flags & HEAP_REALLOC_IN_PLACE_ONLY != 0 {
+        return None;
+    }
+    let new_address = allocate(emu, handle, size as u64, flags)?;
+    if !emu.maps.copy_range(new_address, address, copied) || !heap_free(emu, handle, address) {
+        heap_free(emu, handle, new_address);
+        return None;
+    }
+    Some(new_address)
 }
 
 pub(crate) fn fail_allocation(emu: &mut Emu, flags: u64) {

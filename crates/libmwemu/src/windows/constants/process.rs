@@ -4,6 +4,11 @@ pub const CURRENT_PROCESS_HANDLE: u64 = 1975;
 pub const NT_CURRENT_PROCESS: u64 = 0xffff_ffff_ffff_ffff;
 pub const NT_CURRENT_THREAD: u64 = 0xffff_ffff_ffff_fffe;
 
+pub const OBJ_CASE_INSENSITIVE: u32 = 0x40;
+pub const OBJ_OPENIF: u32 = 0x80;
+
+pub const PEB_BEING_DEBUGGED_OFFSET: u64 = 2;
+
 pub const WAIT_OBJECT_0: u64 = 0;
 pub const WAIT_TIMEOUT: u64 = 0x00000102;
 pub const WAIT_FAILED: u64 = 0xFFFFFFFF;
@@ -53,6 +58,10 @@ pub const TH32CS_INHERIT: u32 = 0x8000_0000;
 pub const MAX_MODULE_NAME32: usize = 255;
 
 pub const MAXIMUM_SUSPEND_COUNT: u32 = 127;
+
+pub const DEP_OPT_IN: u8 = 2;
+pub const PROCESS_DEP_ENABLE: u32 = 0x1;
+pub const PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION: u32 = 0x2;
 
 pub const SEM_FAILCRITICALERRORS: u32 = 0x0001;
 pub const SEM_NOGPFAULTERRORBOX: u32 = 0x0002;

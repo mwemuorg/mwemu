@@ -108,45 +108,15 @@ impl Emu {
             );
         }
 
-        let esp = self.regs().get_esp().wrapping_sub(4);
-        self.regs_mut().set_esp(esp);
-        //self.stack_lvl[self.stack_lvl_idx] += 1;
-        //log::trace!("push32 stack level is {} deep {}", self.stack_lvl[self.stack_lvl_idx], self.stack_lvl_idx);
-
-        /*
-        let stack = self.maps.get_mem("stack");
-        if stack.inside(self.regs().get_esp()) {
-            if !self.maps.write_dword(self.regs().get_esp(), value) {
-                //if !stack.write_dword(self.regs().get_esp(), value) {
-                return false;
-            }
-        } else {
-            let mem = match self.maps.get_mem_by_addr(self.regs().get_esp()) {
-                Some(m) => m,
-                None => {
-                    log::trace!(
-                        "/!\\ pushing stack outside maps esp: 0x{:x}",
-                        self.regs().get_esp()
-                    );
-                    Console::spawn_console(self);
-                    return false;
-                }
-            };
-            if !self.maps.write_dword(self.regs().get_esp(), value) {
-                //if !mem.write_dword(self.regs().get_esp(), value) {
-                return false;
-            }
-        }*/
-
-        if self.maps.write_dword(self.regs().get_esp(), value) {
-            true
-        } else {
-            log::trace!(
-                "/!\\ pushing in non mapped mem 0x{:x}",
-                self.regs().get_esp()
-            );
-            false
+        let esp = (self.regs().get_esp() as u32).wrapping_sub(size_of::<u32>() as u32) as u64;
+        if self.maps.write_dword(esp, value)
+            || (self.try_grow_stack(esp) && self.maps.write_dword(esp, value))
+        {
+            self.regs_mut().set_esp(esp);
+            return true;
         }
+        log::trace!("/!\\ pushing in non mapped mem 0x{esp:x}");
+        false
     }
 
     /// Push a qword to the stack and dec the stack pointer.

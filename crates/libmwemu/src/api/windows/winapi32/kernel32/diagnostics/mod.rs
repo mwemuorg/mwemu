@@ -41,6 +41,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "EtwEventRegister" | "EventRegister" => kernel32::EtwEventRegister(emu),
         "EtwEventSetInformation" | "EventSetInformation" => kernel32::EtwEventSetInformation(emu),
         "EtwEventWriteTransfer" | "EventWriteTransfer" => kernel32::EtwEventWriteTransfer(emu),
+        "RtlUnwind" => kernel32::RtlUnwind(emu),
         "RtlVirtualUnwind" => kernel32::RtlVirtualUnwind(emu),
     },
         handled(()) => true,

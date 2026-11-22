@@ -72,7 +72,10 @@ fn render(emu: &Emu, format: u64, mut args: Arguments) -> Result<Vec<u8>, Format
             out.push(b'%');
             continue;
         }
-        if !matches!(spec, b'd' | b'i' | b'u' | b'x' | b'X' | b'o' | b'c' | b's') {
+        if !matches!(
+            spec,
+            b'd' | b'i' | b'u' | b'x' | b'X' | b'o' | b'c' | b's' | b'p'
+        ) {
             return Err(FormatError::Unsupported);
         }
         let value = args.next(emu)?;
@@ -85,6 +88,10 @@ fn render(emu: &Emu, format: u64, mut args: Arguments) -> Result<Vec<u8>, Format
             b'o' => out.extend(format!("{number:o}").bytes()),
             b'c' => out.push(value as u8),
             b's' => out.extend(string(emu, value, MAX_FORMAT_BYTES - out.len())?),
+            b'p' => {
+                let width = pointer_size(emu) as usize * 2;
+                out.extend(format!("{value:0width$X}").bytes());
+            }
             _ => return Err(FormatError::Unsupported),
         }
         if out.len() > MAX_FORMAT_BYTES {
@@ -113,7 +120,10 @@ pub(crate) fn print(emu: &mut Emu, runtime: Runtime, api: &str) {
     if common {
         let locale = api_try!(emu, call.arg(emu, fmt_index + 1));
         let options = api_try!(emu, call.arg_u64(emu, 0));
-        if options != 0 || locale != 0 {
+        // Neither option changes the supported narrow character and integer conversions.
+        let supported_options =
+            _CRT_INTERNAL_PRINTF_LEGACY_WIDE_SPECIFIERS | _CRT_INTERNAL_PRINTF_STANDARD_ROUNDING;
+        if options & !supported_options != 0 || locale != 0 {
             policy::unsupported_with_abi(emu, runtime.library(), api, emu.pc(), call);
             return;
         }

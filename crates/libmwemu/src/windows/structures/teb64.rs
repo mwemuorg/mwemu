@@ -26,9 +26,9 @@ pub struct TEB64 {
 
 impl TEB64 {
     pub const NT_TIB_OFFSET: u64 = 0x00;
-    pub const NT_TIB_STACK_BASE_OFFSET: u64 = 0x08;
-    pub const NT_TIB_STACK_LIMIT_OFFSET: u64 = 0x10;
-    pub const NT_TIB_SELF_OFFSET: u64 = 0x30;
+    pub const NT_TIB_STACK_BASE_OFFSET: u64 = Self::NT_TIB_OFFSET + NtTib64::STACK_BASE_OFFSET;
+    pub const NT_TIB_STACK_LIMIT_OFFSET: u64 = Self::NT_TIB_OFFSET + NtTib64::STACK_LIMIT_OFFSET;
+    pub const NT_TIB_SELF_OFFSET: u64 = Self::NT_TIB_OFFSET + NtTib64::SELF_POINTER_OFFSET;
     pub const ENVIRONMENT_POINTER_OFFSET: u64 = 0x38;
     pub const CLIENT_ID_OFFSET: u64 = 0x40;
     pub const CLIENT_ID_PROCESS_ID_OFFSET: u64 = 0x40;
@@ -97,13 +97,13 @@ impl TEB64 {
         let mut user32_reserved = [0; 26];
         for (index, value) in user32_reserved.iter_mut().enumerate() {
             *value = maps
-                .read_dword(Self::USER32_RESERVED_OFFSET + addr + index as u64 * 4)
+                .read_dword(Self::USER32_RESERVED_OFFSET + addr + (index * size_of::<u32>()) as u64)
                 .unwrap_or(0);
         }
         let mut user_reserved = [0; 5];
         for (index, value) in user_reserved.iter_mut().enumerate() {
             *value = maps
-                .read_dword(Self::USER_RESERVED_OFFSET + addr + index as u64 * 4)
+                .read_dword(Self::USER_RESERVED_OFFSET + addr + (index * size_of::<u32>()) as u64)
                 .unwrap_or(0);
         }
 
@@ -166,11 +166,14 @@ impl TEB64 {
     pub fn load_map(addr: u64, map: &Mem64) -> TEB64 {
         let mut user32_reserved = [0; 26];
         for (index, value) in user32_reserved.iter_mut().enumerate() {
-            *value = map.read_dword(Self::USER32_RESERVED_OFFSET + addr + index as u64 * 4);
+            *value = map.read_dword(
+                Self::USER32_RESERVED_OFFSET + addr + (index * size_of::<u32>()) as u64,
+            );
         }
         let mut user_reserved = [0; 5];
         for (index, value) in user_reserved.iter_mut().enumerate() {
-            *value = map.read_dword(Self::USER_RESERVED_OFFSET + addr + index as u64 * 4);
+            *value = map
+                .read_dword(Self::USER_RESERVED_OFFSET + addr + (index * size_of::<u32>()) as u64);
         }
 
         TEB64 {
@@ -236,12 +239,15 @@ impl TEB64 {
         );
         for (index, value) in self.user32_reserved.iter().enumerate() {
             mem.write_dword(
-                base + Self::USER32_RESERVED_OFFSET + index as u64 * 4,
+                base + Self::USER32_RESERVED_OFFSET + (index * size_of::<u32>()) as u64,
                 *value,
             );
         }
         for (index, value) in self.user_reserved.iter().enumerate() {
-            mem.write_dword(base + Self::USER_RESERVED_OFFSET + index as u64 * 4, *value);
+            mem.write_dword(
+                base + Self::USER_RESERVED_OFFSET + (index * size_of::<u32>()) as u64,
+                *value,
+            );
         }
         mem.write_qword(base + Self::WOW32_RESERVED_OFFSET, self.wow32_reserved);
         mem.write_dword(base + Self::CURRENT_LOCALE_OFFSET, self.current_locale);

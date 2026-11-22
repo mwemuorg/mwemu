@@ -1,8 +1,11 @@
 pub const CFG_DEFAULT_BASE: u64 = 0x3c0000;
+
 // Exclusive upper bounds of the emulated user address spaces.
 pub const USER32_ADDRESS_LIMIT: u64 = 0x1_0000_0000;
 pub const USER64_ADDRESS_LIMIT: u64 = 0x8000_0000_0000;
+pub const DEFAULT_STACK_RESERVE: u64 = 1024 * 1024;
 pub const BLOCK_LEN: usize = 0x300;
+
 pub const ALLOC32_MIN: u64 = 0x6_000_000;
 pub const ALLOC32_MAX: u64 = 0x6F_FFF_FFF;
 pub const LIBS32_MIN: u64 = 0x70_000_000;
@@ -11,18 +14,28 @@ pub const ALLOC64_MIN: u64 = 0x710_000_000_000;
 pub const ALLOC64_MAX: u64 = 0x7fe_fff_fff_fff;
 pub const LIBS64_MIN: u64 = 0x7FF_000_000_000;
 pub const LIBS64_MAX: u64 = 0x7FF_FFF_FFF_FFF;
+
 // macOS dylib address range (reuses same range — never coexists with Windows libs)
 pub const DYLIBS_MACOS_MIN: u64 = 0x7FF000000000;
 pub const DYLIBS_MACOS_MAX: u64 = 0x7FFFFFFFFFFF;
+
 pub const GMEM_FIXED: u32 = 0x0000;
 pub const GMEM_ZEROINIT: u32 = 0x0040;
 pub const GPTR: u32 = 0x0040;
+
+pub const SECTION_MAP_READ: u32 = 0x0004;
 pub const SECTION_ALL_ACCESS: u32 = 0x000f_001f;
+
 pub const SEC_IMAGE: u32 = 0x0100_0000;
+pub const SEC_RESERVE: u32 = 0x0400_0000;
 pub const SEC_COMMIT: u32 = 0x0800_0000;
+
 pub const VIEW_SHARE: u32 = 1;
+pub const VIEW_UNMAP: u32 = 2;
+
 pub const LIBS_BARRIER: u64 = 0x60000000;
 pub const LIBS_BARRIER64: u64 = 0x60000000;
+
 pub const PAGE_NOACCESS: u32 = 0x01;
 pub const PAGE_EXECUTE: u32 = 0x10;
 pub const PAGE_READONLY: u32 = 0x02;
@@ -34,6 +47,7 @@ pub const PAGE_EXECUTE_WRITECOPY: u32 = 0x80;
 pub const PAGE_GUARD: u32 = 0x100;
 pub const PAGE_NOCACHE: u32 = 0x200;
 pub const PAGE_WRITECOMBINE: u32 = 0x400;
+
 pub const MEM_COMMIT: u32 = 0x1000;
 pub const MEM_FREE: u32 = 0x10000;
 pub const MEM_RESERVE: u32 = 0x2000;
@@ -43,12 +57,13 @@ pub const MEM_PRIVATE: u32 = 0x20000;
 pub const MEM_DECOMMIT: u32 = 0x4000;
 pub const MEM_RELEASE: u32 = 0x8000;
 pub const MEM_TOP_DOWN: u32 = 0x100000;
-///
+
 /// `_MEMORY_INFORMATION_CLASS` for `NtQueryVirtualMemory` (see Windows SDK).
 pub const MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION: u64 = 0;
 pub const MEMORY_INFORMATION_CLASS_MEMORY_PRIVILEGED_BASIC_INFORMATION: u64 = 8;
 pub const MEMORY_INFORMATION_CLASS_MEMORY_IMAGE_INFORMATION: u64 = 6;
 pub const MEMORY_INFORMATION_CLASS_MEMORY_IMAGE_EXTENSION_INFORMATION: u64 = 0xe;
+
 pub const HEAP_GENERATE_EXCEPTIONS: u64 = 0x00000004;
 pub const HEAP_NO_SERIALIZE: u64 = 0x00000001;
 pub const HEAP_ZERO_MEMORY: u64 = 0x00000008;

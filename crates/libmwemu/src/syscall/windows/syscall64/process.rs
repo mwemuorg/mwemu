@@ -1,7 +1,5 @@
-use std::sync::atomic::Ordering;
-
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
-use crate::api::windows::common::process;
+use crate::api::windows::common::{process, threads};
 use crate::emu::Emu;
 use crate::winapi::libraries::kernel32::file_time::nt_performance;
 use crate::windows::constants::errors::*;
@@ -45,8 +43,7 @@ pub fn nt_terminate_process(emu: &mut Emu) {
     // hides the fact that ntdll bailed out mid-init: the EXE then runs with
     // a partially-initialised loader and crashes downstream in a way that
     // looks unrelated.
-    emu.process_terminated = true;
-    emu.is_running.store(0, Ordering::Relaxed);
+    threads::force_exit_process(emu, exit_status as u32);
     emu.regs_mut().rax = STATUS_SUCCESS;
 }
 

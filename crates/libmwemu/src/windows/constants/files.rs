@@ -1,3 +1,5 @@
+use super::security::{READ_CONTROL, SYNCHRONIZE};
+
 pub const MAX_PATH: usize = 260;
 
 /// NT device of the guest's only volume (C:), shared by every API that
@@ -6,6 +8,9 @@ pub const SYSTEM_VOLUME_DEVICE: &str = "\\Device\\HarddiskVolume3";
 
 pub const FILE_SHARE_READ: u32 = 1;
 pub const FILE_SHARE_WRITE: u32 = 2;
+pub const FILE_SHARE_DELETE: u32 = 4;
+
+pub const FILE_USE_FILE_POINTER_POSITION: i64 = -2;
 
 pub const FILE_BEGIN: u32 = 0;
 pub const FILE_CURRENT: u32 = 1;
@@ -17,6 +22,7 @@ pub const INVALID_SET_FILE_POINTER: u64 = 0xffff_ffff;
 
 pub const GET_FILEEX_INFO_STANDARD: u32 = 0;
 pub const FILE_END_OF_FILE_INFO_CLASS: u32 = 6;
+pub const FILE_STANDARD_INFORMATION: u32 = 5;
 pub const FILE_ATTRIBUTE_TAG_INFO_CLASS: u32 = 9;
 
 pub const FILE_NAME_OPENED: u32 = 8;
@@ -34,13 +40,32 @@ pub const FILE_MAP_ALL_ACCESS: u32 = 0xf001f;
 pub const FILE_READ_DATA: u32 = 1;
 pub const FILE_WRITE_DATA: u32 = 2;
 pub const FILE_APPEND_DATA: u32 = 4;
+pub const FILE_READ_EA: u32 = 0x0008;
+pub const FILE_READ_ATTRIBUTES: u32 = 0x0080;
 pub const FILE_WRITE_ATTRIBUTES: u32 = 0x0100;
+
+pub const FILE_GENERIC_READ: u32 =
+    READ_CONTROL | SYNCHRONIZE | FILE_READ_DATA | FILE_READ_ATTRIBUTES | FILE_READ_EA;
 
 pub const CREATE_NEW: usize = 1;
 pub const CREATE_ALWAYS: usize = 2;
 pub const OPEN_EXISTING: usize = 3;
 pub const OPEN_ALWAYS: usize = 4;
 pub const TRUNCATE_EXISTING: usize = 5;
+
+pub const FILE_OPEN: u32 = 1;
+pub const FILE_CREATE: u32 = 2;
+pub const FILE_OPEN_IF: u32 = 3;
+pub const FILE_OVERWRITE: u32 = 4;
+pub const FILE_OVERWRITE_IF: u32 = 5;
+
+pub const FILE_SYNCHRONOUS_IO_ALERT: u32 = 0x10;
+pub const FILE_SYNCHRONOUS_IO_NONALERT: u32 = 0x20;
+pub const FILE_NON_DIRECTORY_FILE: u32 = 0x40;
+
+pub const FILE_OPENED: u64 = 1;
+pub const FILE_CREATED: u64 = 2;
+pub const FILE_OVERWRITTEN: u64 = 3;
 
 pub const FILE_ATTRIBUTE_READONLY: usize = 0x1;
 pub const FILE_ATTRIBUTE_HIDDEN: usize = 0x2;
@@ -82,6 +107,16 @@ pub const STD_ERROR_HANDLE: u32 = 0xffff_fff4;
 
 pub const RT_STRING: u32 = 6;
 pub const RT_VERSION: u32 = 16;
+pub const RT_MANIFEST: u32 = 24;
+
+pub const ACTCTX_FLAG_PROCESSOR_ARCHITECTURE_VALID: u32 = 0x01;
+pub const ACTCTX_FLAG_LANGID_VALID: u32 = 0x02;
+pub const ACTCTX_FLAG_ASSEMBLY_DIRECTORY_VALID: u32 = 0x04;
+pub const ACTCTX_FLAG_RESOURCE_NAME_VALID: u32 = 0x08;
+pub const ACTCTX_FLAG_SET_PROCESS_DEFAULT: u32 = 0x10;
+pub const ACTCTX_FLAG_APPLICATION_NAME_VALID: u32 = 0x20;
+pub const ACTCTX_FLAG_SOURCE_IS_ASSEMBLYREF: u32 = 0x40;
+pub const ACTCTX_FLAG_HMODULE_VALID: u32 = 0x80;
 
 pub const PIPE_ACCESS_INBOUND: u32 = 1;
 pub const PIPE_ACCESS_OUTBOUND: u32 = 2;

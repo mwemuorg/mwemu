@@ -1,10 +1,9 @@
 use super::provider_crypto::{BASE_PROVIDER_NAME, PROVIDER_URI, is_csp_hash, is_csp_key};
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
+use crate::winapi::common::memory;
 use crate::winapi::common::trace;
-use crate::winapi::common::{crypto_state, memory};
 use crate::winapi::environment_store::Encoding;
-use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
@@ -22,12 +21,12 @@ fn destroy(emu: &mut Emu, name: &str, is_hash: bool) {
     let call = WinApi(Stdcall);
     let handle = api_try!(emu, call.arg(emu, 0));
     let ok = if is_hash {
-        is_csp_hash(handle) && crypto_state::destroy_hash(handle)
+        is_csp_hash(emu, handle) && emu.crypto.destroy_hash(handle)
     } else {
-        is_csp_key(handle) && crypto_state::destroy_key(handle)
+        is_csp_key(emu, handle) && emu.crypto.destroy_key(handle)
     };
     if ok {
-        helper::handler_close(handle);
+        emu.crypto.close(handle);
     }
     log_red!(emu, "advapi32!{name} handle={handle:#x}");
     return_bool(
@@ -58,7 +57,7 @@ fn parameter(emu: &mut Emu, name: &str, is_hash: bool) {
         if flags as u32 != 0 || size == 0 || !emu.maps.validate_write_range(size, 4) {
             return Err(ERROR_INVALID_PARAMETER);
         }
-        if (is_hash && !is_csp_hash(handle)) || (!is_hash && !is_csp_key(handle)) {
+        if (is_hash && !is_csp_hash(emu, handle)) || (!is_hash && !is_csp_key(emu, handle)) {
             return Err(ERROR_INVALID_HANDLE);
         }
         let capacity = if output == 0 {
@@ -67,8 +66,10 @@ fn parameter(emu: &mut Emu, name: &str, is_hash: bool) {
             Some(emu.maps.read_dword(size).ok_or(ERROR_NOACCESS)? as usize)
         };
         if is_hash && parameter as u32 == HP_HASHVAL {
-            let bytes =
-                crypto_state::get_hash_param(handle, HP_HASHSIZE).ok_or(ERROR_INVALID_HANDLE)?;
+            let bytes = emu
+                .crypto
+                .get_hash_param(handle, HP_HASHSIZE)
+                .ok_or(ERROR_INVALID_HANDLE)?;
             let length = u32::from_le_bytes(bytes.try_into().map_err(|_| ERROR_INVALID_PARAMETER)?);
             emu.maps.write_dword(size, length);
             if output == 0 {
@@ -82,9 +83,9 @@ fn parameter(emu: &mut Emu, name: &str, is_hash: bool) {
             }
         }
         let bytes = if is_hash {
-            crypto_state::get_hash_param(handle, parameter as u32)
+            emu.crypto.get_hash_param(handle, parameter as u32)
         } else {
-            crypto_state::get_key_param(handle, parameter as u32)
+            emu.crypto.get_key_param(handle, parameter as u32)
         }
         .ok_or(ERROR_INVALID_PARAMETER)?;
         emu.maps.write_dword(size, bytes.len() as u32);
@@ -121,20 +122,21 @@ pub fn CryptGenKey(emu: &mut Emu) {
         policy::unsupported(emu, "advapi32", "CryptGenKey", emu.pc());
         return;
     }
-    let result = if helper::handler_get_uri(provider) != PROVIDER_URI {
+    let result = if emu.crypto.name(provider) != PROVIDER_URI {
         Err(ERROR_INVALID_HANDLE)
     } else if !memory::writable_pointer(emu, output) {
         Err(ERROR_NOACCESS)
     } else {
-        let handle = helper::handler_create("cryptkey:rc4");
+        let handle = emu.crypto.open("cryptkey:rc4");
         let length = if bits == 0 { 16 } else { bits / 8 } as usize;
         let bytes: Vec<u8> = (0..length.div_ceil(8))
             .flat_map(|_| emu.random_u64().to_le_bytes())
             .take(length)
             .collect();
-        crypto_state::create_key(handle, CALG_RC4, (length * 8) as u32);
-        crypto_state::set_key_data(handle, &bytes);
-        crypto_state::set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
+        emu.crypto.create_key(handle, CALG_RC4, (length * 8) as u32);
+        emu.crypto.set_key_data(handle, &bytes);
+        emu.crypto
+            .set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
         memory::write_pointer(emu, output, handle);
         Ok(())
     };
@@ -151,18 +153,19 @@ pub fn CryptDeriveKey(emu: &mut Emu) {
         policy::unsupported(emu, "advapi32", "CryptDeriveKey", emu.pc());
         return;
     }
-    let result = if helper::handler_get_uri(provider) != PROVIDER_URI || !is_csp_hash(base_hash) {
+    let result = if emu.crypto.name(provider) != PROVIDER_URI || !is_csp_hash(emu, base_hash) {
         Err(ERROR_INVALID_HANDLE)
     } else if !memory::writable_pointer(emu, output) {
         Err(ERROR_NOACCESS)
     } else {
-        let handle = helper::handler_create("derivedkey:rc4");
-        if crypto_state::derive_key_from_hash(handle, base_hash, CALG_RC4) {
-            crypto_state::set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
+        let handle = emu.crypto.open("derivedkey:rc4");
+        if emu.crypto.derive_key_from_hash(handle, base_hash, CALG_RC4) {
+            emu.crypto
+                .set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
             memory::write_pointer(emu, output, handle);
             Ok(())
         } else {
-            helper::handler_close(handle);
+            emu.crypto.close(handle);
             Err(NTE_BAD_HASH_STATE)
         }
     };
@@ -282,7 +285,7 @@ pub fn CryptGetProvParam(emu: &mut Emu) {
         policy::unsupported(emu, "advapi32", "CryptGetProvParam", emu.pc());
         return;
     }
-    let result = if helper::handler_get_uri(provider) != PROVIDER_URI {
+    let result = if emu.crypto.name(provider) != PROVIDER_URI {
         Err(ERROR_INVALID_HANDLE)
     } else if parameter as u32 == PP_PROVTYPE {
         put_bytes(emu, output, size, &PROV_RSA_FULL.to_le_bytes())
@@ -303,18 +306,18 @@ fn copy_object(emu: &mut Emu, api: &str, is_hash: bool) {
             return Err(ERROR_INVALID_PARAMETER);
         }
         if !(if is_hash {
-            is_csp_hash(source)
+            is_csp_hash(emu, source)
         } else {
-            is_csp_key(source)
+            is_csp_key(emu, source)
         }) {
             return Err(ERROR_INVALID_HANDLE);
         }
         if output == 0 || !memory::writable_pointer(emu, output) {
             return Err(ERROR_NOACCESS);
         }
-        let copy = helper::handler_create(&helper::handler_get_uri(source));
-        if !crypto_state::duplicate_object(source, copy, is_hash) {
-            helper::handler_close(copy);
+        let copy = emu.crypto.open(emu.crypto.name(source).to_owned());
+        if !emu.crypto.duplicate_object(source, copy, is_hash) {
+            emu.crypto.close(copy);
             return Err(ERROR_INVALID_HANDLE);
         }
         memory::write_pointer(emu, output, copy);
@@ -339,7 +342,7 @@ pub fn CryptImportKey(emu: &mut Emu) {
     trace::export(emu, call, "advapi32", "CryptImportKey");
     let size = length as u32 as usize;
     let result = (|| {
-        if helper::handler_get_uri(provider) != PROVIDER_URI {
+        if emu.crypto.name(provider) != PROVIDER_URI {
             return Err(ERROR_INVALID_HANDLE);
         }
         if output == 0 || !memory::writable_pointer(emu, output) {
@@ -373,10 +376,12 @@ pub fn CryptImportKey(emu: &mut Emu) {
             .try_read_bytes(start, key_size)
             .ok_or(ERROR_NOACCESS)?
             .into_owned();
-        let handle = helper::handler_create("cryptkey:rc4");
-        crypto_state::create_key(handle, CALG_RC4, (key_size * 8) as u32);
-        crypto_state::set_key_data(handle, &bytes);
-        crypto_state::set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
+        let handle = emu.crypto.open("cryptkey:rc4");
+        emu.crypto
+            .create_key(handle, CALG_RC4, (key_size * 8) as u32);
+        emu.crypto.set_key_data(handle, &bytes);
+        emu.crypto
+            .set_exportable(handle, flags as u32 & CRYPT_EXPORTABLE != 0);
         memory::write_pointer(emu, output, handle);
         Ok(Some(()))
     })();
@@ -396,13 +401,13 @@ pub fn CryptExportKey(emu: &mut Emu) {
         return;
     }
     let result = (|| {
-        if !is_csp_key(source) {
+        if !is_csp_key(emu, source) {
             return Err(ERROR_INVALID_HANDLE);
         }
-        if !crypto_state::is_exportable(source) {
+        if !emu.crypto.is_exportable(source) {
             return Err(NTE_BAD_KEY_STATE);
         }
-        let material = crypto_state::export_key(source).ok_or(NTE_BAD_KEY)?;
+        let material = emu.crypto.export_key(source).ok_or(NTE_BAD_KEY)?;
         let mut blob = Vec::with_capacity(PLAINTEXT_KEY_HEADER + material.len());
         blob.extend([PLAINTEXTKEYBLOB, KEY_BLOB_VERSION, 0, 0]);
         blob.extend(CALG_RC4.to_le_bytes());

@@ -642,6 +642,50 @@ fn paired_locale_exports_use_stack_arguments_and_bound_output() {
 }
 
 #[test]
+fn locale_case_maps_counted_latin_strings_on_both_abis() {
+    fn wide(s: &str) -> Vec<u8> {
+        s.encode_utf16().flat_map(u16::to_le_bytes).collect()
+    }
+
+    let cases = [
+        (
+            "LCMapStringW",
+            wide("ÉÿŒµßƒ\0Z"),
+            wide("éÿœµßƒ\0z"),
+            wide("ÉŸŒµßƑ\0Z"),
+        ),
+        (
+            "LCMapStringA",
+            vec![0xc9, 0xff, 0x8c, 0xb5, 0xdf, 0x83, 0, b'Z'],
+            vec![0xe9, 0xff, 0x9c, 0xb5, 0xdf, 0x83, 0, b'z'],
+            vec![0xc9, 0x9f, 0x8c, 0xb5, 0xdf, 0x83, 0, b'Z'],
+        ),
+    ];
+    for is64 in [false, true] {
+        let (mut emu, source) = prepare(is64);
+        let output = source + 0x100;
+        for (api, input, lower, upper) in &cases {
+            let width = if api.ends_with('W') { 2 } else { 1 };
+            let length = (input.len() / width) as u64;
+            emu.maps.write_bytes(source, input);
+            for (flags, expected) in [(LCMAP_LOWERCASE, lower), (LCMAP_UPPERCASE, upper)] {
+                let mut args = [0, u64::from(flags), source, length, 0, 0];
+                assert_eq!(call(&mut emu, "kernel32.dll", api, &args), length);
+                args[4] = output;
+                args[5] = length;
+                emu.maps.memset(output, 0xa5, input.len() + 1);
+                assert_eq!(call(&mut emu, "kernel32.dll", api, &args), length);
+                assert_eq!(
+                    emu.maps.read_bytes(output, input.len()),
+                    expected.as_slice()
+                );
+                assert_eq!(emu.maps.read_byte(output + input.len() as u64), Some(0xa5));
+            }
+        }
+    }
+}
+
+#[test]
 fn wsprintf_aw_reads_variadic_slots_without_callee_cleanup() {
     helpers::setup();
     for is64 in [false, true] {
@@ -1120,6 +1164,41 @@ fn kernel_ordinal_and_case_mapping_use_counted_utf16() {
             );
             assert_eq!(emu.maps.read_word(out + 4), Some(u16::from(b'A')));
             assert_eq!(emu.maps.read_word(out + 6), Some(0xa5a5));
+        }
+    }
+}
+
+#[test]
+fn ctype1_classifies_extended_windows_1252_characters() {
+    use crate::tests::helpers::{call_winapi_export, prepare_winapi};
+    use crate::windows::constants::nls::*;
+    let input = "€\u{81}Šž²ª\u{a0}\u{ad}";
+    let categories = [
+        0,
+        C1_CNTRL,
+        C1_ALPHA | C1_UPPER,
+        C1_ALPHA | C1_LOWER,
+        C1_PUNCT | C1_DIGIT,
+        C1_ALPHA | C1_LOWER | C1_PUNCT,
+        C1_BLANK | C1_SPACE,
+        C1_PUNCT | C1_CNTRL,
+    ];
+    for is64 in [false, true] {
+        let (mut emu, src) = prepare_winapi(is64);
+        let out = src + 0x100;
+        emu.maps.write_wide_string(src, input);
+        let result = call_winapi_export(
+            &mut emu,
+            "kernel32.dll",
+            "GetStringTypeW",
+            &[CT_CTYPE1 as u64, src, categories.len() as u64, out],
+        );
+        assert_eq!(result, 1);
+        for (i, category) in categories.iter().enumerate() {
+            assert_eq!(
+                emu.maps.read_word(out + 2 * i as u64),
+                Some(C1_DEFINED | category)
+            );
         }
     }
 }

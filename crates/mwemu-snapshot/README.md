@@ -35,6 +35,8 @@ mwemu -f <any file of the same arch, its content is ignored> -d out.mwemu -v
 (`-f` is currently required to bootstrap the CLI's config before `-d`
 overrides the whole `Emu` state with the snapshot.)
 
+Use a matching mwemu build to load a capture in the development format. See [native snapshot compatibility](../../docs/serialization-roadmap.md#native-snapshot-compatibility).
+
 ## Why not minidump
 
 The natural first idea — ptrace via [`minidump-writer`](https://github.com/rust-minidump/minidump-writer)

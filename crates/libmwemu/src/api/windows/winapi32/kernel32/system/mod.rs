@@ -67,7 +67,6 @@ unsupported_exports!(
     GetNumaNodeNumberFromHandle,
     GetNumberFormatA,
     GetNumberFormatW,
-    GetSystemDEPPolicy,
     GetSystemPowerStatus,
     GetSystemRegistryQuota,
     GetTimeFormatWWorker,

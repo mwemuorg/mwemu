@@ -3,9 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
 use crate::emu::Emu;
-use crate::winapi::common::memory::read_array;
+use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{PAGE_SIZE, align_up};
+use crate::winapi::common::memory::{read_array, read_pointer, writable_pointer, write_pointer};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::{IBM_437_HIGH, WINDOWS_1252_HIGH};
+use crate::windows::structures::{RtlUserProcessParameters32, RtlUserProcessParameters64};
 
 pub(crate) const PROFILE: &str = "C:\\Users\\User";
 pub(crate) const MAX_ENVIRONMENT_STRING: usize = 32767;
@@ -28,6 +31,21 @@ impl Environment {
                 })
                 .collect(),
         }
+    }
+
+    pub(crate) fn block(&self, encoding: Encoding) -> Vec<u8> {
+        let mut text = Vec::new();
+        for (name, value) in &self.variables {
+            text.extend(name);
+            text.push(b'=' as u16);
+            text.extend(value);
+            text.push(0);
+        }
+        if text.is_empty() {
+            text.push(0);
+        }
+        text.push(0);
+        encoding.encode(&text)
     }
 
     pub(crate) fn position(&self, name: &[u16]) -> Option<usize> {
@@ -101,6 +119,69 @@ pub(crate) fn valid_name(name: &[u16]) -> bool {
 pub(crate) fn process(emu: &mut Emu) -> &mut Environment {
     emu.environment
         .get_or_insert_with(|| Environment::from_config(&emu.cfg))
+}
+
+/// Publish the new environment only after the process parameters can refer to the whole block.
+pub(crate) fn replace(emu: &mut Emu, environment: Environment) -> Result<(), u64> {
+    let (params_name, offset) = if emu.cfg.arch.is_64bits() {
+        (
+            "RtlUserProcessParameters64",
+            RtlUserProcessParameters64::ENVIRONMENT_OFFSET,
+        )
+    } else {
+        (
+            "RtlUserProcessParameters32",
+            RtlUserProcessParameters32::ENVIRONMENT_OFFSET,
+        )
+    };
+    if let Some(params) = emu.maps.get_map_by_name(params_name)
+        && params.size() > offset as usize
+    {
+        let slot = params.get_base() + offset;
+        write_block(emu, slot, &environment.block(Encoding::Wide))?;
+    }
+    emu.environment = Some(environment);
+    Ok(())
+}
+
+fn write_block(emu: &mut Emu, slot: u64, bytes: &[u8]) -> Result<(), u64> {
+    if !writable_pointer(emu, slot) {
+        return Err(ERROR_NOACCESS);
+    }
+    let old = read_pointer(emu, slot).ok_or(ERROR_NOACCESS)?;
+    let previous = emu
+        .maps
+        .get_map_by_name(&format!("process_environment_{old:x}"))
+        .filter(|map| map.get_base() == old)
+        .map(|map| map.size());
+    if previous.is_some_and(|size| size >= bytes.len()) {
+        return emu
+            .maps
+            .write_bytes(old, bytes)
+            .then_some(())
+            .ok_or(ERROR_NOACCESS);
+    }
+    let length = align_up(bytes.len() as u64, PAGE_SIZE).ok_or(ERROR_NOT_ENOUGH_MEMORY)?;
+    let base = emu.maps.alloc(length).ok_or(ERROR_NOT_ENOUGH_MEMORY)?;
+    let name = format!("process_environment_{base:x}");
+    let map = emu
+        .maps
+        .create_map(&name, base, length, Permission::READ_WRITE)
+        .map_err(|_| ERROR_NOT_ENOUGH_MEMORY)?;
+    map.write_bytes(base, bytes);
+    if !write_pointer(emu, slot, base) {
+        emu.maps.dealloc(base);
+        return Err(ERROR_NOACCESS);
+    }
+    if previous.is_some() {
+        emu.maps.dealloc(old);
+    }
+    Ok(())
+}
+
+pub(crate) fn initialize(emu: &mut Emu) -> Result<(), u64> {
+    let environment = process(emu).clone();
+    replace(emu, environment)
 }
 
 #[derive(Clone, Copy)]

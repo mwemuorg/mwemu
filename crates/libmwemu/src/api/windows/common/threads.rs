@@ -3,6 +3,7 @@ use crate::api::abi::windows::{
     CallingConvention::{Cdecl, Stdcall},
     WindowsAbi,
     WindowsAbi::WinApi,
+    X64_SHADOW_SPACE,
 };
 use crate::context::{context32::Context32, context64::Context64};
 use crate::emu::Emu;
@@ -11,7 +12,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::threading::context::{ArchThreadState, ThreadContext};
 use crate::winapi::common::trace;
-use crate::winapi::common::{memory, process};
+use crate::winapi::common::{fls, memory, process};
 use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
@@ -20,8 +21,6 @@ use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
 use crate::windows::structures::{TEB, TEB64};
 
-const DEFAULT_STACK_RESERVE: u64 = 1024 * 1024;
-const X64_SHADOW_SPACE: u64 = 4 * 8;
 const FIRST_THREAD_ID: u64 = 0x1000;
 
 pub(super) fn thread_index(emu: &Emu, handle: u64) -> Option<usize> {
@@ -123,6 +122,7 @@ fn create_teb(emu: &mut Emu, id: u64, stack_base: u64, stack_size: u64) -> Resul
         teb.nt_tib.exception_list = EXCEPTION_CHAIN_END;
         let map = emu.maps.get_mem_by_addr_mut(base).ok_or(ERROR_NOACCESS)?;
         teb.save(map);
+        map.write_dword(base + TEB::DEALLOCATION_STACK_OFFSET, stack_base as u32);
     }
     Ok(base)
 }
@@ -299,7 +299,7 @@ fn context(emu: &mut Emu, set: bool, handle: u64, address: u64) -> Result<u64, u
         (
             Context32::FLAGS_OFFSET,
             Context32::INTEGER_CONTROL_SIZE,
-            WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER,
+            WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER | WOW64_CONTEXT_DEBUG_REGISTERS,
         )
     };
     if !emu
@@ -386,8 +386,18 @@ pub(crate) fn exit_thread(emu: &mut Emu) {
 }
 
 pub(crate) fn finish_thread(emu: &mut Emu, code: u32) {
-    emu.current_thread_mut().exit_value = Some(code as u64);
-    if !emu.cfg.enable_threading || emu.threads.iter().all(|thread| thread.exit_value.is_some()) {
+    if fls::detach_current(emu, "ExitThread") {
+        terminate_thread(emu, emu.current_thread_id, code);
+    }
+}
+
+fn terminate_thread(emu: &mut Emu, index: usize, code: u32) {
+    let thread = &mut emu.threads[index];
+    thread.exit_value = Some(u64::from(code));
+    emu.user_timers.remove_thread(thread.id);
+    if (index == emu.current_thread_id && !emu.cfg.enable_threading)
+        || emu.threads.iter().all(|thread| thread.exit_value.is_some())
+    {
         emu.stop();
     }
 }
@@ -440,12 +450,8 @@ pub(crate) fn nt_terminate_thread(emu: &mut Emu) {
         thread_index(emu, handle)
     };
     let status = match thread {
-        Some(i) if i == emu.current_thread_id => {
-            finish_thread(emu, code);
-            STATUS_SUCCESS
-        }
         Some(i) => {
-            emu.threads[i].exit_value = Some(u64::from(code));
+            terminate_thread(emu, i, code);
             STATUS_SUCCESS
         }
         None => STATUS_INVALID_HANDLE,
@@ -488,7 +494,14 @@ fn terminate_process(emu: &mut Emu, api: &str, call: WindowsAbi) {
 }
 
 pub(crate) fn exit_with_code(emu: &mut Emu, code: u32) {
+    if fls::detach_current(emu, "ExitProcess") {
+        force_exit_process(emu, code);
+    }
+}
+
+pub(crate) fn force_exit_process(emu: &mut Emu, code: u32) {
     for thread in &mut emu.threads {
+        emu.user_timers.remove_thread(thread.id);
         if thread.exit_value.is_none() {
             thread.exit_value = Some(u64::from(code));
         }
@@ -650,87 +663,6 @@ pub fn AddVectoredExceptionHandler(emu: &mut Emu) {
 
 pub fn RemoveVectoredExceptionHandler(emu: &mut Emu) {
     vectored(emu, "RemoveVectoredExceptionHandler", false);
-}
-
-pub(crate) fn fls(emu: &mut Emu, library: &str, api: &str) {
-    let call = WinApi(Stdcall);
-    if api == "FlsAlloc" {
-        let callback = api_try!(emu, call.arg(emu, 0));
-        log_red!(emu, "{library}!{api} callback={callback:#x}");
-        if callback != 0 {
-            policy::unsupported(emu, library, api, emu.pc());
-            return;
-        }
-        // Windows reserves index zero. Each thread exposes its default fiber's values.
-        let slots = &mut emu.windows_fls_slots;
-        if slots.is_empty() {
-            slots.push(false);
-        }
-        let index = slots
-            .iter()
-            .enumerate()
-            .skip(1)
-            .find(|(_, used)| !**used)
-            .map_or(slots.len(), |(index, _)| index);
-        let result = if index >= FLS_MAXIMUM_AVAILABLE {
-            emu.set_last_error(ERROR_NO_MORE_ITEMS);
-            FLS_OUT_OF_INDEXES
-        } else {
-            if index == slots.len() {
-                slots.push(true);
-            } else {
-                slots[index] = true;
-            }
-            index as u32
-        };
-        call.set_return(emu, u64::from(result));
-        call.cleanup_args(emu, 1);
-        return;
-    }
-    let index = api_try!(emu, call.arg_u32(emu, 0)) as usize;
-    let value = if api == "FlsSetValue" {
-        Some(api_try!(emu, call.arg(emu, 1)))
-    } else {
-        None
-    };
-    let result = if !emu.windows_fls_slots.get(index).copied().unwrap_or(false) {
-        if api != "FlsGetValue2" {
-            emu.set_last_error(ERROR_INVALID_PARAMETER);
-        }
-        0
-    } else if let Some(value) = value {
-        let slots = emu.fls_mut();
-        if slots.len() <= index {
-            slots.resize(index + 1, 0);
-        }
-        slots[index] = value;
-        1
-    } else if api == "FlsFree" {
-        emu.windows_fls_slots[index] = false;
-        for thread in &mut emu.threads {
-            if let ArchThreadState::X86 { fls, .. } = &mut thread.arch
-                && let Some(slot) = fls.get_mut(index)
-            {
-                *slot = 0;
-            }
-        }
-        1
-    } else {
-        if api == "FlsGetValue" {
-            emu.set_last_error(ERROR_SUCCESS);
-        }
-        emu.fls().get(index).copied().unwrap_or(0)
-    };
-    if let Some(value) = value {
-        log_red!(
-            emu,
-            "{library}!{api} index={index} value={value:#x} => {result:#x}"
-        );
-    } else {
-        log_red!(emu, "{library}!{api} index={index} => {result:#x}");
-    }
-    call.set_return(emu, result);
-    call.cleanup_args(emu, if value.is_some() { 2 } else { 1 });
 }
 
 pub fn OpenThreadToken(emu: &mut Emu) {

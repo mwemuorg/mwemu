@@ -1,10 +1,14 @@
 use std::fs;
 
+use goblin::pe::characteristic::IMAGE_FILE_RELOCS_STRIPPED;
+use goblin::pe::dll_characteristic::IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE;
 use goblin::pe::section_table::{
     IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE,
 };
 use itertools::iproduct;
-use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, ImageDosHeader};
+use rs_header::pe::shared::{
+    IMAGE_DIRECTORY_ENTRY_BASERELOC, IMAGE_REL_BASED_DIR64, IMAGE_REL_BASED_HIGHLOW, ImageDosHeader,
+};
 
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::{memory, sections};
@@ -586,19 +590,28 @@ fn low_alignment_last_page_is_owned_but_not_read_from_overlay() {
 }
 
 #[test]
-fn load_code_reports_pe_allocation_failure() {
+fn process_loader_respects_preferred_base_and_reports_allocation_failure() {
     for loader in [Loader::Pe32, Loader::Pe64] {
         let directory = std::env::temp_dir().join(format!("mwemu_pe_load_result_{loader:?}"));
         fs::create_dir_all(&directory).unwrap();
-        let raw = image(loader, PAGE, PAGE, 0x800, 0x200, PAGE);
+        let mut raw = image(loader, PAGE, PAGE, 0x800, 0x200, PAGE);
+        let opt = ImageDosHeader::load(&raw, 0).e_lfanew as usize + 24;
+        raw[opt + 70..opt + 72].fill(0); // This test requests preferred-base placement.
         // Supply import-free images locally so initialization never needs system DLLs.
         for name in ["ntdll.dll", "kernel32.dll", "kernelbase.dll", "sample.exe"] {
             fs::write(directory.join(name), &raw).unwrap();
         }
         let filename = directory.join("sample.exe");
-        for (span, succeeds) in [(0x4000, true), (u32::MAX - PAGE + 1, false)] {
+        let preferred = ALLOC32_MIN as u32;
+        for (base, span, succeeds) in [
+            (0, 0x4000, true),
+            (preferred, 0x4000, true),
+            (0, u32::MAX - PAGE + 1, false),
+        ] {
             let mut input = raw.clone();
             let nt = u32::from_le_bytes(input[0x3c..0x40].try_into().unwrap()) as usize;
+            let image_base = nt + 24 + if loader.is_64() { 24 } else { 28 };
+            write_u32(&mut input, image_base, base);
             write_u32(&mut input, nt + 24 + 56, span);
             fs::write(&filename, &input).unwrap();
             let mut emu = loader.emu();
@@ -611,6 +624,9 @@ fn load_code_reports_pe_allocation_failure() {
                 "{loader:?}, span={span:#x}: {result:?}"
             );
             if succeeds {
+                if base != 0 {
+                    assert_eq!(emu.base, base as u64, "{loader:?}");
+                }
                 let base = emu.base;
                 assert_ne!(base, 0);
                 assert_eq!(emu.maps.read_word(base), Some(0x5a4d));
@@ -629,59 +645,199 @@ fn load_code_reports_pe_allocation_failure() {
     }
 }
 
-#[test]
-fn pe64_preferred_base_depends_on_image_role_and_relocations()
--> Result<(), Box<dyn std::error::Error>> {
-    const PREFERRED_BASE: u64 = 0x140000000;
-    const SECTION_OFFSET: u32 = 0x800;
-    const RELOCATION_OFFSET: u32 = 0x100;
-    const RELOCATION_BLOCK_SIZE: u32 = 8;
+const PLACEMENT_SECTION: u32 = 0x800;
+const POINTER_OFFSET: u32 = 0x20;
+const POINTER_RVA: u64 = (PAGE + POINTER_OFFSET) as u64;
 
-    let path = std::env::temp_dir().join("mwemu_pe64_preferred_base.dll");
-    for ((main_image, loader), relocatable) in iproduct!(
-        [
-            (true, Loader::Pe64),
-            (false, Loader::Pe64),
-            (false, Loader::Dll64)
-        ],
-        [false, true]
-    ) {
-        let mut raw = image(loader, PAGE, PAGE, SECTION_OFFSET, 0x200, PAGE);
-        let opt = ImageDosHeader::load(&raw, 0).e_lfanew as usize + 24;
-        raw[opt + 24..opt + 32].copy_from_slice(&PREFERRED_BASE.to_le_bytes());
-        if relocatable {
-            let directory = opt + 112 + IMAGE_DIRECTORY_ENTRY_BASERELOC * 8;
-            write_u32(&mut raw, directory, PAGE + RELOCATION_OFFSET);
-            write_u32(&mut raw, directory + 4, RELOCATION_BLOCK_SIZE);
-            let block = (SECTION_OFFSET + RELOCATION_OFFSET) as usize;
-            write_u32(&mut raw, block, PAGE);
-            write_u32(&mut raw, block + 4, RELOCATION_BLOCK_SIZE);
-        }
-        fs::write(&path, raw)?;
-        let mut emu = loader.emu();
-        peb64::init_peb(&mut emu);
-        let filename = path.to_string_lossy();
-        let result = if main_image {
-            emu.load_pe64(&filename, true, 0).map(|image| image.base)
+#[derive(Clone, Copy)]
+enum Relocations {
+    Present,
+    Absent,
+    Stripped,
+}
+
+fn placement_image(
+    loader: Loader,
+    preferred: u64,
+    dynamic: bool,
+    relocations: Relocations,
+) -> Vec<u8> {
+    const TABLE_OFFSET: u32 = 0x100;
+    const BLOCK_SIZE: u32 = 12; // Two DWORDs, one pointer fixup and one padding entry.
+
+    let mut raw = image(loader, PAGE, PAGE, PLACEMENT_SECTION, 0x200, PAGE);
+    let nt = ImageDosHeader::load(&raw, 0).e_lfanew as usize;
+    let opt = nt + 24;
+    let coff_flags = u16::from_le_bytes(raw[nt + 22..opt].try_into().unwrap());
+    let coff_flags = if matches!(relocations, Relocations::Stripped) {
+        coff_flags | IMAGE_FILE_RELOCS_STRIPPED
+    } else {
+        coff_flags & !IMAGE_FILE_RELOCS_STRIPPED
+    };
+    raw[nt + 22..opt].copy_from_slice(&coff_flags.to_le_bytes());
+    let dll_flags = if dynamic {
+        IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+    } else {
+        0
+    };
+    raw[opt + 70..opt + 72].copy_from_slice(&dll_flags.to_le_bytes());
+
+    raw[PLACEMENT_SECTION as usize] = 0xc3; // Position-independent entry point: ret.
+    let pointer = (PLACEMENT_SECTION + POINTER_OFFSET) as usize;
+    let value = match relocations {
+        Relocations::Absent => PAGE_SIZE, // RVA, no fixup needed.
+        Relocations::Present | Relocations::Stripped => preferred + PAGE_SIZE,
+    };
+    if loader.is_64() {
+        raw[opt + 24..opt + 32].copy_from_slice(&preferred.to_le_bytes());
+        raw[pointer..pointer + 8].copy_from_slice(&value.to_le_bytes());
+    } else {
+        write_u32(&mut raw, opt + 28, preferred as u32);
+        write_u32(&mut raw, pointer, value as u32);
+    }
+    if matches!(relocations, Relocations::Present) {
+        let directories = opt + if loader.is_64() { 112 } else { 96 };
+        let directory = directories + IMAGE_DIRECTORY_ENTRY_BASERELOC * 8;
+        write_u32(&mut raw, directory, PAGE + TABLE_OFFSET);
+        write_u32(&mut raw, directory + 4, BLOCK_SIZE);
+        let block = (PLACEMENT_SECTION + TABLE_OFFSET) as usize;
+        write_u32(&mut raw, block, PAGE);
+        write_u32(&mut raw, block + 4, BLOCK_SIZE);
+        let kind = if loader.is_64() {
+            IMAGE_REL_BASED_DIR64
         } else {
-            loader.load_file(&mut emu, &filename)
+            IMAGE_REL_BASED_HIGHLOW
         };
-        fs::remove_file(&path)?;
-        let base = result?;
-        if main_image || !relocatable {
-            assert_eq!(
-                base, PREFERRED_BASE,
-                "{loader:?}, main={main_image}, reloc={relocatable}"
-            );
+        let entry = (kind << 12) | POINTER_OFFSET as u16;
+        raw[block + 8..block + 10].copy_from_slice(&entry.to_le_bytes());
+        raw[block + 10..block + 12].fill(0);
+    }
+    raw
+}
+
+#[test]
+fn main_image_placement_honors_aslr_relocations_and_address_conflicts() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("placement.exe");
+    let filename = path.to_str().unwrap();
+
+    for loader in [Loader::Pe32, Loader::Pe64] {
+        let preferred = if loader.is_64() {
+            0x1_4000_0000
         } else {
-            assert!(
-                (LIBS64_MIN..LIBS64_MAX).contains(&base),
-                "{loader:?}: {base:#x}"
+            0x0040_0000
+        };
+        let load = |dynamic, relocations, seed, occupied, configured_base| {
+            fs::write(
+                &path,
+                placement_image(loader, preferred, dynamic, relocations),
+            )
+            .unwrap();
+            let mut emu = loader.emu();
+            emu.set_seed(seed);
+            emu.cfg.code_base_addr = configured_base;
+            if loader.is_64() {
+                peb64::init_peb(&mut emu);
+            } else {
+                peb32::init_peb(&mut emu);
+            }
+            if occupied {
+                emu.maps
+                    .reserve_private(
+                        preferred,
+                        PAGE_SIZE,
+                        PAGE_READWRITE,
+                        Permission::READ_WRITE,
+                        false,
+                    )
+                    .unwrap();
+            }
+            let before = emu.maps.maps.len();
+            let result = if loader.is_64() {
+                emu.load_pe64(filename, true, 0)
+            } else {
+                emu.load_pe32(filename, true, 0)
+            };
+            if occupied {
+                let region = emu.maps.query_memory(preferred);
+                assert_eq!(region.kind, MemoryKind::Private);
+                assert_eq!(region.allocation_base, preferred);
+                assert!(region.state.is_some_and(|page| !page.committed));
+            }
+            let Ok(image) = result else {
+                assert_eq!(
+                    emu.maps.maps.len(),
+                    before,
+                    "partial map on placement failure"
+                );
+                return None;
+            };
+            let base = image.base;
+            assert_eq!(base % ALLOCATION_GRANULARITY, 0);
+            assert_eq!(emu.pc(), base + PAGE_SIZE);
+            let target = match relocations {
+                Relocations::Absent => PAGE_SIZE,
+                Relocations::Present | Relocations::Stripped => base + PAGE_SIZE,
+            };
+            assert_eq!(memory::read_pointer(&emu, base + POINTER_RVA), Some(target));
+            let peb = emu.maps.get_mem("peb").get_base();
+            let image_base_slot = peb + if loader.is_64() { 0x10 } else { 0x8 };
+            assert_eq!(memory::read_pointer(&emu, image_base_slot), Some(base));
+            Some(base)
+        };
+
+        let fixed = |occupied| load(true, Relocations::Stripped, 1, occupied, CFG_DEFAULT_BASE);
+        assert_eq!(fixed(false), Some(preferred));
+        assert_eq!(fixed(true), None);
+
+        let preferred_first =
+            |occupied| load(false, Relocations::Present, 1, occupied, CFG_DEFAULT_BASE);
+        assert_eq!(preferred_first(false), Some(preferred));
+        assert_ne!(
+            preferred_first(true).expect("relocatable image can move"),
+            preferred
+        );
+
+        for relocations in [Relocations::Present, Relocations::Absent] {
+            let dynamic = |seed, occupied, configured_base| {
+                load(true, relocations, seed, occupied, configured_base)
+            };
+            let first = dynamic(1, false, CFG_DEFAULT_BASE).expect("ASLR image can load");
+            assert_ne!(first, preferred);
+            assert_eq!(dynamic(1, false, CFG_DEFAULT_BASE), Some(first));
+            assert_ne!(
+                dynamic(1, true, CFG_DEFAULT_BASE).expect("occupied preferred base"),
+                preferred
             );
-            assert_ne!(base, PREFERRED_BASE);
+            assert!((2..=8).any(|seed| {
+                dynamic(seed, false, CFG_DEFAULT_BASE).expect("ASLR placement") != first
+            }));
+            let explicit = preferred + ALLOCATION_GRANULARITY;
+            assert_eq!(dynamic(1, false, explicit), Some(explicit));
         }
     }
-    Ok(())
+}
+
+#[test]
+fn pe64_dll_loaders_preserve_fixed_bases_and_relocate_dynamic_images() {
+    const PREFERRED: u64 = 0x1_4000_0000;
+    for loader in [Loader::Pe64, Loader::Dll64] {
+        let raw = placement_image(loader, PREFERRED, false, Relocations::Stripped);
+        let mut emu = loader.emu();
+        assert_eq!(
+            loader.load(&mut emu, &raw, "preferred_dll_fixed"),
+            PREFERRED
+        );
+
+        let raw = placement_image(loader, PREFERRED, true, Relocations::Present);
+        let mut emu = loader.emu();
+        let base = loader.load(&mut emu, &raw, "preferred_dll_aslr");
+        assert!((LIBS64_MIN..LIBS64_MAX).contains(&base));
+        assert_eq!(
+            memory::read_pointer(&emu, base + POINTER_RVA),
+            Some(base + PAGE_SIZE)
+        );
+    }
 }
 
 #[test]

@@ -415,6 +415,7 @@ pub(crate) fn map_locale_case(emu: &mut Emu, library: &str, api: &str) {
     } else {
         [
             0,
+            LOCALE_INVARIANT,
             LOCALE_USER_DEFAULT,
             LOCALE_SYSTEM_DEFAULT,
             u64::from(EN_US_LOCALE),
@@ -433,9 +434,15 @@ pub(crate) fn map_locale_case(emu: &mut Emu, library: &str, api: &str) {
         if count < 0 {
             text.push(0);
         }
-        // The guest has no linguistic casing tables. Route other inputs through API policy.
-        if text.iter().any(|&c| c > 0x7f) {
-            return Ok(None);
+        let upper = flags == LCMAP_UPPERCASE;
+        for unit in &mut text {
+            if *unit > u8::MAX as u16 && !WINDOWS_1252_HIGH.contains(unit) {
+                return Ok(None);
+            }
+            // Windows preserves the micro sign. In CP1252, uppercase Ƒ maps back to ƒ.
+            if *unit != 'µ' as u16 && (wide || *unit != 'ƒ' as u16) {
+                *unit = convert(*unit, upper);
+            }
         }
         let required = text.len() as u64;
         if capacity == 0 {
@@ -445,11 +452,7 @@ pub(crate) fn map_locale_case(emu: &mut Emu, library: &str, api: &str) {
             return Err(ERROR_INSUFFICIENT_BUFFER);
         }
         let encoding = if wide { Encoding::Wide } else { Encoding::Ansi };
-        let mapped = text
-            .into_iter()
-            .map(|c| convert(c, flags == LCMAP_UPPERCASE))
-            .collect::<Vec<_>>();
-        let bytes = encoding.encode(&mapped);
+        let bytes = encoding.encode(&text);
         if dest == 0
             || !emu.maps.validate_write_range(dest, bytes.len() as u64)
             || !emu.maps.write_bytes(dest, &bytes)

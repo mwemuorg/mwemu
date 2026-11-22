@@ -10,8 +10,7 @@ impl ThreadScheduler {
     /// Always tries to switch to give each thread equal time
     /// Returns true if a thread switch occurred, false otherwise
     pub fn schedule_next_thread(emu: &mut Emu) -> bool {
-        // Single thread case - no scheduling needed
-        if emu.threads.len() <= 1 {
+        if emu.threads.is_empty() {
             return false;
         }
 
@@ -84,7 +83,7 @@ impl ThreadScheduler {
 
         // Find the earliest wake time among suspended threads
         for thread in &emu.threads {
-            if !thread.suspended && thread.wake_tick > current_tick {
+            if thread.wake_tick > current_tick && thread.is_runnable(thread.wake_tick) {
                 next_wake = next_wake.min(thread.wake_tick);
             }
         }

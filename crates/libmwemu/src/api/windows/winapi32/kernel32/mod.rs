@@ -299,6 +299,7 @@ pub use crate::winapi::common::threads::RemoveVectoredExceptionHandler;
 pub use crate::winapi::common::handles::SetConsoleMode;
 
 pub use crate::winapi::libraries::kernel32::system::SetThreadUILanguage;
+pub use crate::winapi::winapi32::ntdll::RtlUnwind;
 
 mod etw_event_register;
 pub use etw_event_register::EtwEventRegister;
@@ -735,7 +736,6 @@ unsupported_exports!(
     RtlPcToFileHeader,
     RtlRaiseException,
     RtlRestoreContext,
-    RtlUnwind,
     RtlUnwindEx,
     RtlVirtualUnwind2,
     ScrollConsoleScreenBufferA,

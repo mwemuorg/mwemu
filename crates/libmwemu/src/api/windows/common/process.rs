@@ -1,7 +1,6 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::exception::types::ExceptionRecord;
-use crate::exception::types::ExceptionType;
+use crate::exception::types::{ExceptionRecord, ExceptionType, MemoryAccess};
 use crate::exception::{handlers, raise};
 use crate::winapi::common::memory::{
     pointer_size, read_guest_bytes, read_pointer, writable_pointer, write_pointer,
@@ -11,13 +10,16 @@ use crate::winapi::environment_store::Encoding;
 use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
-use crate::windows::constants::exceptions::EXCEPTION_MAXIMUM_PARAMETERS;
+use crate::windows::constants::exceptions::{
+    EXCEPTION_CONTINUE_SEARCH, EXCEPTION_EXECUTE_HANDLER, EXCEPTION_MAXIMUM_PARAMETERS,
+};
 use crate::windows::constants::process::*;
 use crate::windows::constants::security::{
     GENERIC_ALL, GENERIC_READ, GENERIC_WRITE, MAXIMUM_ALLOWED,
 };
 use crate::windows::kuser_shared::PROCESSOR_FEATURES;
 use crate::windows::structures::{ACTIVE_PROCESSOR_MASK, PROCESSORS, TEB, TEB64, save_system_info};
+use goblin::pe::dll_characteristic::IMAGE_DLLCHARACTERISTICS_NX_COMPAT;
 use goblin::pe::header::COFF_MACHINE_UNKNOWN;
 use rs_header::pe::{IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386};
 
@@ -366,10 +368,87 @@ pub fn GetExitCodeThread(emu: &mut Emu) {
     exit_code(emu, true);
 }
 
+const DEP_ENABLED_WITHOUT_ATL: u32 = PROCESS_DEP_ENABLE | PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION;
+
+fn process_dep_flags(emu: &Emu) -> u32 {
+    if emu.cfg.arch.is_64bits()
+        || emu
+            .pe32
+            .as_ref()
+            .is_some_and(|pe| pe.opt.dll_characteristics & IMAGE_DLLCHARACTERISTICS_NX_COMPAT != 0)
+    {
+        DEP_ENABLED_WITHOUT_ATL
+    } else {
+        emu.process_dep_flags
+    }
+}
+
+fn GetSystemDEPPolicy(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    call.set_return(emu, u64::from(DEP_OPT_IN));
+}
+
+fn SetProcessDEPPolicy(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 0));
+    let error = if emu.cfg.arch.is_64bits() {
+        Some(ERROR_NOT_SUPPORTED)
+    } else if !matches!(flags, 0 | PROCESS_DEP_ENABLE | DEP_ENABLED_WITHOUT_ATL) {
+        Some(ERROR_INVALID_PARAMETER)
+    } else if process_dep_flags(emu) & PROCESS_DEP_ENABLE != 0 {
+        Some(ERROR_ACCESS_DENIED)
+    } else {
+        emu.process_dep_flags = flags;
+        None
+    };
+    if let Some(error) = error {
+        emu.set_last_error(error);
+    }
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, u64::from(error.is_none()));
+}
+
+fn GetProcessDEPPolicy(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let [handle, flags_output, permanent_output] = api_try!(emu, call.args(emu));
+    if let Err(status) = require_memory_access(emu, handle, PROCESS_QUERY_INFORMATION) {
+        let error = if status == STATUS_INVALID_HANDLE {
+            ERROR_INVALID_HANDLE
+        } else {
+            ERROR_ACCESS_DENIED
+        };
+        emu.set_last_error(error);
+        call.cleanup_args(emu, 3);
+        call.set_return(emu, 0);
+        return;
+    }
+
+    let flags = process_dep_flags(emu);
+    let permanent = u32::from(flags & PROCESS_DEP_ENABLE != 0);
+    for (address, value) in [(flags_output, flags), (permanent_output, permanent)] {
+        if !emu.maps.write_dword(address, value) {
+            emu.memory_exception(
+                ExceptionType::WritingWord,
+                address,
+                size_of::<u32>(),
+                MemoryAccess::Write,
+            );
+            return;
+        }
+    }
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
+}
+
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     let (params, handler): (&str, fn(&mut Emu)) = match api {
         "GetErrorMode" => ("", GetErrorMode),
         "SetErrorMode" => ("mode", SetErrorMode),
+        "GetSystemDEPPolicy" if library == "kernel32" => ("", GetSystemDEPPolicy),
+        "SetProcessDEPPolicy" if library == "kernel32" => ("flags", SetProcessDEPPolicy),
+        "GetProcessDEPPolicy" if library == "kernel32" => {
+            ("process flags permanent", GetProcessDEPPolicy)
+        }
         "GetThreadErrorMode" => ("", GetThreadErrorMode),
         "SetThreadErrorMode" => ("mode old_mode", SetThreadErrorMode),
         "OpenProcess" => ("access inherit pid", OpenProcess),
@@ -735,7 +814,7 @@ pub(crate) fn terminate(emu: &mut Emu, library: &str) {
     {
         emu.set_last_error(ERROR_ACCESS_DENIED);
     } else {
-        threads::exit_with_code(emu, exit_code);
+        threads::force_exit_process(emu, exit_code);
         return;
     }
     call.set_return(emu, 0);
@@ -843,8 +922,6 @@ pub(crate) fn startup_info(emu: &mut Emu, library: &str, api: &str) {
 }
 
 const ALL_PROCESSOR_GROUPS: u16 = u16::MAX;
-const PEB_BEING_DEBUGGED_OFFSET: u64 = 2;
-
 pub(crate) fn processor_count(emu: &mut Emu, library: &str, api: &str) {
     let call = WinApi(Stdcall);
     if api == "GetCurrentProcessorNumber" {
@@ -864,17 +941,20 @@ pub(crate) fn processor_count(emu: &mut Emu, library: &str, api: &str) {
     call.cleanup_args(emu, 1);
 }
 
-pub(crate) fn debugger_present(emu: &mut Emu, library: &str) {
-    let call = WinApi(Stdcall);
-    let present = emu
-        .maps
+fn being_debugged(emu: &Emu) -> bool {
+    emu.maps
         .get_map_by_name("peb")
         .and_then(|map| {
             emu.maps
                 .read_byte(map.get_base() + PEB_BEING_DEBUGGED_OFFSET)
         })
         .unwrap_or(0)
-        != 0;
+        != 0
+}
+
+pub(crate) fn debugger_present(emu: &mut Emu, library: &str) {
+    let call = WinApi(Stdcall);
+    let present = being_debugged(emu);
     log_red!(emu, "{library}!IsDebuggerPresent present={present}");
     call.set_return(emu, u64::from(present));
 }
@@ -940,6 +1020,64 @@ pub(crate) fn debug_output(emu: &mut Emu, library: &str, api: &str) {
     call.cleanup_args(emu, 1);
 }
 
+pub(crate) fn set_unhandled_exception_filter(emu: &mut Emu, library: &str) {
+    let call = WinApi(Stdcall);
+    let callback = api_try!(emu, call.arg(emu, 0));
+    let previous = emu.uef();
+    log_red!(
+        emu,
+        "{library}!SetUnhandledExceptionFilter callback={callback:#x} => {previous:#x}"
+    );
+    emu.set_uef(callback);
+    call.set_return(emu, previous);
+    call.cleanup_args(emu, 1);
+}
+
+pub(crate) fn unhandled_exception_filter(emu: &mut Emu, library: &str) {
+    let call = WinApi(Stdcall);
+    let info = api_try!(emu, call.arg(emu, 0));
+    let Some(record) = read_pointer(emu, info) else {
+        emu.memory_exception(
+            ExceptionType::BadAddressDereferencing,
+            info,
+            pointer_size(emu) as usize,
+            MemoryAccess::Read,
+        );
+        return;
+    };
+    let Some(code) = emu.maps.read_dword(record) else {
+        emu.memory_exception(
+            ExceptionType::BadAddressDereferencing,
+            record,
+            size_of::<u32>(),
+            MemoryAccess::Read,
+        );
+        return;
+    };
+    let callback = emu.uef();
+    let disposition = if being_debugged(emu) {
+        EXCEPTION_CONTINUE_SEARCH
+    } else if callback == 0 {
+        EXCEPTION_EXECUTE_HANDLER
+    } else {
+        let Some(value) =
+            policy::invoke_callback(emu, library, "UnhandledExceptionFilter", callback, [info])
+        else {
+            return;
+        };
+        match value as u32 {
+            EXCEPTION_CONTINUE_SEARCH => EXCEPTION_EXECUTE_HANDLER,
+            value => value,
+        }
+    };
+    log_red!(
+        emu,
+        "{library}!UnhandledExceptionFilter info={info:#x} code={code:#x} callback={callback:#x} => {disposition:#x}"
+    );
+    call.set_return(emu, u64::from(disposition));
+    call.cleanup_args(emu, 1);
+}
+
 pub(crate) fn raise_exception(emu: &mut Emu, library: &str) {
     let call = WinApi(Stdcall);
     let code = api_try!(emu, call.arg_u32(emu, 0));
@@ -982,20 +1120,6 @@ pub(crate) fn raise_exception(emu: &mut Emu, library: &str) {
             && !emu.api_stopped()
         {
             emu.dispatch_structured_exception(&record);
-        }
-        // If the exception went unhandled and dispatch_unhandled_exception
-        // stopped the emulator, resume so the binary can keep running.
-        // On real Windows this would go through the kernel's second-chance
-        // path; here we just continue from the caller of RaiseException.
-        if emu.process_terminated && !emu.force_break {
-            log::warn!(
-                "RaiseException: unhandled 0x{:x} at 0x{:x} — resuming",
-                code,
-                record.address,
-            );
-            emu.process_terminated = false;
-            emu.is_running
-                .store(1, std::sync::atomic::Ordering::Relaxed);
         }
     } else {
         emu.dispatch_vectored_exception(&record, 0);

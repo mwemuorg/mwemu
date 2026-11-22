@@ -62,9 +62,12 @@ fn mingw64_implicit_tls_is_initialized() {
     emu.load_code(&sample);
 
     // _tls_index must be 0 (written by the loader)
-    let tls_index_va = 0x14000707c_u64;
-    let tls_index = emu.maps.read_dword(tls_index_va).unwrap_or(0xFFFF);
-    assert_eq!(tls_index, 0, "_tls_index must be 0 for the main module");
+    let tls_index = emu.maps.read_dword(emu.base + 0x707c);
+    assert_eq!(
+        tls_index,
+        Some(0),
+        "_tls_index must be 0 for the main module"
+    );
 
     // TEB+0x58 (ThreadLocalStoragePointer) must be non-zero
     let teb_base = emu.maps.get_mem("teb").get_base();
@@ -92,9 +95,12 @@ fn mingw32_implicit_tls_is_initialized() {
     emu.load_code(&sample);
 
     // _tls_index must be 0
-    let tls_index_va = 0x405038_u64;
-    let tls_index = emu.maps.read_dword(tls_index_va).unwrap_or(0xFFFF);
-    assert_eq!(tls_index, 0, "_tls_index must be 0 for the main module");
+    let tls_index = emu.maps.read_dword(emu.base + 0x5038);
+    assert_eq!(
+        tls_index,
+        Some(0),
+        "_tls_index must be 0 for the main module"
+    );
 
     // TEB+0x2C (ThreadLocalStoragePointer) must be non-zero
     let teb_base = emu.maps.get_mem("teb").get_base();

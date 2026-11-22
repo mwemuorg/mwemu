@@ -4,7 +4,6 @@ use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     dispatch_api!(api, {
-        "SetUnhandledExceptionFilter" => kernelbase::SetUnhandledExceptionFilter(emu),
         "EventActivityIdControl" => kernelbase::EventActivityIdControl(emu),
         "EventProviderEnabled" => kernelbase::EventProviderEnabled(emu),
         "EventUnregister" => kernelbase::EventUnregister(emu),

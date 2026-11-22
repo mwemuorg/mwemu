@@ -5,7 +5,7 @@
 [![Docs.rs](https://docs.rs/libmwemu/badge.svg)](https://docs.rs/libmwemu)
 [![PyPI](https://img.shields.io/pypi/v/pymwemu.svg)](https://pypi.org/project/pymwemu/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
-[![MSRV](https://img.shields.io/badge/rustc-1.88+-orange.svg)](https://blog.rust-lang.org/)
+[![MSRV](https://img.shields.io/badge/rustc-1.95+-orange.svg)](https://blog.rust-lang.org/)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/mwemu-github-io)
 
 ## Official documentation
@@ -14,11 +14,11 @@
 
 ## What is this?
 
-It's a hardware emulator + OS process simulator implemented in pure rust.
+It's a hardware emulator + OS process simulator implemented in Rust.
 
-This approach is very convenient to malware analysis and other stuff (PE, shellcode etc)
+This approach is very useful for malware analysis, including PE files and shellcode.
 
-Supports x86 32/64-bit and AArch64 architectures. The primary target OS is Windows (full process emulation with PEB/TEB/LDR, WinAPI and syscall interception), with growing support for Linux and macOS (syscalls, ELF/Mach-O loaders, libc shims).
+Supports x86 32/64-bit and AArch64 architectures. The primary target OS is Windows (process emulation with PEB/TEB/LDR, WinAPI and syscall interception), with growing support for Linux and macOS (syscalls, ELF/Mach-O loaders, libc shims).
 
 
 ![MWEMU Logo](./docs/pics/mwemu_logo.png)
@@ -45,46 +45,45 @@ The project was renamed from scemu to mwemu.
 ## Features
 
 - 📦 rust safety, good for emulating malware. 
-	- All dependencies are in rust.
+	- emulator core and x86 decoder written in Rust.
 - ⚡ very fast emulation
     - [benchmarks](BENCHMARK.md)
-    - ~13,500,000 instructions/second (20M instructions in ~1.48s)
+    - ~13,000,000 instructions/second (20M in 1.53s on an Apple M4, native arm64 build)
     - test yourself: `make test_speed` (builds release and emulates 20M instructions of enigma, reporting elapsed time)
     
 - powered by iced-x86 rust disassembler awesome library.
-- commandline tool, rust library, and python library.
+- command-line tool, Rust library, and C and Python bindings.
 - iteration detector.
 - memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
 - 850+ CPU instructions implemented (x86/x64, growing AArch64).
-- Windows API emulation across 13 DLLs (32-bit and 64-bit parity).
-- Windows and Linux syscall emulation.
+- syscall emulation on Windows and Linux.
 - kernel-mode driver emulation (`.sys` and `.ko`) with `--ioctl`, pool ledger, BYOVD detection.
-- SEH chains.
-- vectored exception handler.
-- PEB, TEB structures.
-- dynamic linking.
-- IAT binding.
-- delay loading.
 - memory allocator.
 - react with int3.
 - non debugged cpuid.
 - 32bits and 64bits shellcode emulation.
-- pe32 and pe64 executables emulation.
-- ELF and Mach-O loaders (Linux and macOS binaries).
-- fully emulation with known payloads:
+- loaders for ELF (Linux) and Mach-O (macOS) binaries.
+- full emulation of known payloads:
 	- metasploit shellcodes.
 	- metasploit encoders.
 	- cobalt strike.
 	- shellgen.
-	- guloader (not totally for now, but arrive further than the debugger)
     - mars stealer pe32.
     - bumblebee.
 - partial emulation with complex malware functions:
     - guloader
     - xloader
     - danabot
+
+### Windows PE emulation
+
+- x86 (PE32) and x64 (PE32+) executables and DLLs, including base relocations and ASLR.
+- dynamic linking, IAT binding, delay-load imports and startup TLS callbacks.
+- process and thread structures (PEB, TEB) and loader module lists.
+- emulation of Windows APIs on x86 and x64.
+- vectored exception handlers, x86 SEH chains and x64 stack unwinding.
 
 ## pymwemu vs malware
 
@@ -110,6 +109,8 @@ With -c flag you stop the emulation in a specific moment and inspect what is goi
 
 ## Usage
 
+Selected options are shown below. Run `mwemu --help` for the full list.
+
 ```
 MWEMU emulator for malware
 @sha0coder
@@ -119,15 +120,16 @@ USAGE:
 
 FLAGS:
     -6, --64bits         enable 64bits architecture emulation
-        --banzai         allow skipping APIs without full or partial handlers
+        --banzai         enable instruction skipping and fallback x86 stack cleanup.
+                         Defaults to simulate-success unless an API mode is specified.
         --flags          trace the flags hex value in every instruction.
     -F, --fpu            trace the fpu states.
     -h, --handle         handle Ctrl+C to spawn console
         --help           Prints help information
-    -l, --loops          show loop interations, it is slow.
-    -m, --memory         trace all the memory accesses read and write.
-    -n, --nocolors       print without colors for redirectin to a file >out
-    -r, --regs           print the register values in every step.
+    -l, --loops          show loop iterations, it is slow.
+    -m, --trace_memory   trace all the memory accesses read and write.
+    -n, --nocolors       print without colors for redirecting to a file >out
+    -r, --trace_registers  print the register values in every step.
     -p, --stack_trace    trace stack on push/pop
     -t, --test           test mode
         --version        Prints version information
@@ -135,6 +137,7 @@ FLAGS:
                          faster
 
 OPTIONS:
+        --api-mode <MODE>              select strict, simulate-fail, or simulate-success
     -A, --args <ARGS>                  provide arguments to the EXE like: --args '"aa" "bb"'
         --cmd <COMMAND>                launch a console command
     -b, --base <ADDRESS>               set base address for code
@@ -163,14 +166,14 @@ OPTIONS:
         --rcx <RCX>                    set rcx register
         --rdi <RDI>                    set rdi register
         --rdx <RDX>                    set rdx register
-    -R, --reg <REGISTER1,REGISTER2>    trace a specific register in every step, value and content
+    -R, --trace_register <REGISTERS>   trace a specific register in every step, value and content
         --rflags <RFLAGS>              set rflags register
         --rsi <RSI>                    set rsi register
         --rsp <RSP>                    set rsp register
     -x, --script <SCRIPT>              launch an emulation script, see scripts_examples folder
         --stack_address <ADDRESS>      set stack address
     -s, --string <ADDRESS>             monitor string on a specific address
-    -T, --trace <TRACE_FILENAME>       output trace to specified file
+    -T, --trace_filename <FILE>        output trace to specified file
     -S, --trace_start <TRACE_START>    start trace at specified position
     -V, --verbose_at <NUMBER>          start displaying assembly at specific position (is like -vv enabled in specific
                                        moment)
@@ -178,19 +181,19 @@ OPTIONS:
 
 ## Command line examples
 
-64bits needs the -6 flag, -vv for viewing ASM, and -c for spawning console at specific moment:
+Use -6 for raw x86-64 shellcode, -vv for viewing ASM, and -c for spawning console at specific moment:
 
 ```bash
 cargo run --release -- -f /tmp/shellcode.bin -6 -vv -c 19291
 cargo run --release -- -f /bin/ls -6 -A '"-l"' -v 
 cargo run --release -- -f calc.exe -6 --winver win11
 cargo run --release -- -f calc.exe -6 --winver win11 --syscall-mode
-cargo run --release -- -f driver.sys --ioctl
+cargo run --release -- -f driver.sys
 ```
 
 ## Testing
 
-make tests
+`make tests` runs the Rust suite. `make test_windows` runs long Windows PE tests, including packed programs. See [TEST.md](TEST.md) for prerequisites.
 
 ## Some use cases
 

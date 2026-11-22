@@ -1,10 +1,47 @@
 // Dispatcher for instruction execution
 use crate::emu::Emu;
+use crate::exception::types::ExceptionType;
 use iced_x86::{Instruction, Mnemonic};
 
 pub mod aarch64;
 pub mod instructions;
 pub mod logic;
+
+const DR6_BREAKPOINTS: u64 = 0xf;
+const DR6_SINGLE_STEP: u64 = 1 << 14;
+const DR7_BREAKPOINT_ENABLES: u64 = 0xff;
+const DR7_CONDITION_SHIFT: usize = 16;
+
+#[inline]
+pub(crate) fn execution_breakpoint(emu: &mut Emu, pc: u64) -> bool {
+    let regs = emu.regs();
+    if regs.dr7 & DR7_BREAKPOINT_ENABLES == 0
+        || emu.flags_ref().f_rf
+        || emu.cfg.is_x64()
+        || !emu.os.is_windows()
+        || emu.kernel_driver_active()
+    {
+        return false;
+    }
+    let mut hits = 0;
+    for (slot, address) in [regs.dr0, regs.dr1, regs.dr2, regs.dr3]
+        .into_iter()
+        .enumerate()
+    {
+        let enabled = (regs.dr7 >> (2 * slot)) & 3 != 0;
+        let execute = (regs.dr7 >> (DR7_CONDITION_SHIFT + 4 * slot)) & 3 == 0;
+        if enabled && execute && address == pc {
+            hits |= 1 << slot;
+        }
+    }
+    if hits == 0 {
+        return false;
+    }
+
+    emu.regs_mut().dr6 = (regs.dr6 & !DR6_BREAKPOINTS) | hits;
+    debug_exception(emu, pc);
+    true
+}
 
 pub fn emulate_instruction(
     emu: &mut Emu,
@@ -12,6 +49,52 @@ pub fn emulate_instruction(
     instruction_sz: usize,
     rep_step: bool,
 ) -> bool {
+    let trace = emu.flags_ref().f_tf && emu.os.is_windows() && !emu.kernel_driver_active();
+    let resume = emu.flags_ref().f_rf && emu.rep.is_none();
+    if !trace && !resume {
+        return execute(emu, ins, instruction_sz, rep_step);
+    }
+    let faults = emu.fault_count;
+    let ok = execute(emu, ins, instruction_sz, rep_step);
+    if !ok || emu.fault_count != faults || emu.process_terminated || emu.api_stopped() {
+        return ok;
+    }
+    if resume {
+        emu.flags_mut().f_rf = false;
+    }
+    let loads_ss = matches!(ins.mnemonic(), Mnemonic::Mov | Mnemonic::Pop)
+        && ins.op0_register() == iced_x86::Register::SS;
+    if trace && !loads_ss {
+        let mut resume = if emu.force_reload {
+            emu.pc()
+        } else {
+            ins.next_ip()
+        };
+        if emu.rep.is_some() {
+            emu.update_x86_rep_state_after_execution(*ins);
+            if emu.rep.is_some() {
+                resume = ins.ip();
+            }
+            emu.rep = None;
+        }
+        single_step(emu, resume);
+    }
+    ok
+}
+
+pub(crate) fn single_step(emu: &mut Emu, resume: u64) {
+    emu.regs_mut().dr6 |= DR6_SINGLE_STEP;
+    debug_exception(emu, resume);
+}
+
+fn debug_exception(emu: &mut Emu, resume: u64) {
+    emu.set_pc(resume);
+    emu.flags_mut().f_tf = false;
+    emu.force_reload = true;
+    emu.exception(ExceptionType::SingleStep);
+}
+
+fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, rep_step: bool) -> bool {
     match ins.mnemonic() {
         Mnemonic::Jmp => instructions::jmp::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Call => instructions::call::execute(emu, ins, instruction_sz, rep_step),
@@ -703,6 +786,9 @@ pub fn emulate_instruction(
         Mnemonic::Cdqe => instructions::cdqe::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Cdq => instructions::cdq::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Cqo => instructions::cqo::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Retf if emu.windows_i386_user_cs().is_some() => {
+            instructions::ret::execute(emu, ins, instruction_sz, rep_step)
+        }
         Mnemonic::Ret => instructions::ret::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Xchg => instructions::xchg::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Aaa => instructions::aaa::execute(emu, ins, instruction_sz, rep_step),
@@ -836,6 +922,10 @@ pub fn emulate_instruction(
         Mnemonic::Jcxz => instructions::jcxz::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Jecxz => instructions::jecxz::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Jrcxz => instructions::jrcxz::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Int1 if emu.os.is_windows() && !emu.kernel_driver_active() => {
+            debug_exception(emu, ins.next_ip());
+            true
+        }
         Mnemonic::Int3 => instructions::int3::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Nop => instructions::nop::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Fnop => instructions::fnop::execute(emu, ins, instruction_sz, rep_step),
@@ -1077,11 +1167,18 @@ pub fn emulate_instruction(
         Mnemonic::Pshufhw => instructions::pshufhw::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Stmxcsr => instructions::stmxcsr::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Ldmxcsr => instructions::ldmxcsr::execute(emu, ins, instruction_sz, rep_step),
-        Mnemonic::Fnstcw => instructions::fnstcw::execute(emu, ins, instruction_sz, rep_step),
-        Mnemonic::Prefetchnta => {
+        Mnemonic::Fnstcw | Mnemonic::Fstcw | Mnemonic::Fnstsw | Mnemonic::Fstsw => {
+            instructions::fnstcw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Prefetchnta
+        | Mnemonic::Prefetcht0
+        | Mnemonic::Prefetcht1
+        | Mnemonic::Prefetcht2 => {
             instructions::prefetchnta::execute(emu, ins, instruction_sz, rep_step)
         }
-        Mnemonic::Prefetchw => instructions::prefetchw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Prefetchw | Mnemonic::Prefetchwt1 => {
+            instructions::prefetchw::execute(emu, ins, instruction_sz, rep_step)
+        }
         Mnemonic::Pause => instructions::pause::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Wait => instructions::wait::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Mwait => instructions::mwait::execute(emu, ins, instruction_sz, rep_step),

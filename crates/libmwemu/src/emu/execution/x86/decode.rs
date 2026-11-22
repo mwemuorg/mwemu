@@ -162,7 +162,9 @@ pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
         }
     }
 
-    let result_ok = if Emu::is_rep_string_instruction(&ins) {
+    let result_ok = if engine::execution_breakpoint(emu, pc) {
+        false
+    } else if Emu::is_rep_string_instruction(&ins) {
         emu.execute_x86_rep_fully(&ins, sz)
     } else {
         engine::emulate_instruction(emu, &ins, sz, true)

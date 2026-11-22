@@ -1,14 +1,13 @@
+use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::exception::types::{ExceptionType, MemoryAccess};
 use crate::syscall::linux;
 use crate::syscall::windows;
-use crate::{color, exception::types};
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Red"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Red"), &DecodedInstruction::X86(*ins));
 
     debug_assert!(ins.op_count() == 1);
 
@@ -28,6 +27,15 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     if handle_interrupts {
         match interrupt {
+            1 if emu.os.is_windows() && !emu.kernel_driver_active() => {
+                // A user-mode INT 1 cannot enter the debug gate. Windows reports a read at -1.
+                emu.access_violation(
+                    ExceptionType::BadAddressDereferencing,
+                    u64::MAX,
+                    MemoryAccess::Read,
+                );
+                return false;
+            }
             0x80 => {
                 // Do not set `emu.linux` here: it would mis-route later `syscall` on PE/SSDT.
                 if emu.os.is_linux() {
@@ -142,12 +150,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             }
 
             0x03 => {
-                emu.show_instruction(
-                    color!("Red"),
-                    &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-                );
+                emu.show_instruction(color!("Red"), &DecodedInstruction::X86(*ins));
                 log::trace!("/!\\ int 0x3 sigtrap!!!!");
-                emu.exception(types::ExceptionType::Int3);
+                emu.exception(ExceptionType::Int3);
                 // If no exception handler is installed (no SEH/VEH), treat int3 as
                 // clean process exit rather than an emulation error. On real Windows,
                 // hitting int3 without a debugger terminates the process.

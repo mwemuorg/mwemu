@@ -1,5 +1,24 @@
-use crate::{cli, cli_api_mode};
+use crate::{cli, cli_api_mode, cli_loop_limit};
 use libmwemu::ApiMode;
+
+#[test]
+fn loop_limit_only_applies_with_noloops() {
+    for (options, expected) in [
+        (vec![], None),
+        (vec!["--loop-limit", "2"], None),
+        (vec!["--noloops"], Some(1_000_000)),
+        (vec!["--noloops", "--loop-limit", "2"], Some(2)),
+        (vec!["--noloops", "--loop-limit", "0"], Some(0)),
+    ] {
+        let matches = cli().get_matches_from(["mwemu"].into_iter().chain(options));
+        assert_eq!(cli_loop_limit(&matches), expected);
+    }
+    assert!(
+        cli()
+            .get_matches_from_safe(["mwemu", "--loop-limit", "invalid"])
+            .is_err()
+    );
+}
 
 #[test]
 fn api_policy_defaults() {

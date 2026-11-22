@@ -2,6 +2,7 @@
 
 use crate::emu::Emu;
 use crate::tests::helpers::{LOADER32, LOADER64};
+use crate::windows::structures::TEB;
 use crate::{emu32, emu64};
 use rs_header::pe::{IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386, pe_machine_type};
 use std::fs;
@@ -145,6 +146,24 @@ fn pe_header_image(is_x64: bool, header_size: u32) -> Vec<u8> {
     let directories = optional_header + if is_x64 { 112 } else { 96 };
     raw[directories..directories + 16 * 8].fill(0);
     raw
+}
+
+#[test]
+fn x86_process_entry_receives_the_current_peb_in_ebx() {
+    let path = write_temp("mwemu_rob_pe32_entry.exe", &pe_header_image(false, 0x400));
+    let mut emu = emu32();
+    emu.cfg.console_enabled = false;
+    emu.cfg.winver = None;
+    emu.load_code(&path).unwrap();
+    let peb = emu.maps.get_mem("peb").get_base();
+    assert_eq!(emu.regs().get_ebx(), peb);
+    let teb = emu.maps.get_mem("teb").get_base();
+    assert_eq!(
+        emu.maps
+            .read_dword(teb + TEB::PROCESS_ENVIRONMENT_BLOCK_OFFSET),
+        Some(peb as u32)
+    );
+    fs::remove_file(path).unwrap();
 }
 
 fn check_pe_header_mapping(name: &str, is_x64: bool, load: impl Fn(&mut Emu, &str) -> u64) {

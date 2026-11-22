@@ -1,5 +1,120 @@
+use crate::maps::mem64::Permission;
+use crate::windows::peb::{peb32, peb64};
 use crate::windows::structures;
 use crate::{tests::helpers, *};
+
+#[test]
+fn peb_round_trip_preserves_guest_layout_on_both_architectures() {
+    const INPUT: u64 = 0x10000;
+    const OUTPUT: u64 = 0x20000;
+    const POST_INIT32: u64 = 0x14c;
+    const SESSION32: u64 = 0x1d4;
+    const POST_INIT64: u64 = 0x230;
+    const TLS_BITMAP64: u64 = 0x238;
+    const TLS_BITS64: u64 = 0x240;
+    const SESSION64: u64 = 0x2c0;
+    const DECOMMIT_TOTAL64: u64 = 0xd8;
+    const DECOMMIT_BLOCK64: u64 = 0xe0;
+
+    for is64 in [false, true] {
+        let mut emu = if is64 { emu64() } else { emu32() };
+        let size = if is64 {
+            structures::Peb64::size()
+        } else {
+            structures::Peb::size()
+        };
+        for (name, address) in [("peb_input", INPUT), ("peb_output", OUTPUT)] {
+            emu.maps
+                .create_map(name, address, size as u64, Permission::READ_WRITE)
+                .unwrap();
+        }
+        emu.maps.memset(OUTPUT, 0xcc, size);
+        if is64 {
+            let fields = [
+                (DECOMMIT_TOTAL64, 0x1000),
+                (DECOMMIT_BLOCK64, 0x2000),
+                (POST_INIT64, 0x1234_5000),
+                (TLS_BITMAP64, 0x7777_8000),
+            ];
+            for (offset, value) in fields {
+                emu.maps.write_qword(INPUT + offset, value);
+            }
+            emu.maps.write_dword(INPUT + TLS_BITS64, 1);
+            emu.maps.write_dword(INPUT + SESSION64 - 4, 0x8000_0000);
+            emu.maps.write_dword(INPUT + SESSION64, 7);
+            let peb = structures::Peb64::load(INPUT, &emu.maps);
+            peb.save(emu.maps.get_mem_mut("peb_output"));
+            for (offset, value) in fields {
+                assert_eq!(emu.maps.read_qword(OUTPUT + offset), Some(value));
+            }
+            for (offset, value) in [
+                (TLS_BITS64, 1),
+                (SESSION64 - 4, 0x8000_0000),
+                (SESSION64, 7),
+                (SESSION64 + 4, 0xcccc_cccc),
+            ] {
+                assert_eq!(emu.maps.read_dword(OUTPUT + offset), Some(value));
+            }
+        } else {
+            emu.maps.write_dword(INPUT + POST_INIT32, 0x1234_5000);
+            emu.maps.write_dword(INPUT + SESSION32, 7);
+            let peb = structures::Peb::load(INPUT, &emu.maps);
+            peb.save(emu.maps.get_mem_mut("peb_output"));
+            assert_eq!(emu.maps.read_dword(OUTPUT + POST_INIT32), Some(0x1234_5000));
+            assert_eq!(emu.maps.read_dword(OUTPUT + SESSION32), Some(7));
+            assert_eq!(emu.maps.read_dword(OUTPUT + 0x38), Some(0xcccc_cccc));
+        }
+    }
+}
+
+#[test]
+fn loader_entries_preserve_guest_image_and_dll_paths() {
+    let executable = "tést.exe";
+    let process_path = r"C:\tést.exe";
+    let dll_path = r"C:\Windows\System32\ntdll.dll";
+    for is64 in [false, true] {
+        let mut emu = if is64 { emu64() } else { emu32() };
+        emu.cfg.exe_name = executable.into();
+        let (process, dll) = if is64 {
+            let ldr = peb64::init_ldr(&mut emu);
+            let entry = structures::PebLdrData64::load(ldr, &emu.maps)
+                .in_load_order_module_list
+                .flink;
+            (
+                entry,
+                peb64::create_ldr_entry(&mut emu, 0, 0, "ntdll.dll", 0, 0),
+            )
+        } else {
+            let ldr = peb32::init_ldr(&mut emu);
+            let entry = structures::PebLdrData::load(ldr, &emu.maps)
+                .in_load_order_module_list
+                .flink;
+            (
+                u64::from(entry),
+                peb32::create_ldr_entry(&mut emu, 0, 0, "ntdll.dll", 0, 0),
+            )
+        };
+        for (entry, full, base) in [
+            (process, process_path, executable),
+            (dll, dll_path, "ntdll.dll"),
+        ] {
+            let names = if is64 {
+                let entry = structures::LdrDataTableEntry64::load(entry, &emu.maps);
+                [entry.full_dll_name, entry.base_dll_name]
+                    .map(|s| (s.buffer, s.length, s.maximum_length))
+            } else {
+                let entry = structures::LdrDataTableEntry::load(entry, &emu.maps);
+                [entry.full_dll_name, entry.base_dll_name]
+                    .map(|s| (u64::from(s.buffer), s.length, s.maximum_length))
+            };
+            for ((buffer, length, capacity), expected) in names.into_iter().zip([full, base]) {
+                assert_eq!(emu.maps.read_wide_string(buffer), expected);
+                assert_eq!(length as usize, expected.encode_utf16().count() * 2);
+                assert_eq!(capacity, length + 2);
+            }
+        }
+    }
+}
 
 #[test]
 // peb/teb/ldr basic tests
@@ -33,7 +148,7 @@ pub fn peb_teb_ldr_structures_test() {
     assert!(ldr_addr > 0x1000);
     assert!(emu.maps.is_allocated(ldr_addr));
 
-    let peb_struct = structures::PEB::load(peb_addr, &emu.maps);
+    let peb_struct = structures::Peb::load(peb_addr, &emu.maps);
     let mut teb_struct = structures::TEB::load(teb_addr, &emu.maps);
     let ldr_struct = structures::PebLdrData::load(ldr_addr, &emu.maps);
 
@@ -243,7 +358,7 @@ pub fn peb_teb_ldr_structures_test() {
     assert!(ldr_addr > 0x1000);
     assert!(emu.maps.is_allocated(ldr_addr));
 
-    let peb_struct = structures::PEB64::load(peb_addr, &emu.maps);
+    let peb_struct = structures::Peb64::load(peb_addr, &emu.maps);
     let mut teb_struct = structures::TEB64::load(teb_addr, &emu.maps);
 
     let main_base64 = emu.maps.get_mem("exe64win_msgbox.pe").get_base();

@@ -1,8 +1,7 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::common::{crypto_state, memory, trace::input_string};
+use crate::winapi::common::{memory, trace::input_string};
 use crate::winapi::environment_store::Encoding;
-use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
@@ -11,13 +10,13 @@ const MAX_CRYPTO_BUFFER: usize = 16 << 20;
 pub(super) const BASE_PROVIDER_NAME: &str = "Microsoft Base Cryptographic Provider v1.0";
 pub(super) const PROVIDER_URI: &str = "cryptctx://";
 
-pub(super) fn is_csp_key(handle: u64) -> bool {
-    let uri = helper::handler_get_uri(handle);
+pub(super) fn is_csp_key(emu: &Emu, handle: u64) -> bool {
+    let uri = emu.crypto.name(handle);
     uri.starts_with("cryptkey:") || uri.starts_with("derivedkey:")
 }
 
-pub(super) fn is_csp_hash(handle: u64) -> bool {
-    helper::handler_get_uri(handle).starts_with("crypthash:")
+pub(super) fn is_csp_hash(emu: &Emu, handle: u64) -> bool {
+    emu.crypto.name(handle).starts_with("crypthash:")
 }
 
 fn result(emu: &mut Emu, operation: Result<(), u64>, arguments: usize) {
@@ -59,7 +58,7 @@ fn acquire(emu: &mut Emu, api: &str, wide: bool) {
         policy::unsupported(emu, "advapi32", api, emu.pc());
         return;
     }
-    let provider = helper::handler_create(PROVIDER_URI);
+    let provider = emu.crypto.open(PROVIDER_URI);
     memory::write_pointer(emu, output, provider);
     result(emu, Ok(()), 5);
 }
@@ -81,7 +80,7 @@ pub fn CryptCreateHash(emu: &mut Emu) {
     );
     let operation = if output == 0 || !memory::writable_pointer(emu, output) {
         Err(ERROR_NOACCESS)
-    } else if helper::handler_get_uri(provider) != PROVIDER_URI {
+    } else if emu.crypto.name(provider) != PROVIDER_URI {
         Err(ERROR_INVALID_HANDLE)
     } else if flags as u32 != 0
         || key != 0
@@ -90,14 +89,14 @@ pub fn CryptCreateHash(emu: &mut Emu) {
         policy::unsupported(emu, "advapi32", "CryptCreateHash", emu.pc());
         return;
     } else {
-        let handle = helper::handler_create("crypthash://");
-        if crypto_state::create_hash(handle, algorithm as u32)
+        let handle = emu.crypto.open("crypthash://");
+        if emu.crypto.create_hash(handle, algorithm as u32)
             && memory::write_pointer(emu, output, handle)
         {
             Ok(())
         } else {
-            crypto_state::destroy_hash(handle);
-            helper::handler_close(handle);
+            emu.crypto.destroy_hash(handle);
+            emu.crypto.close(handle);
             Err(ERROR_INVALID_PARAMETER)
         }
     };
@@ -112,7 +111,7 @@ pub fn CryptHashData(emu: &mut Emu) {
         emu,
         "advapi32!CryptHashData hash={hash:#x} data={data:#x} length={length} flags={flags:#x}"
     );
-    if !is_csp_hash(hash) {
+    if !is_csp_hash(emu, hash) {
         result(emu, Err(NTE_BAD_HASH), 4);
         return;
     }
@@ -127,7 +126,7 @@ pub fn CryptHashData(emu: &mut Emu) {
     }
     .ok_or(ERROR_NOACCESS)
     .and_then(|bytes| {
-        if crypto_state::hash_data(hash, &bytes) {
+        if emu.crypto.hash_data(hash, &bytes) {
             Ok(())
         } else {
             Err(NTE_BAD_HASH_STATE)
@@ -149,11 +148,11 @@ fn transform(emu: &mut Emu, api: &str, encrypt: bool) {
         emu,
         "advapi32!{api} key={key:#x} hash={hash:#x} final_block={final_block} flags={flags:#x} data={data:#x} data_length={length_out:#x}"
     );
-    if !is_csp_key(key) {
+    if !is_csp_key(emu, key) {
         result(emu, Err(NTE_BAD_KEY), nargs);
         return;
     }
-    if hash != 0 && !is_csp_hash(hash) {
+    if hash != 0 && !is_csp_hash(emu, hash) {
         result(emu, Err(NTE_BAD_HASH), nargs);
         return;
     }
@@ -166,7 +165,9 @@ fn transform(emu: &mut Emu, api: &str, encrypt: bool) {
         result(emu, Err(ERROR_NOACCESS), nargs);
         return;
     };
-    let algorithm = crypto_state::get_key_param(key, KP_ALGID)
+    let algorithm = emu
+        .crypto
+        .get_key_param(key, KP_ALGID)
         .and_then(|b| b.try_into().ok())
         .map(u32::from_le_bytes);
     let Some(algorithm) = algorithm else {
@@ -194,9 +195,9 @@ fn transform(emu: &mut Emu, api: &str, encrypt: bool) {
             .ok_or(ERROR_NOACCESS)
             .and_then(|mut bytes| {
                 let success = if encrypt {
-                    crypto_state::encrypt_data(key, &mut bytes)
+                    emu.crypto.encrypt_data(key, &mut bytes)
                 } else {
-                    crypto_state::decrypt_data(key, &mut bytes)
+                    emu.crypto.decrypt_data(key, &mut bytes)
                 };
                 if !success {
                     return Err(NTE_BAD_KEY);
@@ -227,7 +228,7 @@ pub fn CryptReleaseContext(emu: &mut Emu) {
     );
     let operation = if flags as u32 != 0 {
         Err(ERROR_INVALID_PARAMETER)
-    } else if helper::handler_get_uri(provider) == PROVIDER_URI && helper::handler_close(provider) {
+    } else if emu.crypto.name(provider) == PROVIDER_URI && emu.crypto.close(provider) {
         Ok(())
     } else {
         Err(ERROR_INVALID_HANDLE)

@@ -353,7 +353,8 @@ pub fn test_winapi_hook() {
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);
-    emu.run(Some(0x14000123f));
+    emu.run(Some(emu.base + helpers::MSGBOX64_CALL_RVA))
+        .expect("reach the sample's MessageBoxA call");
 
     let message = emu.maps.read_string(emu.regs().rdx);
     let title = emu.maps.read_string(emu.regs().rdi);
@@ -376,7 +377,7 @@ pub fn test_winapi_hook() {
             // target lands inside a system DLL whose exact address depends on the
             // DLL build/layout, so just require a non-zero resolution rather than a
             // hardcoded address (which would break under different maps builds).
-            assert_eq!(ip, 0x140001241);
+            assert_eq!(ip, emu.base + helpers::MSGBOX64_RETURN_RVA);
             assert!(_called_addr != 0, "winapi call target should resolve");
             true
         });

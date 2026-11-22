@@ -8,6 +8,7 @@ use crate::api::windows::common::{memory as memory_api, nt_api, trace};
 use crate::api::windows::policy::{
     self, ApiDisposition, ApiMode, ApiPolicy, ApiRoute, ApiStopReason,
 };
+use crate::api::windows::prologue::unwind_x86;
 use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
@@ -628,6 +629,131 @@ fn import_resolution_stays_in_the_requested_library() {
             }
         }
     }
+}
+
+const X86_EXPORT: u64 = MODULE + 0x100;
+const X86_HOTPATCH_FRAME: &[u8] = &[0x8b, 0xff, 0x55, 0x8b, 0xec]; // mov edi,edi; push ebp; mov ebp,esp
+const X86_FRAME_WITH_LOCALS: &[u8] = &[
+    0x55, 0x8b, 0xec, // push ebp; mov ebp,esp
+    0x6a, 0xff, // push -1
+    0x68, 0x78, 0x56, 0x34, 0x12, // push 12345678h
+];
+const X86_LOCAL_VALUES: &[u32] = &[u32::MAX, 0x1234_5678];
+
+fn x86_export_frame(prefix: &[u8], locals: &[u32]) -> (Emu, u64) {
+    let mut emu = emulator(false, "kernel32", "SetLastError");
+    let caller_sp = emu.sp();
+    emu.set_pc(CODE + 1);
+    emu.set_api_mode(ApiMode::Strict);
+    emu.set_last_error(ERROR_SUCCESS);
+    emu.regs_mut().rbp = caller_sp;
+    emu.regs_mut().rbx = DATA;
+    emu.regs_mut().rsi = DATA + 4;
+    emu.regs_mut().rdi = DATA + 8;
+    assert!(emu.stack_push32(ERROR_ACCESS_DENIED as u32));
+    assert!(emu.stack_push32(CODE as u32));
+    if !prefix.is_empty() {
+        assert!(emu.maps.write_bytes(X86_EXPORT, prefix));
+        assert!(emu.stack_push32(caller_sp as u32));
+        emu.regs_mut().rbp = emu.sp();
+        for &value in locals {
+            assert!(emu.stack_push32(value));
+        }
+    }
+    (emu, caller_sp)
+}
+
+#[test]
+fn x86_service_body_requires_the_original_indexed_selector() {
+    let mut emu = emulator(false, "ntdll", "NtCreateSection");
+    let selector = 0x54u32;
+    let mut prefix = vec![0xb8]; // mov eax, selector
+    prefix.extend_from_slice(&selector.to_le_bytes());
+    assert!(emu.maps.write_bytes(X86_EXPORT, &prefix));
+    emu.syscall_name_by_real = index_syscall_names(&emu);
+    let body = X86_EXPORT + prefix.len() as u64;
+    assert!(emu.maps.write_bytes(X86_EXPORT, &[0xe9, 0, 0, 0, 0]));
+    let sp = emu.sp();
+    emu.regs_mut().rax = u64::from(selector);
+    assert_eq!(unwind_x86(&mut emu, body), Some(X86_EXPORT));
+    assert_eq!(unwind_x86(&mut emu, body + 1), None);
+    emu.regs_mut().rax += 1;
+    assert_eq!(unwind_x86(&mut emu, body), None);
+    assert_eq!(emu.sp(), sp);
+}
+
+#[test]
+fn x86_api_entry_recovers_the_caller_after_copied_prologues() {
+    for (prefix, locals) in [
+        (&[][..], &[][..]),
+        (X86_HOTPATCH_FRAME, &[][..]),
+        (X86_FRAME_WITH_LOCALS, X86_LOCAL_VALUES),
+    ] {
+        let (mut emu, caller_sp) = x86_export_frame(prefix, locals);
+        assert!(emu.set_eip(X86_EXPORT + prefix.len() as u64, false));
+        assert!(!emu.api_stopped(), "{:?}", emu.api_policy.last_outcome);
+        assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+        assert_eq!(emu.pc(), CODE);
+        assert_eq!(emu.sp(), caller_sp);
+        assert_eq!(emu.regs().rbp, caller_sp);
+        assert_eq!(
+            (emu.regs().rbx, emu.regs().rsi, emu.regs().rdi),
+            (DATA, DATA + 4, DATA + 8),
+        );
+    }
+}
+
+#[test]
+fn x86_api_entry_leaves_unproven_frames_intact() {
+    for (prefix, locals, offset, ebp_delta) in [
+        (X86_HOTPATCH_FRAME, &[][..], X86_HOTPATCH_FRAME.len(), 4),
+        (X86_HOTPATCH_FRAME, &[][..], X86_HOTPATCH_FRAME.len() - 1, 0),
+        (
+            X86_FRAME_WITH_LOCALS,
+            &[u32::MAX, 0][..],
+            X86_FRAME_WITH_LOCALS.len(),
+            0,
+        ),
+    ] {
+        let (mut emu, _) = x86_export_frame(prefix, locals);
+        emu.regs_mut().rbp += ebp_delta;
+        let registers = |emu: &Emu| {
+            let r = emu.regs();
+            [
+                r.rip, r.rsp, r.rbp, r.rax, r.rbx, r.rcx, r.rdx, r.rsi, r.rdi,
+            ]
+        };
+        let before = registers(&emu);
+        let sp = emu.sp();
+        let stack = emu.maps.try_read_bytes(sp, 24).unwrap().into_owned();
+        emu.set_eip(X86_EXPORT + offset as u64, false);
+        assert!(emu.api_stopped());
+        assert_eq!(emu.get_last_error(), ERROR_SUCCESS);
+        assert_eq!(registers(&emu), before);
+        assert_eq!(
+            emu.maps.try_read_bytes(sp, stack.len()).unwrap().as_ref(),
+            stack
+        );
+    }
+}
+
+#[test]
+fn x86_api_hook_can_handle_an_unnamed_address() {
+    let (mut emu, _) = x86_export_frame(&[], &[]);
+    let target = X86_EXPORT + 1;
+    assert!(emu.maps.write_byte(X86_EXPORT, 0x90)); // nop
+    emu.hooks
+        .on_winapi_call(move |emu, return_address, called_address| {
+            assert_eq!(return_address, CODE);
+            assert_eq!(called_address, target);
+            emu.regs_mut().rax = MARKER.into();
+            false
+        });
+
+    assert!(emu.set_eip(target, false));
+    assert_eq!(emu.regs().rax, MARKER as u64);
+    assert_eq!(emu.pc(), CODE);
+    assert!(!emu.api_stopped());
 }
 
 #[test]

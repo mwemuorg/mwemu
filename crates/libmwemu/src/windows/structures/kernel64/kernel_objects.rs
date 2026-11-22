@@ -1,3 +1,5 @@
+use std::mem::offset_of;
+
 use crate::maps::Maps;
 
 use super::ListEntry64;
@@ -22,6 +24,14 @@ impl Default for MDL {
 }
 
 impl MDL {
+    const SIZE_OFFSET: u64 = 0x08;
+    const MDL_FLAGS_OFFSET: u64 = 0x0a;
+    const PROCESS_OFFSET: u64 = 0x10;
+    const MAPPED_SYSTEM_VA_OFFSET: u64 = 0x18;
+    const START_VA_OFFSET: u64 = 0x20;
+    const BYTE_COUNT_OFFSET: u64 = 0x28;
+    const BYTE_OFFSET_OFFSET: u64 = 0x2c;
+
     pub fn size() -> u32 {
         40
     }
@@ -42,25 +52,29 @@ impl MDL {
     pub fn load(addr: u64, maps: &Maps) -> MDL {
         MDL {
             next: maps.read_qword(addr).unwrap_or(0),
-            size: maps.read_word(addr + 8).unwrap_or(0),
-            mdl_flags: maps.read_word(addr + 10).unwrap_or(0),
-            process: maps.read_qword(addr + 16).unwrap_or(0),
-            mapped_system_va: maps.read_qword(addr + 24).unwrap_or(0),
-            start_va: maps.read_qword(addr + 32).unwrap_or(0),
-            byte_count: maps.read_dword(addr + 40).unwrap_or(0),
-            byte_offset: maps.read_dword(addr + 44).unwrap_or(0),
+            size: maps.read_word(addr + Self::SIZE_OFFSET).unwrap_or(0),
+            mdl_flags: maps.read_word(addr + Self::MDL_FLAGS_OFFSET).unwrap_or(0),
+            process: maps.read_qword(addr + Self::PROCESS_OFFSET).unwrap_or(0),
+            mapped_system_va: maps
+                .read_qword(addr + Self::MAPPED_SYSTEM_VA_OFFSET)
+                .unwrap_or(0),
+            start_va: maps.read_qword(addr + Self::START_VA_OFFSET).unwrap_or(0),
+            byte_count: maps.read_dword(addr + Self::BYTE_COUNT_OFFSET).unwrap_or(0),
+            byte_offset: maps
+                .read_dword(addr + Self::BYTE_OFFSET_OFFSET)
+                .unwrap_or(0),
         }
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_qword(addr, self.next);
-        maps.write_word(addr + 8, self.size);
-        maps.write_word(addr + 10, self.mdl_flags);
-        maps.write_qword(addr + 16, self.process);
-        maps.write_qword(addr + 24, self.mapped_system_va);
-        maps.write_qword(addr + 32, self.start_va);
-        maps.write_dword(addr + 40, self.byte_count);
-        maps.write_dword(addr + 44, self.byte_offset);
+        maps.write_word(addr + Self::SIZE_OFFSET, self.size);
+        maps.write_word(addr + Self::MDL_FLAGS_OFFSET, self.mdl_flags);
+        maps.write_qword(addr + Self::PROCESS_OFFSET, self.process);
+        maps.write_qword(addr + Self::MAPPED_SYSTEM_VA_OFFSET, self.mapped_system_va);
+        maps.write_qword(addr + Self::START_VA_OFFSET, self.start_va);
+        maps.write_dword(addr + Self::BYTE_COUNT_OFFSET, self.byte_count);
+        maps.write_dword(addr + Self::BYTE_OFFSET_OFFSET, self.byte_offset);
     }
 }
 
@@ -78,6 +92,9 @@ impl Default for KIDTEntry {
 }
 
 impl KIDTEntry {
+    const SELECTOR_OFFSET: u64 = 0x02;
+    const BASE_OFFSET: u64 = 0x04;
+
     pub fn size() -> u32 {
         8
     }
@@ -93,15 +110,15 @@ impl KIDTEntry {
     pub fn load(addr: u64, maps: &Maps) -> KIDTEntry {
         KIDTEntry {
             offset_low: maps.read_word(addr).unwrap_or(0),
-            selector: maps.read_word(addr + 2).unwrap_or(0),
-            base: maps.read_dword(addr + 4).unwrap_or(0),
+            selector: maps.read_word(addr + Self::SELECTOR_OFFSET).unwrap_or(0),
+            base: maps.read_dword(addr + Self::BASE_OFFSET).unwrap_or(0),
         }
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_word(addr, self.offset_low);
-        maps.write_word(addr + 2, self.selector);
-        maps.write_dword(addr + 4, self.base);
+        maps.write_word(addr + Self::SELECTOR_OFFSET, self.selector);
+        maps.write_dword(addr + Self::BASE_OFFSET, self.base);
     }
 }
 
@@ -122,6 +139,12 @@ impl Default for KIDTEntry64 {
 }
 
 impl KIDTEntry64 {
+    const SELECTOR_OFFSET: u64 = 0x02;
+    const RESERVED0_OFFSET: u64 = 0x04;
+    const OFFSET_MIDDLE_OFFSET: u64 = 0x06;
+    const OFFSET_HIGH_OFFSET: u64 = 0x08;
+    const RESERVED1_OFFSET: u64 = 0x0c;
+
     pub fn size() -> u32 {
         16
     }
@@ -140,21 +163,25 @@ impl KIDTEntry64 {
     pub fn load(addr: u64, maps: &Maps) -> KIDTEntry64 {
         KIDTEntry64 {
             offset_low: maps.read_word(addr).unwrap_or(0),
-            selector: maps.read_word(addr + 2).unwrap_or(0),
-            reserved0: maps.read_word(addr + 4).unwrap_or(0),
-            offset_middle: maps.read_word(addr + 6).unwrap_or(0),
-            offset_high: maps.read_dword(addr + 8).unwrap_or(0),
-            reserved1: maps.read_dword(addr + 12).unwrap_or(0),
+            selector: maps.read_word(addr + Self::SELECTOR_OFFSET).unwrap_or(0),
+            reserved0: maps.read_word(addr + Self::RESERVED0_OFFSET).unwrap_or(0),
+            offset_middle: maps
+                .read_word(addr + Self::OFFSET_MIDDLE_OFFSET)
+                .unwrap_or(0),
+            offset_high: maps
+                .read_dword(addr + Self::OFFSET_HIGH_OFFSET)
+                .unwrap_or(0),
+            reserved1: maps.read_dword(addr + Self::RESERVED1_OFFSET).unwrap_or(0),
         }
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_word(addr, self.offset_low);
-        maps.write_word(addr + 2, self.selector);
-        maps.write_word(addr + 4, self.reserved0);
-        maps.write_word(addr + 6, self.offset_middle);
-        maps.write_dword(addr + 8, self.offset_high);
-        maps.write_dword(addr + 12, self.reserved1);
+        maps.write_word(addr + Self::SELECTOR_OFFSET, self.selector);
+        maps.write_word(addr + Self::RESERVED0_OFFSET, self.reserved0);
+        maps.write_word(addr + Self::OFFSET_MIDDLE_OFFSET, self.offset_middle);
+        maps.write_dword(addr + Self::OFFSET_HIGH_OFFSET, self.offset_high);
+        maps.write_dword(addr + Self::RESERVED1_OFFSET, self.reserved1);
     }
 }
 
@@ -292,6 +319,8 @@ impl Default for IDT {
 }
 
 impl IDT {
+    const DESCRIPTORS_OFFSET: u64 = 0x02;
+
     pub fn size() -> u32 {
         10
     }
@@ -306,13 +335,15 @@ impl IDT {
     pub fn load(addr: u64, maps: &Maps) -> IDT {
         IDT {
             limit: maps.read_word(addr).unwrap_or(0),
-            descriptors: maps.read_qword(addr + 2).unwrap_or(0),
+            descriptors: maps
+                .read_qword(addr + Self::DESCRIPTORS_OFFSET)
+                .unwrap_or(0),
         }
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_word(addr, self.limit);
-        maps.write_qword(addr + 2, self.descriptors);
+        maps.write_qword(addr + Self::DESCRIPTORS_OFFSET, self.descriptors);
     }
 }
 
@@ -404,6 +435,7 @@ impl ObjectAttributes {
 }
 
 #[derive(Debug)]
+#[repr(C)]
 pub struct FileStandardInformation {
     pub allocation_size: u64,
     pub end_of_file: u64,
@@ -419,8 +451,25 @@ impl Default for FileStandardInformation {
 }
 
 impl FileStandardInformation {
-    pub fn size() -> u32 {
-        18
+    const END_OF_FILE_OFFSET: usize = offset_of!(Self, end_of_file);
+    const NUMBER_OF_LINKS_OFFSET: usize = offset_of!(Self, number_of_links);
+    const DELETE_PENDING_OFFSET: usize = offset_of!(Self, delete_pending);
+    const DIRECTORY_OFFSET: usize = offset_of!(Self, directory);
+
+    pub const fn size() -> u32 {
+        size_of::<Self>() as u32
+    }
+
+    pub(crate) fn to_bytes(&self) -> [u8; size_of::<Self>()] {
+        let mut bytes = [0; size_of::<Self>()];
+        bytes[..Self::END_OF_FILE_OFFSET].copy_from_slice(&self.allocation_size.to_le_bytes());
+        bytes[Self::END_OF_FILE_OFFSET..Self::NUMBER_OF_LINKS_OFFSET]
+            .copy_from_slice(&self.end_of_file.to_le_bytes());
+        bytes[Self::NUMBER_OF_LINKS_OFFSET..Self::DELETE_PENDING_OFFSET]
+            .copy_from_slice(&self.number_of_links.to_le_bytes());
+        bytes[Self::DELETE_PENDING_OFFSET] = self.delete_pending;
+        bytes[Self::DIRECTORY_OFFSET] = self.directory;
+        bytes
     }
 
     pub fn new() -> FileStandardInformation {

@@ -5,6 +5,7 @@ pub mod helper;
 pub mod libraries;
 pub mod policy;
 pub mod profile_store;
+pub(crate) mod prologue;
 pub mod registry;
 pub mod registry_store;
 mod signatures;

@@ -685,12 +685,10 @@ impl Flags {
     }
 
     pub fn calc_flags(&mut self, final_value: u64, bits: u32) {
-        self.f_tf = false;
         self.set_lazy_from_flags(final_value, self.f_cf, self.f_of, self.f_af, bits);
     }
 
     pub fn calc_logic_flags_lazy(&mut self, final_value: u64, bits: u32) {
-        self.f_tf = false;
         self.f_cf = false;
         self.f_af = false;
         self.f_of = false;

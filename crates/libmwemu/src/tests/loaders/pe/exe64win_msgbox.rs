@@ -13,7 +13,8 @@ pub fn exe64win_msgbox() {
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);
-    emu.run(Some(0x14000123f));
+    emu.run(Some(emu.base + helpers::MSGBOX64_CALL_RVA))
+        .expect("reach the sample's MessageBoxA call");
 
     let message = emu.maps.read_string(emu.regs().rdx);
     let title = emu.maps.read_string(emu.regs().rdi);

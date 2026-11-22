@@ -426,7 +426,12 @@ pub fn wininet_exports() -> &'static [&'static str] {
 }
 
 pub fn shell32_exports() -> &'static [&'static str] {
-    &["ShellExecuteA", "ShellExecuteW"]
+    &[
+        "ShellExecuteA",
+        "ShellExecuteW",
+        "SHGetFolderPathA",
+        "SHGetFolderPathW",
+    ]
 }
 
 pub fn iphlpapi_exports() -> &'static [&'static str] {
@@ -481,6 +486,7 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         "advapi32" => Some(advapi32_exports()),
         "wininet" => Some(wininet_exports()),
         "shell32" => Some(shell32_exports()),
+        "shfolder" => Some(&["SHGetFolderPathA", "SHGetFolderPathW"][..]),
         "iphlpapi" => Some(iphlpapi_exports()),
         "user32" => Some(user32_exports()),
         "winhttp" => Some(winhttp_exports()),
@@ -490,6 +496,7 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         "mscoree" => Some(mscoree_exports()),
         "gdi32" => Some(gdi32_exports()),
         "msvcrt" => Some(msvcrt_exports()),
+        "vcruntime140" => Some(&["memcpy", "memmove", "memset", "strrchr"][..]),
         "msvcp60" => Some(msvcp60_exports()),
         "shlwapi" => Some(shlwapi_exports()),
         "urlmon" => Some(urlmon_exports()),
@@ -501,8 +508,13 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
             "RtlLookupFunctionEntry",
             "RtlVirtualUnwind",
             "RtlAddFunctionTable",
+            "RtlDeleteFunctionTable",
         ],
-        (true, "kernel32") => &["RtlLookupFunctionEntry"],
+        (true, "kernel32") => &[
+            "RtlLookupFunctionEntry",
+            "RtlAddFunctionTable",
+            "RtlDeleteFunctionTable",
+        ],
         _ => return Some(Cow::Borrowed(common)),
     };
     Some(Cow::Owned([common, extra].concat()))

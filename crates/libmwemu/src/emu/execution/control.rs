@@ -48,21 +48,12 @@ impl Emu {
         )
     }
 
-    /// Detect infinite/anti-emulation loops.
-    ///
-    /// When `--noloops` is active (`loop_limit > 0`), uses a diversity window:
-    /// every `loop_limit` instructions, counts how many **unique** addresses
-    /// were executed. Fewer than 100 unique addresses in a window means the
-    /// emulator is stuck in a tight loop (even if it calls a few APIs).
-    ///
-    /// `window_counter` tracks instructions in the current window.
     pub(crate) fn observe_loop_progress(
         &self,
         addr: u64,
         prev_addr: &mut u64,
         repeat_counter: &mut u32,
-        looped: &mut AHashMap<u64, u32>,
-        window_counter: &mut u64,
+        looped: &mut AHashMap<u64, u64>,
         infinite_loop_error: &'static str,
     ) -> Result<bool, MwemuError> {
         if addr == *prev_addr {
@@ -72,36 +63,23 @@ impl Emu {
         }
         *prev_addr = addr;
 
-        if *repeat_counter == 100 {
+        if self.cfg.loop_limit == 0 && *repeat_counter == 100 {
             log::trace!("infinite loop at 0x{:x}", addr);
             return Err(MwemuError::new(infinite_loop_error));
         }
 
-        if self.cfg.loops {
-            let count = looped.entry(addr).and_modify(|c| *c += 1).or_insert(1);
-            if *count > 2 {
-                log::trace!("    loop: {} iterations", count);
+        if self.cfg.loops || self.cfg.loop_limit > 0 {
+            let count = looped.entry(addr).or_default();
+            *count = count.saturating_add(1);
+            if self.cfg.loop_limit > 0 && *count > self.cfg.loop_limit {
+                log::info!(
+                    "loop limit reached at {addr:#x} after {} visits",
+                    self.cfg.loop_limit
+                );
+                return Ok(true);
             }
-        }
-
-        if self.cfg.loop_limit > 0 {
-            *window_counter += 1;
-            looped.entry(addr).or_insert(0);
-
-            if *window_counter >= self.cfg.loop_limit {
-                let unique = looped.len() as u64;
-                if unique < 100 {
-                    log::error!(
-                        "noloops: low diversity — {} unique addresses in {} instructions \
-                         (pos={}) — likely anti-emulation loop. Stopping.",
-                        unique,
-                        *window_counter,
-                        self.pos,
-                    );
-                    return Ok(true);
-                }
-                looped.clear();
-                *window_counter = 0;
+            if self.cfg.loops && *count > 2 {
+                log::trace!("    loop: {} iterations", count);
             }
         }
 

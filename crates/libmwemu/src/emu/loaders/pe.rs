@@ -1,4 +1,8 @@
+mod placement;
+
+use self::placement::{GuestImageBase, ImageRole};
 use goblin::pe::section_table::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
+use std::fmt;
 
 use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
 use crate::emu::Emu;
@@ -6,6 +10,7 @@ use crate::err::MwemuError;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE};
+use crate::windows::constants::errors::ERROR_BAD_EXE_FORMAT;
 use crate::windows::constants::memory::*;
 use crate::windows::peb::{peb32, peb64};
 use crate::windows::structures::{TEB, TEB64};
@@ -17,11 +22,55 @@ use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_EXPORT, ImageDataDirectory};
 
 const INITIAL_LDR_PREVIOUS_LINK: u32 = 0x2c1950;
 
+#[derive(Debug)]
+pub(crate) struct PeLoadError {
+    code: u64,
+    message: String,
+}
+
+impl PeLoadError {
+    pub(super) fn new(code: u64, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn win32_error(&self) -> u64 {
+        self.code
+    }
+}
+
+impl fmt::Display for PeLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl From<MwemuError> for PeLoadError {
+    fn from(error: MwemuError) -> Self {
+        Self::new(ERROR_BAD_EXE_FORMAT, error.message)
+    }
+}
+
+impl From<PeLoadError> for MwemuError {
+    fn from(error: PeLoadError) -> Self {
+        Self::new(&error.message)
+    }
+}
+
 /// Location of a successfully loaded PE image in guest memory.
 #[derive(Debug, Clone, Copy)]
 pub struct PeLoadInfo {
     pub base: u64,
     pub header_offset: u32,
+}
+
+pub(super) struct MappedPe32 {
+    base: u32,
+    image: PE32,
+    raw: Vec<u8>,
+    reflective: bool,
 }
 
 /// A relocated PE64 image whose imports can be bound after mapping dependencies.
@@ -82,33 +131,15 @@ impl Emu {
             && !self.maps.overlaps(base, span)
     }
 
-    fn pick_pe32_base(&self, pe: &PE32, span: u64, main_image: bool) -> Option<u64> {
-        if !main_image {
-            return self.alloc_pe_image(span, LIBS32_MIN, LIBS32_MAX);
-        }
-        let preferred = pe.opt.image_base as u64;
-        if self.pe_base_available(preferred, span, LIBS32_MIN) {
-            Some(preferred)
-        } else {
-            self.alloc_pe_image(span, ALLOC32_MIN, ALLOC32_MAX)
-        }
-    }
-
-    fn pick_pe64_base(&self, pe: &PE64, span: u64, main_image: bool) -> Option<u64> {
-        let preferred = pe.opt.image_base;
-        let limit = if main_image {
-            LIBS64_MIN
-        } else {
-            USER64_ADDRESS_LIMIT
-        };
-        // Relocatable DLLs use the library range; preserve a fixed DLL's base.
-        if (main_image || !pe.has_relocations()) && self.pe_base_available(preferred, span, limit) {
-            return Some(preferred);
-        }
-        if main_image {
-            self.alloc_pe_image(span, ALLOC64_MIN, ALLOC64_MAX)
-        } else {
+    fn system_pe_base(&self, is_64: bool, preferred: u64, span: u64, fixed: bool) -> Option<u64> {
+        // System-code interception uses dedicated library address ranges.
+        if is_64 {
+            if fixed && self.pe_base_available(preferred, span, USER64_ADDRESS_LIMIT) {
+                return Some(preferred);
+            }
             self.alloc_pe_image(span, LIBS64_MIN, LIBS64_MAX)
+        } else {
+            self.alloc_pe_image(span, LIBS32_MIN, LIBS32_MAX)
         }
     }
 
@@ -133,37 +164,65 @@ impl Emu {
         main_image: bool,
         force_base: u32,
     ) -> Result<PeLoadInfo, MwemuError> {
-        let is_maps = filename.contains("windows/x86/");
-        let map_name = self.filename_to_mapname(filename);
+        let mapped = self.map_pe32_image(filename, main_image, force_base)?;
+        Ok(self.bind_pe32_image(filename, main_image, mapped))
+    }
+
+    pub(super) fn map_pe32_image(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        force_base: u32,
+    ) -> Result<MappedPe32, MwemuError> {
         let raw = Self::read_pe_raw(filename)?;
+        Ok(self.map_pe32_bytes(
+            filename,
+            raw,
+            ImageRole::from_main_image(main_image),
+            force_base,
+        )?)
+    }
+
+    fn map_pe32_bytes(
+        &mut self,
+        filename: &str,
+        raw: Vec<u8>,
+        role: ImageRole,
+        force_base: u32,
+    ) -> Result<MappedPe32, PeLoadError> {
+        let map_name = self.filename_to_mapname(filename);
         if !PE32::is_pe32(&raw) {
-            return Err(MwemuError::new(&format!(
-                "'{filename}' is not a PE32 image"
-            )));
+            return Err(MwemuError::new(&format!("'{filename}' is not a PE32 image")).into());
         }
-        let mut pe32 = PE32::parse(filename, &raw);
+        let pe32 = PE32::parse(filename, &raw);
         let mut image_span = pe32.image_layout().mapped_size();
-        let is_reflective = raw
-            .windows(b"ReflectiveLoader".len())
-            .any(|w| w == b"ReflectiveLoader");
+        let is_reflective = role != ImageRole::GuestDll
+            && raw
+                .windows(b"ReflectiveLoader".len())
+                .any(|w| w == b"ReflectiveLoader");
         if is_reflective {
             image_span = image_span.max(raw.len() as u64);
         }
         let base = if force_base != 0 {
             force_base
-        } else if main_image
-            && !is_maps
-            && self.cfg.code_base_addr != CFG_DEFAULT_BASE
-            && !self.cfg.emulate_winapi
-        {
-            self.cfg.code_base_addr as u32
-        } else {
-            self.pick_pe32_base(&pe32, image_span, main_image)
+        } else if role == ImageRole::Main && self.cfg.code_base_addr != CFG_DEFAULT_BASE {
+            u32::try_from(self.cfg.code_base_addr).map_err(|_| {
+                MwemuError::new("configured PE32 base exceeds the x86 address space")
+            })?
+        } else if role == ImageRole::SystemLibrary {
+            self.system_pe_base(false, pe32.opt.image_base as u64, image_span, false)
                 .ok_or_else(|| {
-                    MwemuError::new(&format!(
-                        "cannot allocate PE32 image '{filename}' ({image_span:#x} bytes)"
-                    ))
+                    MwemuError::new(&format!("cannot allocate PE32 library '{filename}'"))
                 })? as u32
+        } else {
+            GuestImageBase {
+                preferred: pe32.opt.image_base as u64,
+                coff_flags: pe32.fh.characteristics,
+                dll_flags: pe32.opt.dll_characteristics,
+                relocatable: !is_reflective && pe32.can_relocate(&raw),
+                is_64: false,
+            }
+            .choose(self, filename, image_span, role)? as u32
         };
         let regions = if is_reflective {
             vec![ImageRegion {
@@ -182,6 +241,38 @@ impl Emu {
                 MwemuError::new(&format!("cannot map PE32 image '{filename}': {error}"))
             })?;
 
+        Ok(MappedPe32 {
+            base,
+            image: pe32,
+            raw,
+            reflective: is_reflective,
+        })
+    }
+
+    pub(super) fn bind_pe32_image(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        mapped: MappedPe32,
+    ) -> PeLoadInfo {
+        self.bind_pe32(filename, main_image, mapped, false)
+    }
+
+    fn bind_pe32(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        mapped: MappedPe32,
+        guest_dependency: bool,
+    ) -> PeLoadInfo {
+        let MappedPe32 {
+            base,
+            image: mut pe32,
+            raw,
+            reflective: is_reflective,
+        } = mapped;
+        let map_name = self.filename_to_mapname(filename);
+        let is_maps = filename.contains("windows/x86/");
         if main_image {
             self.set_pe_entry_point(base as u64, pe32.opt.address_of_entry_point);
             if self.maps.get_map_by_name("peb").is_some() {
@@ -201,7 +292,7 @@ impl Emu {
 
         // Reflective loaders resolve their own imports.
         if !is_reflective
-            && (main_image || self.cfg.emulate_winapi)
+            && (main_image || guest_dependency || self.cfg.emulate_winapi)
             && (!is_maps || self.cfg.emulate_winapi)
         {
             pe32.iat_binding(&raw, self, base);
@@ -223,11 +314,12 @@ impl Emu {
             let exe_name = self.cfg.exe_name.clone();
             peb32::update_ldr_entry_base(&exe_name, base as u64, self);
             self.initialize_pe32_tls(&pe32, &raw, base);
+            self.process_dep_flags = 0;
             self.pe32_flat_loaded = is_reflective;
             self.pe32 = Some(pe32);
             self.pe32_raw = Some(raw);
         }
-        Ok(info)
+        info
     }
 
     /// Map and relocate a PE64 DLL without binding its imports.
@@ -242,25 +334,47 @@ impl Emu {
         force_base: u64,
     ) -> Result<MappedPe64, MwemuError> {
         let raw = Self::read_pe_raw(filename)?;
+        Ok(self.map_pe64_bytes(
+            filename,
+            raw,
+            ImageRole::from_main_image(main_image),
+            force_base,
+        )?)
+    }
+
+    fn map_pe64_bytes(
+        &mut self,
+        filename: &str,
+        raw: Vec<u8>,
+        role: ImageRole,
+        force_base: u64,
+    ) -> Result<MappedPe64, PeLoadError> {
         if !PE64::is_pe64(&raw) {
-            return Err(MwemuError::new(&format!(
-                "'{filename}' is not a PE64 image"
-            )));
+            return Err(MwemuError::new(&format!("'{filename}' is not a PE64 image")).into());
         }
         let image = PE64::parse(filename, &raw);
         let image_span = image.image_layout().mapped_size();
-        let is_maps = filename.contains("windows/x86_64/") || filename.contains("windows/aarch64/");
         let base = if force_base != 0 {
             force_base
-        } else if main_image && !is_maps && self.cfg.code_base_addr != CFG_DEFAULT_BASE {
+        } else if role == ImageRole::Main && self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             self.cfg.code_base_addr
+        } else if role == ImageRole::SystemLibrary {
+            self.system_pe_base(
+                true,
+                image.opt.image_base,
+                image_span,
+                !image.has_relocations(),
+            )
+            .ok_or_else(|| MwemuError::new(&format!("cannot allocate PE64 library '{filename}'")))?
         } else {
-            self.pick_pe64_base(&image, image_span, main_image)
-                .ok_or_else(|| {
-                    MwemuError::new(&format!(
-                        "cannot allocate PE64 image '{filename}' ({image_span:#x} bytes)"
-                    ))
-                })?
+            GuestImageBase {
+                preferred: image.opt.image_base,
+                coff_flags: image.fh.characteristics,
+                dll_flags: image.opt.dll_characteristics,
+                relocatable: image.can_relocate(&raw),
+                is_64: true,
+            }
+            .choose(self, filename, image_span, role)?
         };
         let map_name = self.filename_to_mapname(filename);
         let regions = image_regions(&map_name, &raw, image.image_layout());
@@ -327,6 +441,22 @@ impl Emu {
             self.pe64_raw = Some(raw);
         }
         Ok(info)
+    }
+
+    pub(super) fn map_guest_pe(&mut self, name: &str, raw: Vec<u8>) -> Result<u64, PeLoadError> {
+        if self.cfg.is_x64() {
+            let MappedPe64 {
+                base,
+                mut image,
+                raw,
+            } = self.map_pe64_bytes(name, raw, ImageRole::GuestDll, 0)?;
+            image.iat_binding(&raw, self, base);
+            image.delay_load_binding(&raw, self, base);
+            Ok(base)
+        } else {
+            let mapped = self.map_pe32_bytes(name, raw, ImageRole::GuestDll, 0)?;
+            Ok(self.bind_pe32(name, false, mapped, true).base)
+        }
     }
 
     fn initialize_pe32_tls(&mut self, pe32: &PE32, raw: &[u8], base: u32) {

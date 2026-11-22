@@ -7,7 +7,9 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::emu_context;
 use crate::err::MwemuError;
+use crate::exception::handlers;
 use crate::serialization;
+use crate::threading::scheduler::ThreadScheduler;
 use crate::windows::peb::peb64;
 // Architecture precondition guards
 // ---------------------------------------------------------------------------
@@ -64,6 +66,9 @@ impl Emu {
     /// Stop emulation. Marks the process as terminated and clears the running flag.
     #[inline]
     pub fn stop(&mut self) {
+        if self.cfg.arch.is_x64() && self.os.is_windows() {
+            handlers::release_stopped_x64_callbacks(self);
+        }
         self.process_terminated = true;
         self.is_running.store(0, atomic::Ordering::Relaxed);
     }
@@ -188,8 +193,16 @@ impl Emu {
     /// `run_multi_threaded_x86` / `run_multi_threaded_aarch64`; this wrapper
     /// delegates via the scheduler which itself calls the arch-dispatched
     /// `decode_and_execute` / `advance_pc` on `Emu`.
-    #[allow(deprecated)]
     pub fn step_multi_threaded(&mut self) -> bool {
+        self.select_runnable_thread() && self.step_scheduled_thread()
+    }
+
+    fn select_runnable_thread(&mut self) -> bool {
+        ThreadScheduler::schedule_next_thread(self);
+        self.threads[self.current_thread_id].is_runnable(self.tick)
+    }
+
+    fn step_scheduled_thread(&mut self) -> bool {
         self.pos += 1;
 
         // exit
@@ -211,65 +224,7 @@ impl Emu {
             return false;
         }
 
-        // Thread scheduling - find next runnable thread
-        let num_threads = self.threads.len();
-        let current_tick = self.tick;
-
-        let current_can_run = self.threads[self.current_thread_id].is_runnable(current_tick);
-
-        if num_threads > 1 {
-            for i in 0..num_threads {
-                let thread_idx = (self.current_thread_id + i + 1) % num_threads;
-                if self.threads[thread_idx].is_runnable(current_tick) {
-                    return crate::threading::scheduler::ThreadScheduler::execute_thread_instruction(
-                        self, thread_idx,
-                    );
-                }
-            }
-
-            log::debug!("No other threads runnable, checking current thread");
-        }
-
-        if current_can_run {
-            return crate::threading::scheduler::ThreadScheduler::execute_thread_instruction(
-                self,
-                self.current_thread_id,
-            );
-        }
-
-        // All threads blocked - advance time to next wake point.
-        let mut next_wake = usize::MAX;
-        for thread in &self.threads {
-            if !thread.suspended && thread.wake_tick > current_tick {
-                next_wake = next_wake.min(thread.wake_tick);
-            }
-        }
-
-        if next_wake != usize::MAX && next_wake > current_tick {
-            self.tick = next_wake;
-            log::trace!(
-                "⏰ All threads blocked, advancing tick from {} to {}",
-                current_tick,
-                next_wake
-            );
-            return self.step();
-        }
-
-        log::trace!("💀 All threads are blocked/suspended, cannot continue execution");
-        if num_threads > 1 {
-            log::trace!("Final thread states:");
-            for (i, thread) in self.threads.iter().enumerate() {
-                log::trace!(
-                    "  Thread[{}]: ID=0x{:x}, suspended={}, wake_tick={}, blocked={}",
-                    i,
-                    thread.id,
-                    thread.suspended,
-                    thread.wake_tick,
-                    thread.blocked_on_cs.is_some()
-                );
-            }
-        }
-        false
+        ThreadScheduler::execute_thread_instruction(self, self.current_thread_id)
     }
 
     /// Run from the current position until `end_pos` is reached (inclusive).

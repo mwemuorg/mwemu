@@ -343,15 +343,46 @@ fn native_v4_snapshot_loads_without_unix_fault_state() {
 
 #[test]
 fn experimental_native_snapshot_versions_are_rejected() {
-    for version in 6..=10 {
+    for version in 6..=12 {
         let mut header = *b"MWEMU\0\0\0";
         header[6] = version;
-        let error = std::panic::catch_unwind(|| Serialization::deserialize(&header))
-            .err()
-            .unwrap();
-        assert_eq!(
-            error.downcast_ref::<&str>(),
-            Some(&"unsupported native snapshot version")
+        let error = Serialization::try_deserialize(&header).err().unwrap();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(
+            error
+                .to_string()
+                .contains("unsupported native snapshot version")
         );
     }
+}
+
+#[test]
+fn native_snapshot_resumes_the_random_stream() {
+    for seed in [None, Some(42)] {
+        let mut emu = crate::emu64();
+        if let Some(seed) = seed {
+            emu.set_seed(seed);
+        }
+        for _ in 0..33 {
+            emu.random_u64();
+        }
+        let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
+        restored.apply_cfg_seed();
+        for _ in 0..67 {
+            assert_eq!(restored.random_u64(), emu.random_u64());
+        }
+    }
+}
+
+#[test]
+fn unstable_snapshot_identifies_its_layout_and_restores_fls_callbacks() {
+    let mut emu = emu64();
+    let callback = 0x1_0000_1000;
+    emu.windows_fls_slots = vec![None, Some(0), None, Some(callback)];
+    *emu.fls_mut() = vec![0, 11, 0, 33];
+    let bytes = Serialization::serialize(&emu);
+    assert!(bytes.starts_with(b"MWEMU\0UNSTABLE\0"));
+    let restored = Serialization::deserialize(&bytes);
+    assert_eq!(restored.windows_fls_slots, emu.windows_fls_slots);
+    assert_eq!(restored.fls(), emu.fls());
 }

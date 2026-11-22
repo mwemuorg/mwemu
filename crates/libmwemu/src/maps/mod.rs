@@ -30,6 +30,9 @@ use tlb::TLB;
 /// Memory map manager: owns all memory regions, handles allocation, read/write, and address lookup.
 #[derive(Serialize, Deserialize)]
 pub struct Maps {
+    // The unstable native format saves these alongside the released Maps layout.
+    #[serde(skip)]
+    pub(crate) section_commitments: BTreeMap<u64, Vec<bool>>,
     #[serde(default)]
     pub(crate) shared_stores: BTreeMap<u64, SharedStorage>,
     #[serde(default)]
@@ -58,6 +61,7 @@ pub struct Maps {
 impl Default for Maps {
     fn default() -> Self {
         Maps {
+            section_commitments: BTreeMap::new(),
             shared_stores: BTreeMap::new(),
             buffers: BTreeMap::new(),
             allocations: BTreeMap::new(),
@@ -86,6 +90,7 @@ impl Maps {
         tlb: RefCell<TLB>,
     ) -> Maps {
         Maps {
+            section_commitments: BTreeMap::new(),
             shared_stores: BTreeMap::new(),
             buffers: BTreeMap::new(),
             allocations: BTreeMap::new(),
@@ -300,28 +305,8 @@ impl Maps {
                     let offset = (addr - mem.get_base()) as usize;
                     scalar::read_le(&bytes[offset..offset + T::SIZE])
                 }),
-            Some(mem)
-                if !mem.inside(end_addr)
-                    && mem.can_read_range(addr, (mem.get_bottom() - addr) as usize)
-                    && T::SIZE > 1 =>
-            {
-                // Cross-map boundary: the read starts in one map and spills
-                // into the next contiguous one (e.g. PE header → first section).
-                let boundary = mem.get_bottom();
-                let lo_len = (boundary - addr) as usize;
-                let hi_len = T::SIZE - lo_len;
-                if let Some((&next_base, &next_key)) = self.maps.range(boundary..).next()
-                    && next_base == boundary
-                    && let Some(next_mem) = self.mem_slab.get(next_key)
-                    && next_mem.can_read_range(next_base, hi_len)
-                    && next_mem.inside(boundary + hi_len as u64 - 1)
-                {
-                    let mut buf = [0u8; 16];
-                    buf[..lo_len].copy_from_slice(&mem.read_bytes(addr, lo_len));
-                    buf[lo_len..T::SIZE].copy_from_slice(&next_mem.read_bytes(boundary, hi_len));
-                    return scalar::read_le(&buf[..T::SIZE]);
-                }
-                None
+            Some(mem) if !mem.inside(end_addr) => {
+                scalar::read_le(&self.try_read_bytes(addr, T::SIZE)?)
             }
             None if banzai => {
                 log::warn!(
@@ -344,42 +329,6 @@ impl Maps {
         let Some(end_addr) = addr.checked_add(T::SIZE as u64 - 1) else {
             return false;
         };
-        // Check for cross-map boundary write before taking &mut.
-        if T::SIZE > 1
-            && let Some(mem) = self.get_mem_by_addr(addr)
-            && !mem.inside(end_addr)
-            && mem.can_write_range(addr, (mem.get_bottom() - addr) as usize)
-        {
-            let boundary = mem.get_bottom();
-            let lo_len = (boundary - addr) as usize;
-            let hi_len = T::SIZE - lo_len;
-            let lo_exec = mem.has_permission(Permission::EXECUTE);
-            if let Some((&next_base, &next_key)) = self.maps.range(boundary..).next()
-                && next_base == boundary
-                && let Some(next_mem) = self.mem_slab.get(next_key)
-                && next_mem.can_write_range(next_base, hi_len)
-                && next_mem.inside(boundary + hi_len as u64 - 1)
-            {
-                let exec = lo_exec || next_mem.has_permission(Permission::EXECUTE);
-                let mut buf = [0u8; 16];
-                value.write_le(&mut buf);
-                let Some((_, &first_key)) = self.maps.range(..=addr).next_back() else {
-                    return false;
-                };
-                let Some(first_mem) = self.mem_slab.get_mut(first_key) else {
-                    return false;
-                };
-                first_mem.write_bytes(addr, &buf[..lo_len]);
-                let Some(next_mem_mut) = self.mem_slab.get_mut(next_key) else {
-                    return false;
-                };
-                next_mem_mut.write_bytes(boundary, &buf[lo_len..T::SIZE]);
-                if exec {
-                    self.note_code_write(addr, T::SIZE as u64);
-                }
-                return true;
-            }
-        }
         match self.get_mem_by_addr_mut(addr) {
             Some(mem) if mem.inside(end_addr) && mem.can_write_range(addr, T::SIZE) => {
                 let mut buf = [0u8; 16];
@@ -390,6 +339,11 @@ impl Maps {
                     self.note_code_write(addr, T::SIZE as u64);
                 }
                 true
+            }
+            Some(mem) if !mem.inside(end_addr) => {
+                let mut buf = [0u8; 16];
+                value.write_le(&mut buf);
+                self.write_bytes(addr, &buf[..T::SIZE])
             }
             Some(mem) => {
                 let name = mem.get_name();

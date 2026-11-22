@@ -152,8 +152,10 @@ fn cli() -> App<'static, 'static> {
         .arg(clap_arg!("register", "R", "trace_register", "trace a specific register in every step, value and content", "REGISTER1,REGISTER2"))
         .arg(clap_arg!("console", "c", "console", "select in which moment will spawn the console to inspect.", "NUMBER"))
         .arg(clap_arg!("loops", "l", "loops", "show loop iterations, it is slow."))
-        .arg(clap_arg!("noloops", "", "noloops", "stop emulation when any address executes more than --loop-limit times (default 10000)"))
-        .arg(clap_arg!("loop_limit", "", "loop-limit", "set the per-address iteration limit for --noloops (default 10000)", "N"))
+        .arg(clap_arg!("noloops", "", "noloops", "stop when an instruction address reaches the limit set by --loop-limit"))
+        .arg(clap_arg!("loop_limit", "", "loop-limit", "maximum visits per instruction address with --noloops (0 disables the limit)", "N")
+            .default_value("1000000")
+            .validator(|value| value.parse::<u64>().map(drop).map_err(|error| error.to_string())))
         .arg(clap_arg!("nocolors", "n", "nocolors", "print without colors for redirecting to a file >out"))
         .arg(clap_arg!("ioctl_scan", "", "ioctl-scan", "kernel driver (.sys): after DriverEntry, harvest the IOCTL codes from the driver's code and send each one, reporting the privileged operations (MSR, port I/O, physical memory) it reaches"))
         .arg(clap_arg!("ioctl", "", "ioctl", "kernel driver (.sys): after DriverEntry send one IOCTL. CODE[:INPUT_HEX[:OUTPUT_LEN]], e.g. 0x9c402404:4142434400000000:64", "SPEC"))
@@ -241,6 +243,14 @@ fn cli() -> App<'static, 'static> {
         .arg(clap_arg!("gdb_port", "P", "gdb-port", "set GDB server port (default: 9001)", "PORT"))
         .arg(clap_arg!("gdb_wait", "W", "gdb-wait", "wait for GDB connection before starting"))
         .arg(clap_arg!("seed", "", "seed", "seed the emulator's random source (rdrand/rdseed) so the run is reproducible", "NUMBER"))
+}
+
+fn cli_loop_limit(matches: &ArgMatches) -> Option<u64> {
+    if matches.is_present("noloops") {
+        matches.value_of("loop_limit")?.parse().ok()
+    } else {
+        None
+    }
 }
 
 fn cli_api_mode(matches: &ArgMatches) -> (Option<ApiMode>, bool) {
@@ -432,12 +442,8 @@ fn main() -> process::ExitCode {
     }
     emu.cfg.loops = matches.is_present("loops");
 
-    // noloops
-    if matches.is_present("noloops") {
-        emu.cfg.loop_limit = matches
-            .value_of("loop_limit")
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(1_000_000);
+    if let Some(limit) = cli_loop_limit(&matches) {
+        emu.cfg.loop_limit = limit;
     }
     emu.cfg.nocolors = matches.is_present("nocolors");
 
@@ -554,10 +560,10 @@ fn main() -> process::ExitCode {
             16,
         )
         .expect("invalid address");
-        if !matches.is_present("entry_point") {
-            log::error!(
-                "if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000"
-            );
+        if !matches.is_present("entry_point")
+            && (matches.is_present("is_shellcode") || Emu::detect_pe_arch(&filename).is_none())
+        {
+            eprintln!("--base requires --entry for input without a PE entry point");
             return process::ExitCode::from(1u8);
         }
     }
@@ -911,10 +917,15 @@ fn execute(
     }
 
     // override all from dump?
-    if matches.is_present("dump") {
-        let dump_filename = matches.value_of("dump").expect("specify the dump filename");
+    if let Some(dump_filename) = matches.value_of("dump") {
         log::info!("loading dump from {}", dump_filename);
-        let mut loaded = serialization::Serialization::load(dump_filename);
+        let mut loaded = match serialization::Serialization::try_load(dump_filename) {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                eprintln!("[mwemu] cannot load snapshot '{dump_filename}': {error}");
+                return process::ExitCode::FAILURE;
+            }
+        };
         loaded.cfg = std::mem::take(&mut emu.cfg);
         if let (Some(mode), _) = cli_api_mode(matches) {
             loaded.set_api_mode(mode);

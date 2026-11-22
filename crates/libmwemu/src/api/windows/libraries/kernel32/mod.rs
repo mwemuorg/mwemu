@@ -4,8 +4,9 @@ use crate::api::abi::windows::{
 };
 use crate::arch::x86::XCR0_ENABLED_MASK;
 use crate::emu::Emu;
+use crate::exception::unwind64;
 use crate::winapi::common::{
-    critical_section, crt, crt_arguments, files, handles, heap, ipc, memory as virtual_memory,
+    critical_section, crt, crt_arguments, files, fls, handles, heap, ipc, memory as virtual_memory,
     memory_ops, modules, ntdll, paths, process, resources, sections, security, shell_strings,
     strings, threads, wait,
 };
@@ -68,7 +69,11 @@ pub(crate) fn dispatch_shared(api: &str, library: &str, emu: &mut Emu) -> bool {
         "SetHandleCount" => handles::set_handle_count(emu, library),
         "DeviceIoControl" => files::device_io_control(emu, library),
         "GetVersion" => ntdll::packed_version(emu, library),
-        "UnhandledExceptionFilter" => policy::unsupported(emu, library, api, emu.pc()),
+        "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" if emu.cfg.arch.is_aarch64() => {
+            policy::unsupported(emu, library, api, emu.pc())
+        }
+        "SetUnhandledExceptionFilter" => process::set_unhandled_exception_filter(emu, library),
+        "UnhandledExceptionFilter" => process::unhandled_exception_filter(emu, library),
         "GetCPInfo" | "IsValidCodePage" => locale::code_page_info(emu, library, api),
         "GetThreadLocale" | "SetThreadLocale" => locale::thread_locale(emu, library, api),
         "GetLastError" | "SetLastError" | "RestoreLastError" => {
@@ -186,6 +191,12 @@ pub(crate) fn dispatch_shared(api: &str, library: &str, emu: &mut Emu) -> bool {
         | "WaitForThreadpoolTimerCallbacks"
         | "WaitForThreadpoolWaitCallbacks"
         | "WaitForThreadpoolWorkCallbacks" => policy::unsupported(emu, library, api, emu.pc()),
+        "__C_specific_handler" if emu.cfg.is_x64() && !emu.cfg.arch.is_aarch64() => {
+            unwind64::c_specific_handler(emu, library)
+        }
+        "__C_specific_handler" if emu.cfg.arch.is_x64() => {
+            unwind64::c_specific_handler(emu, library)
+        }
         "__C_specific_handler" | "__misaligned_access" | "__wargv" | "_local_unwind" => {
             policy::unsupported_with_abi(emu, library, api, emu.pc(), WinApi(Cdecl))
         }
@@ -225,7 +236,7 @@ pub(crate) fn dispatch_shared(api: &str, library: &str, emu: &mut Emu) -> bool {
         }
         "GetCurrentPackagePath" => process::current_package_path(emu, library),
         "FlsAlloc" | "FlsFree" | "FlsGetValue" | "FlsGetValue2" | "FlsSetValue" => {
-            threads::fls(emu, library, api)
+            fls::dispatch(emu, library, api)
         }
         "WriteConsoleA" | "WriteConsoleW" => handles::write_console(emu, library, api),
         "GetTimeZoneInformationForYear" => time_zone::year(emu, library),
@@ -237,18 +248,20 @@ pub(crate) fn dispatch_shared(api: &str, library: &str, emu: &mut Emu) -> bool {
         | "SetThreadpoolTimer"
         | "SetThreadpoolTimerEx"
         | "SetThreadpoolWait"
-        | "SetThreadpoolWaitEx"
-        | "CreateActCtxA"
-        | "CreateActCtxW" => policy::unsupported(emu, library, api, emu.pc()),
+        | "SetThreadpoolWaitEx" => policy::unsupported(emu, library, api, emu.pc()),
+        "CreateActCtxA" if library == "kernel32" => {
+            resources::create_activation_context(emu, library, api)
+        }
+        "CreateActCtxW" => resources::create_activation_context(emu, library, api),
         "HeapQueryInformation" => heap::query_compatibility(emu, library),
         "GetThreadUILanguage" => system::GetThreadUILanguage(emu),
         "SetThreadUILanguage" => system::SetThreadUILanguage(emu),
         "RtlLookupFunctionEntry" if !emu.cfg.arch.is_64bits() => {
             policy::unsupported(emu, library, api, emu.pc())
         }
-        "RtlVirtualUnwind" if !emu.cfg.arch.is_64bits() => {
-            policy::unsupported(emu, library, api, emu.pc())
-        }
+        "RtlUnwind" | "RtlUnwindEx" if emu.cfg.arch.is_x64() => unwind64::unwind(emu, library, api),
+        "RtlVirtualUnwind" if emu.cfg.arch.is_x64() => unwind64::virtual_unwind(emu, library),
+        "RtlVirtualUnwind" => policy::unsupported(emu, library, api, emu.pc()),
         "TraceMessage" | "__wgetmainargs" | "_amsg_exit" | "_c_exit" | "_cexit"
         | "_invalid_parameter" | "_onexit" | "_purecall" | "_time64" | "atexit" | "time"
         | "wprintf"

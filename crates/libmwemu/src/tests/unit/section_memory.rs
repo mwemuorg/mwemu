@@ -6,7 +6,7 @@ use crate::windows::constants::process::*;
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::MemoryKind;
+use crate::maps::virtual_memory::{MemoryKind, PAGE_SIZE};
 use crate::serialization::Serialization;
 use crate::tests::helpers::{self, call_winapi32, call_winapi64};
 use crate::winapi::common::memory;
@@ -400,5 +400,48 @@ fn app_file_views_share_storage_and_unmap_in_the_current_process() {
                 assert!(emu.maps.read_byte(base).is_none());
             }
         }
+    }
+}
+
+#[test]
+fn reserved_section_commit_is_visible_in_existing_and_later_views() {
+    for is64 in [false, true] {
+        let mut emu = prepare(is64);
+        let (section, _) = sections::create(
+            &mut emu,
+            None,
+            2 * PAGE_SIZE,
+            SEC_RESERVE | PAGE_READWRITE,
+            String::new(),
+        )
+        .unwrap();
+        let (writable, _) = sections::map(&mut emu, section, FIRST, 0, 0, PAGE_READWRITE).unwrap();
+        let (reader, _) = sections::map(&mut emu, section, SECOND, 0, 0, PAGE_READONLY).unwrap();
+        assert_eq!(emu.maps.read_byte(reader + PAGE_SIZE), None);
+        assert!(!emu.maps.write_byte(writable + PAGE_SIZE, 1));
+        assert!(
+            memory::allocate(&mut emu, reader + PAGE_SIZE, 1, MEM_COMMIT, PAGE_READWRITE).is_err()
+        );
+        memory::allocate(
+            &mut emu,
+            writable + PAGE_SIZE,
+            1,
+            MEM_COMMIT,
+            PAGE_READWRITE,
+        )
+        .unwrap();
+        assert_eq!(emu.maps.read_byte(reader + PAGE_SIZE), Some(0));
+        assert!(emu.maps.write_byte(writable + PAGE_SIZE, 9));
+        assert_eq!(emu.maps.read_byte(reader + PAGE_SIZE), Some(9));
+        assert!(!emu.maps.write_byte(reader + PAGE_SIZE, 3));
+        assert_eq!(emu.maps.read_byte(reader), None);
+        sections::unmap(&mut emu, reader).unwrap();
+        sections::unmap(&mut emu, writable).unwrap();
+        let (new_view, _) = sections::map(&mut emu, section, 0, 0, 0, PAGE_READONLY).unwrap();
+        assert_eq!(emu.maps.read_byte(new_view), None);
+        assert_eq!(emu.maps.read_byte(new_view + PAGE_SIZE), Some(9));
+        sections::unmap(&mut emu, new_view).unwrap();
+        assert!(sections::close(&mut emu, section));
+        assert!(emu.maps.section_commitments.is_empty());
     }
 }

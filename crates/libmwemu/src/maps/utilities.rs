@@ -142,18 +142,26 @@ impl Maps {
         }
         let end_addr = addr.checked_add(sz as u64 - 1)?;
         let mem = self.get_mem_by_addr(addr)?;
-        if !mem.inside(end_addr) || !mem.can_read_range(addr, sz) {
-            log::warn!(
-                "Reading {} bytes from unmapped or non-readable region at 0x{:x}",
-                sz,
-                addr
-            );
+        if mem.inside(end_addr) {
+            return mem
+                .can_read_range(addr, sz)
+                .then(|| mem.read_bytes(addr, sz));
+        }
+        if !self.can_access_range(addr, sz, Permission::READ) {
             return None;
         }
-        Some(mem.read_bytes(addr, sz))
+        let mut bytes = Vec::new();
+        bytes.try_reserve_exact(sz).ok()?;
+        while bytes.len() < sz {
+            let cursor = addr + bytes.len() as u64;
+            let region = self.get_mem_by_addr(cursor)?;
+            let length = (region.get_bottom() - cursor).min((sz - bytes.len()) as u64) as usize;
+            bytes.extend_from_slice(&region.read_bytes(cursor, length));
+        }
+        Some(Cow::Owned(bytes))
     }
 
-    /// Borrows `sz` bytes from mapped readable memory. Length is always `sz` (for `sz > 0`), so
+    /// Reads `sz` bytes from mapped readable memory. Length is always `sz` (for `sz > 0`), so
     /// callers can use `.try_into()` into fixed arrays like before.
     ///
     /// If the range is not readable, logs a warning and returns `sz` zeroed bytes from a

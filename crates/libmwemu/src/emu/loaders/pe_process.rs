@@ -31,11 +31,36 @@ impl FormatLoader for Pe32 {
 
         // TODO: the register/flag reset should follow the caller's request
         // instead of being hardcoded off.
-        emu.init_win32(false, false)?;
-        let base = emu.load_pe32(input.path, true, 0)?.base as u32;
+        emu.init_windows_environment(false, false)?;
+        // Claim the image before the PEB, loader lists and command line choose addresses.
+        let mapped = emu.map_pe32_image(input.path, true, 0)?;
+        emu.init_win32_process_maps();
+        let base = emu.bind_pe32_image(input.path, true, mapped).base as u32;
+        let image = emu
+            .pe32
+            .as_ref()
+            .ok_or_else(|| MwemuError::new("missing PE32 process image"))?;
+        let is_dll = image.is_dll();
+        let (reserve, commit) = if is_dll {
+            (0, 0)
+        } else {
+            (
+                image.opt.size_of_stack_reserve as u64,
+                image.opt.size_of_stack_commit as u64,
+            )
+        };
+        emu.init_pe_stack32(reserve, commit)?;
         let ep = emu.regs().rip;
         emu.run_tls_callbacks(base as u64)?;
 
+        if !is_dll {
+            let peb = emu
+                .maps
+                .get_map_by_name("peb")
+                .ok_or_else(|| MwemuError::new("missing PEB at x86 process entry"))?
+                .get_base();
+            emu.regs_mut().set_ebx(peb);
+        }
         emu.regs_mut().rip = pe32_entry_point(emu, base, ep);
         apply_entry_point_override(emu);
         Ok(())

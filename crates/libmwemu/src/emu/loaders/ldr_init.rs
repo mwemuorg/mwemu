@@ -6,16 +6,18 @@
 //! that points at the entry point, so ntdll runs its own init and then
 //! continues there.
 
+use goblin::pe::header::PE_POINTER_OFFSET;
+
+use crate::context::context64::Context64;
 use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
 use crate::winapi::winapi64;
 
-/// Size of the x64 CONTEXT structure.
-const CTX_SIZE: u64 = 0x4D0;
+use crate::windows::structures::{LdrDataTableEntry64, Peb64, PebLdrData64, UnicodeString64};
 
-/// CONTEXT flags that mark the structure fully initialized.
-const CONTEXT_FULL: u32 = 0x10_007F;
+// Mask used by the ntdll bootstrap context.
+const BOOTSTRAP_CONTEXT_FLAGS: u32 = 0x0010_007f;
 
 impl Emu {
     /// Run the loader bootstrap and leave the CPU at `entry_point`.
@@ -40,11 +42,7 @@ impl Emu {
 
         // Build a minimal x64 CONTEXT structure so LdrInitializeThunk does not
         // null-deref when it reads CONTEXT.Rip to find the process entry point.
-        // x64 CONTEXT size is 0x4D0 bytes; key offsets:
-        //   +0x30  ContextFlags   (DWORD)
-        //   +0x98  Rsp            (QWORD)
-        //   +0xF8  Rip            (QWORD)
-        let Some(ctx_addr) = self.maps.lib64_alloc(CTX_SIZE) else {
+        let Some(ctx_addr) = self.maps.lib64_alloc(Context64::GUEST_SIZE) else {
             log::error!("cannot alloc CONTEXT for LdrInitializeThunk");
             return Err(MwemuError::new(
                 "cannot alloc CONTEXT for LdrInitializeThunk",
@@ -52,18 +50,29 @@ impl Emu {
         };
         if self
             .maps
-            .create_map("ldr_context", ctx_addr, CTX_SIZE, Permission::READ_WRITE)
+            .create_map(
+                "ldr_context",
+                ctx_addr,
+                Context64::GUEST_SIZE,
+                Permission::READ_WRITE,
+            )
             .is_err()
         {
             log::error!("cannot create ldr_context map");
             return Err(MwemuError::new("cannot create ldr_context map"));
         }
         // ContextFlags
-        let _ = self.maps.write_dword(ctx_addr + 0x30, CONTEXT_FULL);
+        let _ = self
+            .maps
+            .write_dword(ctx_addr + Context64::FLAGS_OFFSET, BOOTSTRAP_CONTEXT_FLAGS);
         // Rsp: current stack pointer
-        let _ = self.maps.write_qword(ctx_addr + 0x98, self.regs().rsp);
+        let _ = self
+            .maps
+            .write_qword(ctx_addr + Context64::RSP_OFFSET, self.regs().rsp);
         // Rip: entry point — NtContinue will redirect execution here
-        let _ = self.maps.write_qword(ctx_addr + 0xF8, entry_point);
+        let _ = self
+            .maps
+            .write_qword(ctx_addr + Context64::RIP_OFFSET, entry_point);
 
         crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
         crate::syscall::windows::syscall64::memory::patch_ntdll_load_reason_checks(self);
@@ -114,11 +123,14 @@ impl Emu {
     /// expected on real Windows: EXE, ntdll, kernel32, kernelbase, ...
     fn repopulate_ldr_module_list(&mut self) {
         let peb_base = self.maps.get_mem("peb").get_base();
-        let ldr_addr = self.maps.read_qword(peb_base + 0x18).unwrap_or(0);
+        let ldr_addr = self
+            .maps
+            .read_qword(peb_base + Peb64::LDR_OFFSET)
+            .unwrap_or(0);
         if ldr_addr == 0 {
             return;
         }
-        let sentinel_mem = ldr_addr + 0x20;
+        let sentinel_mem = ldr_addr + PebLdrData64::IN_MEMORY_ORDER_MODULE_LIST_OFFSET;
         let first = self.maps.read_qword(sentinel_mem).unwrap_or(0);
         if first != 0 && first != sentinel_mem {
             return;
@@ -155,7 +167,10 @@ impl Emu {
             if base == 0 {
                 continue;
             }
-            let pe_off = self.maps.read_dword(base + 0x3c).unwrap_or(0);
+            let pe_off = self
+                .maps
+                .read_dword(base + PE_POINTER_OFFSET as u64)
+                .unwrap_or(0);
             crate::windows::peb::peb64::dynamic_link_module(base, pe_off, &name, self);
             log::trace!("  repopulated LDR entry {} base=0x{:x}", name, base);
         }
@@ -165,7 +180,10 @@ impl Emu {
     /// shellcode finds the expected DllBase at the expected index.
     fn dump_ldr_chain(&self) {
         let peb_base = self.maps.get_mem("peb").get_base();
-        let ldr = self.maps.read_qword(peb_base + 0x18).unwrap_or(0);
+        let ldr = self
+            .maps
+            .read_qword(peb_base + Peb64::LDR_OFFSET)
+            .unwrap_or(0);
         log::trace!("DEBUG ldr_chain: PEB=0x{:x} Ldr=0x{:x}", peb_base, ldr);
         // Dump first 64 bytes of the PEB_LDR_DATA so we can see if
         // ntdll restructured the lists.
@@ -175,17 +193,30 @@ impl Emu {
             hex.push_str(&format!("{:02x} ", b));
         }
         log::trace!("DEBUG ldr_dump[0..64]: {}", hex);
-        let sentinel = ldr + 0x20;
+        let sentinel = ldr + PebLdrData64::IN_MEMORY_ORDER_MODULE_LIST_OFFSET;
         let mut cur = self.maps.read_qword(sentinel).unwrap_or(0);
         log::trace!("DEBUG sentinel=0x{:x} first_flink=0x{:x}", sentinel, cur);
         let mut i = 0;
         while cur != 0 && cur != sentinel && i < 16 {
             // cur points to &entry.InMemoryOrderLinks (offset 0x10 in LDR_DATA_TABLE_ENTRY)
-            let entry = cur.wrapping_sub(0x10);
-            let dll_base = self.maps.read_qword(entry + 0x30).unwrap_or(0);
+            let entry = cur.wrapping_sub(LdrDataTableEntry64::IN_MEMORY_ORDER_LINKS_OFFSET);
+            let dll_base = self
+                .maps
+                .read_qword(entry + LdrDataTableEntry64::DLL_BASE_OFFSET)
+                .unwrap_or(0);
             // BaseDllName UNICODE_STRING is at offset 0x58: Length(W), MaxLen(W), pad(D), Buffer(Q)
-            let name_len = self.maps.read_word(entry + 0x58).unwrap_or(0) as u64;
-            let name_buf = self.maps.read_qword(entry + 0x58 + 8).unwrap_or(0);
+            let name_len = self
+                .maps
+                .read_word(entry + LdrDataTableEntry64::BASE_DLL_NAME_OFFSET)
+                .unwrap_or(0) as u64;
+            let name_buf = self
+                .maps
+                .read_qword(
+                    entry
+                        + LdrDataTableEntry64::BASE_DLL_NAME_OFFSET
+                        + UnicodeString64::BUFFER_OFFSET,
+                )
+                .unwrap_or(0);
             let mut s = String::new();
             let mut j = 0u64;
             while j < name_len.min(128) {

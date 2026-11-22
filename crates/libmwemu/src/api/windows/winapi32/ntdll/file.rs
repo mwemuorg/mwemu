@@ -5,8 +5,8 @@ use crate::winapi::policy;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     dispatch_api!(api, {
-        "NtCreateFile" => files::native_create_file(emu),
-        "NtQueryInformationFile" => policy::unsupported(emu, "ntdll", api, emu.pc()),
+        "NtCreateFile" | "NtOpenFile" => files::native_open_file(emu, api),
+        "NtQueryInformationFile" => files::native_query_file(emu),
         "NtReadFile" => files::nt_transfer_file(emu, false),
         "RtlDosPathNameToNtPathName_U" => files::native_path(emu),
         "NtSetInformationFile" => policy::unsupported(emu, "ntdll", api, emu.pc()),

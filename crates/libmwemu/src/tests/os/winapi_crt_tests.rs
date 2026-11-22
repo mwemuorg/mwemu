@@ -1290,26 +1290,37 @@ fn formatted_streams_and_standard_descriptors_use_real_outputs() {
             handle,
             helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetStdHandle", &[0xffff_fff5])
         );
-        emu.maps.write_bytes(data, b"%d:%s%%\0");
+        emu.maps.write_bytes(data, b"%d:%s%%:%p\0");
         emu.maps.write_bytes(data + 64, b"x\xff\0");
         let ptr = data + 128;
-        if is64 {
+        let (pointer, expected) = if is64 {
+            let pointer = 0x1234_0000_0000_abcd;
             emu.maps.write_qword(ptr, u32::MAX as u64);
             emu.maps.write_qword(ptr + 8, data + 64);
+            emu.maps.write_qword(ptr + 16, pointer);
+            (pointer, b"-1:x\xff%:123400000000ABCD".as_slice())
         } else {
+            let pointer = 0xabcd;
             emu.maps.write_dword(ptr, u32::MAX);
             emu.maps.write_dword(ptr + 4, (data + 64) as u32);
-        }
+            emu.maps.write_dword(ptr + 8, pointer);
+            (u64::from(pointer), b"-1:x\xff%:0000ABCD".as_slice())
+        };
+        let options =
+            _CRT_INTERNAL_PRINTF_LEGACY_WIDE_SPECIFIERS | _CRT_INTERNAL_PRINTF_STANDARD_ROUNDING;
         for api in ["fprintf", "vfprintf", "__stdio_common_vfprintf"] {
             let args = match api {
-                "fprintf" => vec![output, data, u32::MAX as u64, data + 64],
+                "fprintf" => vec![output, data, u32::MAX as u64, data + 64, pointer],
                 "vfprintf" => vec![output, data, ptr],
-                _ if is64 => vec![0, output, data, 0, ptr],
-                _ => vec![0, 0, output, data, 0, ptr],
+                _ if is64 => vec![options, output, data, 0, ptr],
+                _ => vec![options, 0, output, data, 0, ptr],
             };
             emu.emulated_stdout.clear();
-            assert_eq!(call_crt(&mut emu, library, api, &args), 6);
-            assert_eq!(emu.emulated_stdout, b"-1:x\xff%");
+            assert_eq!(
+                call_crt(&mut emu, library, api, &args),
+                expected.len() as u64
+            );
+            assert_eq!(emu.emulated_stdout, expected);
         }
     }
 }
@@ -1649,5 +1660,137 @@ fn counted_printf_respects_c_and_msvcrt_truncation_rules() {
                 assert_eq!(emu.maps.read_byte(output + bytes.len() as u64), Some(0xa5));
             }
         }
+    }
+}
+
+#[test]
+fn vcruntime_memory_exports_share_the_cdecl_handlers() {
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        for import in [false, true] {
+            assert_eq!(
+                call_crt_route(
+                    &mut emu,
+                    "vcruntime140.dll",
+                    "memset",
+                    &[data, 0x5a, 4],
+                    import
+                ),
+                data
+            );
+            let string = data + 32;
+            emu.maps.write_string(string, "a/b/c");
+            for (character, expected) in [(b'/', string + 3), (0, string + 5), (b'x', 0)] {
+                assert_eq!(
+                    call_crt_route(
+                        &mut emu,
+                        "vcruntime140.dll",
+                        "strrchr",
+                        &[string, character.into()],
+                        import
+                    ),
+                    expected
+                );
+            }
+            for api in ["memcpy", "memmove"] {
+                let dest = data + 16;
+                emu.maps.write_dword(dest, 0);
+                assert_eq!(
+                    call_crt_route(&mut emu, "vcruntime140.dll", api, &[dest, data, 4], import),
+                    dest
+                );
+                assert_eq!(emu.maps.read_dword(dest), Some(0x5a5a5a5a));
+            }
+        }
+    }
+}
+
+#[test]
+fn x86_crt_precision_changes_preserve_the_other_x87_control_bits() {
+    use crate::windows::constants::crt::{_MCW_PC, _PC_24, _PC_53, _PC_64};
+
+    let (mut emu, _) = helpers::prepare_winapi(false);
+    for dll in ["ucrtbase.dll", "msvcrt.dll"] {
+        for (request, expected) in [(_PC_24, 0x0c7f), (_PC_53, 0x0e7f), (_PC_64, 0x0f7f)] {
+            emu.fpu_mut().set_ctrl(0x0c7f);
+            assert_eq!(
+                call_crt(
+                    &mut emu,
+                    dll,
+                    "_controlfp_s",
+                    &[0, request.into(), _MCW_PC.into()]
+                ),
+                0
+            );
+            assert_eq!(emu.fpu().get_ctrl(), expected);
+        }
+    }
+}
+
+#[test]
+fn ucrt_access_violation_filter_observes_the_threads_signal_action() {
+    use crate::maps::mem64::Permission;
+    use crate::winapi::common::memory::{pointer_size, read_pointer};
+    use crate::windows::constants::errors::STATUS_ACCESS_VIOLATION;
+    use crate::windows::constants::exceptions::{
+        EXCEPTION_CONTINUE_EXECUTION32, EXCEPTION_CONTINUE_SEARCH,
+    };
+    const HANDLER: u64 = 0x0510_0000;
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        emu.maps
+            .create_map(
+                "signal callback",
+                HANDLER,
+                0x1000,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        emu.maps.write_bytes(HANDLER, &[0xc3]);
+        emu.set_pc(HANDLER + 0x100);
+        let reg = |emu: &mut Emu, action| {
+            call_crt_route(
+                emu,
+                "ucrtbase.dll",
+                "signal",
+                &[u64::from(SIGSEGV), action],
+                true,
+            )
+        };
+        let run = |emu: &mut Emu| {
+            call_crt_route(
+                emu,
+                "ucrtbase.dll",
+                "_seh_filter_exe",
+                &[STATUS_ACCESS_VIOLATION, data],
+                true,
+            ) as u32
+        };
+        assert_eq!(run(&mut emu), EXCEPTION_CONTINUE_SEARCH);
+        assert_eq!(reg(&mut emu, SIG_IGN), SIG_DFL);
+        assert_eq!(run(&mut emu), EXCEPTION_CONTINUE_EXECUTION32);
+        assert_eq!(reg(&mut emu, HANDLER), SIG_IGN);
+        assert_eq!(reg(&mut emu, SIG_GET), HANDLER);
+        let pointers = call_crt_route(&mut emu, "ucrtbase.dll", "__pxcptinfoptrs", &[], true);
+        let calls = std::rc::Rc::new(std::cell::Cell::new(0));
+        let observed = calls.clone();
+        emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+            if pc == HANDLER {
+                assert_eq!(read_pointer(emu, pointers), Some(data));
+                let signal = if is64 {
+                    emu.regs().rcx
+                } else {
+                    read_pointer(emu, emu.sp() + pointer_size(emu)).unwrap()
+                };
+                assert_eq!(signal, u64::from(SIGSEGV));
+                observed.set(observed.get() + 1);
+            }
+            true
+        });
+        assert_eq!(run(&mut emu), EXCEPTION_CONTINUE_EXECUTION32);
+        assert_eq!(calls.get(), 1);
+        assert_eq!(reg(&mut emu, SIG_GET), SIG_DFL);
+        assert_eq!(run(&mut emu), EXCEPTION_CONTINUE_SEARCH);
+        assert_eq!(read_pointer(&emu, pointers), Some(0));
     }
 }

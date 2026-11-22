@@ -21,6 +21,8 @@ The maps are TEB and PEB and other structures, and also memory headers and libra
 
 Use the console m command to see the memory maps.
 
+A Windows guest EXE or DLL that opts into ASLR with `DYNAMIC_BASE` can load at an aligned free address. Use `--seed` to reproduce placement with the same inputs and maps. Fixed images need their preferred range. For a PE, `--base` overrides automatic placement and preserves the entry RVA unless you also supply `--entry`.
+
 ## Banzai & API mode
 
 `--api-mode strict|simulate-fail|simulate-success` selects the unsupported Windows API policy. Without either policy flag, the CLI defaults to `Strict`, or to `SimulateSuccess` with a one-time warning when `--banzai` is present. An explicit `--api-mode` overrides that default; `--strict-api` always forces strict behavior. Banzai also enables instruction skipping and fallback x86 cleanup metadata, subject to subsystem ABI rules. See [Windows API policy](API.md#windows-api-policy) for combinations and metadata requirements.
@@ -42,6 +44,10 @@ It's like a debugger, but with the difference that the code is not executed, it'
 More information about the console in [CONSOLE.md](CONSOLE.md)
 
 Also it's possible to spawn the console at specific address with `-C addr`
+
+## Loop limit
+
+`--noloops` stops before an instruction address exceeds one million visits in the same run. Set `--loop-limit N` to change that limit. Zero disables it. The counter stores one entry per distinct address and counts a repeated string instruction once each time control reaches it.
 
 ## 64bits
 

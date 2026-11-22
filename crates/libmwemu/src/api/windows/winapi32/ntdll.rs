@@ -1,5 +1,7 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
-use crate::api::windows::common::{fallback, handles, memory as memory_api, nt_api, process, wait};
+use crate::api::windows::common::{
+    fallback, handles, memory as memory_api, nt_api, process, seh4, wait,
+};
 use crate::emu;
 use crate::winapi::registry::native;
 use crate::winapi::winapi32::kernel32;
@@ -12,10 +14,12 @@ mod misc;
 mod string;
 mod sync;
 
+pub use misc::RtlUnwind;
+
+#[cfg(test)]
+pub use crate::winapi::common::ntdll::RtlDecompressBuffer;
 #[cfg(test)]
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
-#[cfg(test)]
-pub use misc::RtlDecompressBuffer;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
@@ -25,7 +29,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 
 pub(super) fn gateway_by_name(addr: u32, api: &str, emu: &mut emu::Emu) -> String {
     let call = WinApi(Stdcall);
-    if handles::dispatch_nt(api, emu, call)
+    if seh4::dispatch(emu, "ntdll", api)
+        || handles::dispatch_nt(api, emu, call)
         || memory_api::dispatch_nt(api, emu, call)
         || process::dispatch_nt(api, emu, call)
         || wait::dispatch_nt(api, emu, call)

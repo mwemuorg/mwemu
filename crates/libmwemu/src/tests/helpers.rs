@@ -13,6 +13,10 @@ use crate::{emu32, emu64};
 mod pe_fixtures;
 pub use pe_fixtures::{LOADER32, LOADER64};
 
+// The call to MessageBoxA and its return site in exe64win_msgbox.bin.
+pub const MSGBOX64_CALL_RVA: u64 = 0x123f;
+pub const MSGBOX64_RETURN_RVA: u64 = 0x1241;
+
 static INIT: Once = Once::new();
 
 pub fn setup() {
@@ -86,7 +90,7 @@ pub const TEST_BUDGET: std::time::Duration = std::time::Duration::from_secs(8);
 /// Workspace root. `CARGO_MANIFEST_DIR` is `.../crates/libmwemu`, so go up two
 /// levels: the canonical `test/` and `maps/` data live at the repo root (shared
 /// with the CLI), not duplicated per crate.
-fn repo_root() -> PathBuf {
+pub(super) fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
@@ -392,6 +396,7 @@ const WINAPI_LIBRARIES: &[&str] = &[
     "api-ms-win-crt-string-l1-1-0.dll",
     "cryptbase.dll",
     "urlmon.dll",
+    "vcruntime140.dll",
 ];
 
 pub fn prepare_winapi(is64: bool) -> (Emu, u64) {

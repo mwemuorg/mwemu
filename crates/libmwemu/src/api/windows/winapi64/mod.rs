@@ -110,6 +110,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "bcrypt.text" => bcrypt::gateway(addr, emu),
         "winmm.text" => winmm::gateway(addr, emu),
         "crypt32.text" => crypt32::gateway(addr, emu),
+        "vcruntime140.text" | "vcruntime140fothk" => libraries::gateway("vcruntime140", addr, emu),
         "msvcrt.text" | "msvcrtfothk" | msvcrt::SYNTHETIC_TEXT => msvcrt::gateway(addr, emu),
         section if crt::is_universal_library(library) && (section.ends_with(".text") || section.ends_with(".rdata")) => wincrt::gateway(addr, emu),
         "not_loaded" => unloaded_import(addr, emu),

@@ -1,4 +1,8 @@
+use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
+use crate::windows::constants::memory::{PAGE_GUARD, PAGE_READWRITE};
 use crate::windows::constants::nls::*;
+use crate::windows::structures::TEB;
 use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
@@ -456,7 +460,7 @@ impl Emu {
         const GROW_PAGE_SIZE: u64 = 0x1000; // 4 KiB
 
         if !self.cfg.is_x64() {
-            return false;
+            return self.grow_pe_stack32(fault_addr);
         }
 
         let rsp = self.regs().rsp;
@@ -506,5 +510,50 @@ impl Emu {
                 false
             }
         }
+    }
+
+    fn grow_pe_stack32(&mut self, fault_addr: u64) -> bool {
+        let page = fault_addr & !(PAGE_SIZE - 1);
+        let Some(teb) = self.windows_teb() else {
+            return false;
+        };
+        let Some(stack) = self.maps.get_map_by_name("stack") else {
+            return false;
+        };
+        let Some(allocation) = self.maps.allocation_at(page) else {
+            return false;
+        };
+        if self.current_thread_id != 0
+            || page <= allocation.base
+            || !allocation.contains(stack.get_base(), 1)
+            || allocation.state(page).protection & PAGE_GUARD == 0
+            || self.maps.read_dword(teb + TEB::NT_TIB_STACK_LIMIT_OFFSET)
+                != Some((page + PAGE_SIZE) as u32)
+            || !self.maps.can_access_range(
+                teb + TEB::NT_TIB_STACK_LIMIT_OFFSET,
+                size_of::<u32>(),
+                Permission::WRITE,
+            )
+        {
+            return false;
+        }
+        if self
+            .maps
+            .commit_memory(
+                page - PAGE_SIZE,
+                PAGE_SIZE,
+                PAGE_READWRITE | PAGE_GUARD,
+                Permission::NONE,
+            )
+            .is_err()
+            || self
+                .maps
+                .commit_memory(page, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE)
+                .is_err()
+        {
+            return false;
+        }
+        self.maps
+            .write_dword(teb + TEB::NT_TIB_STACK_LIMIT_OFFSET, page as u32)
     }
 }

@@ -5,7 +5,7 @@ use crate::winapi::winapi64;
 use crate::windows::peb::peb32;
 use crate::windows::peb::peb64;
 use crate::windows::structures;
-use std::io::Write;
+use std::io::{BufRead, Write};
 use std::num::ParseIntError;
 use std::sync::atomic;
 
@@ -32,60 +32,68 @@ impl Console {
     pub fn print(&self, msg: &str) {
         log::logger().flush();
         print!("{}", msg);
-        std::io::stdout().flush().unwrap();
+        if let Err(error) = io::stdout().flush() {
+            log::error!("console output: {error}");
+        }
+    }
+
+    pub(crate) fn read_line(mut input: impl BufRead) -> io::Result<Option<String>> {
+        let mut line = String::new();
+        if input.read_line(&mut line)? == 0 {
+            return Ok(None);
+        }
+        if line.ends_with('\n') {
+            line.pop();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+        }
+        Ok(Some(line))
+    }
+
+    fn prompt(&self) -> Option<String> {
+        self.print("=>");
+        Self::read_line(io::stdin().lock()).unwrap_or_else(|error| {
+            log::error!("console input: {error}");
+            None
+        })
     }
 
     pub fn cmd(&self) -> String {
-        let mut line = String::new();
-        self.print("=>");
-        std::io::stdin().read_line(&mut line).unwrap();
-        line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
-        line.truncate(line.len() - 1);
-        line.to_lowercase()
+        self.cmd2().to_lowercase()
     }
 
     pub fn cmd2(&self) -> String {
-        let mut line = String::new();
-        self.print("=>");
-        std::io::stdin().read_line(&mut line).unwrap();
-        line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
-        line.truncate(line.len() - 1);
-        line
+        self.prompt().unwrap_or_default()
+    }
+
+    fn hex_digits(input: &str) -> &str {
+        let input = input.strip_suffix(['h', 'H']).unwrap_or(input);
+        input
+            .strip_prefix("0x")
+            .or_else(|| input.strip_prefix("0X"))
+            .unwrap_or(input)
+    }
+
+    fn read_hex32(&self) -> Option<Result<u32, ParseIntError>> {
+        Some(u32::from_str_radix(Self::hex_digits(&self.prompt()?), 16))
+    }
+
+    fn read_hex64(&self) -> Option<Result<u64, ParseIntError>> {
+        Some(u64::from_str_radix(Self::hex_digits(&self.prompt()?), 16))
     }
 
     pub fn cmd_hex32(&self) -> Result<u32, ParseIntError> {
-        let mut x = self.cmd();
-
-        if x.ends_with('h') {
-            x = x[0..x.len() - 1].to_string();
-        }
-        if x.starts_with("0x") {
-            x = x[2..x.len()].to_string();
-        }
-
-        u32::from_str_radix(x.as_str(), 16)
+        u32::from_str_radix(Self::hex_digits(&self.cmd2()), 16)
     }
 
     pub fn cmd_hex64(&self) -> Result<u64, ParseIntError> {
-        let mut x = self.cmd();
-        if x.ends_with('h') {
-            x = x[0..x.len() - 1].to_string();
-        }
-        if x.starts_with("0x") {
-            x = x[2..x.len()].to_string();
-        }
-
-        u64::from_str_radix(x.as_str(), 16)
+        u64::from_str_radix(Self::hex_digits(&self.cmd2()), 16)
     }
 
     pub fn cmd_num(&self) -> Result<u64, ParseIntError> {
-        self.cmd().as_str().parse::<u64>()
+        self.cmd2().parse()
     }
-
-    /*
-    pub fn cmd_num<T>(&self) -> Result<T,ParseIntError> {
-        self.cmd().as_str().parse::<T>()
-    }*/
 
     pub fn help(&self) {
         log::trace!("--- help ---");
@@ -255,6 +263,12 @@ impl Console {
             return;
         }
 
+        if Self::command_loop(emu).is_none() {
+            emu.process_terminated = true;
+        }
+    }
+
+    fn command_loop(emu: &mut Emu) -> Option<()> {
         let con = Console::new();
         if emu.pos > 0 {
             emu.pos -= 1;
@@ -265,13 +279,13 @@ impl Console {
             if let Some(pcmd) = &emu.cfg.command {
                 cmd = pcmd.to_string();
             } else {
-                cmd = con.cmd();
+                cmd = con.prompt()?.to_lowercase();
             }
 
             match cmd.as_str() {
                 "q" => {
                     emu.process_terminated = true;
-                    return;
+                    return Some(());
                 }
                 "h" => con.help(),
                 "r" => {
@@ -368,9 +382,9 @@ impl Console {
 
                 "rc" => {
                     con.print("register name");
-                    let reg = con.cmd();
+                    let reg = con.prompt()?.to_lowercase();
                     con.print("value");
-                    let value = match con.cmd_hex64() {
+                    let value = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -387,7 +401,7 @@ impl Console {
                 }
                 "mr" | "rm" => {
                     con.print("memory argument");
-                    let operand = con.cmd();
+                    let operand = con.prompt()?.to_lowercase();
                     let addr: u64 = emu.memory_operand_to_address(operand.as_str());
                     let value = match emu.memory_read(operand.as_str()) {
                         Some(v) => v,
@@ -400,9 +414,9 @@ impl Console {
                 }
                 "mw" | "wm" => {
                     con.print("memory argument");
-                    let operand = con.cmd();
+                    let operand = con.prompt()?.to_lowercase();
                     con.print("value");
-                    let value = match con.cmd_hex64() {
+                    let value = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -417,7 +431,7 @@ impl Console {
                 }
                 "mwb" => {
                     con.print("addr");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(a) => a,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -425,7 +439,7 @@ impl Console {
                         }
                     };
                     con.print("spaced bytes");
-                    let bytes = con.cmd();
+                    let bytes = con.prompt()?.to_lowercase();
                     emu.maps.write_spaced_bytes(addr, &bytes);
                     log::trace!("done.");
                 }
@@ -434,7 +448,7 @@ impl Console {
                 }
                 "ba" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -445,7 +459,7 @@ impl Console {
                 }
                 "bmr" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -456,7 +470,7 @@ impl Console {
                 }
                 "bmw" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -467,7 +481,7 @@ impl Console {
                 }
                 "bi" => {
                     con.print("instruction number");
-                    let num = match con.cmd_num() {
+                    let num = match con.prompt()?.parse::<u64>() {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad instruction number.");
@@ -510,7 +524,7 @@ impl Console {
                 }
                 "sv" => {
                     con.print("verbose level");
-                    emu.cfg.verbose = match con.cmd_num() {
+                    emu.cfg.verbose = match con.prompt()?.parse::<u64>() {
                         Ok(v) => to32!(v),
                         Err(_) => {
                             log::trace!("incorrect verbose level, set 0, 1 or 2");
@@ -520,7 +534,7 @@ impl Console {
                 }
                 "tr" => {
                     con.print("register");
-                    let reg = con.cmd();
+                    let reg = con.prompt()?.to_lowercase();
                     emu.cfg.trace_reg = true;
                     emu.cfg.reg_names.push(reg);
                 }
@@ -534,12 +548,12 @@ impl Console {
                 "c" => {
                     emu.exp = u64::MAX;
                     emu.is_running.store(1, atomic::Ordering::Relaxed);
-                    return;
+                    return Some(());
                 }
                 "cr" => {
                     emu.break_on_next_return = true;
                     emu.is_running.store(1, atomic::Ordering::Relaxed);
-                    return;
+                    return Some(());
                 }
                 "f" => {
                     if emu.cfg.arch.is_aarch64() {
@@ -578,9 +592,9 @@ impl Console {
                 }
                 "mc" => {
                     con.print("name ");
-                    let name = con.cmd();
+                    let name = con.prompt()?.to_lowercase();
                     con.print("size ");
-                    let sz = match con.cmd_num() {
+                    let sz = match con.prompt()?.parse::<u64>() {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad size.");
@@ -606,9 +620,9 @@ impl Console {
                 }
                 "mca" => {
                     con.print("name ");
-                    let name = con.cmd();
+                    let name = con.prompt()?.to_lowercase();
                     con.print("address ");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad size.");
@@ -617,7 +631,7 @@ impl Console {
                     };
 
                     con.print("size ");
-                    let sz = match con.cmd_num() {
+                    let sz = match con.prompt()?.parse::<u64>() {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad size.");
@@ -636,14 +650,14 @@ impl Console {
                 }
                 "ml" => {
                     con.print("map name");
-                    let name = con.cmd();
+                    let name = con.prompt()?.to_lowercase();
                     con.print("filename");
-                    let filename = con.cmd();
+                    let filename = con.prompt()?.to_lowercase();
                     emu.maps.get_mem_mut(name.as_str()).load(filename.as_str());
                 }
                 "mn" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -689,7 +703,7 @@ impl Console {
                 }
                 "md" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -700,7 +714,7 @@ impl Console {
                 }
                 "mrd" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -711,7 +725,7 @@ impl Console {
                 }
                 "mrq" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -722,7 +736,7 @@ impl Console {
                 }
                 "mds" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -737,7 +751,7 @@ impl Console {
                 }
                 "mdw" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -752,7 +766,7 @@ impl Console {
                 }
                 "mdd" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -760,7 +774,7 @@ impl Console {
                         }
                     };
                     con.print("size");
-                    let sz = match con.cmd_num() {
+                    let sz = match con.prompt()?.parse::<u64>() {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad numeric decimal value.");
@@ -769,13 +783,13 @@ impl Console {
                     };
                     if sz > 0 {
                         con.print("file");
-                        let filename = con.cmd();
+                        let filename = con.prompt()?.to_lowercase();
                         emu.maps.save(addr, sz, filename);
                     }
                 }
                 "mdda" => {
                     con.print("path:");
-                    let path = con.cmd2();
+                    let path = con.prompt()?;
                     emu.maps.save_all_allocs(path);
                 }
                 "mt" => {
@@ -787,7 +801,7 @@ impl Console {
                 }
                 "pc" => {
                     con.print("=");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -796,11 +810,11 @@ impl Console {
                     };
                     emu.set_pc(addr);
                     emu.force_break = true;
-                    break;
+                    return Some(());
                 }
                 "eip" => {
                     con.print("=");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -809,11 +823,11 @@ impl Console {
                     };
                     emu.set_eip(addr, false);
                     emu.force_break = true;
-                    break;
+                    return Some(());
                 }
                 "rip" => {
                     con.print("=");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -822,13 +836,13 @@ impl Console {
                     };
                     emu.set_rip_with_check(addr, false);
                     emu.force_break = true;
-                    break;
+                    return Some(());
                     //emu.regs_mut().rip = addr;
                 }
                 "push" => {
                     con.print("value");
                     if emu.cfg.arch.is_aarch64() || emu.cfg.is_x64() {
-                        let value = match con.cmd_hex64() {
+                        let value = match con.read_hex64()? {
                             Ok(v) => v,
                             Err(_) => {
                                 log::trace!("bad hex value");
@@ -837,7 +851,7 @@ impl Console {
                         };
                         emu.stack_push64(value);
                     } else {
-                        let value = match con.cmd_hex32() {
+                        let value = match con.read_hex32()? {
                             Ok(v) => v,
                             Err(_) => {
                                 log::trace!("bad hex value");
@@ -862,16 +876,16 @@ impl Console {
                 }
                 "md5" => {
                     con.print("map name");
-                    let mem_name = con.cmd();
+                    let mem_name = con.prompt()?.to_lowercase();
                     let mem = emu.maps.get_mem(&mem_name);
                     let md5 = mem.md5();
                     log::trace!("md5sum: {:x}", md5);
                 }
                 "ss" => {
                     con.print("map name");
-                    let mem_name = con.cmd();
+                    let mem_name = con.prompt()?.to_lowercase();
                     con.print("string");
-                    let kw = con.cmd2();
+                    let kw = con.prompt()?;
                     let result = match emu.maps.search_string(&kw, &mem_name) {
                         Some(v) => v,
                         None => {
@@ -893,9 +907,9 @@ impl Console {
                 }
                 "sb" => {
                     con.print("map name");
-                    let mem_name = con.cmd();
+                    let mem_name = con.prompt()?.to_lowercase();
                     con.print("spaced bytes");
-                    let sbs = con.cmd();
+                    let sbs = con.prompt()?.to_lowercase();
                     let results = emu.maps.search_spaced_bytes(&sbs, &mem_name);
                     if results.is_empty() {
                         log::trace!("not found.");
@@ -911,7 +925,7 @@ impl Console {
                 }
                 "sba" => {
                     con.print("spaced bytes");
-                    let sbs = con.cmd();
+                    let sbs = con.prompt()?.to_lowercase();
                     let results = emu.maps.search_spaced_bytes_in_all(&sbs);
                     if results.is_empty() {
                         log::trace!("not found.");
@@ -927,7 +941,7 @@ impl Console {
                 }
                 "ssa" => {
                     con.print("string");
-                    let kw = con.cmd2();
+                    let kw = con.prompt()?;
                     emu.maps.search_string_in_all(kw);
                 }
                 "seh" => {
@@ -945,7 +959,7 @@ impl Console {
                 }
                 "ll" => {
                     con.print("ptr");
-                    let ptr1 = match con.cmd_hex64() {
+                    let ptr1 = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -970,17 +984,16 @@ impl Console {
                     emu.cfg.verbose = 3;
                     emu.step();
                     emu.cfg.verbose = prev_verbose;
-                    //return;
                 }
                 "m" => emu.maps.print_maps(),
                 "ms" => {
                     con.print("keyword");
-                    let kw = con.cmd2();
+                    let kw = con.prompt()?;
                     emu.maps.print_maps_keyword(&kw);
                 }
                 "d" => {
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -998,7 +1011,7 @@ impl Console {
                 }
                 "iat" => {
                     con.print("api keyword");
-                    let kw = con.cmd2();
+                    let kw = con.prompt()?;
                     let addr: u64;
                     let lib: String;
                     let name: String;
@@ -1018,7 +1031,7 @@ impl Console {
                 "iatx" => {
                     // addr to name
                     con.print("api addr");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value.");
@@ -1040,7 +1053,7 @@ impl Console {
                 }
                 "iatd" => {
                     con.print("module");
-                    let lib = con.cmd2().to_lowercase();
+                    let lib = con.prompt()?.to_lowercase();
                     if emu.cfg.is_x64() {
                         winapi64::kernel32::dump_module_iat(emu, &lib);
                     } else {
@@ -1057,9 +1070,9 @@ impl Console {
                 }
                 "dt" => {
                     con.print("structure");
-                    let struc = con.cmd();
+                    let struc = con.prompt()?.to_lowercase();
                     con.print("address");
-                    let addr = match con.cmd_hex64() {
+                    let addr = match con.read_hex64()? {
                         Ok(v) => v,
                         Err(_) => {
                             log::trace!("bad hex value");
@@ -1069,7 +1082,7 @@ impl Console {
 
                     match struc.as_str() {
                         "peb" => {
-                            let s = structures::PEB::load(addr, &emu.maps);
+                            let s = structures::Peb::load(addr, &emu.maps);
                             s.print();
                         }
                         "teb" => {
@@ -1089,7 +1102,7 @@ impl Console {
                             s.print();
                         }
                         "peb64" => {
-                            let s = structures::PEB64::load(addr, &emu.maps);
+                            let s = structures::Peb64::load(addr, &emu.maps);
                             s.print();
                         }
                         "teb64" => {
@@ -1167,7 +1180,7 @@ impl Console {
 
             if emu.cfg.command.is_some() {
                 emu.process_terminated = true;
-                return;
+                return Some(());
             }
         } // end loop
     } // end commands function

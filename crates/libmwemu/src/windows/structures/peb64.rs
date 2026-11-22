@@ -1,16 +1,16 @@
+use std::array;
+
 use crate::maps::{Maps, mem64::Mem64};
+use crate::windows::constants::process::PEB_BEING_DEBUGGED_OFFSET;
 
-// 64bits
-// https://bytepointer.com/resources/tebpeb64.htm   (from xp to win8)
-// https://www.tssc.de/winint/Win10_19042_ntoskrnl/_PEB64.htm (win10)
-
+/// Modeled fields of the 64-bit Windows process environment block.
 #[derive(Debug)]
-pub struct PEB64 {
-    inheritet_addr_space: u8,
-    read_img_file_exec_options: u8,
+pub struct Peb64 {
+    inherited_address_space: u8,
+    read_image_file_exec_options: u8,
     pub being_debugged: u8,
     system_dependent_01: u8,
-    dummy_align: u32,
+    padding: u32,
     mutant: u64,
     pub image_base_addr: u64,
     pub ldr: u64,
@@ -25,7 +25,7 @@ pub struct PEB64 {
     system_reserved: u32,
     system_dependent_05: u32,
     system_dependent_06: u64,
-    tls_expansion_counter: u64,
+    tls_expansion_counter: u32,
     tls_bitmap: u64,
     tls_bitmap_bits: [u32; 2],
     read_only_shared_memory_base: u64,
@@ -44,24 +44,24 @@ pub struct PEB64 {
     number_of_heaps: u32,
     max_number_of_heaps: u32,
     process_heaps: u64,
-    gdi_share_handle_table: u64,
+    gdi_shared_handle_table: u64,
     process_starter_helper: u64,
-    gdi_dc_attribute_list: u64,
+    gdi_dc_attribute_list: u32,
     loader_lock: u64,
     os_major_version: u32,
     os_minor_version: u32,
     os_build_number: u16,
-    oscsd_version: u16,
+    os_csd_version: u16,
     os_platform_id: u32,
     image_subsystem: u32,
     image_subsystem_major_version: u32,
-    image_subsystem_minor_version: u64,
-    active_process_afinity_mask: u64,
-    gdi_handle_buffer: [u64; 30],
+    image_subsystem_minor_version: u32,
+    active_process_affinity_mask: u64,
+    gdi_handle_buffer: [u32; 60],
     post_process_init_routine: u64,
     tls_expansion_bitmap: u64,
     tls_expansion_bitmap_bits: [u32; 32],
-    session_id: u64,
+    session_id: u32,
     app_compat_flags: u64,
     app_compat_flags_user: u64,
     p_shim_data: u64,
@@ -74,43 +74,109 @@ pub struct PEB64 {
     minimum_stack_commit: u64,
 }
 
-impl PEB64 {
+impl Peb64 {
+    pub(crate) const IMAGE_BASE_ADDR_OFFSET: u64 = 0x10;
+    pub(crate) const LDR_OFFSET: u64 = 0x18;
+    pub(crate) const PROCESS_HEAP_OFFSET: u64 = 0x30;
+    pub(crate) const SYSTEM_DEPENDENT_06_OFFSET: u64 = 0x68;
+    pub(crate) const READ_ONLY_SHARED_MEMORY_BASE_OFFSET: u64 = 0x88;
+    pub(crate) const SYSTEM_DEPENDENT_07_OFFSET: u64 = 0x90;
+    pub(crate) const READ_ONLY_STATIC_SERVER_DATA_OFFSET: u64 = 0x98;
+    pub(crate) const ANSI_CODE_PAGE_DATA_OFFSET: u64 = 0xa0;
+    pub(crate) const OEM_CODE_PAGE_DATA_OFFSET: u64 = 0xa8;
+    pub(crate) const UNICODE_CASE_TABLE_DATA_OFFSET: u64 = 0xb0;
+
+    const READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET: u64 = 0x01;
+    const SYSTEM_DEPENDENT_01_OFFSET: u64 = 0x03;
+    const PADDING_OFFSET: u64 = 0x04;
+    const MUTANT_OFFSET: u64 = 0x08;
+    const PROCESS_PARAMETERS_OFFSET: u64 = 0x20;
+    const SUBSYSTEM_DATA_OFFSET: u64 = 0x28;
+    const FAST_PEB_LOCK_OFFSET: u64 = 0x38;
+    const SYSTEM_DEPENDENT_02_OFFSET: u64 = 0x40;
+    const SYSTEM_DEPENDENT_03_OFFSET: u64 = 0x48;
+    const SYSTEM_DEPENDENT_04_OFFSET: u64 = 0x50;
+    const KERNEL_CALLBACK_TABLE_OFFSET: u64 = 0x58;
+    const SYSTEM_RESERVED_OFFSET: u64 = 0x60;
+    const SYSTEM_DEPENDENT_05_OFFSET: u64 = 0x64;
+    const TLS_EXPANSION_COUNTER_OFFSET: u64 = 0x70;
+    const TLS_BITMAP_OFFSET: u64 = 0x78;
+    const TLS_BITMAP_BITS_OFFSET: u64 = 0x80;
+    const NUMBER_OF_PROCESSORS_OFFSET: u64 = 0xb8;
+    const NT_GLOBAL_FLAG_OFFSET: u64 = 0xbc;
+    const CRITICAL_SECTION_TIMEOUT_OFFSET: u64 = 0xc0;
+    const HEAP_SEGMENT_RESERVE_OFFSET: u64 = 0xc8;
+    const HEAP_SEGMENT_COMMIT_OFFSET: u64 = 0xd0;
+    const HEAP_DECOMMIT_TOTAL_FREE_THRESHOLD_OFFSET: u64 = 0xd8;
+    const HEAP_DECOMMIT_FREE_BLOCK_THRESHOLD_OFFSET: u64 = 0xe0;
+    const NUMBER_OF_HEAPS_OFFSET: u64 = 0xe8;
+    const MAX_NUMBER_OF_HEAPS_OFFSET: u64 = 0xec;
+    const PROCESS_HEAPS_OFFSET: u64 = 0xf0;
+    const GDI_SHARED_HANDLE_TABLE_OFFSET: u64 = 0xf8;
+    const PROCESS_STARTER_HELPER_OFFSET: u64 = 0x100;
+    const GDI_DC_ATTRIBUTE_LIST_OFFSET: u64 = 0x108;
+    const LOADER_LOCK_OFFSET: u64 = 0x110;
+    const OS_MAJOR_VERSION_OFFSET: u64 = 0x118;
+    const OS_MINOR_VERSION_OFFSET: u64 = 0x11c;
+    const OS_BUILD_NUMBER_OFFSET: u64 = 0x120;
+    const OS_CSD_VERSION_OFFSET: u64 = 0x122;
+    const OS_PLATFORM_ID_OFFSET: u64 = 0x124;
+    const IMAGE_SUBSYSTEM_OFFSET: u64 = 0x128;
+    const IMAGE_SUBSYSTEM_MAJOR_VERSION_OFFSET: u64 = 0x12c;
+    const IMAGE_SUBSYSTEM_MINOR_VERSION_OFFSET: u64 = 0x130;
+    const ACTIVE_PROCESS_AFFINITY_MASK_OFFSET: u64 = 0x138;
+    const GDI_HANDLE_BUFFER_OFFSET: u64 = 0x140;
+    const POST_PROCESS_INIT_ROUTINE_OFFSET: u64 = 0x230;
+    const TLS_EXPANSION_BITMAP_OFFSET: u64 = 0x238;
+    const TLS_EXPANSION_BITMAP_BITS_OFFSET: u64 = 0x240;
+    const SESSION_ID_OFFSET: u64 = 0x2c0;
+    const APP_COMPAT_FLAGS_OFFSET: u64 = 0x2c8;
+    const APP_COMPAT_FLAGS_USER_OFFSET: u64 = 0x2d0;
+    const P_SHIM_DATA_OFFSET: u64 = 0x2d8;
+    const APP_COMPAT_INFO_OFFSET: u64 = 0x2e0;
+    const CSD_VERSION_OFFSET: u64 = 0x2e8;
+    const ACTIVATE_CONTEXT_DATA_OFFSET: u64 = 0x2f8;
+    const PROCESS_ASSEMBLY_STORAGE_MAP_OFFSET: u64 = 0x300;
+    const SYSTEM_DEFAULT_ACTIVATION_CONTEXT_DATA_OFFSET: u64 = 0x308;
+    const SYSTEM_ASSEMBLY_STORAGE_MAP_OFFSET: u64 = 0x310;
+    const MINIMUM_STACK_COMMIT_OFFSET: u64 = 0x318;
+
     pub fn size() -> usize {
         0x1000 // Windows 10 x64 PEB extends to ~0x7B8; use a full page
     }
 
-    pub fn new(image_base_addr: u64, ldr: u64, process_parameters: u64) -> PEB64 {
-        PEB64 {
-            inheritet_addr_space: 0x0,
-            read_img_file_exec_options: 0x0,
-            being_debugged: 0x0,
-            system_dependent_01: 0x0,
-            dummy_align: 0x0,
-            mutant: 0xffffffffffffffff,
+    pub fn new(image_base_addr: u64, ldr: u64, process_parameters: u64) -> Self {
+        Self {
+            inherited_address_space: 0,
+            read_image_file_exec_options: 0,
+            being_debugged: 0,
+            system_dependent_01: 0,
+            padding: 0,
+            mutant: u64::MAX,
             image_base_addr,
             ldr,
             process_parameters,
-            subsystem_data: 0x0,
+            subsystem_data: 0,
             process_heap: 0x520000,
             fast_peb_lock: 0x7710a900,
-            system_dependent_02: 0x0,
-            system_dependent_03: 0x0,
+            system_dependent_02: 0,
+            system_dependent_03: 0,
             system_dependent_04: 0x2,
             kernel_callback_table: 0x76f59500,
-            system_reserved: 0x0,
-            system_dependent_05: 0x0,
+            system_reserved: 0,
+            system_dependent_05: 0,
             system_dependent_06: 0x7feff2f0000,
-            tls_expansion_counter: 0x0,
+            tls_expansion_counter: 0,
             tls_bitmap: 0x77102590,
-            tls_bitmap_bits: [0x1fff, 0x0],
+            tls_bitmap_bits: [0x1fff, 0],
             read_only_shared_memory_base: 0x7efe0000,
-            system_dependent_07: 0x0,
+            system_dependent_07: 0,
             read_only_static_server_data: 0x7efe0a90,
             ansi_code_page_data: 0x7fffffb0000,
             oem_code_page_data: 0x7fffffc0228,
             unicode_case_table_data: 0x7fffffd0650,
             number_of_processors: 0x1,
-            nt_global_flag: 0x0,
+            nt_global_flag: 0,
             critical_section_timeout: 0xffffe86d079b8000,
             heap_segment_reserve: 0x100000,
             heap_segment_commit: 0x2000,
@@ -119,198 +185,435 @@ impl PEB64 {
             number_of_heaps: 0x4,
             max_number_of_heaps: 0x10,
             process_heaps: 0x7710a6c0,
-            gdi_share_handle_table: 0x920000,
-            process_starter_helper: 0x0,
+            gdi_shared_handle_table: 0x920000,
+            process_starter_helper: 0,
             gdi_dc_attribute_list: 0x14,
             loader_lock: 0x77107490,
             os_major_version: 0x6,
             os_minor_version: 0x1,
             os_build_number: 0x1db1,
-            oscsd_version: 0x100,
+            os_csd_version: 0x100,
             os_platform_id: 0x2,
             image_subsystem: 0x3,
             image_subsystem_major_version: 0x5,
             image_subsystem_minor_version: 0x2,
-            active_process_afinity_mask: 0x1,
-            gdi_handle_buffer: [
-                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            ],
-            post_process_init_routine: 0x0,
+            active_process_affinity_mask: 0x1,
+            gdi_handle_buffer: [0; 60],
+            post_process_init_routine: 0,
             tls_expansion_bitmap: 0x77102580,
-            tls_expansion_bitmap_bits: [
-                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            ],
+            tls_expansion_bitmap_bits: [0; 32],
             session_id: 0x1,
-            app_compat_flags: 0x0,
-            app_compat_flags_user: 0x0,
-            p_shim_data: 0x0,
-            app_compat_info: 0x0,
+            app_compat_flags: 0,
+            app_compat_flags_user: 0,
+            p_shim_data: 0,
+            app_compat_info: 0,
             csd_version: [0x1e001c, 0x7efe0afa],
-            activate_context_data: 0x0,
-            process_assembly_storage_map: 0x0,
+            activate_context_data: 0,
+            process_assembly_storage_map: 0,
             system_default_activation_context_data: 0x230000,
-            system_assembly_storage_map: 0x0,
-            minimum_stack_commit: 0x0,
+            system_assembly_storage_map: 0,
+            minimum_stack_commit: 0,
         }
     }
 
-    pub fn load(addr: u64, maps: &Maps) -> PEB64 {
-        PEB64 {
-            inheritet_addr_space: maps.read_byte(addr).unwrap_or(0),
-            read_img_file_exec_options: maps.read_byte(addr + 0x1).unwrap_or(0),
-            being_debugged: maps.read_byte(addr + 0x2).unwrap_or(0),
-            system_dependent_01: maps.read_byte(addr + 0x3).unwrap_or(0),
-            dummy_align: 0,
-            mutant: maps.read_qword(addr + 0x8).unwrap_or(0),
-            image_base_addr: maps.read_qword(addr + 0x10).unwrap_or(0),
-            ldr: maps.read_qword(addr + 0x18).unwrap_or(0),
-            process_parameters: maps.read_qword(addr + 0x20).unwrap_or(0),
-            subsystem_data: maps.read_qword(addr + 0x28).unwrap_or(0),
-            process_heap: maps.read_qword(addr + 0x30).unwrap_or(0),
-            fast_peb_lock: maps.read_qword(addr + 0x38).unwrap_or(0),
-            system_dependent_02: maps.read_qword(addr + 0x40).unwrap_or(0),
-            system_dependent_03: maps.read_qword(addr + 0x48).unwrap_or(0),
-            system_dependent_04: maps.read_qword(addr + 0x50).unwrap_or(0),
-            kernel_callback_table: maps.read_qword(addr + 0x58).unwrap_or(0),
-            system_reserved: maps.read_dword(addr + 0x60).unwrap_or(0),
-            system_dependent_05: maps.read_dword(addr + 0x64).unwrap_or(0),
-            system_dependent_06: maps.read_qword(addr + 0x68).unwrap_or(0),
-            tls_expansion_counter: maps.read_qword(addr + 0x70).unwrap_or(0),
-            tls_bitmap: maps.read_qword(addr + 0x78).unwrap_or(0),
-            tls_bitmap_bits: [
-                maps.read_dword(addr + 0x80).unwrap_or(0),
-                maps.read_dword(addr + 0x84).unwrap_or(0),
-            ],
-            read_only_shared_memory_base: maps.read_qword(addr + 0x88).unwrap_or(0),
-            system_dependent_07: maps.read_qword(addr + 0x90).unwrap_or(0),
-            read_only_static_server_data: maps.read_qword(addr + 0x98).unwrap_or(0),
-            ansi_code_page_data: maps.read_qword(addr + 0xa0).unwrap_or(0),
-            oem_code_page_data: maps.read_qword(addr + 0xa8).unwrap_or(0),
-            unicode_case_table_data: maps.read_qword(addr + 0xb0).unwrap_or(0),
-            number_of_processors: maps.read_dword(addr + 0xb8).unwrap_or(0),
-            nt_global_flag: maps.read_dword(addr + 0xbc).unwrap_or(0),
-            critical_section_timeout: maps.read_qword(addr + 0xc0).unwrap_or(0),
-            heap_segment_reserve: maps.read_qword(addr + 0xc8).unwrap_or(0),
-            heap_segment_commit: maps.read_qword(addr + 0xd0).unwrap_or(0),
-            heap_decommit_total_free_threshold: maps.read_qword(addr + 0xd8).unwrap_or(0),
-            heap_decommit_free_block_threshold: maps.read_qword(addr + 0xd8).unwrap_or(0),
-            number_of_heaps: maps.read_dword(addr + 0xe8).unwrap_or(0),
-            max_number_of_heaps: maps.read_dword(addr + 0xec).unwrap_or(0),
-            process_heaps: maps.read_qword(addr + 0xf0).unwrap_or(0),
-            gdi_share_handle_table: maps.read_qword(addr + 0xf8).unwrap_or(0),
-            process_starter_helper: maps.read_qword(addr + 0x100).unwrap_or(0),
-            gdi_dc_attribute_list: maps.read_qword(addr + 0x108).unwrap_or(0),
-            loader_lock: maps.read_qword(addr + 0x110).unwrap_or(0),
-            os_major_version: maps.read_dword(addr + 0x118).unwrap_or(0),
-            os_minor_version: maps.read_dword(addr + 0x11c).unwrap_or(0),
-            os_build_number: maps.read_word(addr + 0x120).unwrap_or(0),
-            oscsd_version: maps.read_word(addr + 0x122).unwrap_or(0),
-            os_platform_id: maps.read_dword(addr + 0x124).unwrap_or(0),
-            image_subsystem: maps.read_dword(addr + 0x128).unwrap_or(0),
-            image_subsystem_major_version: maps.read_dword(addr + 0x12c).unwrap_or(0),
-            image_subsystem_minor_version: maps.read_qword(addr + 0x130).unwrap_or(0),
-            active_process_afinity_mask: maps.read_qword(addr + 0x138).unwrap_or(0),
-            gdi_handle_buffer: [0; 30],
-            post_process_init_routine: maps.read_qword(addr + 0x230).unwrap_or(0),
-            tls_expansion_bitmap: maps.read_qword(addr + 0x238).unwrap_or(0),
-            tls_expansion_bitmap_bits: [0; 32],
-            session_id: maps.read_qword(addr + 0x2c0).unwrap_or(0),
-            app_compat_flags: maps.read_qword(addr + 0x2c8).unwrap_or(0),
-            app_compat_flags_user: maps.read_qword(addr + 0x2d0).unwrap_or(0),
-            p_shim_data: maps.read_qword(addr + 0x2d8).unwrap_or(0),
-            app_compat_info: maps.read_qword(addr + 0x2e0).unwrap_or(0),
-            csd_version: [
-                maps.read_qword(addr + 0x2e8).unwrap_or(0),
-                maps.read_qword(addr + 0x2f0).unwrap_or(0),
-            ],
-            activate_context_data: maps.read_qword(addr + 0x2f8).unwrap_or(0),
-            process_assembly_storage_map: maps.read_qword(addr + 0x300).unwrap_or(0),
-            system_default_activation_context_data: maps.read_qword(addr + 0x308).unwrap_or(0),
-            system_assembly_storage_map: maps.read_qword(addr + 0x310).unwrap_or(0),
-            minimum_stack_commit: maps.read_qword(addr + 0x318).unwrap_or(0),
+    pub fn load(addr: u64, maps: &Maps) -> Self {
+        Self {
+            inherited_address_space: maps.read_byte(addr).unwrap_or(0),
+            read_image_file_exec_options: maps
+                .read_byte(addr + Self::READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET)
+                .unwrap_or(0),
+            being_debugged: maps
+                .read_byte(addr + PEB_BEING_DEBUGGED_OFFSET)
+                .unwrap_or(0),
+            system_dependent_01: maps
+                .read_byte(addr + Self::SYSTEM_DEPENDENT_01_OFFSET)
+                .unwrap_or(0),
+            padding: maps.read_dword(addr + Self::PADDING_OFFSET).unwrap_or(0),
+            mutant: maps.read_qword(addr + Self::MUTANT_OFFSET).unwrap_or(0),
+            image_base_addr: maps
+                .read_qword(addr + Self::IMAGE_BASE_ADDR_OFFSET)
+                .unwrap_or(0),
+            ldr: maps.read_qword(addr + Self::LDR_OFFSET).unwrap_or(0),
+            process_parameters: maps
+                .read_qword(addr + Self::PROCESS_PARAMETERS_OFFSET)
+                .unwrap_or(0),
+            subsystem_data: maps
+                .read_qword(addr + Self::SUBSYSTEM_DATA_OFFSET)
+                .unwrap_or(0),
+            process_heap: maps
+                .read_qword(addr + Self::PROCESS_HEAP_OFFSET)
+                .unwrap_or(0),
+            fast_peb_lock: maps
+                .read_qword(addr + Self::FAST_PEB_LOCK_OFFSET)
+                .unwrap_or(0),
+            system_dependent_02: maps
+                .read_qword(addr + Self::SYSTEM_DEPENDENT_02_OFFSET)
+                .unwrap_or(0),
+            system_dependent_03: maps
+                .read_qword(addr + Self::SYSTEM_DEPENDENT_03_OFFSET)
+                .unwrap_or(0),
+            system_dependent_04: maps
+                .read_qword(addr + Self::SYSTEM_DEPENDENT_04_OFFSET)
+                .unwrap_or(0),
+            kernel_callback_table: maps
+                .read_qword(addr + Self::KERNEL_CALLBACK_TABLE_OFFSET)
+                .unwrap_or(0),
+            system_reserved: maps
+                .read_dword(addr + Self::SYSTEM_RESERVED_OFFSET)
+                .unwrap_or(0),
+            system_dependent_05: maps
+                .read_dword(addr + Self::SYSTEM_DEPENDENT_05_OFFSET)
+                .unwrap_or(0),
+            system_dependent_06: maps
+                .read_qword(addr + Self::SYSTEM_DEPENDENT_06_OFFSET)
+                .unwrap_or(0),
+            tls_expansion_counter: maps
+                .read_dword(addr + Self::TLS_EXPANSION_COUNTER_OFFSET)
+                .unwrap_or(0),
+            tls_bitmap: maps.read_qword(addr + Self::TLS_BITMAP_OFFSET).unwrap_or(0),
+            tls_bitmap_bits: array::from_fn(|i| {
+                maps.read_dword(addr + Self::TLS_BITMAP_BITS_OFFSET + (i * size_of::<u32>()) as u64)
+                    .unwrap_or(0)
+            }),
+            read_only_shared_memory_base: maps
+                .read_qword(addr + Self::READ_ONLY_SHARED_MEMORY_BASE_OFFSET)
+                .unwrap_or(0),
+            system_dependent_07: maps
+                .read_qword(addr + Self::SYSTEM_DEPENDENT_07_OFFSET)
+                .unwrap_or(0),
+            read_only_static_server_data: maps
+                .read_qword(addr + Self::READ_ONLY_STATIC_SERVER_DATA_OFFSET)
+                .unwrap_or(0),
+            ansi_code_page_data: maps
+                .read_qword(addr + Self::ANSI_CODE_PAGE_DATA_OFFSET)
+                .unwrap_or(0),
+            oem_code_page_data: maps
+                .read_qword(addr + Self::OEM_CODE_PAGE_DATA_OFFSET)
+                .unwrap_or(0),
+            unicode_case_table_data: maps
+                .read_qword(addr + Self::UNICODE_CASE_TABLE_DATA_OFFSET)
+                .unwrap_or(0),
+            number_of_processors: maps
+                .read_dword(addr + Self::NUMBER_OF_PROCESSORS_OFFSET)
+                .unwrap_or(0),
+            nt_global_flag: maps
+                .read_dword(addr + Self::NT_GLOBAL_FLAG_OFFSET)
+                .unwrap_or(0),
+            critical_section_timeout: maps
+                .read_qword(addr + Self::CRITICAL_SECTION_TIMEOUT_OFFSET)
+                .unwrap_or(0),
+            heap_segment_reserve: maps
+                .read_qword(addr + Self::HEAP_SEGMENT_RESERVE_OFFSET)
+                .unwrap_or(0),
+            heap_segment_commit: maps
+                .read_qword(addr + Self::HEAP_SEGMENT_COMMIT_OFFSET)
+                .unwrap_or(0),
+            heap_decommit_total_free_threshold: maps
+                .read_qword(addr + Self::HEAP_DECOMMIT_TOTAL_FREE_THRESHOLD_OFFSET)
+                .unwrap_or(0),
+            heap_decommit_free_block_threshold: maps
+                .read_qword(addr + Self::HEAP_DECOMMIT_FREE_BLOCK_THRESHOLD_OFFSET)
+                .unwrap_or(0),
+            number_of_heaps: maps
+                .read_dword(addr + Self::NUMBER_OF_HEAPS_OFFSET)
+                .unwrap_or(0),
+            max_number_of_heaps: maps
+                .read_dword(addr + Self::MAX_NUMBER_OF_HEAPS_OFFSET)
+                .unwrap_or(0),
+            process_heaps: maps
+                .read_qword(addr + Self::PROCESS_HEAPS_OFFSET)
+                .unwrap_or(0),
+            gdi_shared_handle_table: maps
+                .read_qword(addr + Self::GDI_SHARED_HANDLE_TABLE_OFFSET)
+                .unwrap_or(0),
+            process_starter_helper: maps
+                .read_qword(addr + Self::PROCESS_STARTER_HELPER_OFFSET)
+                .unwrap_or(0),
+            gdi_dc_attribute_list: maps
+                .read_dword(addr + Self::GDI_DC_ATTRIBUTE_LIST_OFFSET)
+                .unwrap_or(0),
+            loader_lock: maps
+                .read_qword(addr + Self::LOADER_LOCK_OFFSET)
+                .unwrap_or(0),
+            os_major_version: maps
+                .read_dword(addr + Self::OS_MAJOR_VERSION_OFFSET)
+                .unwrap_or(0),
+            os_minor_version: maps
+                .read_dword(addr + Self::OS_MINOR_VERSION_OFFSET)
+                .unwrap_or(0),
+            os_build_number: maps
+                .read_word(addr + Self::OS_BUILD_NUMBER_OFFSET)
+                .unwrap_or(0),
+            os_csd_version: maps
+                .read_word(addr + Self::OS_CSD_VERSION_OFFSET)
+                .unwrap_or(0),
+            os_platform_id: maps
+                .read_dword(addr + Self::OS_PLATFORM_ID_OFFSET)
+                .unwrap_or(0),
+            image_subsystem: maps
+                .read_dword(addr + Self::IMAGE_SUBSYSTEM_OFFSET)
+                .unwrap_or(0),
+            image_subsystem_major_version: maps
+                .read_dword(addr + Self::IMAGE_SUBSYSTEM_MAJOR_VERSION_OFFSET)
+                .unwrap_or(0),
+            image_subsystem_minor_version: maps
+                .read_dword(addr + Self::IMAGE_SUBSYSTEM_MINOR_VERSION_OFFSET)
+                .unwrap_or(0),
+            active_process_affinity_mask: maps
+                .read_qword(addr + Self::ACTIVE_PROCESS_AFFINITY_MASK_OFFSET)
+                .unwrap_or(0),
+            gdi_handle_buffer: array::from_fn(|i| {
+                maps.read_dword(
+                    addr + Self::GDI_HANDLE_BUFFER_OFFSET + (i * size_of::<u32>()) as u64,
+                )
+                .unwrap_or(0)
+            }),
+            post_process_init_routine: maps
+                .read_qword(addr + Self::POST_PROCESS_INIT_ROUTINE_OFFSET)
+                .unwrap_or(0),
+            tls_expansion_bitmap: maps
+                .read_qword(addr + Self::TLS_EXPANSION_BITMAP_OFFSET)
+                .unwrap_or(0),
+            tls_expansion_bitmap_bits: array::from_fn(|i| {
+                maps.read_dword(
+                    addr + Self::TLS_EXPANSION_BITMAP_BITS_OFFSET + (i * size_of::<u32>()) as u64,
+                )
+                .unwrap_or(0)
+            }),
+            session_id: maps.read_dword(addr + Self::SESSION_ID_OFFSET).unwrap_or(0),
+            app_compat_flags: maps
+                .read_qword(addr + Self::APP_COMPAT_FLAGS_OFFSET)
+                .unwrap_or(0),
+            app_compat_flags_user: maps
+                .read_qword(addr + Self::APP_COMPAT_FLAGS_USER_OFFSET)
+                .unwrap_or(0),
+            p_shim_data: maps
+                .read_qword(addr + Self::P_SHIM_DATA_OFFSET)
+                .unwrap_or(0),
+            app_compat_info: maps
+                .read_qword(addr + Self::APP_COMPAT_INFO_OFFSET)
+                .unwrap_or(0),
+            csd_version: array::from_fn(|i| {
+                maps.read_qword(addr + Self::CSD_VERSION_OFFSET + (i * size_of::<u64>()) as u64)
+                    .unwrap_or(0)
+            }),
+            activate_context_data: maps
+                .read_qword(addr + Self::ACTIVATE_CONTEXT_DATA_OFFSET)
+                .unwrap_or(0),
+            process_assembly_storage_map: maps
+                .read_qword(addr + Self::PROCESS_ASSEMBLY_STORAGE_MAP_OFFSET)
+                .unwrap_or(0),
+            system_default_activation_context_data: maps
+                .read_qword(addr + Self::SYSTEM_DEFAULT_ACTIVATION_CONTEXT_DATA_OFFSET)
+                .unwrap_or(0),
+            system_assembly_storage_map: maps
+                .read_qword(addr + Self::SYSTEM_ASSEMBLY_STORAGE_MAP_OFFSET)
+                .unwrap_or(0),
+            minimum_stack_commit: maps
+                .read_qword(addr + Self::MINIMUM_STACK_COMMIT_OFFSET)
+                .unwrap_or(0),
         }
     }
 
     pub fn save(&self, mem: &mut Mem64) {
         let base = mem.get_base();
-        mem.write_byte(base, self.inheritet_addr_space);
-        mem.write_byte(base + 1, self.read_img_file_exec_options);
-        mem.write_byte(base + 2, self.being_debugged);
-        mem.write_byte(base + 3, self.system_dependent_01);
-        mem.write_dword(base + 4, self.dummy_align);
-        mem.write_qword(base + 8, self.mutant);
-        mem.write_qword(base + 16, self.image_base_addr);
-        mem.write_qword(base + 24, self.ldr);
-        mem.write_qword(base + 32, self.process_parameters);
-        mem.write_qword(base + 40, self.subsystem_data);
-        mem.write_qword(base + 48, self.process_heap);
-        mem.write_qword(base + 56, self.fast_peb_lock);
-        mem.write_qword(base + 64, self.system_dependent_02);
-        mem.write_qword(base + 72, self.system_dependent_03);
-        mem.write_qword(base + 80, self.system_dependent_04);
-        mem.write_qword(base + 88, self.kernel_callback_table);
-        mem.write_dword(base + 96, self.system_reserved);
-        mem.write_dword(base + 100, self.system_dependent_05);
-        mem.write_qword(base + 104, self.system_dependent_06);
-        mem.write_qword(base + 112, self.tls_expansion_counter);
-        mem.write_qword(base + 120, self.tls_bitmap);
-        mem.write_dword(base + 128, self.tls_bitmap_bits[0]);
-        mem.write_dword(base + 132, self.tls_bitmap_bits[1]);
-        mem.write_qword(base + 136, self.read_only_shared_memory_base);
-        mem.write_qword(base + 144, self.system_dependent_07);
-        mem.write_qword(base + 152, self.read_only_static_server_data);
-        mem.write_qword(base + 160, self.ansi_code_page_data);
-        mem.write_qword(base + 168, self.oem_code_page_data);
-        mem.write_qword(base + 176, self.unicode_case_table_data);
-        mem.write_dword(base + 184, self.number_of_processors);
-        mem.write_dword(base + 188, self.nt_global_flag);
-        mem.write_qword(base + 192, self.critical_section_timeout);
-        mem.write_qword(base + 200, self.heap_segment_reserve);
-        mem.write_qword(base + 208, self.heap_segment_commit);
-        mem.write_qword(base + 216, self.heap_decommit_total_free_threshold);
-        mem.write_qword(base + 224, self.heap_decommit_free_block_threshold);
-        mem.write_dword(base + 232, self.number_of_heaps);
-        mem.write_dword(base + 236, self.max_number_of_heaps);
-        mem.write_qword(base + 240, self.process_heaps);
-        mem.write_qword(base + 248, self.gdi_share_handle_table);
-        mem.write_qword(base + 256, self.process_starter_helper);
-        mem.write_qword(base + 264, self.gdi_dc_attribute_list);
-        mem.write_qword(base + 272, self.loader_lock);
-        mem.write_dword(base + 280, self.os_major_version);
-        mem.write_dword(base + 284, self.os_minor_version);
-        mem.write_word(base + 288, self.os_build_number);
-        mem.write_word(base + 290, self.oscsd_version);
-        mem.write_dword(base + 292, self.os_platform_id);
-        mem.write_dword(base + 296, self.image_subsystem);
-        mem.write_dword(base + 300, self.image_subsystem_major_version);
-        mem.write_qword(base + 304, self.image_subsystem_minor_version);
-        mem.write_qword(base + 312, self.active_process_afinity_mask);
-        let mut idx = base + 312 + 8;
-        for i in 0..30 {
-            mem.write_qword(idx, self.gdi_handle_buffer[i as usize]);
-            idx += 8;
+        mem.write_byte(base, self.inherited_address_space);
+        mem.write_byte(
+            base + Self::READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET,
+            self.read_image_file_exec_options,
+        );
+        mem.write_byte(base + PEB_BEING_DEBUGGED_OFFSET, self.being_debugged);
+        mem.write_byte(
+            base + Self::SYSTEM_DEPENDENT_01_OFFSET,
+            self.system_dependent_01,
+        );
+        mem.write_dword(base + Self::PADDING_OFFSET, self.padding);
+        mem.write_qword(base + Self::MUTANT_OFFSET, self.mutant);
+        mem.write_qword(base + Self::IMAGE_BASE_ADDR_OFFSET, self.image_base_addr);
+        mem.write_qword(base + Self::LDR_OFFSET, self.ldr);
+        mem.write_qword(
+            base + Self::PROCESS_PARAMETERS_OFFSET,
+            self.process_parameters,
+        );
+        mem.write_qword(base + Self::SUBSYSTEM_DATA_OFFSET, self.subsystem_data);
+        mem.write_qword(base + Self::PROCESS_HEAP_OFFSET, self.process_heap);
+        mem.write_qword(base + Self::FAST_PEB_LOCK_OFFSET, self.fast_peb_lock);
+        mem.write_qword(
+            base + Self::SYSTEM_DEPENDENT_02_OFFSET,
+            self.system_dependent_02,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_DEPENDENT_03_OFFSET,
+            self.system_dependent_03,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_DEPENDENT_04_OFFSET,
+            self.system_dependent_04,
+        );
+        mem.write_qword(
+            base + Self::KERNEL_CALLBACK_TABLE_OFFSET,
+            self.kernel_callback_table,
+        );
+        mem.write_dword(base + Self::SYSTEM_RESERVED_OFFSET, self.system_reserved);
+        mem.write_dword(
+            base + Self::SYSTEM_DEPENDENT_05_OFFSET,
+            self.system_dependent_05,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_DEPENDENT_06_OFFSET,
+            self.system_dependent_06,
+        );
+        mem.write_dword(
+            base + Self::TLS_EXPANSION_COUNTER_OFFSET,
+            self.tls_expansion_counter,
+        );
+        mem.write_qword(base + Self::TLS_BITMAP_OFFSET, self.tls_bitmap);
+        for (i, value) in self.tls_bitmap_bits.iter().enumerate() {
+            mem.write_dword(
+                base + Self::TLS_BITMAP_BITS_OFFSET + (i * size_of::<u32>()) as u64,
+                *value,
+            );
         }
-        mem.write_qword(idx, self.post_process_init_routine);
-        mem.write_qword(idx + 8, self.tls_expansion_bitmap);
-        idx += 8;
-        for i in 0..32 {
-            mem.write_dword(idx, self.tls_expansion_bitmap_bits[i]);
-            idx += 4;
+        mem.write_qword(
+            base + Self::READ_ONLY_SHARED_MEMORY_BASE_OFFSET,
+            self.read_only_shared_memory_base,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_DEPENDENT_07_OFFSET,
+            self.system_dependent_07,
+        );
+        mem.write_qword(
+            base + Self::READ_ONLY_STATIC_SERVER_DATA_OFFSET,
+            self.read_only_static_server_data,
+        );
+        mem.write_qword(
+            base + Self::ANSI_CODE_PAGE_DATA_OFFSET,
+            self.ansi_code_page_data,
+        );
+        mem.write_qword(
+            base + Self::OEM_CODE_PAGE_DATA_OFFSET,
+            self.oem_code_page_data,
+        );
+        mem.write_qword(
+            base + Self::UNICODE_CASE_TABLE_DATA_OFFSET,
+            self.unicode_case_table_data,
+        );
+        mem.write_dword(
+            base + Self::NUMBER_OF_PROCESSORS_OFFSET,
+            self.number_of_processors,
+        );
+        mem.write_dword(base + Self::NT_GLOBAL_FLAG_OFFSET, self.nt_global_flag);
+        mem.write_qword(
+            base + Self::CRITICAL_SECTION_TIMEOUT_OFFSET,
+            self.critical_section_timeout,
+        );
+        mem.write_qword(
+            base + Self::HEAP_SEGMENT_RESERVE_OFFSET,
+            self.heap_segment_reserve,
+        );
+        mem.write_qword(
+            base + Self::HEAP_SEGMENT_COMMIT_OFFSET,
+            self.heap_segment_commit,
+        );
+        mem.write_qword(
+            base + Self::HEAP_DECOMMIT_TOTAL_FREE_THRESHOLD_OFFSET,
+            self.heap_decommit_total_free_threshold,
+        );
+        mem.write_qword(
+            base + Self::HEAP_DECOMMIT_FREE_BLOCK_THRESHOLD_OFFSET,
+            self.heap_decommit_free_block_threshold,
+        );
+        mem.write_dword(base + Self::NUMBER_OF_HEAPS_OFFSET, self.number_of_heaps);
+        mem.write_dword(
+            base + Self::MAX_NUMBER_OF_HEAPS_OFFSET,
+            self.max_number_of_heaps,
+        );
+        mem.write_qword(base + Self::PROCESS_HEAPS_OFFSET, self.process_heaps);
+        mem.write_qword(
+            base + Self::GDI_SHARED_HANDLE_TABLE_OFFSET,
+            self.gdi_shared_handle_table,
+        );
+        mem.write_qword(
+            base + Self::PROCESS_STARTER_HELPER_OFFSET,
+            self.process_starter_helper,
+        );
+        mem.write_dword(
+            base + Self::GDI_DC_ATTRIBUTE_LIST_OFFSET,
+            self.gdi_dc_attribute_list,
+        );
+        mem.write_qword(base + Self::LOADER_LOCK_OFFSET, self.loader_lock);
+        mem.write_dword(base + Self::OS_MAJOR_VERSION_OFFSET, self.os_major_version);
+        mem.write_dword(base + Self::OS_MINOR_VERSION_OFFSET, self.os_minor_version);
+        mem.write_word(base + Self::OS_BUILD_NUMBER_OFFSET, self.os_build_number);
+        mem.write_word(base + Self::OS_CSD_VERSION_OFFSET, self.os_csd_version);
+        mem.write_dword(base + Self::OS_PLATFORM_ID_OFFSET, self.os_platform_id);
+        mem.write_dword(base + Self::IMAGE_SUBSYSTEM_OFFSET, self.image_subsystem);
+        mem.write_dword(
+            base + Self::IMAGE_SUBSYSTEM_MAJOR_VERSION_OFFSET,
+            self.image_subsystem_major_version,
+        );
+        mem.write_dword(
+            base + Self::IMAGE_SUBSYSTEM_MINOR_VERSION_OFFSET,
+            self.image_subsystem_minor_version,
+        );
+        mem.write_qword(
+            base + Self::ACTIVE_PROCESS_AFFINITY_MASK_OFFSET,
+            self.active_process_affinity_mask,
+        );
+        for (i, value) in self.gdi_handle_buffer.iter().enumerate() {
+            mem.write_dword(
+                base + Self::GDI_HANDLE_BUFFER_OFFSET + (i * size_of::<u32>()) as u64,
+                *value,
+            );
         }
-        mem.write_qword(idx, self.session_id);
-        mem.write_qword(idx + 8, self.app_compat_flags);
-        mem.write_qword(idx + 16, self.app_compat_flags_user);
-        mem.write_qword(idx + 24, self.p_shim_data);
-        mem.write_qword(idx + 32, self.app_compat_info);
-        mem.write_qword(idx + 40, self.csd_version[0]);
-        mem.write_qword(idx + 48, self.csd_version[1]);
-        mem.write_qword(idx + 56, self.activate_context_data);
-        mem.write_qword(idx + 64, self.process_assembly_storage_map);
-        mem.write_qword(idx + 72, self.system_default_activation_context_data);
-        mem.write_qword(idx + 80, self.system_assembly_storage_map);
-        mem.write_qword(idx + 88, self.minimum_stack_commit);
+        mem.write_qword(
+            base + Self::POST_PROCESS_INIT_ROUTINE_OFFSET,
+            self.post_process_init_routine,
+        );
+        mem.write_qword(
+            base + Self::TLS_EXPANSION_BITMAP_OFFSET,
+            self.tls_expansion_bitmap,
+        );
+        for (i, value) in self.tls_expansion_bitmap_bits.iter().enumerate() {
+            mem.write_dword(
+                base + Self::TLS_EXPANSION_BITMAP_BITS_OFFSET + (i * size_of::<u32>()) as u64,
+                *value,
+            );
+        }
+        mem.write_dword(base + Self::SESSION_ID_OFFSET, self.session_id);
+        mem.write_qword(base + Self::APP_COMPAT_FLAGS_OFFSET, self.app_compat_flags);
+        mem.write_qword(
+            base + Self::APP_COMPAT_FLAGS_USER_OFFSET,
+            self.app_compat_flags_user,
+        );
+        mem.write_qword(base + Self::P_SHIM_DATA_OFFSET, self.p_shim_data);
+        mem.write_qword(base + Self::APP_COMPAT_INFO_OFFSET, self.app_compat_info);
+        for (i, value) in self.csd_version.iter().enumerate() {
+            mem.write_qword(
+                base + Self::CSD_VERSION_OFFSET + (i * size_of::<u64>()) as u64,
+                *value,
+            );
+        }
+        mem.write_qword(
+            base + Self::ACTIVATE_CONTEXT_DATA_OFFSET,
+            self.activate_context_data,
+        );
+        mem.write_qword(
+            base + Self::PROCESS_ASSEMBLY_STORAGE_MAP_OFFSET,
+            self.process_assembly_storage_map,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_DEFAULT_ACTIVATION_CONTEXT_DATA_OFFSET,
+            self.system_default_activation_context_data,
+        );
+        mem.write_qword(
+            base + Self::SYSTEM_ASSEMBLY_STORAGE_MAP_OFFSET,
+            self.system_assembly_storage_map,
+        );
+        mem.write_qword(
+            base + Self::MINIMUM_STACK_COMMIT_OFFSET,
+            self.minimum_stack_commit,
+        );
     }
 
     pub fn print(&self) {
