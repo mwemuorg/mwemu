@@ -63,8 +63,8 @@ impl Context64 {
     const R13_OFFSET: u64 = 224;
     const R14_OFFSET: u64 = 232;
     const R15_OFFSET: u64 = 240;
-    const RSP_OFFSET: u64 = 152;
-    const RIP_OFFSET: u64 = 248;
+    pub const RSP_OFFSET: u64 = 152;
+    pub const RIP_OFFSET: u64 = 248;
     const DR0_OFFSET: u64 = 72;
     const DR1_OFFSET: u64 = 80;
     const DR2_OFFSET: u64 = 88;

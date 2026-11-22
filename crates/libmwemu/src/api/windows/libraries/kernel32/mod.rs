@@ -246,7 +246,9 @@ pub(crate) fn dispatch_shared(api: &str, library: &str, emu: &mut Emu) -> bool {
         "RtlLookupFunctionEntry" if !emu.cfg.arch.is_64bits() => {
             policy::unsupported(emu, library, api, emu.pc())
         }
-        "RtlVirtualUnwind" => policy::unsupported(emu, library, api, emu.pc()),
+        "RtlVirtualUnwind" if !emu.cfg.arch.is_64bits() => {
+            policy::unsupported(emu, library, api, emu.pc())
+        }
         "TraceMessage" | "__wgetmainargs" | "_amsg_exit" | "_c_exit" | "_cexit"
         | "_invalid_parameter" | "_onexit" | "_purecall" | "_time64" | "atexit" | "time"
         | "wprintf"
