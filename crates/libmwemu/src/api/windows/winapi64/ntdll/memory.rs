@@ -29,7 +29,6 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlInstallFunctionTableCallback" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         "RtlCaptureContext" => threads::capture_context(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
-        "RtlVirtualUnwind" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         "NtFreeVirtualMemory" => NtFreeVirtualMemory(emu),
         "NtCreateSection" => NtCreateSection(emu),
         "NtMapViewOfSection" => NtMapViewOfSection(emu),

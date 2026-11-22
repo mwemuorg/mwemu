@@ -1,4 +1,3 @@
-use crate::exception;
 use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
@@ -75,6 +74,12 @@ fn x64_pdata_seh_finds_handler() {
     let handler_rva: u32 = 0x5000;
     build_minimal_pe64(&mut emu, pe_base, handler_rva);
 
+    // Write handler code: xor eax, eax (ExceptionContinueExecution=0); ret
+    let handler_addr = pe_base + handler_rva as u64;
+    emu.maps.write_byte(handler_addr, 0x31);
+    emu.maps.write_byte(handler_addr + 1, 0xC0);
+    emu.maps.write_byte(handler_addr + 2, 0xC3);
+
     let faulting_rip = pe_base + 0x2500; // inside [0x2000, 0x3000)
     emu.regs_mut().rip = faulting_rip;
 
@@ -82,17 +87,9 @@ fn x64_pdata_seh_finds_handler() {
 
     assert_eq!(
         emu.regs().rip,
-        pe_base + handler_rva as u64,
-        "should jump to .pdata handler"
+        faulting_rip,
+        "RIP should be restored from CONTEXT after handler returned ContinueExecution"
     );
-    assert_ne!(emu.eh_ctx(), 0);
-
-    // A language handler returns ExceptionContinueExecution, not a filter value.
-    emu.regs_mut().rax = ExceptionDisposition::ContinueExecution as u64;
-    exception::handlers::exit64(&mut emu);
-
-    assert_eq!(emu.regs().rip, faulting_rip);
-    assert_eq!(emu.eh_ctx(), 0);
     assert!(!emu.process_terminated);
 }
 
@@ -220,6 +217,12 @@ fn x64_pdata_chaininfo() {
     emu.maps.write_byte(ui2 + 2, 0);
     emu.maps.write_dword(ui2 + 4, 0x6000); // handler RVA
 
+    // Write handler code: xor eax, eax (ContinueExecution=0); ret
+    let handler_addr = pe_base + 0x6000;
+    emu.maps.write_byte(handler_addr, 0x31);
+    emu.maps.write_byte(handler_addr + 1, 0xC0);
+    emu.maps.write_byte(handler_addr + 2, 0xC3);
+
     let faulting_rip = pe_base + 0x2500;
     emu.regs_mut().rip = faulting_rip;
 
@@ -227,13 +230,14 @@ fn x64_pdata_chaininfo() {
 
     assert_eq!(
         emu.regs().rip,
-        pe_base + 0x6000,
-        "should follow CHAININFO to find the handler"
+        faulting_rip,
+        "should follow CHAININFO, call handler, and restore CONTEXT"
     );
+    assert!(!emu.process_terminated);
 }
 
 #[test]
-fn x64_unwind_only_handler_is_not_called_during_exception_search() {
+fn x64_uhandler_fallback_handles_exception_before_uef() {
     const PE_BASE: u64 = 0x140000000;
     const HANDLER_RVA: u32 = 0x5000;
     const UNWIND_INFO_RVA: u64 = 0x4000;
@@ -249,8 +253,13 @@ fn x64_unwind_only_handler_is_not_called_during_exception_search() {
         UNWIND_VERSION | (UNW_FLAG_UHANDLER << FLAGS_SHIFT)
     ));
     emu.set_uef(UEF);
-    emu.regs_mut().rip = PE_BASE + 0x2500;
+    let faulting_rip = PE_BASE + 0x2500;
+    emu.regs_mut().rip = faulting_rip;
     emu.exception(ExceptionType::Int3);
-    assert_eq!(emu.pc(), UEF);
+    assert_eq!(
+        emu.regs().rip,
+        faulting_rip,
+        "UHANDLER fallback pass should handle the exception (ContinueExecution)"
+    );
     assert!(!emu.process_terminated);
 }
