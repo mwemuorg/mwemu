@@ -21,6 +21,7 @@ pub enum ExceptionType {
     IllegalInstruction,        // #UD — unimplemented or invalid opcode
     SingleStep,
     PrivilegedInstruction,
+    InvalidHandle,
 }
 
 impl PartialEq for ExceptionType {
@@ -48,6 +49,7 @@ impl std::fmt::Display for ExceptionType {
             ExceptionType::SettingXmmOperand => write!(f, "exception setting xmm operand"),
             ExceptionType::ReadingXmmOperand => write!(f, "exception reading xmm operand"),
             ExceptionType::HeapNoMemory => write!(f, "heap out of memory"),
+            ExceptionType::InvalidHandle => write!(f, "invalid handle"),
             ExceptionType::SingleStep => write!(f, "single step (#DB)"),
             ExceptionType::PrivilegedInstruction => write!(f, "privileged instruction"),
             ExceptionType::IllegalInstruction => write!(f, "illegal instruction (#UD)"),
@@ -71,6 +73,7 @@ pub fn exception_type_code(ex_type: ExceptionType) -> u32 {
         ExceptionType::SettingXmmOperand => STATUS_SETTING_XMM_OPERAND,
         ExceptionType::ReadingXmmOperand => STATUS_READING_XMM_OPERAND,
         ExceptionType::HeapNoMemory => STATUS_NO_MEMORY as u32,
+        ExceptionType::InvalidHandle => STATUS_INVALID_HANDLE as u32,
         ExceptionType::IllegalInstruction => STATUS_ILLEGAL_INSTRUCTION,
         ExceptionType::SingleStep => STATUS_SINGLE_STEP,
         ExceptionType::PrivilegedInstruction => STATUS_PRIVILEGED_INSTRUCTION,
@@ -93,6 +96,7 @@ pub fn exception_type_from_code(code: u32) -> ExceptionType {
         STATUS_SETTING_XMM_OPERAND => ExceptionType::SettingXmmOperand,
         STATUS_READING_XMM_OPERAND => ExceptionType::ReadingXmmOperand,
         x if x == STATUS_NO_MEMORY as u32 => ExceptionType::HeapNoMemory,
+        x if x == STATUS_INVALID_HANDLE as u32 => ExceptionType::InvalidHandle,
         STATUS_ILLEGAL_INSTRUCTION => ExceptionType::IllegalInstruction,
         STATUS_SINGLE_STEP => ExceptionType::SingleStep,
         STATUS_PRIVILEGED_INSTRUCTION => ExceptionType::PrivilegedInstruction,

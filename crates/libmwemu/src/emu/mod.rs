@@ -11,6 +11,7 @@ use iced_x86::Formatter as _;
 
 use crate::api::macos::libsystem::FtsState;
 use crate::kernel::KernelEnv;
+use crate::syscall::windows::syscall64::wnf::WnfSubscriptions;
 use crate::threading::process::ProcessTable;
 use crate::winapi::common::crypto_state::CryptoStore;
 use crate::winapi::common::fls::FlsCleanup;
@@ -188,6 +189,8 @@ pub struct Emu {
     pub(crate) sockets: SocketState,
     pub(crate) oem_file_names: bool,
     pub(crate) process_error_mode: u32,
+    pub(crate) console_host_process: u64,
+    pub(crate) raise_on_invalid_handle_close: bool,
     pub(crate) process_dep_flags: u32,
     pub(crate) ipc: IpcState,
     pub(crate) priorities: Priorities,
@@ -208,6 +211,8 @@ pub struct Emu {
     pub(crate) keyboard_state: BTreeMap<u64, Vec<u8>>,
     pub(crate) guest_windows: WindowTable,
     pub(crate) user_timers: TimerTable,
+    pub(crate) wnf_subscriptions: WnfSubscriptions,
+    pub(crate) gdi_cookie: u64,
     pub(crate) environment: Option<Environment>,
     pub(crate) crt_environments: [CrtEnvironment; 2],
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
@@ -292,15 +297,13 @@ pub struct Emu {
     pub(crate) file_section_names: HashMap<u64, String>, // file-backed section handle → DLL filename — from NtCreateSection(file_handle)
     pub(crate) file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
     pub(crate) section_view_dll: HashMap<u64, String>, // section_view base → DLL filename; used by NtAreMappedFilesTheSame to compare views from the same file
-    pub(crate) validated_knowndlls: HashSet<String>, // DLLs that passed AreMappedFilesTheSame — NtQueryAttributesFile returns NOT_FOUND for these on subsequent calls
-    pub(crate) fts_handles: HashMap<u64, FtsState>,  // macOS FTS traversal state
+    pub(crate) fts_handles: HashMap<u64, FtsState>,    // macOS FTS traversal state
     pub(crate) getopt_char_index: usize, // position within current argv element for grouped flags (-la)
     pub emulated_stdout: Vec<u8>,        // buffered stdout output from emulated program
     pub(crate) syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.
     pub(crate) syscall_name_by_real: HashMap<u64, String>, // real_nr → "Nt<Name>" as exported by the loaded ntdll. Used in diagnostics so unimplemented-syscall logs name the right function (the static `what_syscall()` table is tied to a single Windows build and would otherwise mislabel cross-build syscalls).
     pub(crate) known_dll_dir_handles: HashSet<u64>, // handles returned by NtOpenDirectoryObject for \KnownDlls / \KnownDlls32; used by NtOpenSection to recognise relative DLL opens
     pub(crate) last_closed_section_dll: Option<String>, // DLL name from the most recently NtClose'd section handle — used to resolve NULL-handle NtMapViewOfSection for clean module views
-    pub(crate) console_handles: HashSet<u64>, // handles backed by the console device (\Device\ConDrv\... and relative opens like \Reference / \Connect / \Input / \Output under a ConDrv root); used to recognise relative console opens and to answer NtDeviceIoControlFile on them
     pub(crate) api_resolve_cache: HashMap<String, u64>, // memoizes resolve_api_name_in_module: "module_lc\x01name" -> resolved VA. The resolver does an O(exports) string-read+lowercase scan per call; the loader resolves the same apiset imports ~100x (the kernelbase dance), so this dominated CPU without the cache. Only successful (non-zero) resolutions are cached.
     pub(crate) api_addr_name_cache: HashMap<u64, String>, // memoizes resolve_api_addr_to_name: VA -> export name. Same O(exports) scan; cached because module addresses are stable for a run.
     /// Persistent, host-side export-name index per mapped PE module. Built

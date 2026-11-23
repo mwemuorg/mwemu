@@ -45,7 +45,7 @@ impl Peb {
     const ATL_THUNK_SLIST_PTR32_OFFSET: u64 = 0x34;
     const POST_PROCESS_INIT_ROUTINE_OFFSET: u64 = 0x14c;
     const RESERVED12_OFFSET: u64 = 0x1d0;
-    const SESSION_ID_OFFSET: u64 = 0x1d4;
+    pub(crate) const SESSION_ID_OFFSET: u64 = 0x1d4;
 
     pub fn size() -> usize {
         800

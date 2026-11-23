@@ -769,15 +769,9 @@ fn apply_policy(cfg: &Config, counts: &Counts, failures: &[Failure]) {
 }
 
 #[test]
-#[ignore]
+#[ignore = "requires an external PE/ELF corpus; see TEST.md"]
 fn bulk_parse_pe_and_elf_corpus() {
-    let cfg = match Config::from_env() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[bulk_parse] skipped: {e}");
-            return;
-        }
-    };
+    let cfg = Config::from_env().expect("configure the external PE/ELF corpus");
 
     let (files, mut counts) = collect_files(&cfg);
     println!(

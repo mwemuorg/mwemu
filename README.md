@@ -193,7 +193,7 @@ cargo run --release -- -f driver.sys
 
 ## Testing
 
-`make tests` runs the Rust suite. `make test_windows` runs long Windows PE tests, including packed programs. See [TEST.md](TEST.md) for prerequisites.
+Run `cargo test --locked` for the offline suite. [TEST.md](TEST.md) covers guest fixtures, host-dependent regressions and benchmarks.
 
 ## Some use cases
 

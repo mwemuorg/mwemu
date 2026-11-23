@@ -54,6 +54,33 @@ fn maps_file_paths_read_relative_absolute_and_canonical_folders() {
     assert_eq!(Config::new().get_maps_folder("probe.dll"), "probe.dll");
 }
 
+#[test]
+fn common_controls_exports_resolve_without_a_dll_file() {
+    let empty = tempfile::tempdir().unwrap();
+    for is_x64 in [false, true] {
+        let mut emu = if is_x64 { emu64() } else { emu32() };
+        emu.cfg.maps_folder = empty.path().to_string_lossy().into_owned();
+        emu.cfg.winver = None;
+        if is_x64 {
+            peb64::init_peb(&mut emu);
+        } else {
+            peb32::init_peb(&mut emu);
+        }
+
+        let base = emu.link_library("comctl32.dll");
+        assert_ne!(base, 0);
+        for name in ["InitCommonControls", "InitCommonControlsEx"] {
+            let address = emu.export_indexes.resolve_name_by_base(base, name);
+            assert_ne!(address, 0, "missing {name} on x64={is_x64}");
+            assert_eq!(
+                emu.export_indexes
+                    .resolve_address_module("comctl32", address),
+                Some(name)
+            );
+        }
+    }
+}
+
 fn dll_image(is_x64: bool) -> Vec<u8> {
     let mut emu = if is_x64 { emu64() } else { emu32() };
     if is_x64 {

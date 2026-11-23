@@ -2277,8 +2277,6 @@ pub mod user32 {
         RegisterClipboardFormatW,
         RegisterDeviceNotificationA,
         RegisterDeviceNotificationW,
-        RegisterWindowMessageA,
-        RegisterWindowMessageW,
         RemovePropA,
         RemovePropW,
         ReplyMessage,

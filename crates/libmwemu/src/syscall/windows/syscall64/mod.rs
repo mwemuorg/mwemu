@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
-use crate::api::windows::common::{handles, wait};
+use crate::api::windows::common::{handles, ntdll, wait};
 use crate::api::windows::policy;
 use crate::emu::Emu;
+use crate::emu::object_handle::NativeObject;
 use crate::emu::winver::{MACHINE_AMD64, ensure_dll};
 use crate::syscall::windows;
 use crate::syscall::windows::syscall64::memory::{
@@ -14,6 +15,7 @@ use crate::syscall::windows::syscall64::sync::next_handle;
 use crate::winapi::registry::native;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
+use crate::windows::constants::process::{OBJ_CASE_INSENSITIVE, OBJ_INHERIT, OBJ_OPENIF};
 use crate::windows::constants::syscalls::*;
 
 mod alpc;
@@ -23,6 +25,8 @@ mod process;
 mod registry;
 mod sync;
 mod system;
+mod win32k;
+pub(crate) mod wnf;
 pub(crate) use system::query_system_information;
 
 /// Resolve a system DLL `basename` (lowercase, e.g. "kernelbase.dll") to a host
@@ -53,7 +57,6 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
 
 /// Translate loaded ntdll service numbers to the static x64 handler identifiers.
 pub fn build_syscall_translation_table(emu: &mut Emu) {
-    // Build the inverse once. Some historical numbers are aliases; the last entry is the canonical one.
     static NUMBERS_BY_NAME: LazyLock<HashMap<String, u64>> = LazyLock::new(|| {
         (0..=WIN64_NTWAITLOWEVENTPAIR)
             .map(|number| (what_syscall(number), number))
@@ -79,6 +82,9 @@ pub fn build_syscall_translation_table(emu: &mut Emu) {
 
 pub fn gateway(emu: &mut Emu) {
     let number = emu.regs().get_eax();
+    if win32k::is_gui_service(number) {
+        return win32k::gateway(emu, number);
+    }
     let name = emu.syscall_name_by_real.get(&number).cloned();
     let canonical = emu.syscall_number_map.get(&number).copied().or_else(|| {
         if let Some(name) = name.as_ref() {
@@ -99,7 +105,7 @@ pub fn gateway(emu: &mut Emu) {
             .map(what_syscall)
             .unwrap_or_else(|| format!("syscall 0x{number:x}"))
     });
-    windows::dispatch(emu, number, &name, |emu| {
+    windows::dispatch(emu, "ntdll", number, &name, |emu| {
         if handles::dispatch_nt(&name, emu, WinSyscall) || wait::dispatch_nt(&name, emu, WinSyscall)
         {
             return;
@@ -114,9 +120,10 @@ pub fn gateway(emu: &mut Emu) {
 
 fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
     match nr {
-        WIN64_NTACCESSCHECK => {
-            policy::unsupported_with_abi(emu, "ntdll", "NtAccessCheck", emu.pc(), WinSyscall)
-        }
+        WIN64_NTMANAGEHOTPATCH => ntdll::manage_hot_patch(emu, WinSyscall),
+        WIN64_NTQUERYLICENSEVALUE => system::query_license_value(emu),
+        // User APC queueing is unsupported. No APC is pending on this thread.
+        WIN64_NTTESTALERT => WinSyscall.set_return(emu, STATUS_SUCCESS),
         WIN64_NTALLOCATEVIRTUALMEMORY => memory::nt_allocate_virtual_memory(emu),
         WIN64_NTALLOCATEVIRTUALMEMORYEX => memory::nt_allocate_virtual_memory_ex(emu),
         WIN64_NTFREEVIRTUALMEMORY => memory::nt_free_virtual_memory(emu),
@@ -135,6 +142,9 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         WIN64_NTQUERYPERFORMANCECOUNTER => process::nt_query_performance_counter(emu),
         WIN64_NTOPENKEY => native::open_key(emu, WinSyscall, false),
         WIN64_NTOPENKEYEX => native::open_key(emu, WinSyscall, true),
+        WIN64_NTQUERYKEY => native::query_key(emu, WinSyscall),
+        WIN64_NTNOTIFYCHANGEKEY => native::notify_key(emu, WinSyscall),
+        WIN64_NTSETINFORMATIONKEY => native::set_key(emu, WinSyscall),
         WIN64_NTQUERYVALUEKEY => native::query_value(emu, WinSyscall),
         WIN64_NTOPENDIRECTORYOBJECT => registry::nt_open_directory_object(emu),
         WIN64_NTOPENSYMBOLICLINKOBJECT => registry::nt_open_symbolic_link_object(emu),
@@ -146,17 +156,17 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         WIN64_NTCREATEPROFILEEX => process::nt_create_profile_ex(emu),
         WIN64_NTALPCCONNECTPORT => alpc::nt_alpc_connect_port(emu),
         WIN64_NTALPCSENDWAITRECEIVEPORT => alpc::nt_alpc_send_wait_receive_port(emu),
-        // `NtInitializeNlsFiles` (0x108): map `locale.nls` so ntdll's
+        // `NtInitializeNlsFiles`: map `locale.nls` so ntdll's
         // `RtlInitNlsTables` gets the real Unicode upcase/casing tables.
         // Without this, every byte→wide conversion in the loader yields zeros
         // and dependency lookups fail with `STATUS_DLL_NOT_FOUND`.
-        0x108 => nls::nt_initialize_nls_files(emu),
-        // `NtGetNlsSectionPtr` (0x102): map `C_<n>.NLS` for the requested
+        WIN64_NTINITIALIZENLSFILES => nls::nt_initialize_nls_files(emu),
+        // `NtGetNlsSectionPtr`: map `C_<n>.NLS` for the requested
         // codepage (1252 ANSI, 437 OEM, etc.). Same purpose as above —
         // populates the byte→wide / wide→byte tables consumed by
         // `RtlAnsiStringToUnicodeString`.
-        0x102 => nls::nt_get_nls_section_ptr(emu),
-        // `NtQueryAttributesFile` (0x3d): ntdll's loader stats DLL files on disk
+        WIN64_NTGETNLSSECTIONPTR => nls::nt_get_nls_section_ptr(emu),
+        // `NtQueryAttributesFile`: ntdll's loader stats DLL files on disk
         // to validate the module cache after mapping them via KnownDlls. For real
         // DLLs (kernelbase.dll, kernel32.dll, …) returning OBJECT_NAME_NOT_FOUND
         // makes the loader treat the module as corrupt and call
@@ -209,14 +219,14 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
             }
         }
-        0x8e | 0x90 => memory::nt_are_mapped_files_the_same(emu),
+        WIN64_NTAREMAPPEDFILESTHESAME => memory::nt_are_mapped_files_the_same(emu),
         WIN64_NTCONNECTPORT => alpc::nt_connect_port(emu),
-        // `NtQuerySystemEnvironmentValueEx` (0x16d): newer ntdll enumerates
+        // `NtQuerySystemEnvironmentValueEx`: newer ntdll enumerates
         // UEFI variables during init. NOT_IMPLEMENTED and VARIABLE_NOT_FOUND
         // both cause a tight retry loop (~3K iterations). Return SUCCESS with
         // ValueLength=0 and ValueBuffer untouched so the caller treats it as
         // "the variable is empty" and moves on.
-        0x16d => {
+        WIN64_NTQUERYSYSTEMENVIRONMENTVALUEEX => {
             // NT syscall ABI: rcx=VarName, rdx=VendorGuid, r8=ValueBuffer,
             // r9=ValueLengthPtr, [rsp+0x28]=Attributes (out, optional).
             let value_len_ptr = emu.regs().r9;
@@ -230,13 +240,13 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             );
             emu.regs_mut().rax = STATUS_SUCCESS;
         }
-        // `NtQuerySystemInformationEx` (0x16e): newer ntdll uses this during
+        // `NtQuerySystemInformationEx`: newer ntdll uses this during
         // `LdrpInitializeProcess`. Returning STATUS_SUCCESS with `ReturnLength=0`
         // is enough to keep init going — the caller treats "no data" as "no
         // extra info". We do NOT zero the output buffer: callers sometimes
         // pass wildly inflated `out_len` values and a bulk memset overruns
         // the destination map, corrupting adjacent regions.
-        0x16e => {
+        WIN64_NTQUERYSYSTEMINFORMATIONEX => {
             let rsp = emu.regs().rsp;
             let info_class = emu.regs().rcx;
             let in_buf = emu.regs().rdx;
@@ -305,13 +315,13 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu.regs_mut().rax = STATUS_SUCCESS;
             }
         }
-        // `NtQueryQuotaInformationFile` (0x166): kernelbase's TLS-callback /
+        // `NtQueryQuotaInformationFile`: kernelbase's TLS-callback /
         // process-init path queries this for each loaded module. Returning
         // STATUS_NOT_IMPLEMENTED here causes ntdll to retry indefinitely
         // (we observed ~500K calls eating through the entire stack reserve).
         // STATUS_NOT_SUPPORTED tells the caller "this volume doesn't track
         // quotas" and is treated as a terminal, non-retryable answer.
-        0x166 => {
+        WIN64_NTQUERYQUOTAINFORMATIONFILE => {
             log_orange!(
                 emu,
                 "syscall 0x{:x}: NtQueryQuotaInformationFile (stub → NOT_SUPPORTED)",
@@ -319,13 +329,13 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             );
             emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
         }
-        // `NtOpenFile` (0x33): ntdll's loader opens KnownDll files on disk to
+        // `NtOpenFile`: ntdll's loader opens KnownDll files on disk to
         // verify them after mapping (timestamps, share-mode locks, …). For real
         // DLLs returning OBJECT_NAME_NOT_FOUND makes the loader treat them as
         // missing and terminate with STATUS_DLL_NOT_FOUND. Resolve the NT path
         // against `cfg.maps_folder` and hand out a fake handle when the file
         // exists; only return NOT_FOUND for genuinely absent paths.
-        0x33 => {
+        WIN64_NTOPENFILE => {
             let file_handle_out = emu.regs().rcx;
             let obj_attr = emu.regs().r8;
             let io_status_block = emu.regs().r9;
@@ -369,7 +379,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
             }
         }
-        // `NtCreateFile` (0x55): ntdll's loader opens DLL files on disk with
+        // `NtCreateFile`: ntdll's loader opens DLL files on disk with
         // NtCreateFile (FILE_OPEN disposition) to back a section before mapping.
         // Same arg layout as NtOpenFile for the handles we care about:
         // FileHandle=rcx, ObjectAttributes=r8, IoStatusBlock=r9. Resolve the NT
@@ -385,24 +395,49 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 .next()
                 .unwrap_or("")
                 .to_lowercase();
-            // The console device (`\Device\ConDrv\…`) is opened during process
-            // init (kernel32 `ConsoleAllocate`/`SetUpConsoleHandle`). It is not a
-            // file in `maps_folder`, so resolving it by basename would fail and
-            // make the console DLL init return STATUS_DLL_INIT_FAILED. Hand out a
-            // fake handle so process startup proceeds.
-            //
-            // After opening `\Device\ConDrv\Server`, kernel32 opens the console
-            // sub-objects *relative* to that handle: `NtCreateFile("\Reference",
-            // RootDirectory = ConDrv handle)`, then `\Connect`, `\Input`,
-            // `\Output`. These carry no "condrv" in their ObjectName, so detect
-            // them by their RootDirectory being a handle we already tagged as a
-            // console object.
+            // ConDrv opens Input and Output relative to an existing console device handle.
             let root_dir = read_object_attributes_root_directory(emu, obj_attr);
-            let is_console = nt_name.to_lowercase().contains("condrv")
-                || (root_dir != 0 && emu.console_handles.contains(&root_dir));
+            let components = nt_name.trim_start_matches('\\');
+            let is_console = (root_dir == 0
+                && components
+                    .split('\\')
+                    .take(2)
+                    .map(str::to_ascii_lowercase)
+                    .eq(["device", "condrv"]))
+                || emu.handle_management.is_console_device(root_dir);
             let exists = is_console || resolve_maps_dll(emu, &basename).is_some();
             if exists {
-                let h = next_handle();
+                let h = if is_console {
+                    const OBJECT_ATTRIBUTES_FLAGS64: u64 = 24;
+                    let Some(flags) = obj_attr
+                        .checked_add(OBJECT_ATTRIBUTES_FLAGS64)
+                        .and_then(|p| emu.maps.read_dword(p))
+                    else {
+                        return WinSyscall.set_return(emu, STATUS_ACCESS_VIOLATION);
+                    };
+                    if flags & !(OBJ_INHERIT | OBJ_CASE_INSENSITIVE | OBJ_OPENIF) != 0 {
+                        return policy::unsupported_with_abi(
+                            emu,
+                            "ntdll",
+                            "NtCreateFile",
+                            emu.pc(),
+                            WinSyscall,
+                        );
+                    }
+                    if !emu.maps.validate_write_range(file_handle_out, 8)
+                        || !emu.maps.validate_write_range(io_status_block, 16)
+                    {
+                        return WinSyscall.set_return(emu, STATUS_ACCESS_VIOLATION);
+                    }
+                    let access = emu.regs().rdx as u32;
+                    emu.handle_management
+                        .insert_native_object(NativeObject::ConsoleDevice {
+                            access,
+                            attributes: flags & OBJ_INHERIT,
+                        })
+                } else {
+                    next_handle()
+                };
                 if file_handle_out != 0 && emu.maps.is_mapped(file_handle_out) {
                     let _ = emu.maps.write_qword(file_handle_out, h);
                 }
@@ -412,14 +447,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                     let _ = emu.maps.write_dword(io_status_block, STATUS_SUCCESS as u32);
                     let _ = emu.maps.write_qword(io_status_block + 0x08, 1);
                 }
-                // Don't register console pseudo-handles as DLL-backed files; only
-                // real on-disk files feed the NtCreateSection → NtMapViewOfSection
-                // PE-loading path. Track them in `console_handles` instead so the
-                // relative sub-object opens above resolve and NtDeviceIoControlFile
-                // can answer the CONDRV IOCTLs on them.
-                if is_console {
-                    emu.console_handles.insert(h);
-                } else {
+                if !is_console {
                     emu.file_handles.insert(h, basename.clone());
                 }
                 log_orange!(
@@ -440,7 +468,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
             }
         }
-        // `NtDeviceIoControlFile` (0x7): kernel32's console client driver issues
+        // `NtDeviceIoControlFile`: kernel32's console client driver issues
         // the CONDRV IOCTLs (BIND_HANDLE / SET_SERVER_INFORMATION / GET_HANDLE …)
         // against the console object handles opened above during process init
         // (`ConsoleClientConnectToServer`). Without an answer the console DLL
@@ -456,7 +484,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             let io_control_code = emu.maps.read_qword(rsp + 0x30).unwrap_or(0) as u32;
             let output_buffer = emu.maps.read_qword(rsp + 0x48).unwrap_or(0);
             let output_len = emu.maps.read_qword(rsp + 0x50).unwrap_or(0) as u32;
-            if emu.console_handles.contains(&file_handle) {
+            if emu.handle_management.is_console_device(file_handle) {
                 if io_status_block != 0 && emu.maps.is_mapped(io_status_block) {
                     // IO_STATUS_BLOCK: Status (4) + pad(4) + Information (8).
                     // Report 0 bytes transferred — we don't synthesize a CONDRV
@@ -486,17 +514,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 emu.regs_mut().rax = STATUS_NOT_IMPLEMENTED;
             }
         }
-        // Thread-pool object creation during process init: the pool manager
-        // (`TpAllocPool` / `TppWorkerThread`) creates an I/O completion port,
-        // a worker factory bound to it, and wait-completion packets. Returning
-        // STATUS_NOT_IMPLEMENTED for any of them makes the manager retry forever
-        // (an observable ~280K-instruction loop that never converges under
-        // SSDT — IoCompletion → WorkerFactory → WaitCompletionPacket → cleanup →
-        // repeat). Hand out a fake handle so the pool initializes and init
-        // proceeds. All three return the OUT PHANDLE in rcx.
-        WIN64_NTCREATEIOCOMPLETION
-        | WIN64_NTCREATEWAITCOMPLETIONPACKET
-        | WIN64_NTCREATEWORKERFACTORY => {
+        WIN64_NTCREATEWORKERFACTORY => {
             let handle_out = emu.regs().rcx;
             if handle_out == 0 || !emu.maps.is_mapped(handle_out) {
                 emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
@@ -529,8 +547,13 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             );
             emu.regs_mut().rax = STATUS_SUCCESS;
         }
-        WIN64_NTQUERYWNFSTATEDATA => registry::query_wnf_state_data(emu),
-        // `NtApphelpCacheControl` (0x4c): kernel32/kernelbase consult the
+        WIN64_NTQUERYWNFSTATEDATA => wnf::query_state_data(emu),
+        WIN64_NTSUBSCRIBEWNFSTATECHANGE => wnf::subscribe(emu),
+        WIN64_NTUNSUBSCRIBEWNFSTATECHANGE => wnf::unsubscribe(emu),
+        WIN64_NTTRACECONTROL => sync::trace_control(emu),
+        WIN64_NTTRACEEVENT => sync::trace_event(emu),
+        WIN64_NTSETINFORMATIONPROCESS => process::set_information_process(emu),
+        // `NtApphelpCacheControl`: kernel32/kernelbase consult the
         // app-compat shim cache during process start (`BasepCheckBadapp`,
         // `BasepCheckAppCompat`, etc.). STATUS_NOT_SUPPORTED tells callers
         // "no shim infrastructure available" so they skip compat-fixup work
@@ -544,7 +567,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
             );
             emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
         }
-        // `NtOpenThreadToken` (0x24): kernel32/kernelbase open a thread's primary
+        // `NtOpenThreadToken`: kernel32/kernelbase open a thread's primary
         // token during `BasepCheckAppCompat`, `BasepCheckWebBlockedFileType`,
         // and several user32/uxtheme init paths. Returning STATUS_NOT_IMPLEMENTED
         // makes callers treat the failure as "this thread has no token attached"
@@ -555,7 +578,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         // is the documented "no impersonation token on this thread" answer
         // that callers handle gracefully (skip the token-based check and
         // continue init).
-        0x24 => {
+        WIN64_NTOPENTHREADTOKEN => {
             let thread_handle = emu.regs().rcx;
             let access = emu.regs().rdx;
             let open_as_self = emu.regs().r8 as u8;
@@ -585,495 +608,502 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
 /// Maps x64 NT syscall number to the `Nt…` export name (PascalCase).
 pub fn what_syscall(sys: u64) -> String {
     match sys {
-        0x0 => "NtAccessCheck".to_string(),
-        0x1 => "NtWorkerFactoryWorkerReady".to_string(),
-        0x2 => "NtAcceptConnectPort".to_string(),
-        0x3 => "NtMapUserPhysicalPagesScatter".to_string(),
-        0x4 => "NtWaitForSingleObject".to_string(),
-        0x5 => "NtCallbackReturn".to_string(),
-        0x6 => "NtReadFile".to_string(),
-        0x7 => "NtDeviceIoControlFile".to_string(),
-        0x8 => "NtWriteFile".to_string(),
-        0x9 => "NtRemoveIoCompletion".to_string(),
-        0xa => "NtReleaseSemaphore".to_string(),
-        0xb => "NtReplyWaitReceivePort".to_string(),
-        0xc => "NtReplyPort".to_string(),
-        0xd => "NtSetInformationThread".to_string(),
-        0xe => "NtSetEvent".to_string(),
-        0xf => "NtClose".to_string(),
-        0x10 => "NtQueryObject".to_string(),
-        0x11 => "NtQueryInformationFile".to_string(),
-        0x12 => "NtOpenKey".to_string(),
-        0x13 => "NtEnumerateValueKey".to_string(),
-        0x14 => "NtFindAtom".to_string(),
-        0x15 => "NtQueryDefaultLocale".to_string(),
-        0x16 => "NtQueryKey".to_string(),
-        0x17 => "NtQueryValueKey".to_string(),
-        0x18 => "NtAllocateVirtualMemory".to_string(),
-        0x19 => "NtQueryInformationProcess".to_string(),
-        0x1a => "NtWaitForMultipleObjects32".to_string(),
-        0x1b => "NtWriteFileGather".to_string(),
-        0x1c => "NtSetInformationProcess".to_string(),
-        0x1d => "NtCreateKey".to_string(),
-        0x1e => "NtFreeVirtualMemory".to_string(),
-        0x1f => "NtImpersonateClientOfPort".to_string(),
-        0x20 => "NtReleaseMutant".to_string(),
-        0x21 => "NtQueryInformationToken".to_string(),
-        0x22 => "NtRequestWaitReplyPort".to_string(),
-        0x23 => "NtQueryVirtualMemory".to_string(),
-        0x24 => "NtOpenThreadToken".to_string(),
-        0x25 => "NtQueryInformationThread".to_string(),
-        0x26 => "NtOpenProcess".to_string(),
-        0x27 => "NtSetInformationFile".to_string(),
-        0x28 => "NtMapViewOfSection".to_string(),
-        0x29 => "NtAccessCheckAndAuditAlarm".to_string(),
-        0x2a => "NtUnmapViewOfSection".to_string(),
-        0x2b => "NtReplyWaitReceivePortEx".to_string(),
-        0x2c => "NtTerminateProcess".to_string(),
-        0x2d => "NtSetEventBoostPriority".to_string(),
-        0x2e => "NtReadFileScatter".to_string(),
-        0x2f => "NtOpenThreadTokenEx".to_string(),
-        0x30 => "NtOpenProcessTokenEx".to_string(),
-        0x31 => "NtQueryPerformanceCounter".to_string(),
-        0x32 => "NtEnumerateKey".to_string(),
-        0x33 => "NtOpenFile".to_string(),
-        0x34 => "NtDelayExecution".to_string(),
-        0x35 => "NtQueryDirectoryFile".to_string(),
-        0x36 => "NtQuerySystemInformation".to_string(),
-        0x37 => "NtOpenSection".to_string(),
-        0x38 => "NtQueryTimer".to_string(),
-        0x39 => "NtFsControlFile".to_string(),
-        0x3a => "NtWriteVirtualMemory".to_string(),
-        0x3b => "NtCloseObjectAuditAlarm".to_string(),
-        0x3c => "NtDuplicateObject".to_string(),
-        0x3d => "NtQueryAttributesFile".to_string(),
-        0x3e => "NtClearEvent".to_string(),
-        0x3f => "NtReadVirtualMemory".to_string(),
-        0x40 => "NtOpenEvent".to_string(),
-        0x41 => "NtAdjustPrivilegesToken".to_string(),
-        0x42 => "NtDuplicateToken".to_string(),
-        0x43 => "NtContinue".to_string(),
-        0x44 => "NtQueryDefaultUILanguage".to_string(),
-        0x45 => "NtQueueApcThread".to_string(),
-        0x46 => "NtYieldExecution".to_string(),
-        0x47 => "NtAddAtom".to_string(),
-        0x48 => "NtCreateEvent".to_string(),
-        0x49 => "NtQueryVolumeInformationFile".to_string(),
-        0x4a => "NtCreateSection".to_string(),
-        0x4b => "NtFlushBuffersFile".to_string(),
-        0x4c => "NtApphelpCacheControl".to_string(),
-        0x4d => "NtCreateProcessEx".to_string(),
-        0x4e => "NtCreateThread".to_string(),
-        0x4f => "NtIsProcessInJob".to_string(),
-        0x50 => "NtProtectVirtualMemory".to_string(),
-        0x51 => "NtQuerySection".to_string(),
-        0x52 => "NtResumeThread".to_string(),
-        0x53 => "NtTerminateThread".to_string(),
-        0x54 => "NtReadRequestData".to_string(),
-        0x55 => "NtCreateFile".to_string(),
-        0x56 => "NtQueryEvent".to_string(),
-        0x57 => "NtWriteRequestData".to_string(),
-        0x58 => "NtOpenDirectoryObject".to_string(),
-        0x59 => "NtAccessCheckByTypeAndAuditAlarm".to_string(),
-        0x5a => "NtQuerySystemTime".to_string(),
-        0x5b => "NtWaitForMultipleObjects".to_string(),
-        0x5c => "NtSetInformationObject".to_string(),
-        0x5d => "NtCancelIoFile".to_string(),
-        0x5e => "NtTraceEvent".to_string(),
-        0x5f => "NtPowerInformation".to_string(),
-        0x60 => "NtSetValueKey".to_string(),
-        0x61 => "NtCancelTimer".to_string(),
-        0x62 => "NtSetTimer".to_string(),
-        0x63 => "NtAccessCheckByType".to_string(),
-        0x64 => "NtAccessCheckByTypeResultList".to_string(),
-        0x65 => "NtAccessCheckByTypeResultListAndAuditAlarm".to_string(),
-        0x66 => "NtAccessCheckByTypeResultListAndAuditAlarmByHandle".to_string(),
-        0x67 => "NtAcquireCrossVmMutant".to_string(),
-        0x68 => "NtAcquireProcessActivityReference".to_string(),
-        0x69 => "NtAddAtomEx".to_string(),
-        0x6a => "NtAddBootEntry".to_string(),
-        0x6b => "NtAddDriverEntry".to_string(),
-        0x6c => "NtAdjustGroupsToken".to_string(),
-        0x6d => "NtAdjustTokenClaimsAndDeviceGroups".to_string(),
-        0x6e => "NtAlertResumeThread".to_string(),
-        0x6f => "NtAlertThread".to_string(),
-        0x70 => "NtAlertThreadByThreadId".to_string(),
-        0x71 => "NtAllocateLocallyUniqueId".to_string(),
-        0x72 => "NtAllocateReserveObject".to_string(),
-        0x73 => "NtAllocateUserPhysicalPages".to_string(),
-        0x74 => "NtAllocateUserPhysicalPagesEx".to_string(),
-        0x75 => "NtAllocateUuids".to_string(),
-        0x76 => "NtAllocateVirtualMemoryEx".to_string(),
-        0x77 => "NtAlpcAcceptConnectPort".to_string(),
-        0x78 => "NtAlpcCancelMessage".to_string(),
-        0x79 => "NtAlpcConnectPort".to_string(),
-        0x7a => "NtAlpcConnectPortEx".to_string(),
-        0x7b => "NtAlpcCreatePort".to_string(),
-        0x7c => "NtAlpcCreatePortSection".to_string(),
-        0x7d => "NtAlpcCreateResourceReserve".to_string(),
-        0x7e => "NtAlpcCreateSectionView".to_string(),
-        0x7f => "NtAlpcCreateSecurityContext".to_string(),
-        0x80 => "NtAlpcDeletePortSection".to_string(),
-        0x81 => "NtAlpcDeleteResourceReserve".to_string(),
-        0x82 => "NtAlpcDeleteSectionView".to_string(),
-        0x83 => "NtAlpcDeleteSecurityContext".to_string(),
-        0x84 => "NtAlpcDisconnectPort".to_string(),
-        0x85 => "NtAlpcImpersonateClientContainerOfPort".to_string(),
-        0x86 => "NtAlpcImpersonateClientOfPort".to_string(),
-        0x87 => "NtAlpcOpenSenderProcess".to_string(),
-        0x88 => "NtAlpcOpenSenderThread".to_string(),
-        0x89 => "NtAlpcQueryInformation".to_string(),
-        0x8a => "NtAlpcQueryInformationMessage".to_string(),
-        0x8b => "NtAlpcRevokeSecurityContext".to_string(),
-        0x8c => "NtAlpcSendWaitReceivePort".to_string(),
-        0x8d => "NtAlpcSetInformation".to_string(),
-        0x8e => "NtAreMappedFilesTheSame".to_string(),
-        0x8f => "NtAssignProcessToJobObject".to_string(),
-        0x90 => "NtAreMappedFilesTheSame".to_string(),
-        0x91 => "NtAssignProcessToJobObject".to_string(),
-        0x92 => "NtAssociateWaitCompletionPacket".to_string(),
-        0x93 => "NtCallEnclave".to_string(),
-        0x94 => "NtCancelIoFileEx".to_string(),
-        0x95 => "NtCancelSynchronousIoFile".to_string(),
-        0x96 => "NtCancelTimer2".to_string(),
-        0x97 => "NtCancelWaitCompletionPacket".to_string(),
-        0x98 => "NtChangeProcessState".to_string(),
-        0x99 => "NtChangeThreadState".to_string(),
-        0x9a => "NtCommitComplete".to_string(),
-        0x9b => "NtCommitEnlistment".to_string(),
-        0x9c => "NtCommitRegistryTransaction".to_string(),
-        0x9d => "NtCommitTransaction".to_string(),
-        0x9e => "NtCompactKeys".to_string(),
-        0x9f => "NtCompareObjects".to_string(),
-        0xa0 => "NtCompareSigningLevels".to_string(),
-        0xa1 => "NtCompareTokens".to_string(),
-        0xa2 => "NtCompleteConnectPort".to_string(),
-        0xa3 => "NtCompressKey".to_string(),
-        0xa4 => "NtConnectPort".to_string(),
-        0xa5 => "NtContinueEx".to_string(),
-        0xa6 => "NtConvertBetweenAuxiliaryCounterAndPerformanceCounter".to_string(),
-        0xa7 => "NtCopyFileChunk".to_string(),
-        0xa8 => "NtCreateCpuPartition".to_string(),
-        0xa9 => "NtCreateCrossVmEvent".to_string(),
-        0xaa => "NtCreateCrossVmMutant".to_string(),
-        0xab => "NtCreateDebugObject".to_string(),
-        0xac => "NtCreateDirectoryObject".to_string(),
-        0xad => "NtCreateDirectoryObjectEx".to_string(),
-        0xae => "NtCreateEnclave".to_string(),
-        0xaf => "NtCreateEnlistment".to_string(),
-        0xb0 => "NtCreateEventPair".to_string(),
-        0xb1 => "NtCreateIRTimer".to_string(),
-        0xb2 => "NtCreateIoCompletion".to_string(),
-        0xb3 => "NtCreateIoRing".to_string(),
-        0xb4 => "NtCreateJobObject".to_string(),
-        0xb5 => "NtCreateJobSet".to_string(),
-        0xb6 => "NtCreateKeyTransacted".to_string(),
-        0xb7 => "NtCreateKeyedEvent".to_string(),
-        0xb8 => "NtCreateLowBoxToken".to_string(),
-        0xb9 => "NtCreateMailslotFile".to_string(),
-        0xba => "NtCreateMutant".to_string(),
-        0xbb => "NtCreateNamedPipeFile".to_string(),
-        0xbc => "NtCreatePagingFile".to_string(),
-        0xbd => "NtCreatePartition".to_string(),
-        0xbe => "NtCreatePort".to_string(),
-        0xbf => "NtCreatePrivateNamespace".to_string(),
-        0xc0 => "NtCreateProcess".to_string(),
-        0xc1 => "NtCreateProcessStateChange".to_string(),
-        0xc2 => "NtCreateProfile".to_string(),
-        0xc3 => "NtCreateProfileEx".to_string(),
-        0xc4 => "NtCreateRegistryTransaction".to_string(),
-        0xc5 => "NtCreateResourceManager".to_string(),
-        0xc6 => "NtCreateSectionEx".to_string(),
-        0xc7 => "NtCreateSemaphore".to_string(),
-        0xc8 => "NtCreateSymbolicLinkObject".to_string(),
-        0xc9 => "NtCreateThreadEx".to_string(),
-        0xca => "NtCreateThreadStateChange".to_string(),
-        0xcb => "NtCreateTimer".to_string(),
-        0xcc => "NtCreateTimer2".to_string(),
-        0xcd => "NtCreateToken".to_string(),
-        0xce => "NtCreateTokenEx".to_string(),
-        0xcf => "NtCreateTransaction".to_string(),
-        0xd0 => "NtCreateTransactionManager".to_string(),
-        0xd1 => "NtCreateUserProcess".to_string(),
-        0xd2 => "NtCreateWaitCompletionPacket".to_string(),
-        0xd3 => "NtCreateWaitablePort".to_string(),
-        0xd4 => "NtCreateWnfStateName".to_string(),
-        0xd5 => "NtCreateWorkerFactory".to_string(),
-        0xd6 => "NtDebugActiveProcess".to_string(),
-        0xd7 => "NtDebugContinue".to_string(),
-        0xd8 => "NtDeleteAtom".to_string(),
-        0xd9 => "NtDeleteBootEntry".to_string(),
-        0xda => "NtDeleteDriverEntry".to_string(),
-        0xdb => "NtDeleteFile".to_string(),
-        0xdc => "NtDeleteKey".to_string(),
-        0xdd => "NtDeleteObjectAuditAlarm".to_string(),
-        0xde => "NtDeletePrivateNamespace".to_string(),
-        0xdf => "NtDeleteValueKey".to_string(),
-        0xe0 => "NtDeleteWnfStateData".to_string(),
-        0xe1 => "NtDeleteWnfStateName".to_string(),
-        0xe2 => "NtDirectGraphicsCall".to_string(),
-        0xe3 => "NtDisableLastKnownGood".to_string(),
-        0xe4 => "NtDisplayString".to_string(),
-        0xe5 => "NtDrawText".to_string(),
-        0xe6 => "NtEnableLastKnownGood".to_string(),
-        0xe7 => "NtEnumerateBootEntries".to_string(),
-        0xe8 => "NtEnumerateDriverEntries".to_string(),
-        0xe9 => "NtEnumerateSystemEnvironmentValuesEx".to_string(),
-        0xea => "NtEnumerateTransactionObject".to_string(),
-        0xeb => "NtExtendSection".to_string(),
-        0xec => "NtFilterBootOption".to_string(),
-        0xed => "NtFilterToken".to_string(),
-        0xee => "NtFilterTokenEx".to_string(),
-        0xef => "NtFlushBuffersFileEx".to_string(),
-        0xf0 => "NtFlushInstallUILanguage".to_string(),
-        0xf1 => "NtFlushInstructionCache".to_string(),
-        0xf2 => "NtFlushKey".to_string(),
-        0xf3 => "NtFlushProcessWriteBuffers".to_string(),
-        0xf4 => "NtFlushVirtualMemory".to_string(),
-        0xf5 => "NtFlushWriteBuffer".to_string(),
-        0xf6 => "NtFreeUserPhysicalPages".to_string(),
-        0xf7 => "NtFreezeRegistry".to_string(),
-        0xf8 => "NtFreezeTransactions".to_string(),
-        0xf9 => "NtGetCachedSigningLevel".to_string(),
-        0xfa => "NtGetCompleteWnfStateSubscription".to_string(),
-        0xfb => "NtGetContextThread".to_string(),
-        0xfc => "NtGetCurrentProcessorNumber".to_string(),
-        0xfd => "NtGetCurrentProcessorNumberEx".to_string(),
-        0xfe => "NtGetDevicePowerState".to_string(),
-        0xff => "NtGetMUIRegistryInfo".to_string(),
-        0x100 => "NtGetNextProcess".to_string(),
-        0x101 => "NtGetNextThread".to_string(),
-        0x102 => "NtGetNlsSectionPtr".to_string(),
-        0x103 => "NtGetNotificationResourceManager".to_string(),
-        0x104 => "NtGetWriteWatch".to_string(),
-        0x105 => "NtImpersonateAnonymousToken".to_string(),
-        0x106 => "NtImpersonateThread".to_string(),
-        0x107 => "NtInitializeEnclave".to_string(),
-        0x108 => "NtInitializeNlsFiles".to_string(),
-        0x109 => "NtInitializeRegistry".to_string(),
-        0x10a => "NtInitiatePowerAction".to_string(),
-        0x10b => "NtIsSystemResumeAutomatic".to_string(),
-        0x10c => "NtIsUILanguageComitted".to_string(),
-        0x10d => "NtListenPort".to_string(),
-        0x10e => "NtLoadDriver".to_string(),
-        0x10f => "NtLoadEnclaveData".to_string(),
-        0x110 => "NtLoadKey".to_string(),
-        0x111 => "NtLoadKey2".to_string(),
-        0x112 => "NtLoadKey3".to_string(),
-        0x113 => "NtLoadKeyEx".to_string(),
-        0x114 => "NtLockFile".to_string(),
-        0x115 => "NtLockProductActivationKeys".to_string(),
-        0x116 => "NtLockRegistryKey".to_string(),
-        0x117 => "NtLockVirtualMemory".to_string(),
-        0x118 => "NtMakePermanentObject".to_string(),
-        0x119 => "NtMakeTemporaryObject".to_string(),
-        0x11a => "NtManageHotPatch".to_string(),
-        0x11b => "NtManagePartition".to_string(),
-        0x11c => "NtMapCMFModule".to_string(),
-        0x11d => "NtMapUserPhysicalPages".to_string(),
-        0x11e => "NtMapViewOfSectionEx".to_string(),
-        0x11f => "NtModifyBootEntry".to_string(),
-        0x120 => "NtModifyDriverEntry".to_string(),
-        0x121 => "NtNotifyChangeDirectoryFile".to_string(),
-        0x122 => "NtNotifyChangeDirectoryFileEx".to_string(),
-        0x123 => "NtNotifyChangeKey".to_string(),
-        0x124 => "NtNotifyChangeMultipleKeys".to_string(),
-        0x125 => "NtNotifyChangeSession".to_string(),
-        0x126 => "NtOpenCpuPartition".to_string(),
-        0x127 => "NtOpenEnlistment".to_string(),
-        0x128 => "NtOpenEventPair".to_string(),
-        0x129 => "NtOpenIoCompletion".to_string(),
-        0x12a => "NtOpenJobObject".to_string(),
-        0x12b => "NtOpenKeyEx".to_string(),
-        0x12c => "NtOpenKeyTransacted".to_string(),
-        0x12d => "NtOpenKeyTransactedEx".to_string(),
-        0x12e => "NtOpenKeyedEvent".to_string(),
-        0x12f => "NtOpenMutant".to_string(),
-        0x130 => "NtOpenObjectAuditAlarm".to_string(),
-        0x131 => "NtOpenPartition".to_string(),
-        0x132 => "NtOpenPrivateNamespace".to_string(),
-        0x133 => "NtOpenProcessToken".to_string(),
-        0x134 => "NtOpenRegistryTransaction".to_string(),
-        0x135 => "NtOpenResourceManager".to_string(),
-        0x136 => "NtOpenSemaphore".to_string(),
-        0x137 => "NtOpenSession".to_string(),
-        0x138 => "NtOpenSymbolicLinkObject".to_string(),
-        0x139 => "NtOpenThread".to_string(),
-        0x13a => "NtOpenTimer".to_string(),
-        0x13b => "NtOpenTransaction".to_string(),
-        0x13c => "NtOpenTransactionManager".to_string(),
-        0x13d => "NtPlugPlayControl".to_string(),
-        0x13e => "NtPrePrepareComplete".to_string(),
-        0x13f => "NtPrePrepareEnlistment".to_string(),
-        0x140 => "NtPrepareComplete".to_string(),
-        0x141 => "NtPrepareEnlistment".to_string(),
-        0x142 => "NtPrivilegeCheck".to_string(),
-        0x143 => "NtPrivilegeObjectAuditAlarm".to_string(),
-        0x144 => "NtPrivilegedServiceAuditAlarm".to_string(),
-        0x145 => "NtPropagationComplete".to_string(),
-        0x146 => "NtPropagationFailed".to_string(),
-        0x147 => "NtPssCaptureVaSpaceBulk".to_string(),
-        0x148 => "NtPulseEvent".to_string(),
-        0x149 => "NtQueryAuxiliaryCounterFrequency".to_string(),
-        0x14a => "NtQueryBootEntryOrder".to_string(),
-        0x14b => "NtQueryBootOptions".to_string(),
-        0x14c => "NtQueryDebugFilterState".to_string(),
-        0x14d => "NtQueryDirectoryFileEx".to_string(),
-        0x14e => "NtQueryDirectoryObject".to_string(),
-        0x14f => "NtQueryDriverEntryOrder".to_string(),
-        0x150 => "NtQueryEaFile".to_string(),
-        0x151 => "NtQueryFullAttributesFile".to_string(),
-        0x152 => "NtQueryInformationAtom".to_string(),
-        0x153 => "NtQueryInformationByName".to_string(),
-        0x154 => "NtQueryInformationCpuPartition".to_string(),
-        0x155 => "NtQueryInformationEnlistment".to_string(),
-        0x156 => "NtQueryInformationJobObject".to_string(),
-        0x157 => "NtQueryInformationPort".to_string(),
-        0x158 => "NtQueryInformationResourceManager".to_string(),
-        0x159 => "NtQueryInformationTransaction".to_string(),
-        0x15a => "NtQueryInformationTransactionManager".to_string(),
-        0x15b => "NtQueryInformationWorkerFactory".to_string(),
-        0x15c => "NtQueryInstallUILanguage".to_string(),
-        0x15d => "NtQueryIntervalProfile".to_string(),
-        0x15e => "NtQueryIoCompletion".to_string(),
-        0x15f => "NtQueryIoRingCapabilities".to_string(),
-        0x160 => "NtQueryLicenseValue".to_string(),
-        0x161 => "NtQueryMultipleValueKey".to_string(),
-        0x162 => "NtQueryMutant".to_string(),
-        0x163 => "NtQueryOpenSubKeys".to_string(),
-        0x164 => "NtQueryOpenSubKeysEx".to_string(),
-        0x165 => "NtQueryPortInformationProcess".to_string(),
-        0x166 => "NtQueryQuotaInformationFile".to_string(),
-        0x167 => "NtQuerySecurityAttributesToken".to_string(),
-        0x168 => "NtQuerySecurityObject".to_string(),
-        0x169 => "NtQuerySecurityPolicy".to_string(),
-        0x16a => "NtQuerySemaphore".to_string(),
-        0x16b => "NtQuerySymbolicLinkObject".to_string(),
-        0x16c => "NtQuerySystemEnvironmentValue".to_string(),
-        0x16d => "NtQuerySystemEnvironmentValueEx".to_string(),
-        0x16e => "NtQuerySystemInformationEx".to_string(),
-        0x16f => "NtQueryTimerResolution".to_string(),
-        0x170 => "NtQueryWnfStateData".to_string(),
-        0x171 => "NtQueryWnfStateNameInformation".to_string(),
-        0x172 => "NtQueueApcThreadEx".to_string(),
-        0x173 => "NtQueueApcThreadEx2".to_string(),
-        0x174 => "NtRaiseException".to_string(),
-        0x175 => "NtRaiseHardError".to_string(),
-        0x176 => "NtReadOnlyEnlistment".to_string(),
-        0x177 => "NtReadVirtualMemoryEx".to_string(),
-        0x178 => "NtRecoverEnlistment".to_string(),
-        0x179 => "NtRecoverResourceManager".to_string(),
-        0x17a => "NtRecoverTransactionManager".to_string(),
-        0x17b => "NtRegisterProtocolAddressInformation".to_string(),
-        0x17c => "NtRegisterThreadTerminatePort".to_string(),
-        0x17d => "NtReleaseKeyedEvent".to_string(),
-        0x17e => "NtReleaseWorkerFactoryWorker".to_string(),
-        0x17f => "NtRemoveIoCompletionEx".to_string(),
-        0x180 => "NtRemoveProcessDebug".to_string(),
-        0x181 => "NtRenameKey".to_string(),
-        0x182 => "NtRenameTransactionManager".to_string(),
-        0x183 => "NtReplaceKey".to_string(),
-        0x184 => "NtReplacePartitionUnit".to_string(),
-        0x185 => "NtReplyWaitReplyPort".to_string(),
-        0x186 => "NtRequestPort".to_string(),
-        0x187 => "NtResetEvent".to_string(),
-        0x188 => "NtResetWriteWatch".to_string(),
-        0x189 => "NtRestoreKey".to_string(),
-        0x18a => "NtResumeProcess".to_string(),
-        0x18b => "NtRevertContainerImpersonation".to_string(),
-        0x18c => "NtRollbackComplete".to_string(),
-        0x18d => "NtRollbackEnlistment".to_string(),
-        0x18e => "NtRollbackRegistryTransaction".to_string(),
-        0x18f => "NtRollbackTransaction".to_string(),
-        0x190 => "NtRollforwardTransactionManager".to_string(),
-        0x191 => "NtSaveKey".to_string(),
-        0x192 => "NtSaveKeyEx".to_string(),
-        0x193 => "NtSaveMergedKeys".to_string(),
-        0x194 => "NtSecureConnectPort".to_string(),
-        0x195 => "NtSerializeBoot".to_string(),
-        0x196 => "NtSetBootEntryOrder".to_string(),
-        0x197 => "NtSetBootOptions".to_string(),
-        0x198 => "NtSetCachedSigningLevel".to_string(),
-        0x199 => "NtSetCachedSigningLevel2".to_string(),
-        0x19a => "NtSetContextThread".to_string(),
-        0x19b => "NtSetDebugFilterState".to_string(),
-        0x19c => "NtSetDefaultHardErrorPort".to_string(),
-        0x19d => "NtSetDefaultLocale".to_string(),
-        0x19e => "NtSetDefaultUILanguage".to_string(),
-        0x19f => "NtSetDriverEntryOrder".to_string(),
-        0x1a0 => "NtSetEaFile".to_string(),
-        0x1a1 => "NtSetEventEx".to_string(),
-        0x1a2 => "NtSetHighEventPair".to_string(),
-        0x1a3 => "NtSetHighWaitLowEventPair".to_string(),
-        0x1a4 => "NtSetIRTimer".to_string(),
-        0x1a5 => "NtSetInformationCpuPartition".to_string(),
-        0x1a6 => "NtSetInformationDebugObject".to_string(),
-        0x1a7 => "NtSetInformationEnlistment".to_string(),
-        0x1a8 => "NtSetInformationIoRing".to_string(),
-        0x1a9 => "NtSetInformationJobObject".to_string(),
-        0x1aa => "NtSetInformationKey".to_string(),
-        0x1ab => "NtSetInformationResourceManager".to_string(),
-        0x1ac => "NtSetInformationSymbolicLink".to_string(),
-        0x1ad => "NtSetInformationToken".to_string(),
-        0x1ae => "NtSetInformationTransaction".to_string(),
-        0x1af => "NtSetInformationTransactionManager".to_string(),
-        0x1b0 => "NtSetInformationVirtualMemory".to_string(),
-        0x1b1 => "NtSetInformationWorkerFactory".to_string(),
-        0x1b2 => "NtSetIntervalProfile".to_string(),
-        0x1b3 => "NtSetIoCompletion".to_string(),
-        0x1b4 => "NtSetIoCompletionEx".to_string(),
-        0x1b5 => "NtSetLdtEntries".to_string(),
-        0x1b6 => "NtSetLowEventPair".to_string(),
-        0x1b7 => "NtSetLowWaitHighEventPair".to_string(),
-        0x1b8 => "NtSetQuotaInformationFile".to_string(),
-        0x1b9 => "NtSetSecurityObject".to_string(),
-        0x1ba => "NtSetSystemEnvironmentValue".to_string(),
-        0x1bb => "NtSetSystemEnvironmentValueEx".to_string(),
-        0x1bc => "NtSetSystemInformation".to_string(),
-        0x1bd => "NtSetSystemPowerState".to_string(),
-        0x1be => "NtSetSystemTime".to_string(),
-        0x1bf => "NtSetThreadExecutionState".to_string(),
-        0x1c0 => "NtSetTimer2".to_string(),
-        0x1c1 => "NtSetTimerEx".to_string(),
-        0x1c2 => "NtSetTimerResolution".to_string(),
-        0x1c3 => "NtSetUuidSeed".to_string(),
-        0x1c4 => "NtSetVolumeInformationFile".to_string(),
-        0x1c5 => "NtSetWnfProcessNotificationEvent".to_string(),
-        0x1c6 => "NtShutdownSystem".to_string(),
-        0x1c7 => "NtShutdownWorkerFactory".to_string(),
-        0x1c8 => "NtSignalAndWaitForSingleObject".to_string(),
-        0x1c9 => "NtSinglePhaseReject".to_string(),
-        0x1ca => "NtStartProfile".to_string(),
-        0x1cb => "NtStopProfile".to_string(),
-        0x1cc => "NtSubmitIoRing".to_string(),
-        0x1cd => "NtSubscribeWnfStateChange".to_string(),
-        0x1ce => "NtSuspendProcess".to_string(),
-        0x1cf => "NtSuspendThread".to_string(),
-        0x1d0 => "NtSystemDebugControl".to_string(),
-        0x1d1 => "NtTerminateEnclave".to_string(),
-        0x1d2 => "NtTerminateJobObject".to_string(),
-        0x1d3 => "NtTestAlert".to_string(),
-        0x1d4 => "NtThawRegistry".to_string(),
-        0x1d5 => "NtThawTransactions".to_string(),
-        0x1d6 => "NtTraceControl".to_string(),
-        0x1d7 => "NtTranslateFilePath".to_string(),
-        0x1d8 => "NtUmsThreadYield".to_string(),
-        0x1d9 => "NtUnloadDriver".to_string(),
-        0x1da => "NtUnloadKey".to_string(),
-        0x1db => "NtUnloadKey2".to_string(),
-        0x1dc => "NtUnloadKeyEx".to_string(),
-        0x1dd => "NtUnlockFile".to_string(),
-        0x1de => "NtUnlockVirtualMemory".to_string(),
-        0x1df => "NtUnmapViewOfSectionEx".to_string(),
-        0x1e0 => "NtUnsubscribeWnfStateChange".to_string(),
-        0x1e1 => "NtUpdateWnfStateData".to_string(),
-        0x1e2 => "NtVdmControl".to_string(),
-        0x1e3 => "NtWaitForAlertByThreadId".to_string(),
-        0x1e4 => "NtWaitForDebugEvent".to_string(),
-        0x1e5 => "NtWaitForKeyedEvent".to_string(),
-        0x1e6 => "NtWaitForWorkViaWorkerFactory".to_string(),
-        0x1e7 => "NtWaitHighEventPair".to_string(),
-        0x1e8 => "NtWaitLowEventPair".to_string(),
-        _ => format!("NtSyscall_unknown(0x{:x})", sys),
+        WIN64_NTACCESSCHECK => "NtAccessCheck",
+        WIN64_NTWORKERFACTORYWORKERREADY => "NtWorkerFactoryWorkerReady",
+        WIN64_NTACCEPTCONNECTPORT => "NtAcceptConnectPort",
+        WIN64_NTMAPUSERPHYSICALPAGESSCATTER => "NtMapUserPhysicalPagesScatter",
+        WIN64_NTWAITFORSINGLEOBJECT => "NtWaitForSingleObject",
+        WIN64_NTCALLBACKRETURN => "NtCallbackReturn",
+        WIN64_NTREADFILE => "NtReadFile",
+        WIN64_NTDEVICEIOCONTROLFILE => "NtDeviceIoControlFile",
+        WIN64_NTWRITEFILE => "NtWriteFile",
+        WIN64_NTREMOVEIOCOMPLETION => "NtRemoveIoCompletion",
+        WIN64_NTRELEASESEMAPHORE => "NtReleaseSemaphore",
+        WIN64_NTREPLYWAITRECEIVEPORT => "NtReplyWaitReceivePort",
+        WIN64_NTREPLYPORT => "NtReplyPort",
+        WIN64_NTSETINFORMATIONTHREAD => "NtSetInformationThread",
+        WIN64_NTSETEVENT => "NtSetEvent",
+        WIN64_NTCLOSE => "NtClose",
+        WIN64_NTQUERYOBJECT => "NtQueryObject",
+        WIN64_NTQUERYINFORMATIONFILE => "NtQueryInformationFile",
+        WIN64_NTOPENKEY => "NtOpenKey",
+        WIN64_NTENUMERATEVALUEKEY => "NtEnumerateValueKey",
+        WIN64_NTFINDATOM => "NtFindAtom",
+        WIN64_NTQUERYDEFAULTLOCALE => "NtQueryDefaultLocale",
+        WIN64_NTQUERYKEY => "NtQueryKey",
+        WIN64_NTQUERYVALUEKEY => "NtQueryValueKey",
+        WIN64_NTALLOCATEVIRTUALMEMORY => "NtAllocateVirtualMemory",
+        WIN64_NTQUERYINFORMATIONPROCESS => "NtQueryInformationProcess",
+        WIN64_NTWAITFORMULTIPLEOBJECTS32 => "NtWaitForMultipleObjects32",
+        WIN64_NTWRITEFILEGATHER => "NtWriteFileGather",
+        WIN64_NTSETINFORMATIONPROCESS => "NtSetInformationProcess",
+        WIN64_NTCREATEKEY => "NtCreateKey",
+        WIN64_NTFREEVIRTUALMEMORY => "NtFreeVirtualMemory",
+        WIN64_NTIMPERSONATECLIENTOFPORT => "NtImpersonateClientOfPort",
+        WIN64_NTRELEASEMUTANT => "NtReleaseMutant",
+        WIN64_NTQUERYINFORMATIONTOKEN => "NtQueryInformationToken",
+        WIN64_NTREQUESTWAITREPLYPORT => "NtRequestWaitReplyPort",
+        WIN64_NTQUERYVIRTUALMEMORY => "NtQueryVirtualMemory",
+        WIN64_NTOPENTHREADTOKEN => "NtOpenThreadToken",
+        WIN64_NTQUERYINFORMATIONTHREAD => "NtQueryInformationThread",
+        WIN64_NTOPENPROCESS => "NtOpenProcess",
+        WIN64_NTSETINFORMATIONFILE => "NtSetInformationFile",
+        WIN64_NTMAPVIEWOFSECTION => "NtMapViewOfSection",
+        WIN64_NTACCESSCHECKANDAUDITALARM => "NtAccessCheckAndAuditAlarm",
+        WIN64_NTUNMAPVIEWOFSECTION => "NtUnmapViewOfSection",
+        WIN64_NTREPLYWAITRECEIVEPORTEX => "NtReplyWaitReceivePortEx",
+        WIN64_NTTERMINATEPROCESS => "NtTerminateProcess",
+        WIN64_NTSETEVENTBOOSTPRIORITY => "NtSetEventBoostPriority",
+        WIN64_NTREADFILESCATTER => "NtReadFileScatter",
+        WIN64_NTOPENTHREADTOKENEX => "NtOpenThreadTokenEx",
+        WIN64_NTOPENPROCESSTOKENEX => "NtOpenProcessTokenEx",
+        WIN64_NTQUERYPERFORMANCECOUNTER => "NtQueryPerformanceCounter",
+        WIN64_NTENUMERATEKEY => "NtEnumerateKey",
+        WIN64_NTOPENFILE => "NtOpenFile",
+        WIN64_NTDELAYEXECUTION => "NtDelayExecution",
+        WIN64_NTQUERYDIRECTORYFILE => "NtQueryDirectoryFile",
+        WIN64_NTQUERYSYSTEMINFORMATION => "NtQuerySystemInformation",
+        WIN64_NTOPENSECTION => "NtOpenSection",
+        WIN64_NTQUERYTIMER => "NtQueryTimer",
+        WIN64_NTFSCONTROLFILE => "NtFsControlFile",
+        WIN64_NTWRITEVIRTUALMEMORY => "NtWriteVirtualMemory",
+        WIN64_NTCLOSEOBJECTAUDITALARM => "NtCloseObjectAuditAlarm",
+        WIN64_NTDUPLICATEOBJECT => "NtDuplicateObject",
+        WIN64_NTQUERYATTRIBUTESFILE => "NtQueryAttributesFile",
+        WIN64_NTCLEAREVENT => "NtClearEvent",
+        WIN64_NTREADVIRTUALMEMORY => "NtReadVirtualMemory",
+        WIN64_NTOPENEVENT => "NtOpenEvent",
+        WIN64_NTADJUSTPRIVILEGESTOKEN => "NtAdjustPrivilegesToken",
+        WIN64_NTDUPLICATETOKEN => "NtDuplicateToken",
+        WIN64_NTCONTINUE => "NtContinue",
+        WIN64_NTQUERYDEFAULTUILANGUAGE => "NtQueryDefaultUILanguage",
+        WIN64_NTQUEUEAPCTHREAD => "NtQueueApcThread",
+        WIN64_NTYIELDEXECUTION => "NtYieldExecution",
+        WIN64_NTADDATOM => "NtAddAtom",
+        WIN64_NTCREATEEVENT => "NtCreateEvent",
+        WIN64_NTQUERYVOLUMEINFORMATIONFILE => "NtQueryVolumeInformationFile",
+        WIN64_NTCREATESECTION => "NtCreateSection",
+        WIN64_NTFLUSHBUFFERSFILE => "NtFlushBuffersFile",
+        WIN64_NTAPPHELPCACHECONTROL => "NtApphelpCacheControl",
+        WIN64_NTCREATEPROCESSEX => "NtCreateProcessEx",
+        WIN64_NTCREATETHREAD => "NtCreateThread",
+        WIN64_NTISPROCESSINJOB => "NtIsProcessInJob",
+        WIN64_NTPROTECTVIRTUALMEMORY => "NtProtectVirtualMemory",
+        WIN64_NTQUERYSECTION => "NtQuerySection",
+        WIN64_NTRESUMETHREAD => "NtResumeThread",
+        WIN64_NTTERMINATETHREAD => "NtTerminateThread",
+        WIN64_NTREADREQUESTDATA => "NtReadRequestData",
+        WIN64_NTCREATEFILE => "NtCreateFile",
+        WIN64_NTQUERYEVENT => "NtQueryEvent",
+        WIN64_NTWRITEREQUESTDATA => "NtWriteRequestData",
+        WIN64_NTOPENDIRECTORYOBJECT => "NtOpenDirectoryObject",
+        WIN64_NTACCESSCHECKBYTYPEANDAUDITALARM => "NtAccessCheckByTypeAndAuditAlarm",
+        WIN64_NTQUERYSYSTEMTIME => "NtQuerySystemTime",
+        WIN64_NTWAITFORMULTIPLEOBJECTS => "NtWaitForMultipleObjects",
+        WIN64_NTSETINFORMATIONOBJECT => "NtSetInformationObject",
+        WIN64_NTCANCELIOFILE => "NtCancelIoFile",
+        WIN64_NTTRACEEVENT => "NtTraceEvent",
+        WIN64_NTPOWERINFORMATION => "NtPowerInformation",
+        WIN64_NTSETVALUEKEY => "NtSetValueKey",
+        WIN64_NTCANCELTIMER => "NtCancelTimer",
+        WIN64_NTSETTIMER => "NtSetTimer",
+        WIN64_NTACCESSCHECKBYTYPE => "NtAccessCheckByType",
+        WIN64_NTACCESSCHECKBYTYPERESULTLIST => "NtAccessCheckByTypeResultList",
+        WIN64_NTACCESSCHECKBYTYPERESULTLISTANDAUDITALARM => {
+            "NtAccessCheckByTypeResultListAndAuditAlarm"
+        }
+        WIN64_NTACCESSCHECKBYTYPERESULTLISTANDAUDITALARMBYHANDLE => {
+            "NtAccessCheckByTypeResultListAndAuditAlarmByHandle"
+        }
+        WIN64_NTACQUIRECROSSVMMUTANT => "NtAcquireCrossVmMutant",
+        WIN64_NTACQUIREPROCESSACTIVITYREFERENCE => "NtAcquireProcessActivityReference",
+        WIN64_NTADDATOMEX => "NtAddAtomEx",
+        WIN64_NTADDBOOTENTRY => "NtAddBootEntry",
+        WIN64_NTADDDRIVERENTRY => "NtAddDriverEntry",
+        WIN64_NTADJUSTGROUPSTOKEN => "NtAdjustGroupsToken",
+        WIN64_NTADJUSTTOKENCLAIMSANDDEVICEGROUPS => "NtAdjustTokenClaimsAndDeviceGroups",
+        WIN64_NTALERTMULTIPLETHREADBYTHREADID => "NtAlertMultipleThreadByThreadId",
+        WIN64_NTALERTRESUMETHREAD => "NtAlertResumeThread",
+        WIN64_NTALERTTHREAD => "NtAlertThread",
+        WIN64_NTALERTTHREADBYTHREADID => "NtAlertThreadByThreadId",
+        WIN64_NTALERTTHREADBYTHREADIDEX => "NtAlertThreadByThreadIdEx",
+        WIN64_NTALLOCATELOCALLYUNIQUEID => "NtAllocateLocallyUniqueId",
+        WIN64_NTALLOCATERESERVEOBJECT => "NtAllocateReserveObject",
+        WIN64_NTALLOCATEUSERPHYSICALPAGES => "NtAllocateUserPhysicalPages",
+        WIN64_NTALLOCATEUSERPHYSICALPAGESEX => "NtAllocateUserPhysicalPagesEx",
+        WIN64_NTALLOCATEUUIDS => "NtAllocateUuids",
+        WIN64_NTALLOCATEVIRTUALMEMORYEX => "NtAllocateVirtualMemoryEx",
+        WIN64_NTALPCACCEPTCONNECTPORT => "NtAlpcAcceptConnectPort",
+        WIN64_NTALPCCANCELMESSAGE => "NtAlpcCancelMessage",
+        WIN64_NTALPCCONNECTPORT => "NtAlpcConnectPort",
+        WIN64_NTALPCCONNECTPORTEX => "NtAlpcConnectPortEx",
+        WIN64_NTALPCCREATEPORT => "NtAlpcCreatePort",
+        WIN64_NTALPCCREATEPORTSECTION => "NtAlpcCreatePortSection",
+        WIN64_NTALPCCREATERESOURCERESERVE => "NtAlpcCreateResourceReserve",
+        WIN64_NTALPCCREATESECTIONVIEW => "NtAlpcCreateSectionView",
+        WIN64_NTALPCCREATESECURITYCONTEXT => "NtAlpcCreateSecurityContext",
+        WIN64_NTALPCDELETEPORTSECTION => "NtAlpcDeletePortSection",
+        WIN64_NTALPCDELETERESOURCERESERVE => "NtAlpcDeleteResourceReserve",
+        WIN64_NTALPCDELETESECTIONVIEW => "NtAlpcDeleteSectionView",
+        WIN64_NTALPCDELETESECURITYCONTEXT => "NtAlpcDeleteSecurityContext",
+        WIN64_NTALPCDISCONNECTPORT => "NtAlpcDisconnectPort",
+        WIN64_NTALPCIMPERSONATECLIENTCONTAINEROFPORT => "NtAlpcImpersonateClientContainerOfPort",
+        WIN64_NTALPCIMPERSONATECLIENTOFPORT => "NtAlpcImpersonateClientOfPort",
+        WIN64_NTALPCOPENSENDERPROCESS => "NtAlpcOpenSenderProcess",
+        WIN64_NTALPCOPENSENDERTHREAD => "NtAlpcOpenSenderThread",
+        WIN64_NTALPCQUERYINFORMATION => "NtAlpcQueryInformation",
+        WIN64_NTALPCQUERYINFORMATIONMESSAGE => "NtAlpcQueryInformationMessage",
+        WIN64_NTALPCREVOKESECURITYCONTEXT => "NtAlpcRevokeSecurityContext",
+        WIN64_NTALPCSENDWAITRECEIVEPORT => "NtAlpcSendWaitReceivePort",
+        WIN64_NTALPCSETINFORMATION => "NtAlpcSetInformation",
+        WIN64_NTAREMAPPEDFILESTHESAME => "NtAreMappedFilesTheSame",
+        WIN64_NTASSIGNPROCESSTOJOBOBJECT => "NtAssignProcessToJobObject",
+        WIN64_NTASSOCIATEWAITCOMPLETIONPACKET => "NtAssociateWaitCompletionPacket",
+        WIN64_NTCALLENCLAVE => "NtCallEnclave",
+        WIN64_NTCANCELIOFILEEX => "NtCancelIoFileEx",
+        WIN64_NTCANCELSYNCHRONOUSIOFILE => "NtCancelSynchronousIoFile",
+        WIN64_NTCANCELTIMER2 => "NtCancelTimer2",
+        WIN64_NTCANCELWAITCOMPLETIONPACKET => "NtCancelWaitCompletionPacket",
+        WIN64_NTCHANGEPROCESSSTATE => "NtChangeProcessState",
+        WIN64_NTCHANGETHREADSTATE => "NtChangeThreadState",
+        WIN64_NTCOMMITCOMPLETE => "NtCommitComplete",
+        WIN64_NTCOMMITENLISTMENT => "NtCommitEnlistment",
+        WIN64_NTCOMMITREGISTRYTRANSACTION => "NtCommitRegistryTransaction",
+        WIN64_NTCOMMITTRANSACTION => "NtCommitTransaction",
+        WIN64_NTCOMPACTKEYS => "NtCompactKeys",
+        WIN64_NTCOMPAREOBJECTS => "NtCompareObjects",
+        WIN64_NTCOMPARESIGNINGLEVELS => "NtCompareSigningLevels",
+        WIN64_NTCOMPARETOKENS => "NtCompareTokens",
+        WIN64_NTCOMPLETECONNECTPORT => "NtCompleteConnectPort",
+        WIN64_NTCOMPRESSKEY => "NtCompressKey",
+        WIN64_NTCONNECTPORT => "NtConnectPort",
+        WIN64_NTCONTINUEEX => "NtContinueEx",
+        WIN64_NTCONVERTBETWEENAUXILIARYCOUNTERANDPERFORMANCECOUNTER => {
+            "NtConvertBetweenAuxiliaryCounterAndPerformanceCounter"
+        }
+        WIN64_NTCOPYFILECHUNK => "NtCopyFileChunk",
+        WIN64_NTCREATECPUPARTITION => "NtCreateCpuPartition",
+        WIN64_NTCREATECROSSVMEVENT => "NtCreateCrossVmEvent",
+        WIN64_NTCREATECROSSVMMUTANT => "NtCreateCrossVmMutant",
+        WIN64_NTCREATEDEBUGOBJECT => "NtCreateDebugObject",
+        WIN64_NTCREATEDIRECTORYOBJECT => "NtCreateDirectoryObject",
+        WIN64_NTCREATEDIRECTORYOBJECTEX => "NtCreateDirectoryObjectEx",
+        WIN64_NTCREATEENCLAVE => "NtCreateEnclave",
+        WIN64_NTCREATEENLISTMENT => "NtCreateEnlistment",
+        WIN64_NTCREATEEVENTPAIR => "NtCreateEventPair",
+        WIN64_NTCREATEIRTIMER => "NtCreateIRTimer",
+        WIN64_NTCREATEIOCOMPLETION => "NtCreateIoCompletion",
+        WIN64_NTCREATEIORING => "NtCreateIoRing",
+        WIN64_NTCREATEJOBOBJECT => "NtCreateJobObject",
+        WIN64_NTCREATEJOBSET => "NtCreateJobSet",
+        WIN64_NTCREATEKEYTRANSACTED => "NtCreateKeyTransacted",
+        WIN64_NTCREATEKEYEDEVENT => "NtCreateKeyedEvent",
+        WIN64_NTCREATELOWBOXTOKEN => "NtCreateLowBoxToken",
+        WIN64_NTCREATEMAILSLOTFILE => "NtCreateMailslotFile",
+        WIN64_NTCREATEMUTANT => "NtCreateMutant",
+        WIN64_NTCREATENAMEDPIPEFILE => "NtCreateNamedPipeFile",
+        WIN64_NTCREATEPAGINGFILE => "NtCreatePagingFile",
+        WIN64_NTCREATEPARTITION => "NtCreatePartition",
+        WIN64_NTCREATEPORT => "NtCreatePort",
+        WIN64_NTCREATEPRIVATENAMESPACE => "NtCreatePrivateNamespace",
+        WIN64_NTCREATEPROCESS => "NtCreateProcess",
+        WIN64_NTCREATEPROCESSSTATECHANGE => "NtCreateProcessStateChange",
+        WIN64_NTCREATEPROFILE => "NtCreateProfile",
+        WIN64_NTCREATEPROFILEEX => "NtCreateProfileEx",
+        WIN64_NTCREATEREGISTRYTRANSACTION => "NtCreateRegistryTransaction",
+        WIN64_NTCREATERESOURCEMANAGER => "NtCreateResourceManager",
+        WIN64_NTCREATESECTIONEX => "NtCreateSectionEx",
+        WIN64_NTCREATESEMAPHORE => "NtCreateSemaphore",
+        WIN64_NTCREATESYMBOLICLINKOBJECT => "NtCreateSymbolicLinkObject",
+        WIN64_NTCREATETHREADEX => "NtCreateThreadEx",
+        WIN64_NTCREATETHREADSTATECHANGE => "NtCreateThreadStateChange",
+        WIN64_NTCREATETIMER => "NtCreateTimer",
+        WIN64_NTCREATETIMER2 => "NtCreateTimer2",
+        WIN64_NTCREATETOKEN => "NtCreateToken",
+        WIN64_NTCREATETOKENEX => "NtCreateTokenEx",
+        WIN64_NTCREATETRANSACTION => "NtCreateTransaction",
+        WIN64_NTCREATETRANSACTIONMANAGER => "NtCreateTransactionManager",
+        WIN64_NTCREATEUSERPROCESS => "NtCreateUserProcess",
+        WIN64_NTCREATEWAITCOMPLETIONPACKET => "NtCreateWaitCompletionPacket",
+        WIN64_NTCREATEWAITABLEPORT => "NtCreateWaitablePort",
+        WIN64_NTCREATEWNFSTATENAME => "NtCreateWnfStateName",
+        WIN64_NTCREATEWORKERFACTORY => "NtCreateWorkerFactory",
+        WIN64_NTDEBUGACTIVEPROCESS => "NtDebugActiveProcess",
+        WIN64_NTDEBUGCONTINUE => "NtDebugContinue",
+        WIN64_NTDELETEATOM => "NtDeleteAtom",
+        WIN64_NTDELETEBOOTENTRY => "NtDeleteBootEntry",
+        WIN64_NTDELETEDRIVERENTRY => "NtDeleteDriverEntry",
+        WIN64_NTDELETEFILE => "NtDeleteFile",
+        WIN64_NTDELETEKEY => "NtDeleteKey",
+        WIN64_NTDELETEOBJECTAUDITALARM => "NtDeleteObjectAuditAlarm",
+        WIN64_NTDELETEPRIVATENAMESPACE => "NtDeletePrivateNamespace",
+        WIN64_NTDELETEVALUEKEY => "NtDeleteValueKey",
+        WIN64_NTDELETEWNFSTATEDATA => "NtDeleteWnfStateData",
+        WIN64_NTDELETEWNFSTATENAME => "NtDeleteWnfStateName",
+        WIN64_NTDIRECTGRAPHICSCALL => "NtDirectGraphicsCall",
+        WIN64_NTDISABLELASTKNOWNGOOD => "NtDisableLastKnownGood",
+        WIN64_NTDISPLAYSTRING => "NtDisplayString",
+        WIN64_NTDRAWTEXT => "NtDrawText",
+        WIN64_NTENABLELASTKNOWNGOOD => "NtEnableLastKnownGood",
+        WIN64_NTENUMERATEBOOTENTRIES => "NtEnumerateBootEntries",
+        WIN64_NTENUMERATEDRIVERENTRIES => "NtEnumerateDriverEntries",
+        WIN64_NTENUMERATESYSTEMENVIRONMENTVALUESEX => "NtEnumerateSystemEnvironmentValuesEx",
+        WIN64_NTENUMERATETRANSACTIONOBJECT => "NtEnumerateTransactionObject",
+        WIN64_NTEXTENDSECTION => "NtExtendSection",
+        WIN64_NTFILTERBOOTOPTION => "NtFilterBootOption",
+        WIN64_NTFILTERTOKEN => "NtFilterToken",
+        WIN64_NTFILTERTOKENEX => "NtFilterTokenEx",
+        WIN64_NTFLUSHBUFFERSFILEEX => "NtFlushBuffersFileEx",
+        WIN64_NTFLUSHINSTALLUILANGUAGE => "NtFlushInstallUILanguage",
+        WIN64_NTFLUSHINSTRUCTIONCACHE => "NtFlushInstructionCache",
+        WIN64_NTFLUSHKEY => "NtFlushKey",
+        WIN64_NTFLUSHPROCESSWRITEBUFFERS => "NtFlushProcessWriteBuffers",
+        WIN64_NTFLUSHVIRTUALMEMORY => "NtFlushVirtualMemory",
+        WIN64_NTFLUSHWRITEBUFFER => "NtFlushWriteBuffer",
+        WIN64_NTFREEUSERPHYSICALPAGES => "NtFreeUserPhysicalPages",
+        WIN64_NTFREEZEREGISTRY => "NtFreezeRegistry",
+        WIN64_NTFREEZETRANSACTIONS => "NtFreezeTransactions",
+        WIN64_NTGETCACHEDSIGNINGLEVEL => "NtGetCachedSigningLevel",
+        WIN64_NTGETCOMPLETEWNFSTATESUBSCRIPTION => "NtGetCompleteWnfStateSubscription",
+        WIN64_NTGETCONTEXTTHREAD => "NtGetContextThread",
+        WIN64_NTGETCURRENTPROCESSORNUMBER => "NtGetCurrentProcessorNumber",
+        WIN64_NTGETCURRENTPROCESSORNUMBEREX => "NtGetCurrentProcessorNumberEx",
+        WIN64_NTGETDEVICEPOWERSTATE => "NtGetDevicePowerState",
+        WIN64_NTGETMUIREGISTRYINFO => "NtGetMUIRegistryInfo",
+        WIN64_NTGETNEXTPROCESS => "NtGetNextProcess",
+        WIN64_NTGETNEXTTHREAD => "NtGetNextThread",
+        WIN64_NTGETNLSSECTIONPTR => "NtGetNlsSectionPtr",
+        WIN64_NTGETNOTIFICATIONRESOURCEMANAGER => "NtGetNotificationResourceManager",
+        WIN64_NTGETWRITEWATCH => "NtGetWriteWatch",
+        WIN64_NTIMPERSONATEANONYMOUSTOKEN => "NtImpersonateAnonymousToken",
+        WIN64_NTIMPERSONATETHREAD => "NtImpersonateThread",
+        WIN64_NTINITIALIZEENCLAVE => "NtInitializeEnclave",
+        WIN64_NTINITIALIZENLSFILES => "NtInitializeNlsFiles",
+        WIN64_NTINITIALIZEREGISTRY => "NtInitializeRegistry",
+        WIN64_NTINITIATEPOWERACTION => "NtInitiatePowerAction",
+        WIN64_NTISSYSTEMRESUMEAUTOMATIC => "NtIsSystemResumeAutomatic",
+        WIN64_NTISUILANGUAGECOMITTED => "NtIsUILanguageComitted",
+        WIN64_NTLISTENPORT => "NtListenPort",
+        WIN64_NTLOADDRIVER => "NtLoadDriver",
+        WIN64_NTLOADENCLAVEDATA => "NtLoadEnclaveData",
+        WIN64_NTLOADKEY => "NtLoadKey",
+        WIN64_NTLOADKEY2 => "NtLoadKey2",
+        WIN64_NTLOADKEY3 => "NtLoadKey3",
+        WIN64_NTLOADKEYEX => "NtLoadKeyEx",
+        WIN64_NTLOCKFILE => "NtLockFile",
+        WIN64_NTLOCKPRODUCTACTIVATIONKEYS => "NtLockProductActivationKeys",
+        WIN64_NTLOCKREGISTRYKEY => "NtLockRegistryKey",
+        WIN64_NTLOCKVIRTUALMEMORY => "NtLockVirtualMemory",
+        WIN64_NTMAKEPERMANENTOBJECT => "NtMakePermanentObject",
+        WIN64_NTMAKETEMPORARYOBJECT => "NtMakeTemporaryObject",
+        WIN64_NTMANAGEHOTPATCH => "NtManageHotPatch",
+        WIN64_NTMANAGEPARTITION => "NtManagePartition",
+        WIN64_NTMAPCMFMODULE => "NtMapCMFModule",
+        WIN64_NTMAPUSERPHYSICALPAGES => "NtMapUserPhysicalPages",
+        WIN64_NTMAPVIEWOFSECTIONEX => "NtMapViewOfSectionEx",
+        WIN64_NTMODIFYBOOTENTRY => "NtModifyBootEntry",
+        WIN64_NTMODIFYDRIVERENTRY => "NtModifyDriverEntry",
+        WIN64_NTNOTIFYCHANGEDIRECTORYFILE => "NtNotifyChangeDirectoryFile",
+        WIN64_NTNOTIFYCHANGEDIRECTORYFILEEX => "NtNotifyChangeDirectoryFileEx",
+        WIN64_NTNOTIFYCHANGEKEY => "NtNotifyChangeKey",
+        WIN64_NTNOTIFYCHANGEMULTIPLEKEYS => "NtNotifyChangeMultipleKeys",
+        WIN64_NTNOTIFYCHANGESESSION => "NtNotifyChangeSession",
+        WIN64_NTOPENCPUPARTITION => "NtOpenCpuPartition",
+        WIN64_NTOPENENLISTMENT => "NtOpenEnlistment",
+        WIN64_NTOPENEVENTPAIR => "NtOpenEventPair",
+        WIN64_NTOPENIOCOMPLETION => "NtOpenIoCompletion",
+        WIN64_NTOPENJOBOBJECT => "NtOpenJobObject",
+        WIN64_NTOPENKEYEX => "NtOpenKeyEx",
+        WIN64_NTOPENKEYTRANSACTED => "NtOpenKeyTransacted",
+        WIN64_NTOPENKEYTRANSACTEDEX => "NtOpenKeyTransactedEx",
+        WIN64_NTOPENKEYEDEVENT => "NtOpenKeyedEvent",
+        WIN64_NTOPENMUTANT => "NtOpenMutant",
+        WIN64_NTOPENOBJECTAUDITALARM => "NtOpenObjectAuditAlarm",
+        WIN64_NTOPENPARTITION => "NtOpenPartition",
+        WIN64_NTOPENPRIVATENAMESPACE => "NtOpenPrivateNamespace",
+        WIN64_NTOPENPROCESSTOKEN => "NtOpenProcessToken",
+        WIN64_NTOPENREGISTRYTRANSACTION => "NtOpenRegistryTransaction",
+        WIN64_NTOPENRESOURCEMANAGER => "NtOpenResourceManager",
+        WIN64_NTOPENSEMAPHORE => "NtOpenSemaphore",
+        WIN64_NTOPENSESSION => "NtOpenSession",
+        WIN64_NTOPENSYMBOLICLINKOBJECT => "NtOpenSymbolicLinkObject",
+        WIN64_NTOPENTHREAD => "NtOpenThread",
+        WIN64_NTOPENTIMER => "NtOpenTimer",
+        WIN64_NTOPENTRANSACTION => "NtOpenTransaction",
+        WIN64_NTOPENTRANSACTIONMANAGER => "NtOpenTransactionManager",
+        WIN64_NTPLUGPLAYCONTROL => "NtPlugPlayControl",
+        WIN64_NTPREPREPARECOMPLETE => "NtPrePrepareComplete",
+        WIN64_NTPREPREPAREENLISTMENT => "NtPrePrepareEnlistment",
+        WIN64_NTPREPARECOMPLETE => "NtPrepareComplete",
+        WIN64_NTPREPAREENLISTMENT => "NtPrepareEnlistment",
+        WIN64_NTPRIVILEGECHECK => "NtPrivilegeCheck",
+        WIN64_NTPRIVILEGEOBJECTAUDITALARM => "NtPrivilegeObjectAuditAlarm",
+        WIN64_NTPRIVILEGEDSERVICEAUDITALARM => "NtPrivilegedServiceAuditAlarm",
+        WIN64_NTPROPAGATIONCOMPLETE => "NtPropagationComplete",
+        WIN64_NTPROPAGATIONFAILED => "NtPropagationFailed",
+        WIN64_NTPSSCAPTUREVASPACEBULK => "NtPssCaptureVaSpaceBulk",
+        WIN64_NTPULSEEVENT => "NtPulseEvent",
+        WIN64_NTQUERYAUXILIARYCOUNTERFREQUENCY => "NtQueryAuxiliaryCounterFrequency",
+        WIN64_NTQUERYBOOTENTRYORDER => "NtQueryBootEntryOrder",
+        WIN64_NTQUERYBOOTOPTIONS => "NtQueryBootOptions",
+        WIN64_NTQUERYDEBUGFILTERSTATE => "NtQueryDebugFilterState",
+        WIN64_NTQUERYDIRECTORYFILEEX => "NtQueryDirectoryFileEx",
+        WIN64_NTQUERYDIRECTORYOBJECT => "NtQueryDirectoryObject",
+        WIN64_NTQUERYDRIVERENTRYORDER => "NtQueryDriverEntryOrder",
+        WIN64_NTQUERYEAFILE => "NtQueryEaFile",
+        WIN64_NTQUERYFULLATTRIBUTESFILE => "NtQueryFullAttributesFile",
+        WIN64_NTQUERYINFORMATIONATOM => "NtQueryInformationAtom",
+        WIN64_NTQUERYINFORMATIONBYNAME => "NtQueryInformationByName",
+        WIN64_NTQUERYINFORMATIONCPUPARTITION => "NtQueryInformationCpuPartition",
+        WIN64_NTQUERYINFORMATIONENLISTMENT => "NtQueryInformationEnlistment",
+        WIN64_NTQUERYINFORMATIONJOBOBJECT => "NtQueryInformationJobObject",
+        WIN64_NTQUERYINFORMATIONPORT => "NtQueryInformationPort",
+        WIN64_NTQUERYINFORMATIONRESOURCEMANAGER => "NtQueryInformationResourceManager",
+        WIN64_NTQUERYINFORMATIONTRANSACTION => "NtQueryInformationTransaction",
+        WIN64_NTQUERYINFORMATIONTRANSACTIONMANAGER => "NtQueryInformationTransactionManager",
+        WIN64_NTQUERYINFORMATIONWORKERFACTORY => "NtQueryInformationWorkerFactory",
+        WIN64_NTQUERYINSTALLUILANGUAGE => "NtQueryInstallUILanguage",
+        WIN64_NTQUERYINTERVALPROFILE => "NtQueryIntervalProfile",
+        WIN64_NTQUERYIOCOMPLETION => "NtQueryIoCompletion",
+        WIN64_NTQUERYIORINGCAPABILITIES => "NtQueryIoRingCapabilities",
+        WIN64_NTQUERYLICENSEVALUE => "NtQueryLicenseValue",
+        WIN64_NTQUERYMULTIPLEVALUEKEY => "NtQueryMultipleValueKey",
+        WIN64_NTQUERYMUTANT => "NtQueryMutant",
+        WIN64_NTQUERYOPENSUBKEYS => "NtQueryOpenSubKeys",
+        WIN64_NTQUERYOPENSUBKEYSEX => "NtQueryOpenSubKeysEx",
+        WIN64_NTQUERYPORTINFORMATIONPROCESS => "NtQueryPortInformationProcess",
+        WIN64_NTQUERYQUOTAINFORMATIONFILE => "NtQueryQuotaInformationFile",
+        WIN64_NTQUERYSECURITYATTRIBUTESTOKEN => "NtQuerySecurityAttributesToken",
+        WIN64_NTQUERYSECURITYOBJECT => "NtQuerySecurityObject",
+        WIN64_NTQUERYSECURITYPOLICY => "NtQuerySecurityPolicy",
+        WIN64_NTQUERYSEMAPHORE => "NtQuerySemaphore",
+        WIN64_NTQUERYSYMBOLICLINKOBJECT => "NtQuerySymbolicLinkObject",
+        WIN64_NTQUERYSYSTEMENVIRONMENTVALUE => "NtQuerySystemEnvironmentValue",
+        WIN64_NTQUERYSYSTEMENVIRONMENTVALUEEX => "NtQuerySystemEnvironmentValueEx",
+        WIN64_NTQUERYSYSTEMINFORMATIONEX => "NtQuerySystemInformationEx",
+        WIN64_NTQUERYTIMERRESOLUTION => "NtQueryTimerResolution",
+        WIN64_NTQUERYWNFSTATEDATA => "NtQueryWnfStateData",
+        WIN64_NTQUERYWNFSTATENAMEINFORMATION => "NtQueryWnfStateNameInformation",
+        WIN64_NTQUEUEAPCTHREADEX => "NtQueueApcThreadEx",
+        WIN64_NTQUEUEAPCTHREADEX2 => "NtQueueApcThreadEx2",
+        WIN64_NTRAISEEXCEPTION => "NtRaiseException",
+        WIN64_NTRAISEHARDERROR => "NtRaiseHardError",
+        WIN64_NTREADONLYENLISTMENT => "NtReadOnlyEnlistment",
+        WIN64_NTREADVIRTUALMEMORYEX => "NtReadVirtualMemoryEx",
+        WIN64_NTRECOVERENLISTMENT => "NtRecoverEnlistment",
+        WIN64_NTRECOVERRESOURCEMANAGER => "NtRecoverResourceManager",
+        WIN64_NTRECOVERTRANSACTIONMANAGER => "NtRecoverTransactionManager",
+        WIN64_NTREGISTERPROTOCOLADDRESSINFORMATION => "NtRegisterProtocolAddressInformation",
+        WIN64_NTREGISTERTHREADTERMINATEPORT => "NtRegisterThreadTerminatePort",
+        WIN64_NTRELEASEKEYEDEVENT => "NtReleaseKeyedEvent",
+        WIN64_NTRELEASEWORKERFACTORYWORKER => "NtReleaseWorkerFactoryWorker",
+        WIN64_NTREMOVEIOCOMPLETIONEX => "NtRemoveIoCompletionEx",
+        WIN64_NTREMOVEPROCESSDEBUG => "NtRemoveProcessDebug",
+        WIN64_NTRENAMEKEY => "NtRenameKey",
+        WIN64_NTRENAMETRANSACTIONMANAGER => "NtRenameTransactionManager",
+        WIN64_NTREPLACEKEY => "NtReplaceKey",
+        WIN64_NTREPLACEPARTITIONUNIT => "NtReplacePartitionUnit",
+        WIN64_NTREPLYWAITREPLYPORT => "NtReplyWaitReplyPort",
+        WIN64_NTREQUESTPORT => "NtRequestPort",
+        WIN64_NTRESETEVENT => "NtResetEvent",
+        WIN64_NTRESETWRITEWATCH => "NtResetWriteWatch",
+        WIN64_NTRESTOREKEY => "NtRestoreKey",
+        WIN64_NTRESUMEPROCESS => "NtResumeProcess",
+        WIN64_NTREVERTCONTAINERIMPERSONATION => "NtRevertContainerImpersonation",
+        WIN64_NTROLLBACKCOMPLETE => "NtRollbackComplete",
+        WIN64_NTROLLBACKENLISTMENT => "NtRollbackEnlistment",
+        WIN64_NTROLLBACKREGISTRYTRANSACTION => "NtRollbackRegistryTransaction",
+        WIN64_NTROLLBACKTRANSACTION => "NtRollbackTransaction",
+        WIN64_NTROLLFORWARDTRANSACTIONMANAGER => "NtRollforwardTransactionManager",
+        WIN64_NTSAVEKEY => "NtSaveKey",
+        WIN64_NTSAVEKEYEX => "NtSaveKeyEx",
+        WIN64_NTSAVEMERGEDKEYS => "NtSaveMergedKeys",
+        WIN64_NTSECURECONNECTPORT => "NtSecureConnectPort",
+        WIN64_NTSERIALIZEBOOT => "NtSerializeBoot",
+        WIN64_NTSETBOOTENTRYORDER => "NtSetBootEntryOrder",
+        WIN64_NTSETBOOTOPTIONS => "NtSetBootOptions",
+        WIN64_NTSETCACHEDSIGNINGLEVEL => "NtSetCachedSigningLevel",
+        WIN64_NTSETCACHEDSIGNINGLEVEL2 => "NtSetCachedSigningLevel2",
+        WIN64_NTSETCONTEXTTHREAD => "NtSetContextThread",
+        WIN64_NTSETDEBUGFILTERSTATE => "NtSetDebugFilterState",
+        WIN64_NTSETDEFAULTHARDERRORPORT => "NtSetDefaultHardErrorPort",
+        WIN64_NTSETDEFAULTLOCALE => "NtSetDefaultLocale",
+        WIN64_NTSETDEFAULTUILANGUAGE => "NtSetDefaultUILanguage",
+        WIN64_NTSETDRIVERENTRYORDER => "NtSetDriverEntryOrder",
+        WIN64_NTSETEAFILE => "NtSetEaFile",
+        WIN64_NTSETEVENTEX => "NtSetEventEx",
+        WIN64_NTSETHIGHEVENTPAIR => "NtSetHighEventPair",
+        WIN64_NTSETHIGHWAITLOWEVENTPAIR => "NtSetHighWaitLowEventPair",
+        WIN64_NTSETIRTIMER => "NtSetIRTimer",
+        WIN64_NTSETINFORMATIONCPUPARTITION => "NtSetInformationCpuPartition",
+        WIN64_NTSETINFORMATIONDEBUGOBJECT => "NtSetInformationDebugObject",
+        WIN64_NTSETINFORMATIONENLISTMENT => "NtSetInformationEnlistment",
+        WIN64_NTSETINFORMATIONIORING => "NtSetInformationIoRing",
+        WIN64_NTSETINFORMATIONJOBOBJECT => "NtSetInformationJobObject",
+        WIN64_NTSETINFORMATIONKEY => "NtSetInformationKey",
+        WIN64_NTSETINFORMATIONRESOURCEMANAGER => "NtSetInformationResourceManager",
+        WIN64_NTSETINFORMATIONSYMBOLICLINK => "NtSetInformationSymbolicLink",
+        WIN64_NTSETINFORMATIONTOKEN => "NtSetInformationToken",
+        WIN64_NTSETINFORMATIONTRANSACTION => "NtSetInformationTransaction",
+        WIN64_NTSETINFORMATIONTRANSACTIONMANAGER => "NtSetInformationTransactionManager",
+        WIN64_NTSETINFORMATIONVIRTUALMEMORY => "NtSetInformationVirtualMemory",
+        WIN64_NTSETINFORMATIONWORKERFACTORY => "NtSetInformationWorkerFactory",
+        WIN64_NTSETINTERVALPROFILE => "NtSetIntervalProfile",
+        WIN64_NTSETIOCOMPLETION => "NtSetIoCompletion",
+        WIN64_NTSETIOCOMPLETIONEX => "NtSetIoCompletionEx",
+        WIN64_NTSETLDTENTRIES => "NtSetLdtEntries",
+        WIN64_NTSETLOWEVENTPAIR => "NtSetLowEventPair",
+        WIN64_NTSETLOWWAITHIGHEVENTPAIR => "NtSetLowWaitHighEventPair",
+        WIN64_NTSETQUOTAINFORMATIONFILE => "NtSetQuotaInformationFile",
+        WIN64_NTSETSECURITYOBJECT => "NtSetSecurityObject",
+        WIN64_NTSETSYSTEMENVIRONMENTVALUE => "NtSetSystemEnvironmentValue",
+        WIN64_NTSETSYSTEMENVIRONMENTVALUEEX => "NtSetSystemEnvironmentValueEx",
+        WIN64_NTSETSYSTEMINFORMATION => "NtSetSystemInformation",
+        WIN64_NTSETSYSTEMPOWERSTATE => "NtSetSystemPowerState",
+        WIN64_NTSETSYSTEMTIME => "NtSetSystemTime",
+        WIN64_NTSETTHREADEXECUTIONSTATE => "NtSetThreadExecutionState",
+        WIN64_NTSETTIMER2 => "NtSetTimer2",
+        WIN64_NTSETTIMEREX => "NtSetTimerEx",
+        WIN64_NTSETTIMERRESOLUTION => "NtSetTimerResolution",
+        WIN64_NTSETUUIDSEED => "NtSetUuidSeed",
+        WIN64_NTSETVOLUMEINFORMATIONFILE => "NtSetVolumeInformationFile",
+        WIN64_NTSETWNFPROCESSNOTIFICATIONEVENT => "NtSetWnfProcessNotificationEvent",
+        WIN64_NTSHUTDOWNSYSTEM => "NtShutdownSystem",
+        WIN64_NTSHUTDOWNWORKERFACTORY => "NtShutdownWorkerFactory",
+        WIN64_NTSIGNALANDWAITFORSINGLEOBJECT => "NtSignalAndWaitForSingleObject",
+        WIN64_NTSINGLEPHASEREJECT => "NtSinglePhaseReject",
+        WIN64_NTSTARTPROFILE => "NtStartProfile",
+        WIN64_NTSTOPPROFILE => "NtStopProfile",
+        WIN64_NTSUBMITIORING => "NtSubmitIoRing",
+        WIN64_NTSUBSCRIBEWNFSTATECHANGE => "NtSubscribeWnfStateChange",
+        WIN64_NTSUSPENDPROCESS => "NtSuspendProcess",
+        WIN64_NTSUSPENDTHREAD => "NtSuspendThread",
+        WIN64_NTSYSTEMDEBUGCONTROL => "NtSystemDebugControl",
+        WIN64_NTTERMINATEENCLAVE => "NtTerminateEnclave",
+        WIN64_NTTERMINATEJOBOBJECT => "NtTerminateJobObject",
+        WIN64_NTTESTALERT => "NtTestAlert",
+        WIN64_NTTHAWREGISTRY => "NtThawRegistry",
+        WIN64_NTTHAWTRANSACTIONS => "NtThawTransactions",
+        WIN64_NTTRACECONTROL => "NtTraceControl",
+        WIN64_NTTRANSLATEFILEPATH => "NtTranslateFilePath",
+        WIN64_NTUMSTHREADYIELD => "NtUmsThreadYield",
+        WIN64_NTUNLOADDRIVER => "NtUnloadDriver",
+        WIN64_NTUNLOADKEY => "NtUnloadKey",
+        WIN64_NTUNLOADKEY2 => "NtUnloadKey2",
+        WIN64_NTUNLOADKEYEX => "NtUnloadKeyEx",
+        WIN64_NTUNLOCKFILE => "NtUnlockFile",
+        WIN64_NTUNLOCKVIRTUALMEMORY => "NtUnlockVirtualMemory",
+        WIN64_NTUNMAPVIEWOFSECTIONEX => "NtUnmapViewOfSectionEx",
+        WIN64_NTUNSUBSCRIBEWNFSTATECHANGE => "NtUnsubscribeWnfStateChange",
+        WIN64_NTUPDATEWNFSTATEDATA => "NtUpdateWnfStateData",
+        WIN64_NTVDMCONTROL => "NtVdmControl",
+        WIN64_NTWAITFORALERTBYTHREADID => "NtWaitForAlertByThreadId",
+        WIN64_NTWAITFORDEBUGEVENT => "NtWaitForDebugEvent",
+        WIN64_NTWAITFORKEYEDEVENT => "NtWaitForKeyedEvent",
+        WIN64_NTWAITFORWORKVIAWORKERFACTORY => "NtWaitForWorkViaWorkerFactory",
+        WIN64_NTWAITHIGHEVENTPAIR => "NtWaitHighEventPair",
+        WIN64_NTWAITLOWEVENTPAIR => "NtWaitLowEventPair",
+        _ => return format!("NtSyscall_unknown(0x{sys:x})"),
     }
+    .to_owned()
 }

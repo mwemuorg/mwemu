@@ -56,20 +56,14 @@ destroy it, write to it again.
 ## Building
 
 ```sh
-make driver            # from the repo root -> test/linux_uaf_driver.ko
+make linux-driver      # from the repo root -> test/linux_uaf_driver.ko
 make                   # here, against the running kernel's headers
 make KDIR=/path/to/src # against another kernel tree
 ```
 
-Needs the running kernel's headers (`/lib/modules/$(uname -r)/build`). The
-kernel-emulation tests skip themselves when the artefact is absent.
+Rebuilding the fixture needs the running kernel's headers (`/lib/modules/$(uname -r)/build`). The fixture suite can also use the module from the release bundle.
 
-## Reproducing the finding
-
-```sh
-make driver
-cargo test -p libmwemu tests::kernel -- --nocapture
-```
+See [the test guide](../../../TEST.md) for the fixture and host suites.
 
 or from the CLI, which links the module and runs its init the way `insmod`
 would:

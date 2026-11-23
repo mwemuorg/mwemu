@@ -1,114 +1,90 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver windows-driver test_macos test_golang test_windows test_speed test_fuzz fmt msrv complexity api-modules
+.PHONY: all tests test-ci clippy clippy-release fmt msrv api-modules complexity complexity-gate sloppy
+.PHONY: sync-assets sync-test-fixtures sync-maps sync-maps-symsrv linux-driver macos-driver windows-driver dyld smoke
+.PHONY: test_linux test_macos test_windows test_sys test_speed test_fuzz
 
-# Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
-# CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
+# Optional Cargo arguments for cross-target checks. See TEST.md for the Apple Silicon example.
 CARGO_TARGET ?=
 
-# Keep this list aligned with the workspace default-members and hosted CI.
-CI_PACKAGES := --package mwemu --package libmwemu --package rs-header --package cmwemu
-
-# Test samples + Windows DLLs live at the repo root (test/ and maps/), the single
-# canonical location shared by the CLI and the tests (tests/helpers.rs resolves
-# them relative to the workspace root). The bundle is non-redistributable, so
-# it's gitignored and fetched on demand.
-TEST_DIR := test
-
-all:
-	cargo build --locked --release $(CARGO_TARGET)
-
-# Full local run: fetch the sample bundle and the Windows DLLs, then run the
-# default CI packages.
-# Only Windows provisions the Windows DLLs (and only Windows runs the
-# DLL-backed tests). On Linux/macOS those tests skip themselves via the
-# `win_maps!` macro, so `make tests` there never touches Microsoft's symbol
-# server. Run `make symbols` by hand to fetch the DLLs on Linux/macOS and
-# exercise the Windows-emulation tests locally.
-ifeq ($(OS),Windows_NT)
-TESTS_SYMBOLS := symbols
-else
-TESTS_SYMBOLS :=
-endif
-
-tests: samples $(TESTS_SYMBOLS)
-	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
-	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
-
-# CI run: no bundle, no network. Binary-dependent tests skip themselves via the
-# `sample!` macro when their sample isn't present, and Windows-DLL tests via
-# `win_maps!` (no `make symbols` in CI), so CI runs the self-contained suite. (The committed maps support files — banzai.csv, loader.exe — are
-# enough for the tests that only need a maps folder.)
-test-ci:
-	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
-	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
-
-# Lint the same packages and targets as hosted CI. Warnings are denied
-# (-D warnings); the remaining backlog is grandfathered via crate-level
-# #![allow(...)] blocks marked "clippy v1 burn-down backlog" (see V1-ROADMAP.md).
-clippy:
-	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
-
-api-modules:
-	python3 scripts/check_api_modules.py --self-test
-	python3 scripts/check_api_modules.py $(CARGO_TARGET)
-
-clippy-release:
-	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
-
-# Kernel-mode test target: builds drivers/linux/tlm into test/linux_uaf_driver.ko,
-# the deliberately vulnerable .ko the kernel emulation tests load. Needs the
-# running kernel's headers (/lib/modules/$(uname -r)/build); the tests skip
-# themselves when the artefact is absent, so this is optional.
-driver:
-	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
-
-# Windows kernel-mode test target: builds drivers/windows/tlm into
-# test/windows_uaf_driver.sys with mingw-w64 (x86_64-w64-mingw32-gcc and its
-# DDK headers). The Windows driver tests skip when the artefact is absent.
-windows-driver:
-	$(MAKE) -C drivers/windows/tlm install TESTDIR=$(abspath $(TEST_DIR))
-
-# macOS kext test target: builds drivers/macos/tlm into
-# test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the
-# kernel-mode kext tests skip when the artefact is absent, so CI stays green.
-macos-driver:
-	$(MAKE) -C drivers/macos/tlm install TESTDIR=$(abspath $(TEST_DIR))
-
-# Use the release archive as the inventory. Restore missing files on each run.
+# The installer and Cargo resolve relative fixture paths from the workspace root.
+TEST_DIR ?= test
+export MWEMU_TEST_DIR := $(TEST_DIR)
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
 else
 PYTHON ?= python3
 endif
+SYNC_ASSETS = $(PYTHON) scripts/sync_assets.py
 
-samples:
-	$(PYTHON) scripts/fetch_samples.py "$(TEST_DIR)"
+all:
+	cargo build --locked --release $(CARGO_TARGET)
 
-# Fetch the Windows DLLs the tests load (maps/windows/{x86,x86_64}/) from
-# Microsoft's symbol server, once and sequentially. The test suite itself never
-# downloads: tests that need these DLLs skip via `win_maps!` when absent.
-symbols:
-	cargo test --locked --package libmwemu $(CARGO_TARGET) -- --ignored --exact tests::helpers::fetch_windows_test_dlls
+tests: sync-assets
+	cargo test-assets $(CARGO_TARGET)
+
+test-ci:
+	cargo test --locked $(CARGO_TARGET)
+
+test_linux: sync-test-fixtures
+	cargo test-elf $(CARGO_TARGET)
+
+test_macos:
+	cargo test-macho $(CARGO_TARGET)
+
+test_windows: sync-assets
+	cargo test-pe $(CARGO_TARGET)
+
+test_speed: sync-assets
+	cargo bench-pe $(CARGO_TARGET)
+
+fmt:
+	cargo fmt --all
+
+msrv:
+	cargo +1.95 check --locked $(CARGO_TARGET)
+
+clippy-release: profile = --release
+clippy clippy-release:
+	cargo clippy-all $(profile) $(CARGO_TARGET) -- -D warnings
+
+api-modules:
+	$(PYTHON) scripts/check_api_modules.py --self-test
+	$(PYTHON) scripts/check_api_modules.py $(CARGO_TARGET)
+
+# Rebuild the Linux fixture with the running kernel headers.
+linux-driver:
+	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# Windows kernel-mode test target: builds drivers/windows/tlm into
+# test/windows_uaf_driver.sys with mingw-w64 (x86_64-w64-mingw32-gcc and its
+# DDK headers).
+windows-driver:
+	$(MAKE) -C drivers/windows/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# macOS kext test target: builds drivers/macos/tlm into
+# test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the
+# kext tests use the resulting bundle.
+macos-driver:
+	$(MAKE) -C drivers/macos/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+sync-assets:
+	$(SYNC_ASSETS)
+
+sync-test-fixtures:
+	$(SYNC_ASSETS) test-fixtures
+
+sync-maps:
+	$(SYNC_ASSETS) maps
+
+sync-maps-symsrv:
+	$(SYNC_ASSETS) maps --source symbol-server
 
 # Optional end-to-end smoke test: emulate a sample PE (needs network for the
 # winver DLL fetch).
-smoke: all samples
-	./target/release/mwemu -f $(TEST_DIR)/exe64win_msgbox.bin -6 --winver win11 -e 200000
-
-# Pre-fetch the genuine x64 Windows system DLLs from Microsoft's symbol server
-# into maps/windows/x86_64/. Optional warm-up: libmwemu also auto-fetches any
-# missing DLL on demand. Idempotent: skips if the maps are already present.
-maps: all samples
-	@mkdir -p maps/windows/x86_64
-	@if [ -f maps/windows/x86_64/kernelbase.dll ]; then \
-		echo "[maps] x64 system DLLs already present"; \
-	else \
-		echo "[maps] pre-fetching x64 system DLLs from the symbol server..."; \
-		./target/release/mwemu -f $(TEST_DIR)/exe64win_msgbox.bin -6 --maps maps/windows/x86_64/ -e 300000 --banzai >/dev/null 2>&1 || true; \
-		echo "[maps] warmed $$(ls maps/windows/x86_64/*.dll 2>/dev/null | wc -l) DLLs into maps/windows/x86_64/ (more are auto-fetched on demand)"; \
-	fi
+smoke: sync-test-fixtures
+	cargo run --locked --release -p mwemu $(CARGO_TARGET) -- -f "$(TEST_DIR)/exe64win_msgbox.bin" -6 --winver win11 -e 200000
 
 sloppy:
-	-python3 scripts/sloppy.py
+	-$(PYTHON) scripts/sloppy.py
 
 # Extract macOS dylibs from the local dyld shared cache into maps/macos/aarch64/.
 # Requires macOS with dsc_extractor.bundle (ships with the OS).  The loader
@@ -117,49 +93,28 @@ DYLD_MAPS := maps/macos/aarch64
 DYLD_EXTRACTOR := scripts/extract_dyld_cache
 
 $(DYLD_EXTRACTOR): scripts/extract_dyld_cache.c
-	cc -o $@ $<
+	$(CC) -o $@ $<
 
 dyld: $(DYLD_EXTRACTOR)
 	@echo "[dyld] extracting dyld shared cache (this takes a minute)..."
-	@TMPDIR=$$(mktemp -d); \
-	./$(DYLD_EXTRACTOR) "$$TMPDIR" && \
-	mkdir -p $(DYLD_MAPS) && \
-	for f in "$$TMPDIR"/usr/lib/*.dylib "$$TMPDIR"/usr/lib/system/*.dylib; do \
+	@set -eu; scratch=$$(mktemp -d); \
+	trap 'rm -rf "$$scratch"' EXIT; \
+	./$(DYLD_EXTRACTOR) "$$scratch"; \
+	mkdir -p "$(DYLD_MAPS)"; \
+	for f in "$$scratch"/usr/lib/*.dylib "$$scratch"/usr/lib/system/*.dylib; do \
 		[ -f "$$f" ] || continue; \
 		NAME=$$(basename "$$f"); \
-		if git ls-files --error-unmatch $(DYLD_MAPS)/$$NAME >/dev/null 2>&1; then \
+		if git ls-files --error-unmatch "$(DYLD_MAPS)/$$NAME" >/dev/null 2>&1; then \
 			echo "  skip $$NAME (tracked stub)"; \
 		else \
-			cp "$$f" $(DYLD_MAPS)/$$NAME; \
+			cp "$$f" "$(DYLD_MAPS)/$$NAME"; \
 		fi; \
 	done; \
-	rm -rf "$$TMPDIR"; \
 	echo "[dyld] $$(ls $(DYLD_MAPS)/*.dylib 2>/dev/null | wc -l | tr -d ' ') dylibs in $(DYLD_MAPS)/"
 
-# Handy manual runs
-test_syscall: samples
-	cargo run --release -- -f $(TEST_DIR)/exe64win_msgbox.bin -6 --syscall-mode --winver win11
-test_linux:
-	cargo run --release -- -f /bin/ls -A '-l' -6
-test_windows: samples
-	cargo test --release --locked -p libmwemu $(CARGO_TARGET) windows_pe_long:: -- --ignored
-test_macos:
-	cargo run --release $(CARGO_TARGET) -- -f /bin/ls --aarch64 -v --args '-l'
-test_inception:
-	cargo run --release -- -f target/release/mwemu -6 -v
-test_enigma:
-	cargo run --release -- -f  test/exe64win_enigma.bin -6 -v
-test_tls:
-	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
-test_golang:
-	cargo test --locked --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
+# Manual CLI driver check.
 test_sys: windows-driver
 	cargo run --release -- -f drivers/windows/tlm/tlm.sys -6 --ioctl 0x80002010:304d4c540010000000100000000000000000000000000000:24 -vv
-test_speed: all samples
-	cargo build --release --target x86_64-apple-darwin
-	bash -c 'time cargo run --release --target x86_64-apple-darwin -- -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
-	#bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
-	@echo "[speed] 20,000,000 instructions emulated successfully."
 
 # Fuzz smoke test (30s each by default, nightly + cargo-fuzz required).
 # Uses x86.dict for smarter input generation. Panics are caught (not crashes),
@@ -173,15 +128,8 @@ test_fuzz:
 	cd fuzz && ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run fuzz_run_shellcode64 -- -max_total_time=$(FUZZ_TIME) $(FUZZ_DICT)
 	@echo "[fuzz] all 4 targets passed ($(FUZZ_TIME)s each)"
 
-
-fmt:
-	cargo fmt --all
-
-msrv:
-	cargo +1.95 check --locked $(CARGO_TARGET)
-
 complexity:
-	@python3 scripts/complexity.py --top 50 || true
+	-@$(PYTHON) scripts/complexity.py --top 50
 
 complexity-gate:
 	@bash scripts/complexity-gate.sh

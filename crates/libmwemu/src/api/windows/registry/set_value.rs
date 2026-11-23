@@ -6,6 +6,7 @@ use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::api_try;
+use crate::winapi::registry::create_path;
 use crate::winapi::registry_store::{self as store, REG_SZ, Value};
 use crate::windows::constants::errors::*;
 
@@ -81,7 +82,7 @@ fn set_subkey_value(emu: &mut emu::Emu, api: &str, wide: bool, legacy: bool) {
                 .ok_or(ERROR_NOACCESS)?;
             data_in(kind, &bytes, wide)
         };
-        if emu.registry.create_key(&path).is_none()
+        if create_path(emu, &path).is_none()
             || !emu
                 .registry
                 .set_value(&path, &name, Value { kind, data: bytes })

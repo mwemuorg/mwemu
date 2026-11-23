@@ -1,12 +1,13 @@
 # Makefile for pymwemu development and testing
 
-.PHONY: setup-env test test-python test-rust clean clean-env rebuild-test
+.PHONY: setup-env setup-quick test test-all test-python test-rust test-specific test-verbose
+.PHONY: test-basic test-execution test-binary test-advanced rebuild-test clean clean-env clean-all activate-help help
 
 # Default Python interpreter. pyo3-stub-gen needs Python >= 3.10 and macOS
 # ships 3.9 as `python3`, so prefer the newest versioned interpreter on PATH
 # (override with `make PYTHON=/path/to/python3.x ...`).
 ifeq ($(OS),Windows_NT)
-PYTHON ?= python3
+PYTHON ?= python
 else
 PYTHON ?= $(shell for p in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do command -v $$p >/dev/null 2>&1 && { echo $$p; break; }; done)
 endif
@@ -22,97 +23,41 @@ else
 endif
 
 # Setup test environment (your preferred method)
+setup-env: export VIRTUAL_ENV := $(abspath $(VENV_DIR))
 setup-env:
 	@echo "Setting up test environment..."
 	$(PYTHON) -m venv $(VENV_DIR)
-	$(VENV_PYTHON) -m pip install --upgrade pip
-	$(VENV_PYTHON) -m pip install maturin
-	VIRTUAL_ENV=$(abspath $(VENV_DIR)) $(VENV_MATURIN) develop --release
+	"$(VENV_PYTHON)" -m pip install --upgrade pip
+	"$(VENV_PYTHON)" -m pip install maturin
+	"$(VENV_MATURIN)" develop --release
 	@echo "Test environment ready!"
 	@echo "To activate: source $(VENV_DIR)/bin/activate (Linux/Mac) or $(VENV_DIR)\\Scripts\\activate (Windows)"
 
-# Quick setup using the setup script
-setup-quick:
-	$(PYTHON) setup_test_env.py
+setup-quick: setup-env
 
-# Run all tests (Rust + Python)
-test: test-rust test-python
+RUN_TESTS = $(PYTHON) run_tests.py
 
-# Run Rust tests (from parent directory)
+test test-all:
+	$(RUN_TESTS)
+
 test-rust:
-	cd .. && cargo test --release
+	$(RUN_TESTS) --rust-only
 
-# Run Python tests (requires setup-env first)
 test-python:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --python-only
+	$(RUN_TESTS) --python-only
 
-# Run all tests using the test runner
-test-all:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py
-
-# Run specific Python test
-test-specific:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --test $(TEST) --verbose
-
-# Run Python tests with verbose output
 test-verbose:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --python-only --verbose
+	$(RUN_TESTS) --python-only --verbose
 
-# Run basic functionality tests only
-test-basic:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --test test_basic_functionality --verbose
+test-basic: TEST = test_basic_functionality
+test-execution: TEST = test_execution_engine
+test-binary: TEST = test_binary_loading
+test-advanced: TEST = test_advanced_features
+test-basic test-execution test-binary test-advanced test-specific:
+	$(RUN_TESTS) --python-only --verbose --test "$(if $(strip $(TEST)),$(TEST),$(error specify TEST for $@))"
 
-# Run execution engine tests only
-test-execution:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --test test_execution_engine --verbose
-
-# Run binary loading tests only
-test-binary:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --test test_binary_loading --verbose
-
-# Run advanced features tests only
-test-advanced:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --test test_advanced_features --verbose
-
-# Rebuild extension and test
 rebuild-test:
-	@if [ ! -f "$(VENV_PYTHON)" ]; then \
-		echo "Test environment not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	$(PYTHON) run_tests.py --rebuild
+	$(RUN_TESTS) --rebuild
 
 # Clean build artifacts
 clean:
@@ -146,7 +91,7 @@ endif
 help:
 	@echo "Available targets:"
 	@echo "  setup-env       - Set up virtual environment and build extension"
-	@echo "  setup-quick     - Quick setup using setup_test_env.py"
+	@echo "  setup-quick     - Alias for setup-env"
 	@echo "  test            - Run all tests (Rust + Python)"
 	@echo "  test-rust       - Run Rust tests only"
 	@echo "  test-python     - Run Python tests only"

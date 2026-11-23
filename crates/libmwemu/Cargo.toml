@@ -67,12 +67,23 @@ itertools = "0.14"
 
 [features]
 default = []
+asset-tests = []
+host-tests = []
 log_mem_read = []
 log_mem_write = []
 # Gates the examples/ programs. Off by default so a plain `cargo build` or
 # `cargo test` doesn't pay for compiling them; turn it on to run them:
 #   cargo run -p libmwemu --features examples --example 01_shellcode
 examples = []
+
+[[bench]]
+name = "lazy_flags"
+harness = false
+
+[[bench]]
+name = "packed_pe"
+harness = false
+required-features = ["asset-tests"]
 
 [[example]]
 name = "01_shellcode"

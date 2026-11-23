@@ -8,7 +8,7 @@
 //!
 //! Self-contained coverage (no bundle) lives in `loaders::hello_world`
 //! (`hello_win_x64_runs_tls_callbacks`); these add the end-to-end proof on the
-//! real mingw/msgbox binaries and skip when the bundle is absent.
+//! MinGW and message-box binaries from the release bundle.
 
 use crate::tests::helpers;
 use crate::*;
@@ -22,7 +22,7 @@ fn mingw64_executes_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     let sample = sample!("exe64win_mingw.bin");
     emu.load_code(&sample);
@@ -56,7 +56,7 @@ fn mingw64_implicit_tls_is_initialized() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     let sample = sample!("exe64win_mingw.bin");
     emu.load_code(&sample);
@@ -89,7 +89,7 @@ fn mingw32_implicit_tls_is_initialized() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = win_maps!(32);
+    emu.cfg.maps_folder = helpers::fixture_maps32();
 
     let sample = sample!("exe32win_mingw.bin");
     emu.load_code(&sample);
@@ -125,7 +125,7 @@ fn msgbox_has_no_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

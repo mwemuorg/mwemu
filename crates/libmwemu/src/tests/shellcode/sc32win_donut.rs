@@ -10,7 +10,7 @@ const CHECKPOINT: u64 = 30_862_819;
 fn sc32win_donut() {
     helpers::setup();
     let sample = sample!("sc32win_donut.bin");
-    let maps = win_maps!(32);
+    let maps = helpers::fixture_maps32();
 
     let mut emu = emu32();
     emu.cfg.maps_folder = maps;

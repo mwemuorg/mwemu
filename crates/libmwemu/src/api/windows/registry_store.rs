@@ -26,6 +26,9 @@ pub const REG_DWORD: u32 = 4;
 pub const REG_MULTI_SZ: u32 = 7;
 pub const REG_QWORD: u32 = 11;
 
+pub const REG_NOTIFY_CHANGE_NAME: u32 = 1;
+pub const REG_NOTIFY_THREAD_AGNOSTIC: u32 = 0x1000_0000;
+
 pub const HKEY_CLASSES_ROOT: u64 = 0x8000_0000;
 pub const HKEY_CURRENT_USER: u64 = 0x8000_0001;
 pub const HKEY_LOCAL_MACHINE: u64 = 0x8000_0002;

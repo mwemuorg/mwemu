@@ -1,71 +1,26 @@
-use super::registry;
+use super::{alpc, registry};
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::api::windows::common::memory as memory_api;
 use crate::emu::Emu;
+use crate::emu::loaders::image_regions;
+use crate::emu::object_handle::SectionHandle;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
+use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, MemoryKind, PAGE_SIZE, align_up};
+use crate::syscall::windows::syscall64::resolve_maps_dll;
 use crate::syscall::windows::syscall64::sync::next_handle;
 use crate::winapi::common::process::require_memory_access;
 use crate::winapi::policy::{self, api_try};
-use crate::winapi::winapi64::kernel32::load_library;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::PROCESS_VM_OPERATION;
 use crate::windows::constants::syscalls::*;
 use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
+use goblin::pe::{PE, header::COFF_MACHINE_X86_64};
+use rs_header::pe::pe64::PE64;
+use std::fs;
 
-use crate::windows::structures::{
-    LdrDataTableEntry64, MemoryBasicInformation64, Peb64, PebLdrData64,
-};
+use crate::windows::structures::{MemoryBasicInformation64, UnicodeString64};
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
-
-pub fn patch_ntdll_load_reason_checks(emu: &mut Emu) {
-    if emu.validated_knowndlls.contains("__ntdll_patched__") {
-        return;
-    }
-    emu.validated_knowndlls
-        .insert("__ntdll_patched__".to_string());
-
-    let Some(ntdll_map) = emu.maps.get_map_by_name("ntdll.pe") else {
-        return;
-    };
-    let base = ntdll_map.get_base();
-
-    // Patch `cmp [entry+10Ch], 9` immediates so they compare with 0
-    // instead of LoadReasonPatchImage (9). Only JE sites: LoadReason=0
-    // would fall through into "PatchImage" handling that sets
-    // STATUS_DLL_INIT_FAILED. JNE sites correctly call the loading
-    // function when LoadReason != 9 — the TpPostWork bypass below
-    // keeps that path from spinning on the thread pool.
-    // Excluded: 0x4f49 (jne), 0x1655f (jne_near), 0x740e4 (not a jcc)
-    let rvas: &[u64] = &[
-        0x4e3d, 0x4f57, 0x506e, 0x59da, 0x96ba, 0x127dd, 0x176d8, 0x3313b, 0x4c172,
-    ];
-    let mut count = 0u32;
-    for &rva in rvas {
-        let addr = base + rva;
-        if emu.maps.is_mapped(addr) && emu.maps.read_byte(addr).unwrap_or(0) == 0x09 {
-            emu.maps.write_byte(addr, 0x00);
-            count += 1;
-        }
-    }
-    if count > 0 {
-        log::trace!(
-            "NtMapViewOfSection: patched {} ntdll LoadReason checks (9→0)",
-            count,
-        );
-    }
-
-    // Bypass TpPostWork call in the parallel-loader submit path.
-    // At RVA 0x6ECA1 there is `je short +0x1F` (0x74 0x1F) that skips
-    // TpPostWork when the work-queue pointer is NULL. Change je→jmp so
-    // the call is always skipped — we have no worker threads.
-    let tp_bypass = base + 0x6ECA1;
-    if emu.maps.is_mapped(tp_bypass) && emu.maps.read_byte(tp_bypass).unwrap_or(0) == 0x74 {
-        emu.maps.write_byte(tp_bypass, 0xEB);
-        log::trace!("ntdll: patched TpPostWork bypass at RVA 0x6ECA1 (je→jmp)");
-    }
-}
 
 /// Read SizeOfImage from a PE file's optional header.
 fn pe_size_of_image(raw: &[u8]) -> Option<u64> {
@@ -354,9 +309,8 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
     let base_address = emu.regs().rdx;
     let memory_information_class = emu.regs().r8;
     let memory_information = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let memory_information_length = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-    let return_length_ptr = emu.maps.read_qword(rsp + 0x30).unwrap_or(0);
+    let memory_information_length = api_try!(emu, call.arg(emu, 4));
+    let return_length_ptr = api_try!(emu, call.arg(emu, 5));
 
     log_orange!(
         emu,
@@ -409,45 +363,71 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
         return;
     }
 
-    const MEMORY_MAPPED_FILENAME_INFORMATION: u64 = 2;
-    if memory_information_class == MEMORY_MAPPED_FILENAME_INFORMATION {
-        let map_name = emu
+    if memory_information_class == MEMORY_INFORMATION_CLASS_MEMORY_MAPPED_FILENAME_INFORMATION {
+        let base = emu
             .maps
-            .get_addr_name(base_address)
-            .unwrap_or("")
-            .to_string();
-        let stem = map_name
-            .strip_suffix(".pe")
-            .or_else(|| map_name.strip_suffix(".text"))
-            .unwrap_or(&map_name);
-        let nt_path = if !stem.is_empty() {
-            format!("\\Device\\HarddiskVolume2\\Windows\\System32\\{}.dll", stem)
-        } else {
-            "\\Device\\HarddiskVolume2\\Windows\\System32\\unknown.dll".to_string()
+            .allocation_at(base_address)
+            .map(|allocation| allocation.base)
+            .or_else(|| {
+                emu.maps
+                    .get_mem_by_addr(base_address)
+                    .map(|region| region.get_base())
+            });
+        let filename = base
+            .and_then(|base| emu.section_view_dll.get(&base))
+            .cloned()
+            .or_else(|| {
+                let (image_base, _) = emu.maps.find_pe_image_info(base_address)?;
+                let stem = emu.maps.get_addr_name(image_base)?.strip_suffix(".pe")?;
+                Some(format!("{stem}.dll"))
+            });
+        let Some(filename) = filename else {
+            return call.set_return(emu, STATUS_NOT_MAPPED_VIEW);
         };
-        let wide: Vec<u16> = nt_path.encode_utf16().collect();
-        let byte_len = (wide.len() * 2) as u16;
-        let needed = 8u64 + byte_len as u64;
-        if memory_information_length < needed {
-            if return_length_ptr != 0 && emu.maps.is_mapped(return_length_ptr) {
-                emu.maps.write_qword(return_length_ptr, needed);
-            }
-            emu.regs_mut().rax = STATUS_INFO_LENGTH_MISMATCH;
-            return;
+        let path = format!(r"\Device\HarddiskVolume2\Windows\System32\{filename}");
+        let mut bytes: Vec<u8> = path
+            .encode_utf16()
+            .chain([0])
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        let needed = UnicodeString64::size() + bytes.len() as u64;
+        if return_length_ptr != 0 && !emu.maps.write_qword(return_length_ptr, needed) {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
         }
-        emu.maps.write_word(memory_information, byte_len);
-        emu.maps.write_word(memory_information + 2, byte_len);
-        emu.maps.write_dword(memory_information + 4, 0);
-        let buf_ptr = memory_information + 8;
-        emu.maps.write_qword(memory_information + 4, buf_ptr);
-        for (i, &ch) in wide.iter().enumerate() {
-            emu.maps.write_word(buf_ptr + (i * 2) as u64, ch);
+        if memory_information_length < UnicodeString64::size() {
+            return call.set_return(emu, STATUS_INFO_LENGTH_MISMATCH);
         }
-        if return_length_ptr != 0 && emu.maps.is_mapped(return_length_ptr) {
-            emu.maps.write_qword(return_length_ptr, needed);
+        let capacity = memory_information_length.min(needed) - UnicodeString64::size();
+        let maximum_length = (capacity & !1) as u16;
+        if maximum_length < 2 {
+            return call.set_return(emu, STATUS_BUFFER_OVERFLOW);
         }
-        emu.regs_mut().rax = STATUS_SUCCESS;
-        return;
+        bytes.truncate(maximum_length as usize);
+        let length = maximum_length - 2;
+        bytes[length as usize..].fill(0);
+        if !emu.maps.validate_write_range(
+            memory_information,
+            UnicodeString64::size() + maximum_length as u64,
+        ) {
+            return call.set_return(emu, STATUS_ACCESS_VIOLATION);
+        }
+        let buffer = memory_information + UnicodeString64::size();
+        UnicodeString64 {
+            length,
+            maximum_length,
+            padding: 0,
+            buffer,
+        }
+        .save(memory_information, &mut emu.maps);
+        emu.maps.write_bytes(buffer, &bytes);
+        return call.set_return(
+            emu,
+            if memory_information_length < needed {
+                STATUS_BUFFER_OVERFLOW
+            } else {
+                STATUS_SUCCESS
+            },
+        );
     }
 
     const MEMORY_REGION_INFORMATION: u64 = 4;
@@ -593,7 +573,7 @@ pub fn nt_write_virtual_memory(emu: &mut Emu) {
 }
 
 /// `NtUnmapViewOfSection` — unmaps anonymous section views created by
-/// `NtMapViewOfSection`. DLL image maps (loaded via `load_library`) are
+/// `NtMapViewOfSection`. Resident system DLL images are
 /// kept intact because their PE sections, LDR entries, and export indexes
 /// must survive; only `section_view_*` regions are actually deallocated.
 pub fn nt_unmap_view_of_section(emu: &mut Emu) {
@@ -619,6 +599,14 @@ pub fn nt_unmap_view_of_section(emu: &mut Emu) {
         return;
     }
 
+    if emu
+        .maps
+        .allocation_at(base)
+        .is_some_and(|region| region.kind == MemoryKind::Mapped)
+    {
+        memory_api::dispatch_nt("NtUnmapViewOfSection", emu, WinSyscall);
+        return;
+    }
     if map_name.starts_with("section_view_") {
         log_orange!(
             emu,
@@ -628,8 +616,17 @@ pub fn nt_unmap_view_of_section(emu: &mut Emu) {
             base,
             map_name,
         );
-        emu.maps.dealloc(base);
-        emu.section_view_dll.remove(&base);
+        if let Some(allocation) = emu.maps.allocation_at(base)
+            && allocation.kind == MemoryKind::Image
+        {
+            let start = allocation.base;
+            let size = allocation.size;
+            emu.maps.unmap_range(start, size);
+            emu.section_view_dll.remove(&start);
+        } else {
+            emu.maps.dealloc(base);
+            emu.section_view_dll.remove(&base);
+        }
     } else {
         log_orange!(
             emu,
@@ -644,126 +641,100 @@ pub fn nt_unmap_view_of_section(emu: &mut Emu) {
     emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
-/// `NtAreMappedFilesTheSame` — compares two mapped addresses to determine
-/// whether they belong to the same underlying file.
-///
-/// Resolution order:
-/// 1. section_view_dll tracking (populated by NtMapViewOfSection)
-/// 2. Map name stem comparison (e.g. `kernelbase.pe` and `kernelbase.text`
-///    share stem `kernelbase`)
-///
-/// Returns STATUS_SUCCESS when same, STATUS_NOT_SAME_DEVICE otherwise.
+fn mapped_dll(emu: &Emu, address: u64) -> Option<String> {
+    let map = emu.maps.get_mem_by_addr(address)?;
+    let base = emu
+        .maps
+        .allocation_at(address)
+        .map_or(map.get_base(), |image| image.base);
+    if let Some(name) = emu.section_view_dll.get(&base) {
+        return Some(name.clone());
+    }
+    // Loaded images have a header map and separately named sections.
+    let (stem, _) = map.get_name().rsplit_once('.')?;
+    emu.maps.get_map_by_name(&format!("{stem}.pe"))?;
+    Some(format!("{stem}.dll"))
+}
+
 pub fn nt_are_mapped_files_the_same(emu: &mut Emu) {
-    let addr1 = emu.regs().rcx;
-    let addr2 = emu.regs().rdx;
-
-    let dll1 = emu.section_view_dll.get(&addr1).cloned();
-    let dll2 = emu.section_view_dll.get(&addr2).cloned();
-
-    let name1 = emu.maps.get_addr_name(addr1).unwrap_or("").to_string();
-    let name2 = emu.maps.get_addr_name(addr2).unwrap_or("").to_string();
-
-    fn map_stem(name: &str) -> &str {
-        let leaf = name.rsplit('/').next().unwrap_or(name);
-        leaf.split('.').next().unwrap_or(leaf)
-    }
-
-    fn dll_stem(dll: &str) -> &str {
-        dll.strip_suffix(".dll").unwrap_or(dll)
-    }
-
-    let same = match (&dll1, &dll2) {
-        (Some(a), Some(b)) => dll_stem(a) == dll_stem(b),
-        (Some(a), None) => dll_stem(a) == map_stem(&name2),
-        (None, Some(b)) => map_stem(&name1) == dll_stem(b),
-        (None, None) => {
-            let s1 = map_stem(&name1);
-            let s2 = map_stem(&name2);
-            !s1.is_empty() && !s2.is_empty() && s1 == s2
-        }
-    };
-
-    if same {
-        if let Some(ref d) = dll1 {
-            emu.validated_knowndlls.insert(d.to_lowercase());
-        }
-        if let Some(ref d) = dll2 {
-            emu.validated_knowndlls.insert(d.to_lowercase());
-        }
-        log_orange!(
-            emu,
-            "syscall 0x{:x}: NtAreMappedFilesTheSame(0x{:x} [{}], 0x{:x} [{}]) → SAME",
-            WIN64_NTAREMAPPEDFILESTHESAME,
-            addr1,
-            dll1.as_deref().unwrap_or(&name1),
-            addr2,
-            dll2.as_deref().unwrap_or(&name2),
-        );
-        emu.regs_mut().rax = STATUS_SUCCESS;
-
-        // Mark every LDR entry's LoadReason (+0x10C) as 9 so the parallel
-        // loader's retry loop sees "already loaded" and stops iterating.
-        mark_all_ldr_entries_ready(emu);
+    let call = WinSyscall;
+    let [image, view] = api_try!(emu, call.args(emu));
+    let same = mapped_dll(emu, image)
+        .zip(mapped_dll(emu, view))
+        .is_some_and(|(left, right)| left.eq_ignore_ascii_case(&right));
+    let status = if same {
+        STATUS_SUCCESS
     } else {
-        log_orange!(
-            emu,
-            "syscall 0x{:x}: NtAreMappedFilesTheSame(0x{:x} [{}], 0x{:x} [{}]) → NOT_SAME",
-            WIN64_NTAREMAPPEDFILESTHESAME,
-            addr1,
-            dll1.as_deref().unwrap_or(&name1),
-            addr2,
-            dll2.as_deref().unwrap_or(&name2),
-        );
-        emu.regs_mut().rax = STATUS_NOT_SAME_DEVICE;
-    }
+        STATUS_NOT_SAME_DEVICE
+    };
+    log_orange!(
+        emu,
+        "NtAreMappedFilesTheSame image={image:#x} view={view:#x} => {status:#x}"
+    );
+    call.set_return(emu, status);
 }
 
-/// Walk PEB → Ldr → InLoadOrderModuleList and set [entry+0x10C] = 9 for
-/// every LDR_DATA_TABLE_ENTRY, including entries the parallel loader created.
-fn mark_all_ldr_entries_ready(emu: &mut Emu) {
-    let peb = emu.maps.get_mem("peb").get_base();
-    let ldr = emu.maps.read_qword(peb + Peb64::LDR_OFFSET).unwrap_or(0);
-    if ldr == 0 {
-        return;
-    }
-    let sentinel = ldr + PebLdrData64::IN_LOAD_ORDER_MODULE_LIST_OFFSET;
-    let mut cur = emu.maps.read_qword(sentinel).unwrap_or(0);
-    let mut count = 0u32;
-    while cur != 0 && cur != sentinel && count < 64 {
-        let prev = emu
-            .maps
-            .read_dword(cur + LdrDataTableEntry64::LOAD_REASON_OFFSET)
-            .unwrap_or(0);
-        if prev != LdrDataTableEntry64::BOOTSTRAP_LOAD_REASON {
-            emu.maps.write_dword(
-                cur + LdrDataTableEntry64::LOAD_REASON_OFFSET,
-                LdrDataTableEntry64::BOOTSTRAP_LOAD_REASON,
-            );
+fn section_view_base(emu: &mut Emu, size: u64, requested_base: u64) -> Result<u64, u64> {
+    Ok(if requested_base == 0 {
+        emu.maps.lib64_alloc(size).ok_or(STATUS_NO_MEMORY)?
+    } else {
+        if !requested_base.is_multiple_of(ALLOCATION_GRANULARITY) {
+            return Err(STATUS_MAPPED_ALIGNMENT);
         }
-        cur = emu.maps.read_qword(cur).unwrap_or(0); // Flink
-        count += 1;
-    }
+        if requested_base
+            .checked_add(size)
+            .is_none_or(|end| end > USER64_ADDRESS_LIMIT)
+            || emu.maps.overlaps(requested_base, size)
+        {
+            return Err(STATUS_CONFLICTING_ADDRESSES);
+        }
+        requested_base
+    })
 }
 
-/// `NtMapViewOfSection` — x64 10-arg syscall.
-/// RCX=SectionHandle, RDX=ProcessHandle, R8=*BaseAddress (in/out),
-/// R9=ZeroBits, [rsp+0x28]=CommitSize, [rsp+0x30]=SectionOffset,
-/// [rsp+0x38]=*ViewSize, [rsp+0x40]=InheritDisposition,
-/// [rsp+0x48]=AllocationType, [rsp+0x50]=Win32Protect.
-///
-/// For KnownDll section handles (tracked via NtOpenSection), loads the real
-/// PE from the maps folder so ntdll's loader gets valid image content.
-/// Other section handles use the shared mapping model.
 fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u64, u64), u64> {
     const DOS_LFANEW_OFFSET: u64 = 0x3c;
     const NT_SIZE_OF_IMAGE_OFFSET: u64 = 0x50;
 
     let stem = dll.strip_suffix(".dll").unwrap_or(dll);
-    let source = emu
+    let Some(source) = emu
         .maps
         .get_map_by_name(&format!("{stem}.pe"))
-        .ok_or(STATUS_INVALID_IMAGE_FORMAT)?
-        .get_base();
+        .map(|map| map.get_base())
+    else {
+        // NtOpenFile records the basename in the guest DLL cache. The image can be
+        // mapped as a file section before any module by this name has been loaded.
+        if dll.is_empty() || dll.contains(['/', '\\', ':']) || !dll.ends_with(".dll") {
+            return Err(STATUS_INVALID_IMAGE_FORMAT);
+        }
+        let path = resolve_maps_dll(emu, dll).ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+        let raw = fs::read(path).map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?;
+        let pe = PE::parse(&raw).map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?;
+        if !pe.is_64 || pe.header.coff_header.machine != COFF_MACHINE_X86_64 {
+            return Err(STATUS_INVALID_IMAGE_FORMAT);
+        }
+        let image = PE64::parse(dll, &raw);
+        let layout = image.image_layout();
+        let size = layout.mapped_size();
+        if size == 0 || size > emu.maps.max_alloc_size {
+            return Err(STATUS_INVALID_IMAGE_FORMAT);
+        }
+        let requested_base = if image.can_relocate(&raw) {
+            requested_base
+        } else if requested_base == 0 || requested_base == image.opt.image_base {
+            image.opt.image_base
+        } else {
+            return Err(STATUS_CONFLICTING_ADDRESSES);
+        };
+        let base = section_view_base(emu, size, requested_base)?;
+        let regions = image_regions(&format!("section_view_{base:x}"), &raw, layout);
+        emu.maps
+            .map_image(base, size, &regions)
+            .map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?;
+        image.apply_relocations(&raw, emu, base);
+        emu.section_view_dll.insert(base, dll.to_string());
+        return Ok((base, size));
+    };
     let header = source
         .checked_add(DOS_LFANEW_OFFSET)
         .ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
@@ -783,21 +754,7 @@ fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u6
     let size = align_up(image_size, PAGE_SIZE)
         .filter(|&size| size <= emu.maps.max_alloc_size)
         .ok_or(STATUS_NO_MEMORY)?;
-    let base = if requested_base == 0 {
-        emu.maps.lib64_alloc(size).ok_or(STATUS_NO_MEMORY)?
-    } else {
-        if !requested_base.is_multiple_of(ALLOCATION_GRANULARITY) {
-            return Err(STATUS_MAPPED_ALIGNMENT);
-        }
-        if requested_base
-            .checked_add(size)
-            .is_none_or(|end| end > USER64_ADDRESS_LIMIT)
-            || emu.maps.overlaps(requested_base, size)
-        {
-            return Err(STATUS_CONFLICTING_ADDRESSES);
-        }
-        requested_base
-    };
+    let base = section_view_base(emu, size, requested_base)?;
     if source.checked_add(image_size).is_none() {
         return Err(STATUS_INVALID_IMAGE_FORMAT);
     }
@@ -811,8 +768,31 @@ fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u6
         emu.maps.write_byte(base + offset, byte);
     }
     emu.section_view_dll.insert(base, dll.to_string());
-    patch_ntdll_load_reason_checks(emu);
     Ok((base, size))
+}
+
+// The guest loader binds imports and publishes KnownDlls in its own PEB lists.
+fn map_known_dll(emu: &mut Emu, dll: &str) -> Result<(u64, u64), u64> {
+    let stem = dll
+        .strip_suffix(".dll")
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+    if stem.is_empty() || stem.contains(['/', '\\', ':']) {
+        return Err(STATUS_INVALID_IMAGE_FORMAT);
+    }
+    if let Some(header) = emu.maps.get_map_by_name(&format!("{stem}.pe")) {
+        let image = emu
+            .maps
+            .allocation_at(header.get_base())
+            .filter(|image| image.kind == MemoryKind::Image)
+            .ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+        return Ok((image.base, image.size));
+    }
+    let path = emu.cfg.get_maps_folder(dll);
+    let mapped = emu.map_dll_pe64(&path).map_err(|error| {
+        log::trace!("NtMapViewOfSection: cannot map {dll}: {error}");
+        STATUS_INVALID_IMAGE_FORMAT
+    })?;
+    Ok((mapped.base, mapped.image.image_layout().mapped_size()))
 }
 
 pub fn nt_map_view_of_section(emu: &mut Emu) {
@@ -867,53 +847,21 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         return;
     }
 
-    // --- KnownDll path (NtOpenSection) -----------------------------------------
-    // load_library makes the DLL permanently resident.  We return the DLL base
-    // directly; the subsequent NtUnmapViewOfSection is a no-op for DLL images
-    // (they don't carry a "section_view_" prefix).
-    if let Some(dll_name) = emu.section_handles.get(&section_handle).cloned() {
-        let dll_base = load_library(emu, &dll_name);
-        if dll_base != 0 {
-            patch_ntdll_load_reason_checks(emu);
-            log::trace!(
-                "NtMapViewOfSection: KnownDll {} loaded at 0x{:x}",
-                dll_name,
-                dll_base,
-            );
-            if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-                let _ = emu.maps.write_qword(base_addr_ptr, dll_base);
-            }
-            let soi: u64 = {
-                let pe_off = emu.maps.read_dword(dll_base + 0x3c).unwrap_or(0) as u64;
-                if pe_off > 0 {
-                    emu.maps
-                        .read_dword(dll_base + pe_off + 0x50)
-                        .unwrap_or(0x1000) as u64
-                } else {
-                    0x1000
-                }
-            };
-            if view_size_ptr != 0 && emu.maps.is_mapped(view_size_ptr) {
-                let _ = emu.maps.write_qword(view_size_ptr, soi);
-            }
-            emu.regs_mut().rax = STATUS_SUCCESS;
-            return;
+    let view = if let Some(dll) = emu.section_handles.get(&section_handle).cloned() {
+        map_known_dll(emu, &dll)
+    } else if let Some(dll) = emu.file_section_names.get(&section_handle).cloned() {
+        map_file_section(emu, &dll, requested_base)
+    } else {
+        Err(STATUS_INVALID_IMAGE_FORMAT)
+    };
+    match view {
+        Ok((base, size)) => {
+            emu.maps.write_qword(base_addr_ptr, base);
+            emu.maps.write_qword(view_size_ptr, size);
+            call.set_return(emu, STATUS_SUCCESS);
         }
+        Err(status) => call.set_return(emu, status),
     }
-
-    if let Some(dll_name) = emu.file_section_names.get(&section_handle).cloned() {
-        match map_file_section(emu, &dll_name, requested_base) {
-            Ok((base, size)) => {
-                emu.maps.write_qword(base_addr_ptr, base);
-                emu.maps.write_qword(view_size_ptr, size);
-                emu.regs_mut().rax = STATUS_SUCCESS;
-            }
-            Err(status) => emu.regs_mut().rax = status,
-        }
-        return;
-    }
-
-    call.set_return(emu, STATUS_INVALID_IMAGE_FORMAT);
 }
 
 pub fn nt_open_section(emu: &mut Emu) {
@@ -937,6 +885,30 @@ pub fn nt_open_section(emu: &mut Emu) {
     if !memory_api::writable_pointer(emu, handle_out) {
         emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
         return;
+    }
+
+    if root_dir == 0 && alpc::session_object(emu, &section_name, "SharedSection") {
+        if desired_access != SECTION_MAP_READ as u64 {
+            return call.set_return(emu, STATUS_ACCESS_DENIED);
+        }
+        let name = section_name.to_ascii_lowercase();
+        let section = if let Some(section) = emu.handle_management.named_section(&name) {
+            section.clone()
+        } else if let Some(map) = emu.maps.get_map_by_name("peb_ro_shared") {
+            let bytes = map.get_bytes().into_owned();
+            SectionHandle {
+                name,
+                max_size: bytes.len() as u64,
+                protection: PAGE_READONLY,
+                storage: emu.maps.create_shared_storage(bytes),
+                access: Some(Permission::READ),
+            }
+        } else {
+            return call.set_return(emu, STATUS_OBJECT_NAME_NOT_FOUND);
+        };
+        let handle = emu.handle_management.insert_section_handle(section);
+        emu.maps.write_qword(handle_out, handle as u64);
+        return call.set_return(emu, STATUS_SUCCESS);
     }
 
     // The loader can address KnownDll sections two ways:

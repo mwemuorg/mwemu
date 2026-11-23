@@ -1,6 +1,5 @@
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::api::windows::common::ntdll::read_unicode_string;
-use crate::api::windows::policy;
 use crate::emu::Emu;
 use crate::emu::object_handle::NativeObject;
 use crate::maps::mem64::Permission;
@@ -14,10 +13,6 @@ const DIRECTORY_TRAVERSE: u32 = 0x0002;
 const SYMBOLIC_LINK_QUERY: u32 = 0x0001;
 const OBJ_CASE_INSENSITIVE: u32 = 0x0040;
 const OBJECT_ATTRIBUTES_SIZE: usize = 48;
-const WNF_WIL_FEATURE_STORE: u64 = 0x418a_073a_a3bc_0c75;
-const WNF_WIL_BOOT_FEATURE_STORE: u64 = 0x418a_073a_a3bc_1475;
-const WNF_WIL_MACHINE_FEATURE_STORE: u64 = 0x418a_073a_a3bc_7c75;
-const WNF_WIL_USER_FEATURE_STORE: u64 = 0x418a_073a_a3bc_88f5;
 
 fn allows(access: u32, right: u32, generic: u32) -> bool {
     access & (right | generic | MAXIMUM_ALLOWED | GENERIC_ALL) != 0
@@ -178,31 +173,5 @@ pub(super) fn nt_query_symbolic_link_object(emu: &mut Emu) {
     if returned != 0 {
         emu.maps.write_dword(returned, written as u32);
     }
-    call.set_return(emu, STATUS_SUCCESS);
-}
-
-pub(super) fn query_wnf_state_data(emu: &mut Emu) {
-    let call = WinSyscall;
-    let [state, type_id, scope, stamp, _, size] = api_try!(emu, call.args(emu));
-    let Some(state) = emu.maps.read_qword(state) else {
-        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
-    };
-    if type_id != 0
-        || scope != 0
-        || !matches!(
-            state,
-            WNF_WIL_FEATURE_STORE
-                | WNF_WIL_BOOT_FEATURE_STORE
-                | WNF_WIL_MACHINE_FEATURE_STORE
-                | WNF_WIL_USER_FEATURE_STORE
-        )
-    {
-        return policy::unsupported_with_abi(emu, "ntdll", "NtQueryWnfStateData", emu.pc(), call);
-    }
-    if !emu.maps.validate_write_range(stamp, 4) || !emu.maps.validate_write_range(size, 4) {
-        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
-    }
-    emu.maps.write_dword(stamp, 0);
-    emu.maps.write_dword(size, 0);
     call.set_return(emu, STATUS_SUCCESS);
 }

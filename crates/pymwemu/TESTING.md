@@ -14,19 +14,18 @@ pymwemu/
 │   ├── test_binary_loading.py
 │   ├── test_advanced_features.py
 │   └── README.md
-├── setup_test_env.py              # Script de configuración
 ├── run_tests.py                   # Runner de tests
 └── Makefile                       # Comandos make
 ```
 
 ## Relación con `cargo test --release`
 
-### Tests de Rust (libmwemu)
+### Tests de Rust (`libmwemu` y `pymwemu`)
 ```bash
 # Desde el directorio raíz del proyecto
-cargo test --release
+cargo test --locked --release -p libmwemu -p pymwemu
 ```
-Esto ejecuta **solo** los tests de Rust en `libmwemu/src/tests.rs`.
+Esto ejecuta los tests de Rust del emulador y de los bindings.
 
 ### Tests de Python (pymwemu)
 Los tests de Python son **independientes** y requieren configuración especial:
@@ -74,7 +73,7 @@ make test-rust       # Solo Rust
 ### Método 2: Script Automático
 ```bash
 cd pymwemu/
-python setup_test_env.py  # Solo primera vez
+make setup-env            # Solo primera vez
 python run_tests.py       # Ejecutar tests
 ```
 
@@ -183,7 +182,7 @@ Los tests automáticamente saltan funcionalidades no disponibles en los bindings
 
 ## Resumen
 
-- **Rust tests**: `cargo test --release` (desde raíz)
+- **Rust tests**: `make test-rust` desde `crates/pymwemu`
 - **Python tests**: Requieren setup especial (desde pymwemu/)
 - **Ambos son independientes** y complementarios
 - **Usa el método que prefieras** para configurar el entorno

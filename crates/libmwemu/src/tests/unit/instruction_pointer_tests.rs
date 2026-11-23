@@ -70,8 +70,7 @@ const STACK_TOP: u64 = 0x8000_0000_0800;
 const CALLER_IP: u64 = 0x0001_0000;
 const CALLER_NEXT: u64 = CALLER_IP + 2;
 
-/// One fully prepared x64 emulator wired for native msvcrt execution.
-fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> Emu {
+fn build_native_emu(module: &str, map_name: &str, export_name: &str) -> Emu {
     use crate::maps::mem64::Permission;
     use crate::tests::helpers;
 
@@ -82,7 +81,7 @@ fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> Emu {
 
     emu.maps
         .create_map(
-            "msvcrt_native_caller",
+            "native_caller",
             CALLER_IP,
             0x400,
             Permission::READ_WRITE_EXECUTE,
@@ -97,7 +96,7 @@ fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> Emu {
 
     emu.maps
         .create_map(
-            "msvcrt_native_stack",
+            "native_stack",
             0x8000_0000_0000u64,
             0x1_000,
             Permission::READ_WRITE,
@@ -114,8 +113,56 @@ fn build_msvcrt_native_emu(map_name: &str, export_name: &str) -> Emu {
             ordinal_index: 0,
         }],
     };
-    helpers::register_export_module(&mut emu, "msvcrt.dll", MODULE_BASE, &parsed);
+    helpers::register_export_module(&mut emu, module, MODULE_BASE, &parsed);
     emu
+}
+
+#[test]
+fn ssdt_leaves_utf_size_queries_to_the_mapped_ntdll() {
+    for export in ["RtlUnicodeToUTF8N", "RtlUTF8ToUnicodeN"] {
+        let mut emu = build_native_emu("ntdll.dll", "ntdll.text", export);
+        emu.cfg.emulate_winapi = true;
+        let count = STACK_TOP + 0x70;
+        let input = STACK_TOP + 0x80;
+        emu.maps.write_dword(count, u32::MAX);
+        emu.maps.write_bytes(input, b"A\0B\0");
+        // The SSDT PE-to-DLL call adds home space below this stack pointer.
+        emu.maps.write_dword(STACK_TOP, 4);
+        let regs = emu.regs_mut();
+        regs.rax = NATIVE_MAP_BASE;
+        regs.rip = CALLER_IP;
+        regs.rcx = 0;
+        regs.rdx = 0;
+        regs.r8 = count;
+        regs.r9 = input;
+
+        assert!(emu.step());
+        assert_eq!(emu.pc(), NATIVE_MAP_BASE, "{export}");
+        assert_eq!(emu.maps.read_qword(emu.sp()), Some(CALLER_NEXT));
+        assert_eq!(emu.maps.read_dword(count), Some(u32::MAX));
+    }
+}
+
+#[test]
+fn ssdt_uses_the_guest_heap_for_allocated_unicode_strings() {
+    let mut emu = build_native_emu("ntdll.dll", "ntdll.text", "RtlAnsiStringToUnicodeString");
+    emu.cfg.emulate_winapi = true;
+    let input = STACK_TOP + 0x80;
+    let output = STACK_TOP + 0xa0;
+    let text = STACK_TOP + 0xc0;
+    emu.maps.write_bytes(text, b"gdi32");
+    emu.maps.write_word(input, 5);
+    emu.maps.write_word(input + 2, 5);
+    emu.maps.write_qword(input + 8, text);
+    let regs = emu.regs_mut();
+    regs.rax = NATIVE_MAP_BASE;
+    regs.rip = CALLER_IP;
+    regs.rcx = output;
+    regs.rdx = input;
+    regs.r8 = 1;
+    assert!(emu.step());
+    assert_eq!(emu.pc(), NATIVE_MAP_BASE);
+    assert_eq!(emu.maps.read_qword(output + 8), Some(0));
 }
 
 #[test]
@@ -138,7 +185,7 @@ fn msvcrt_synthetic_exports_dispatch_instead_of_executing_the_ret_slot() {
 
 #[test]
 fn msvcrt_native_executes_text_section_bytes() {
-    let mut emu = build_msvcrt_native_emu("msvcrt.text", "_initterm");
+    let mut emu = build_native_emu("msvcrt.dll", "msvcrt.text", "_initterm");
 
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -171,7 +218,7 @@ fn msvcrt_native_executes_text_section_bytes() {
 
 #[test]
 fn msvcrt_native_executes_fothk_section_bytes() {
-    let mut emu = build_msvcrt_native_emu("msvcrtfothk", "_initterm");
+    let mut emu = build_native_emu("msvcrt.dll", "msvcrtfothk", "_initterm");
 
     emu.regs_mut().rax = NATIVE_MAP_BASE;
     emu.regs_mut().rip = CALLER_IP;
@@ -185,7 +232,7 @@ fn msvcrt_native_executes_fothk_section_bytes() {
 
 #[test]
 fn msvcrt_native_unlisted_export_executes_without_fallback_stub() {
-    let mut emu = build_msvcrt_native_emu("msvcrt.text", "future_export");
+    let mut emu = build_native_emu("msvcrt.dll", "msvcrt.text", "future_export");
 
     emu.regs_mut().rax = NATIVE_MAP_BASE;
     emu.regs_mut().rip = CALLER_IP;
@@ -200,7 +247,7 @@ fn msvcrt_native_unlisted_export_executes_without_fallback_stub() {
 
 #[test]
 fn msvcrt_native_resolved_iat_thunk_executes_natively() {
-    let mut emu = build_msvcrt_native_emu("msvcrt.text", "_initterm");
+    let mut emu = build_native_emu("msvcrt.dll", "msvcrt.text", "_initterm");
 
     let raw = vec![0u8; 0x400];
     let mut pe = rs_header::pe::pe64::PE64::parse("synthetic.dll", &raw);

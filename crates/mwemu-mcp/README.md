@@ -43,7 +43,7 @@ The binary is `target/release/mwemu-mcp`.
 ```sh
 mwemu-mcp                       # stdio (default)
 mwemu-mcp --http 127.0.0.1:8765 # loopback HTTP (needs --features http)
-mwemu-mcp --maps ./maps64       # preset a trusted maps folder
+mwemu-mcp --maps ./maps/windows/x86_64  # x64 guest, from the workspace root
 ```
 
 | Flag | Meaning |
@@ -53,6 +53,10 @@ mwemu-mcp --maps ./maps64       # preset a trusted maps folder
 | `--safe` | Force the sandbox on (also on stdio). |
 | `--maps <folder>` | Trusted maps folder applied on `mwemu_open`. |
 | `--log <level>` | Log level to stderr (`off`..`trace`). Needed to see libmwemu's instruction trace (emitted via `log`, gated by `mwemu_config` `verbose`). Goes to the server's stderr, not the tool replies. |
+
+From the workspace root, run `python scripts/sync_assets.py maps` to prepare
+Windows maps. Use `maps/windows/x86` for an x86 guest. If the MCP client starts
+the server elsewhere, pass an absolute path to `--maps`.
 
 ### Connecting an MCP client
 

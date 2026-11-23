@@ -12,7 +12,8 @@ use crate::winapi::common::memory::{pointer_size, read_array, read_pointer, writ
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::api_try;
 use crate::windows::constants::crt::*;
-use crate::windows::peb::command_line;
+use crate::windows::peb::{command_line, peb64};
+use crate::windows::structures::{RtlUserProcessParameters64, UnicodeString64};
 
 const TAB: u16 = b'\t' as u16;
 const SPACE: u16 = b' ' as u16;
@@ -238,6 +239,24 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu, runtime: Runtime) -> bool {
 }
 
 pub(crate) fn command_string(emu: &mut Emu, wide: bool) -> Option<u64> {
+    let guest_wide = if emu.cfg.is_x64() {
+        peb64::current_parameters(&emu.maps)
+            .and_then(|params| {
+                params.checked_add(
+                    RtlUserProcessParameters64::COMMAND_LINE_OFFSET
+                        + UnicodeString64::BUFFER_OFFSET,
+                )
+            })
+            .and_then(|slot| emu.maps.read_qword(slot))
+            .filter(|pointer| *pointer != 0)
+    } else {
+        emu.maps
+            .get_map_by_name("command_line")
+            .map(|map| map.get_base())
+    };
+    if wide && let Some(pointer) = guest_wide {
+        return Some(pointer);
+    }
     let name = if wide {
         "command_line"
     } else {
@@ -246,8 +265,8 @@ pub(crate) fn command_string(emu: &mut Emu, wide: bool) -> Option<u64> {
     if let Some(map) = emu.maps.get_map_by_name(name) {
         return Some(map.get_base());
     }
-    let mut units = if !wide && let Some(map) = emu.maps.get_map_by_name("command_line") {
-        Encoding::Wide.read(emu, map.get_base()).ok()?
+    let mut units = if let Some(pointer) = guest_wide {
+        Encoding::Wide.read(emu, pointer).ok()?
     } else {
         let image = if emu.cfg.filename.is_empty() {
             &emu.cfg.exe_name

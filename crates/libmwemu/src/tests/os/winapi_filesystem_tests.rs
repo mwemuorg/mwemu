@@ -232,7 +232,12 @@ fn object_type_queries_size_and_write_the_guest_string() {
         let returned = data + 192;
         emu.maps.write_dword(data, MARKER);
         assert_eq!(
-            call(&mut emu, dll, "NtQueryObject", &[handle, 2, 0, 0, returned]),
+            call(
+                &mut emu,
+                dll,
+                "NtQueryObject",
+                &[handle, OBJECT_TYPE_INFORMATION as u64, 0, 0, returned]
+            ),
             STATUS_INFO_LENGTH_MISMATCH
         );
         assert_eq!(emu.maps.read_dword(returned), Some(required as u32));
@@ -241,7 +246,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[handle, 2, data, required - 1, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required - 1,
+                    returned
+                ]
             ),
             STATUS_INFO_LENGTH_MISMATCH
         );
@@ -251,7 +262,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "ZwQueryObject",
-                &[handle, 2, data, required, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required,
+                    returned
+                ]
             ),
             STATUS_SUCCESS
         );
@@ -269,7 +286,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[handle, 2, data, required, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required,
+                    returned
+                ]
             ),
             STATUS_INVALID_HANDLE
         );
@@ -286,7 +309,7 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[section, 2, data, required, 0]
+                &[section, OBJECT_TYPE_INFORMATION as u64, data, required, 0]
             ),
             STATUS_SUCCESS
         );

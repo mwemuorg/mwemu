@@ -1,7 +1,7 @@
 
 # BENCHMARK
 
-Emulate 20 million instructions via `make test_speed` (release build, enigma protector sample).
+Run `python scripts/sync_assets.py` to prepare the inputs. `cargo bench-pe` times loading the Enigma sample and emulating 20 million guest instructions with the optimized Cargo bench profile. It uses the native target by default. On Apple Silicon, use `cargo bench-pe --target x86_64-apple-darwin` to measure an Intel build under Rosetta. The older measurements below include CLI and Cargo startup.
 
 ## Current (v1.0.1)
 

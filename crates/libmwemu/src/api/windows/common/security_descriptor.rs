@@ -3,7 +3,7 @@ use crate::emu::Emu;
 use crate::winapi::common::memory::{
     pointer_size, read_array, read_pointer, writable_pointer, write_pointer,
 };
-use crate::winapi::common::security::read_sid;
+use crate::winapi::common::security::{SID_HEADER_SIZE, read_sid};
 use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::security::*;
@@ -69,6 +69,60 @@ impl Field {
         }
     }
 }
+/// Recognize the one-ACE descriptor built by RtlCheckTokenMembershipEx.
+pub(super) fn membership_sid(emu: &Emu, sd: u64, desired: u32) -> Result<Option<Vec<u8>>, u64> {
+    const ACL_HEADER_SIZE: u64 = 8;
+    const ACE_SID_OFFSET: u64 = 8;
+    let flags = control(emu, sd).map_err(|_| STATUS_ACCESS_VIOLATION)?;
+    if flags & !SE_SELF_RELATIVE != SE_DACL_PRESENT {
+        return Ok(None);
+    }
+    let field = |f: Field| f.read(emu, sd, flags).map_err(|_| STATUS_ACCESS_VIOLATION);
+    let acl = field(Field::Dacl)?;
+    if acl == 0 {
+        return Ok(None);
+    }
+    let header: [u8; 8] = read_array(emu, acl).ok_or(STATUS_ACCESS_VIOLATION)?;
+    let size = u16::from_le_bytes([header[2], header[3]]) as u64;
+    if header[0] as u32 != ACL_REVISION
+        || u16::from_le_bytes([header[4], header[5]]) != 1
+        || size < ACL_HEADER_SIZE + ACE_SID_OFFSET
+    {
+        return Ok(None);
+    }
+    let ace = acl
+        .checked_add(ACL_HEADER_SIZE)
+        .ok_or(STATUS_ACCESS_VIOLATION)?;
+    let header: [u8; 8] = read_array(emu, ace).ok_or(STATUS_ACCESS_VIOLATION)?;
+    let ace_size = u16::from_le_bytes([header[2], header[3]]) as u64;
+    if header[0] != ACCESS_ALLOWED_ACE_TYPE
+        || header[1] != 0
+        || u32::from_le_bytes([header[4], header[5], header[6], header[7]]) != desired
+        || ace_size < ACE_SID_OFFSET + SID_HEADER_SIZE as u64
+        || ace_size > size - ACL_HEADER_SIZE
+    {
+        return Ok(None);
+    }
+    let address = ace
+        .checked_add(ACE_SID_OFFSET)
+        .ok_or(STATUS_ACCESS_VIOLATION)?;
+    let count = emu
+        .maps
+        .read_byte(address.checked_add(1).ok_or(STATUS_ACCESS_VIOLATION)?)
+        .ok_or(STATUS_ACCESS_VIOLATION)?;
+    if ace_size != ACE_SID_OFFSET + SID_HEADER_SIZE as u64 + count as u64 * size_of::<u32>() as u64
+    {
+        return Ok(None);
+    }
+    let sid = read_sid(emu, address).ok_or(STATUS_ACCESS_VIOLATION)?;
+    for slot in [Field::Owner, Field::Group] {
+        if read_sid(emu, field(slot)?).as_deref() != Some(&sid) {
+            return Ok(None);
+        }
+    }
+    Ok(Some(sid))
+}
+
 fn component(
     emu: &mut Emu,
     sd: u64,

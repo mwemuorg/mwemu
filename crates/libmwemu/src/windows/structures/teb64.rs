@@ -47,6 +47,8 @@ impl TEB64 {
     pub const FP_SOFTWARE_STATUS_REGISTER_OFFSET: u64 = 0x10c;
     pub const EXCEPTION_CODE_OFFSET: u64 = 0x2c0;
     pub const ACTIVATION_CONTEXT_STACK_POINTER_OFFSET: u64 = 0x2c8;
+    pub const TLS_SLOTS_OFFSET: u64 = 0x1480;
+    pub const TLS_EXPANSION_SLOTS_OFFSET: u64 = 0x1780;
 
     pub fn new(peb_addr: u64) -> TEB64 {
         TEB64 {

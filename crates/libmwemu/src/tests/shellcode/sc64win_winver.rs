@@ -1,4 +1,6 @@
-use crate::{tests::helpers, *};
+#[cfg(feature = "asset-tests")]
+use crate::emu64;
+use crate::tests::helpers;
 
 /// Regression for shellcode loading under `--winver`.
 ///
@@ -9,6 +11,7 @@ use crate::{tests::helpers, *};
 /// `maps/windows/<arch>/` folder.
 ///
 /// Run explicitly to exercise the symbol-server setup on a cold cache.
+#[cfg(feature = "asset-tests")]
 #[test]
 #[ignore = "provisions Windows DLLs from the symbol server"]
 pub fn sc64win_winver() {
@@ -16,9 +19,7 @@ pub fn sc64win_winver() {
     helpers::setup();
 
     let mut emu = emu64();
-    if !helpers::set_winver_maps(&mut emu, "win11") {
-        return; // offline / no winver cache — skip
-    }
+    helpers::set_winver_maps(&mut emu, "win11");
 
     // The fix: loader.exe must be seeded into the winver maps folder.
     let loader = std::path::Path::new(&emu.cfg.maps_folder).join("loader.exe");

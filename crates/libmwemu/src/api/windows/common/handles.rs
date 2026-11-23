@@ -1,16 +1,18 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
+use crate::emu::object_handle::NativeObject;
+use crate::exception::types::ExceptionType;
 use crate::winapi::common::memory::{
     pointer_size, read_array, read_guest_bytes, writable_pointer, write_pointer,
 };
-use crate::winapi::common::{ipc, nt_api, process, sections, security};
+use crate::winapi::common::{files, ipc, nt_api, process, sections, security, threads};
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::nls::CP_IBM437;
 use crate::windows::constants::process::*;
-use crate::windows::constants::security::GENERIC_ALL;
+use crate::windows::constants::security::{CURRENT_THREAD_EFFECTIVE_TOKEN, GENERIC_ALL};
 
 const DEFAULT_INPUT_MODE: u32 = 0x7; // Processed, line and echo input.
 const DEFAULT_OUTPUT_MODE: u32 = 0x3; // Processed output and wrapping.
@@ -99,25 +101,33 @@ pub(crate) fn standard_handle(emu: &mut Emu, api: &str) {
 }
 
 pub(crate) fn close_handle(emu: &mut Emu, api: &str) {
-    let call = WinApi(Stdcall);
+    close(emu, WinApi(Stdcall), api, false);
+}
+
+fn close(emu: &mut Emu, call: WindowsAbi, api: &str, native: bool) {
     let handle = api_try!(emu, call.arg(emu, 0));
-    log_red!(emu, "{} handle=0x{:x}", api, handle);
-    let pseudo = [NT_CURRENT_PROCESS, NT_CURRENT_THREAD]
-        .into_iter()
-        .any(|value| {
-            handle
-                == if emu.cfg.arch.is_64bits() {
-                    value
-                } else {
-                    value as u32 as u64
-                }
-        });
+    log_red!(emu, "{api} handle={handle:#x}");
+    // NtClose accepts the process, thread, session and token pseudo-handles (-1 through -6).
+    let pseudo = (CURRENT_THREAD_EFFECTIVE_TOKEN as i64..=NT_CURRENT_PROCESS as i64)
+        .contains(&(extend_handle(emu, handle) as i64));
     let closed = pseudo || close_object(emu, handle);
-    if !closed {
-        emu.set_last_error(ERROR_INVALID_HANDLE);
-    }
-    call.set_return(emu, u64::from(closed));
+    let status = if native {
+        if closed {
+            STATUS_SUCCESS
+        } else {
+            STATUS_INVALID_HANDLE
+        }
+    } else {
+        if !closed {
+            emu.set_last_error(ERROR_INVALID_HANDLE);
+        }
+        u64::from(closed)
+    };
+    call.set_return(emu, status);
     call.cleanup_args(emu, 1);
+    if !closed && handle != 0 && emu.raise_on_invalid_handle_close {
+        emu.exception(ExceptionType::InvalidHandle);
+    }
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
@@ -153,11 +163,8 @@ pub(crate) fn close_object(emu: &mut Emu, handle: u64) -> bool {
         emu.last_closed_section_dll = Some(name);
         return true;
     }
-    // Bootstrap console files may have both a file name and a console tag.
     let bootstrap_file = emu.file_handles.remove(&handle).is_some();
-    let bootstrap_console = emu.console_handles.remove(&handle);
     bootstrap_file
-        || bootstrap_console
         || emu.file_section_names.remove(&handle).is_some()
         || emu.known_dll_dir_handles.remove(&handle)
         || emu.symbolic_link_targets.remove(&handle).is_some()
@@ -169,28 +176,41 @@ pub(crate) fn close_object(emu: &mut Emu, handle: u64) -> bool {
 
 pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     match nt_api::normalize(api).as_ref() {
-        "NtClose" => native_close(emu, call),
+        "NtClose" => close(emu, call, "ntdll!NtClose", true),
         "NtDuplicateObject" => duplicate(emu, "ntdll", call),
+        "NtQueryVolumeInformationFile" => files::query_volume_information(emu, call),
         "NtQueryObject" => native_query_object(emu, call),
         "NtOpenProcessToken" => security::native_open_process_token(emu, call),
+        "NtQueryInformationToken" => security::native_query_token(emu, call),
+        "NtAccessCheck" => security::native_access_check(emu, call),
         "NtOpenProcess" => process::native_open_process(emu, call),
+        "NtSetInformationThread" => threads::set_thread_information(emu, call),
         _ => return false,
     }
     true
 }
 
-fn type_name(emu: &Emu, handle: u64) -> Option<&'static str> {
-    let pseudo = if emu.cfg.arch.is_64bits() {
+fn extend_handle(emu: &Emu, handle: u64) -> u64 {
+    if emu.cfg.arch.is_64bits() {
         handle
     } else {
         handle as u32 as i32 as i64 as u64
-    };
-    match pseudo {
-        NT_CURRENT_PROCESS => return Some("Process"),
-        NT_CURRENT_THREAD => return Some("Thread"),
-        _ => {}
     }
-    if emu.file_handles.contains_key(&handle) || emu.console_handles.contains(&handle) {
+}
+
+fn pseudo_type_name(emu: &Emu, handle: u64) -> Option<&'static str> {
+    match extend_handle(emu, handle) {
+        NT_CURRENT_PROCESS => Some("Process"),
+        NT_CURRENT_THREAD => Some("Thread"),
+        _ => None,
+    }
+}
+
+pub(super) fn type_name(emu: &Emu, handle: u64) -> Option<&'static str> {
+    if let Some(name) = pseudo_type_name(emu, handle) {
+        return Some(name);
+    }
+    if emu.file_handles.contains_key(&handle) {
         Some("File")
     } else if emu.section_handles.contains_key(&handle)
         || emu.file_section_names.contains_key(&handle)
@@ -246,8 +266,46 @@ fn write_object_type(emu: &mut Emu, name: &str, output: u64, capacity: u32, retu
     STATUS_SUCCESS
 }
 
+fn query_handle_flags(
+    emu: &mut Emu,
+    handle: u64,
+    output: u64,
+    capacity: u32,
+    returned: u64,
+) -> Option<u64> {
+    if !emu.maps.validate_write_range(output, capacity as u64)
+        || (returned != 0
+            && !emu
+                .maps
+                .validate_write_range(returned, size_of::<u32>() as u64))
+    {
+        return Some(STATUS_ACCESS_VIOLATION);
+    }
+    let attributes = if let Some(attributes) = emu.handle_management.handle_attributes(handle) {
+        attributes
+    } else if pseudo_type_name(emu, handle).is_some() {
+        0
+    } else if type_name(emu, handle).is_some() || emu.handle_management.contains_handle(handle) {
+        return None;
+    } else {
+        return Some(STATUS_INVALID_HANDLE);
+    };
+
+    // No modeled handle can acquire ProtectFromClose.
+    let flags = [u8::from(attributes & OBJ_INHERIT != 0), 0];
+    let status = if (capacity as usize) < flags.len() {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else {
+        emu.maps.write_bytes(output, &flags);
+        STATUS_SUCCESS
+    };
+    if returned != 0 {
+        emu.maps.write_dword(returned, flags.len() as u32);
+    }
+    Some(status)
+}
+
 fn native_query_object(emu: &mut Emu, call: WindowsAbi) {
-    const OBJECT_TYPE_INFORMATION: u32 = 2;
     let [handle, class, output, capacity, returned] = api_try!(emu, call.args(emu));
     let class = class as u32;
     log_red!(
@@ -255,32 +313,31 @@ fn native_query_object(emu: &mut Emu, call: WindowsAbi) {
         "ntdll!NtQueryObject handle={handle:#x} class={class} capacity={}",
         capacity as u32
     );
-    if class != OBJECT_TYPE_INFORMATION {
+    let status = match class {
+        OBJECT_TYPE_INFORMATION => {
+            if let Some(name) = type_name(emu, handle) {
+                Some(write_object_type(
+                    emu,
+                    name,
+                    output,
+                    capacity as u32,
+                    returned,
+                ))
+            } else {
+                (!emu.handle_management.contains_handle(handle)).then_some(STATUS_INVALID_HANDLE)
+            }
+        }
+        OBJECT_HANDLE_FLAG_INFORMATION => {
+            query_handle_flags(emu, handle, output, capacity as u32, returned)
+        }
+        _ => None,
+    };
+    let Some(status) = status else {
         policy::unsupported_with_abi(emu, "ntdll", "NtQueryObject", emu.pc(), call);
         return;
-    }
-    let status = if let Some(name) = type_name(emu, handle) {
-        write_object_type(emu, name, output, capacity as u32, returned)
-    } else if emu.handle_management.contains_handle(handle) {
-        policy::unsupported_with_abi(emu, "ntdll", "NtQueryObject", emu.pc(), call);
-        return;
-    } else {
-        STATUS_INVALID_HANDLE
     };
     call.set_return(emu, status);
     call.cleanup_args(emu, 5);
-}
-
-fn native_close(emu: &mut Emu, call: WindowsAbi) {
-    let handle = api_try!(emu, call.arg(emu, 0));
-    log_red!(emu, "ntdll!NtClose handle={handle:#x}");
-    let status = if close_object(emu, handle) {
-        STATUS_SUCCESS
-    } else {
-        STATUS_INVALID_HANDLE
-    };
-    call.set_return(emu, status);
-    call.cleanup_args(emu, 1);
 }
 
 #[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -451,7 +508,20 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
         "{library}!{api} source_process={source_process:#x} source_handle={source:#x} target_process={target_process:#x} target_handle={output:#x} desired_access={desired_access:#x} handle_attributes={inherit} options={options:#x}"
     );
     let options = options as u32;
-    if options & DUPLICATE_CLOSE_SOURCE != 0 || inherit as u32 != 0 || output == 0 {
+    let copy_attributes = native && options & DUPLICATE_SAME_ATTRIBUTES != 0;
+    let attributes = if copy_attributes {
+        // Process pseudo-handles have no inheritable handle-table entry.
+        emu.handle_management
+            .handle_attributes(source)
+            .unwrap_or_default()
+    } else if native {
+        inherit as u32
+    } else if inherit as u32 != 0 {
+        OBJ_INHERIT
+    } else {
+        0
+    };
+    if options & DUPLICATE_CLOSE_SOURCE != 0 || output == 0 || attributes & !OBJ_INHERIT != 0 {
         policy::unsupported_with_abi(emu, library, api, emu.pc(), call);
         return;
     }
@@ -460,7 +530,10 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
     let result = if !valid_output {
         error = STATUS_ACCESS_VIOLATION;
         None
-    } else if options & !DUPLICATE_SAME_ACCESS != 0 {
+    } else if options
+        & !(DUPLICATE_SAME_ACCESS | if native { DUPLICATE_SAME_ATTRIBUTES } else { 0 })
+        != 0
+    {
         error = STATUS_INVALID_PARAMETER;
         None
     } else if let Err(status) =
@@ -469,12 +542,40 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
     {
         error = status;
         None
-    } else if let Some(id) = emu.handle_management.waitable_id(source) {
-        if options & DUPLICATE_SAME_ACCESS == 0 {
+    } else if let Some(NativeObject::ConsoleDevice { access, .. }) =
+        emu.handle_management.native_object(source)
+    {
+        let requested = if options & DUPLICATE_SAME_ACCESS != 0 {
+            access
+        } else {
+            desired_access as u32
+        };
+        if requested & !access != 0 {
+            error = STATUS_ACCESS_DENIED;
+            None
+        } else {
+            Some(
+                emu.handle_management
+                    .insert_native_object(NativeObject::ConsoleDevice {
+                        access: requested,
+                        attributes,
+                    }),
+            )
+        }
+    } else if let Some((id, access)) = emu.handle_management.waitable_handle(source) {
+        let requested = if options & DUPLICATE_SAME_ACCESS != 0 {
+            access
+        } else {
+            desired_access as u32
+        };
+        if requested & !access != 0 {
             policy::unsupported_with_abi(emu, library, api, emu.pc(), call);
             return;
         }
-        Some(emu.handle_management.open_waitable(id))
+        Some(
+            emu.handle_management
+                .open_waitable(id, requested, attributes),
+        )
     } else if let Some(pid) = emu.handle_management.process_handle_id(source) {
         let rights = emu
             .handle_management
@@ -492,6 +593,7 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
             } else {
                 desired
             },
+            attributes,
         )))
     } else if source
         == if emu.cfg.arch.is_64bits() {
@@ -508,6 +610,7 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
         Some(u64::from(emu.handle_management.insert_process_handle(
             process::current_process_id(emu) as u32,
             rights,
+            attributes,
         )))
     } else if source
         == if emu.cfg.arch.is_64bits() {
@@ -521,7 +624,6 @@ pub(crate) fn duplicate(emu: &mut Emu, library: &str, call: WindowsAbi) {
         || emu.file_section_names.contains_key(&source)
         || emu.known_dll_dir_handles.contains(&source)
         || emu.symbolic_link_targets.contains_key(&source)
-        || emu.console_handles.contains(&source)
     {
         policy::unsupported_with_abi(emu, library, api, emu.pc(), call);
         return;

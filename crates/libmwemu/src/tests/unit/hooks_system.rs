@@ -344,12 +344,13 @@ pub fn test_post_instruction_hook() {
     assert_eq!(call_counter.load(std::sync::atomic::Ordering::SeqCst), 1);
 }
 
+#[cfg(feature = "asset-tests")]
 #[test]
 pub fn test_winapi_hook() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

@@ -13,6 +13,7 @@ const MAX_ATOM_NAME: usize = 255;
 pub(crate) struct AtomTables {
     local: BTreeMap<u16, Atom>,
     global: BTreeMap<u16, Atom>,
+    user: BTreeMap<Vec<u16>, u16>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -22,6 +23,26 @@ struct Atom {
 }
 
 impl AtomTables {
+    pub(crate) fn register_user_name(&mut self, name: &[u16]) -> Result<u16, u64> {
+        if name.is_empty() {
+            return Ok(0);
+        }
+        if name.len() > MAX_ATOM_NAME {
+            return Err(ERROR_MORE_DATA);
+        }
+        if let Some(id) = integer_atom_name(name)? {
+            return Ok(id);
+        }
+        let key = folded(name);
+        if let Some(&id) = self.user.get(&key) {
+            return Ok(id);
+        }
+        let id = u16::try_from(FIRST_STRING_ATOM as usize + self.user.len())
+            .map_err(|_| ERROR_NOT_ENOUGH_MEMORY)?;
+        self.user.insert(key, id);
+        Ok(id)
+    }
+
     fn table(&mut self, global: bool) -> &mut BTreeMap<u16, Atom> {
         if global {
             &mut self.global
@@ -54,6 +75,26 @@ fn integer_atom(value: u16) -> Result<u16, u64> {
         .ok_or(ERROR_INVALID_PARAMETER)
 }
 
+fn integer_atom_name(name: &[u16]) -> Result<Option<u16>, u64> {
+    let Some(digits) = name.strip_prefix(&[b'#' as u16]) else {
+        return Ok(None);
+    };
+    if digits.is_empty()
+        || !digits
+            .iter()
+            .all(|d| (b'0' as u16..=b'9' as u16).contains(d))
+    {
+        return Ok(None);
+    }
+    let id = digits
+        .iter()
+        .try_fold(0u16, |id, d| {
+            id.checked_mul(10)?.checked_add(d - b'0' as u16)
+        })
+        .ok_or(ERROR_INVALID_PARAMETER)?;
+    integer_atom(id).map(Some)
+}
+
 fn lookup(emu: &mut Emu, global: bool, add: bool, ptr: u64, codec: Encoding) -> Result<u16, u64> {
     if let Ok(value) = u16::try_from(ptr) {
         return integer_atom(value);
@@ -62,19 +103,8 @@ fn lookup(emu: &mut Emu, global: bool, add: bool, ptr: u64, codec: Encoding) -> 
     if name.is_empty() || name.len() > MAX_ATOM_NAME {
         return Err(ERROR_INVALID_PARAMETER);
     }
-    if let Some(digits) = name.strip_prefix(&[u16::from(b'#')])
-        && !digits.is_empty()
-        && digits
-            .iter()
-            .all(|d| (u16::from(b'0')..=u16::from(b'9')).contains(d))
-    {
-        let id = digits
-            .iter()
-            .try_fold(0u16, |id, d| {
-                id.checked_mul(10)?.checked_add(d - u16::from(b'0'))
-            })
-            .ok_or(ERROR_INVALID_PARAMETER)?;
-        return integer_atom(id);
+    if let Some(id) = integer_atom_name(&name)? {
+        return Ok(id);
     }
     let key = folded(&name);
     let table = emu.atom_tables.table(global);

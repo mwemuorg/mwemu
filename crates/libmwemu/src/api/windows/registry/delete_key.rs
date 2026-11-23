@@ -26,7 +26,11 @@ pub(super) fn delete_key(emu: &mut emu::Emu, api: &str, wide: bool, tree: bool) 
     let err = match sub.as_deref() {
         // RegDeleteTree without a subkey empties the key itself
         None | Some("") if tree => {
+            let had_children = !emu.registry.subkeys(&base).is_empty();
             emu.registry.clear_key(&base);
+            if had_children {
+                emu.handle_management.registry_names_changed(&base);
+            }
             emu.handle_management.invalidate_registry_key(&base, false);
             ERROR_SUCCESS
         }
@@ -47,6 +51,9 @@ pub(super) fn delete_subkey(emu: &mut emu::Emu, path: &str, recursive: bool) -> 
             store::DeleteError::NotFound => ERROR_FILE_NOT_FOUND,
             store::DeleteError::HasSubkeys => ERROR_ACCESS_DENIED,
         })?;
+    if let Some((parent, _)) = path.rsplit_once('\\') {
+        emu.handle_management.registry_names_changed(parent);
+    }
     emu.handle_management.invalidate_registry_key(path, true);
     Ok(())
 }

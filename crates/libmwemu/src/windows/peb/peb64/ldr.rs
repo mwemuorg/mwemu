@@ -582,13 +582,6 @@ pub fn create_ldr_entry(
     mem.write_wide_string(ldr.base_dll_name.buffer, libname);
     ldr.save(space_addr, &mut emu.maps);
 
-    // Win11 parallel loader checks [entry+0x10C] (LoadReason) against 9;
-    // set it so the check passes and the parallel-load retry path is skipped.
-    emu.maps.write_dword(
-        space_addr + LdrDataTableEntry64::LOAD_REASON_OFFSET,
-        LdrDataTableEntry64::BOOTSTRAP_LOAD_REASON,
-    );
-
     // Create a DDAG node so Win11's parallel loader treats this module as
     // fully loaded (State = 9 = LdrModulesReadyToRun, LoadCount = -1).
     {

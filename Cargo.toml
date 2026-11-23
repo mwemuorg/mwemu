@@ -52,11 +52,6 @@ debug = "full"
 opt-level = 0
 panic = 'unwind'
 
-[profile.dev-debug]
-inherits = 'dev'
-opt-level = 0
-panic = 'unwind'
-
 [profile.profiler]
 inherits  = 'dev'
 debug = 2

@@ -1,5 +1,6 @@
 use crate::api::abi::windows::{
     CallingConvention::{Cdecl, Stdcall},
+    WindowsAbi,
     WindowsAbi::WinApi,
 };
 use crate::emu;
@@ -7,6 +8,7 @@ use crate::exception::types::ExceptionType;
 use crate::kernel::windows::structs::NT_BUILD_NUMBER;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::memory::{pointer_size, read_array, read_guest_bytes, read_pointer};
+use crate::winapi::common::process::query_current_process;
 use crate::winapi::common::{heap, memory, security};
 use crate::winapi::policy;
 use crate::winapi::policy::api_try;
@@ -14,7 +16,12 @@ use crate::winapi::registry;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
+use crate::windows::constants::system::{
+    MANAGE_HOT_PATCH_CHECK_ENABLED, MANAGE_HOT_PATCH_QUERY_SINGLE_PATCH,
+    MANAGE_HOT_PATCH_QUERY_VERSION,
+};
 use crate::windows::structures::{OsVersionInfoA, OsVersionInfoExA, OsVersionInfoExW};
+use std::mem::offset_of;
 
 // Counted strings reserve one code unit for the terminator in a USHORT capacity.
 const ANSI_STRING_MAX_BYTES: u16 = u16::MAX;
@@ -970,4 +977,148 @@ pub fn EncodePointer(emu: &mut emu::Emu) {
 
 pub fn DecodePointer(emu: &mut emu::Emu) {
     pointer_round_trip(emu, "DecodePointer");
+}
+
+pub(crate) fn manage_hot_patch(emu: &mut emu::Emu, call: WindowsAbi) {
+    let class = api_try!(emu, call.arg_u32(emu, 0));
+    if !matches!(
+        class,
+        MANAGE_HOT_PATCH_CHECK_ENABLED | MANAGE_HOT_PATCH_QUERY_SINGLE_PATCH
+    ) {
+        policy::unsupported_with_abi(emu, "ntdll", "NtManageHotPatch", emu.pc(), call);
+        return;
+    }
+    let buffer = api_try!(emu, call.arg(emu, 1));
+    let length = api_try!(emu, call.arg_u32(emu, 2));
+    let return_length = api_try!(emu, call.arg(emu, 3));
+    let status = hot_patch_query(emu, class, buffer, length, return_length);
+    log_red!(
+        emu,
+        "ntdll!NtManageHotPatch class={class} buffer={buffer:#x} length={length} return_length={return_length:#x} => {status:#x}"
+    );
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, status);
+}
+
+#[repr(C)]
+struct HotPatchQuerySingle<P> {
+    version: u32,
+    process: P,
+    base_address: P,
+    flags: u32,
+    path: HotPatchPath<P>,
+}
+
+// The native UNICODE_STRING is pointer-aligned, including its Length field.
+#[repr(C)]
+struct HotPatchPath<P> {
+    lengths: u32,
+    buffer: P,
+}
+
+fn hot_patch_query(
+    emu: &mut emu::Emu,
+    class: u32,
+    buffer: u64,
+    length: u32,
+    return_length: u64,
+) -> u64 {
+    let wow64 = !emu.cfg.arch.is_64bits();
+    let single = class == MANAGE_HOT_PATCH_QUERY_SINGLE_PATCH;
+    if wow64 && single && length < size_of::<HotPatchQuerySingle<u32>>() as u32 {
+        return STATUS_INVALID_PARAMETER;
+    }
+    let result = if single {
+        query_single_hot_patch(emu, buffer, length, wow64)
+    } else {
+        check_hot_patch_enabled(emu, buffer, length)
+    };
+    let returned = result.unwrap_or(0);
+    if !emu.maps.write_bytes(return_length, &returned.to_le_bytes()) {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    result.err().unwrap_or(STATUS_SUCCESS)
+}
+
+fn check_hot_patch_enabled(emu: &emu::Emu, buffer: u64, length: u32) -> Result<u32, u64> {
+    const FIELD_SIZE: usize = size_of::<u32>();
+    const QUERY_SIZE: usize = 2 * FIELD_SIZE;
+    if length < QUERY_SIZE as u32 {
+        return Err(STATUS_INFO_LENGTH_MISMATCH);
+    }
+    if !buffer.is_multiple_of(FIELD_SIZE as u64) {
+        return Err(STATUS_DATATYPE_MISALIGNMENT);
+    }
+    let query = read_array::<QUERY_SIZE>(emu, buffer).ok_or(STATUS_ACCESS_VIOLATION)?;
+    if query[..FIELD_SIZE] != MANAGE_HOT_PATCH_QUERY_VERSION.to_le_bytes()
+        || query[FIELD_SIZE..] != 0u32.to_le_bytes()
+    {
+        return Err(STATUS_INVALID_PARAMETER);
+    }
+    Ok(0)
+}
+
+fn query_single_hot_patch(
+    emu: &mut emu::Emu,
+    buffer: u64,
+    length: u32,
+    wow64: bool,
+) -> Result<u32, u64> {
+    type Native = HotPatchQuerySingle<u64>;
+    type Wow64 = HotPatchQuerySingle<u32>;
+    let (size, process_offset, base_offset, flags_offset, path_offset, output_size) = if wow64 {
+        // WoW64 clears both string lengths and keeps the caller's buffer pointer.
+        (
+            size_of::<Wow64>(),
+            offset_of!(Wow64, process),
+            offset_of!(Wow64, base_address),
+            offset_of!(Wow64, flags),
+            offset_of!(Wow64, path),
+            size_of::<u32>(),
+        )
+    } else {
+        (
+            size_of::<Native>(),
+            offset_of!(Native, process),
+            offset_of!(Native, base_address),
+            offset_of!(Native, flags),
+            offset_of!(Native, path),
+            size_of::<HotPatchPath<u64>>(),
+        )
+    };
+    if length < size as u32 {
+        return Err(STATUS_INFO_LENGTH_MISMATCH);
+    }
+    if !buffer.is_multiple_of(align_of::<u32>() as u64) {
+        return Err(STATUS_DATATYPE_MISALIGNMENT);
+    }
+    if !emu.maps.can_access_range(buffer, size, Permission::READ) {
+        return Err(STATUS_ACCESS_VIOLATION);
+    }
+    let handle =
+        read_pointer(emu, buffer + process_offset as u64).ok_or(STATUS_ACCESS_VIOLATION)?;
+    let base = read_pointer(emu, buffer + base_offset as u64).ok_or(STATUS_ACCESS_VIOLATION)?;
+    if emu.maps.read_dword(buffer) != Some(MANAGE_HOT_PATCH_QUERY_VERSION)
+        || emu.maps.read_dword(buffer + flags_offset as u64) != Some(0)
+        || base == 0
+        || !query_current_process(emu, handle)
+    {
+        return Err(STATUS_INVALID_PARAMETER);
+    }
+    if emu.maps.find_pe_image_info(base).is_none() {
+        return Err(if emu.maps.is_mapped(base) {
+            STATUS_CONFLICTING_ADDRESSES
+        } else {
+            STATUS_MEMORY_NOT_ALLOCATED
+        });
+    }
+    let empty_path = [0; size_of::<HotPatchPath<u64>>()];
+    if !emu
+        .maps
+        .write_bytes(buffer + path_offset as u64, &empty_path[..output_size])
+    {
+        return Err(STATUS_ACCESS_VIOLATION);
+    }
+    // WoW64 also reports the native size.
+    Ok(size_of::<Native>() as u32)
 }

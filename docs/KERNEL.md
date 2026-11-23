@@ -162,7 +162,7 @@ The [MCP kernel tools](../crates/mwemu-mcp/README.md#emulating-a-driver-and-find
 
 | Target | Build command | Output | Required toolchain |
 | --- | --- | --- | --- |
-| `drivers/linux/tlm` | `make driver` | `test/linux_uaf_driver.ko` | Linux kernel headers and a matching build toolchain. |
+| `drivers/linux/tlm` | `make linux-driver` | `test/linux_uaf_driver.ko` | Linux kernel headers and a matching build toolchain. |
 | `drivers/windows/tlm` | `make windows-driver` | `test/windows_uaf_driver.sys` | mingw-w64 with DDK headers. |
 | `drivers/macos/tlm` | `make macos-driver` | `test/macos_uaf_driver.kext` | macOS SDK and arm64e toolchain support. |
 
@@ -172,4 +172,4 @@ These deliberately vulnerable telemetry drivers exercise lifetime errors. The Wi
 cargo test -p libmwemu tests::kernel -- --nocapture
 ```
 
-The kernel suite includes self-contained ABI, dispatch/discovery, and memory tests. Artifact-dependent tests return early when their driver is absent. A green suite without those artifacts does not establish end-to-end driver coverage. Follow [TEST.md](../TEST.md) and the host-specific instructions in [AGENTS.md](../AGENTS.md) for the full validation setup.
+The default suite covers the kernel ABI, dispatch, discovery and guest memory. Enable `asset-tests` for the bundled Linux module or `host-tests` for locally built drivers. See [TEST.md](../TEST.md) for prerequisites and commands.

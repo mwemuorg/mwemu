@@ -8,6 +8,7 @@ use crate::maps::virtual_memory::{PAGE_SIZE, align_up};
 use crate::winapi::common::memory::{read_array, read_pointer, writable_pointer, write_pointer};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::{IBM_437_HIGH, WINDOWS_1252_HIGH};
+use crate::windows::peb::peb64;
 use crate::windows::structures::{RtlUserProcessParameters32, RtlUserProcessParameters64};
 
 pub(crate) const PROFILE: &str = "C:\\Users\\User";
@@ -123,21 +124,16 @@ pub(crate) fn process(emu: &mut Emu) -> &mut Environment {
 
 /// Publish the new environment only after the process parameters can refer to the whole block.
 pub(crate) fn replace(emu: &mut Emu, environment: Environment) -> Result<(), u64> {
-    let (params_name, offset) = if emu.cfg.arch.is_64bits() {
-        (
-            "RtlUserProcessParameters64",
-            RtlUserProcessParameters64::ENVIRONMENT_OFFSET,
-        )
+    let slot = if emu.cfg.arch.is_64bits() {
+        peb64::current_parameters(&emu.maps)
+            .and_then(|base| base.checked_add(RtlUserProcessParameters64::ENVIRONMENT_OFFSET))
     } else {
-        (
-            "RtlUserProcessParameters32",
-            RtlUserProcessParameters32::ENVIRONMENT_OFFSET,
-        )
+        emu.maps
+            .get_map_by_name("RtlUserProcessParameters32")
+            .filter(|map| map.size() > RtlUserProcessParameters32::ENVIRONMENT_OFFSET as usize)
+            .map(|map| map.get_base() + RtlUserProcessParameters32::ENVIRONMENT_OFFSET)
     };
-    if let Some(params) = emu.maps.get_map_by_name(params_name)
-        && params.size() > offset as usize
-    {
-        let slot = params.get_base() + offset;
+    if let Some(slot) = slot {
         write_block(emu, slot, &environment.block(Encoding::Wide))?;
     }
     emu.environment = Some(environment);

@@ -50,7 +50,7 @@ pub(crate) fn validate(
 ) -> Result<u32, ProtectError> {
     let permission = permissions(protection).ok_or(ProtectError::InvalidProtection)?;
     let (base, end) = page_range(address, size)?;
-    maps.validate_protection(base, end - base, permission)
+    maps.validate_protection_request(base, end - base, permission, Some(protection))
         .map_err(memory_error)
 }
 

@@ -12,7 +12,7 @@ crashed machine.
 | [`linux/tlm`](linux/tlm) | Linux (`.ko`) | refcounted slab objects, a stale hot-path cache, use-after-free |
 | [`windows/tlm`](windows/tlm) | Windows (`.sys`) | the same use-after-free over pool objects, plus BYOVD primitives: `MmMapIoSpace` of a caller-chosen physical address, `rdmsr`/`wrmsr` on a caller-chosen MSR |
 
-Build the Linux target with `make driver` from the repo root; it lands in
+Build the Linux target with `make linux-driver` from the repo root; it lands in
 `test/linux_uaf_driver.ko`, where the kernel-emulation tests look for it.
 `make windows-driver` cross-compiles the Windows target with mingw-w64
 (`x86_64-w64-mingw32-gcc` and its DDK headers) into

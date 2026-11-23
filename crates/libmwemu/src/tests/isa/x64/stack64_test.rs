@@ -1,12 +1,15 @@
-use crate::{tests::helpers, *};
+#[cfg(feature = "asset-tests")]
+use crate::tests::helpers;
+use crate::*;
 
+#[cfg(feature = "asset-tests")]
 #[test]
 // stack64 tests
 pub fn stack64_test() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
     emu.init_win32(false, false).unwrap();
 
     let stack_check = emu.maps.get_map_by_name("stack");

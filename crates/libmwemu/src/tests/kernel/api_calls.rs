@@ -2,6 +2,8 @@ use crate::api::abi::ArgumentFault;
 use crate::api::unix::ApiStopReason as UnixStopReason;
 use crate::api::windows::policy::{ApiDisposition, ApiStopReason as WindowsStopReason};
 use crate::emu::Emu;
+use crate::kernel::guard::FindingKind;
+use crate::kernel::heap::Region;
 use crate::kernel::windows::crt::{ArgSource, format_args};
 use crate::kernel::{KernelOs, linux, macos};
 use crate::maps::mem64::Permission;
@@ -45,6 +47,29 @@ fn return_slot(emu: &mut Emu) {
         .unwrap();
     assert!(emu.maps.write_qword(STACK, RETURN_ADDRESS));
     emu.regs_mut().rsp = STACK;
+}
+
+#[test]
+fn linux_heap_guard_distinguishes_live_access_and_freed_allocations() {
+    let mut emu = emulator(KernelOs::Linux);
+    let ptr = emu.kernel_alloc(Region::Slab, ALLOCATION_SIZE, "test", "kmalloc", true);
+    assert_ne!(ptr, 0);
+    emu.kernel_guard_access(CODE, ptr, 1, false);
+    assert!(emu.kernel_findings().is_empty());
+
+    assert!(emu.kernel_free(ptr, "kfree"));
+    emu.kernel_guard_access(CODE, ptr, 1, false);
+    emu.kernel_guard_access(CODE, ptr, 1, true);
+    assert!(!emu.kernel_free(ptr, "kfree"));
+    let kinds: Vec<_> = emu.kernel_findings().iter().map(|f| f.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            FindingKind::UseAfterFree,
+            FindingKind::WriteAfterFree,
+            FindingKind::DoubleFree,
+        ]
+    );
 }
 
 #[test]

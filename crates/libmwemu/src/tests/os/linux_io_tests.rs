@@ -357,10 +357,6 @@ fn pipe_queues_preserve_data_and_report_peer_lifetime() {
         );
         assert_eq!(invoke(&mut emu, Operation::Read, [reader, DATA, 1]), 0);
         assert_eq!(invoke(&mut emu, Operation::Close, [reader, 0, 0]), 0);
-        assert_eq!(
-            invoke(&mut emu, Operation::Close, [reader, 0, 0]),
-            EBADF as i64
-        );
 
         let (reader, writer) = pipe(&mut emu);
         let capacity = 64 * 1024;
@@ -391,6 +387,10 @@ fn pipe_queues_preserve_data_and_report_peer_lifetime() {
             EAGAIN as i64
         );
         assert_eq!(invoke(&mut emu, Operation::Close, [reader, 0, 0]), 0);
+        assert_eq!(
+            invoke(&mut emu, Operation::Close, [reader, 0, 0]),
+            EBADF as i64
+        );
         assert_eq!(
             invoke(&mut emu, Operation::Write, [writer, DATA, 1]),
             EPIPE as i64
@@ -498,8 +498,8 @@ fn libc_and_raw_syscalls_share_descriptors_and_translate_errno() {
         let errno = unix::errno_address(&mut emu).unwrap();
         assert!(emu.maps.write_dword(errno, 123));
         assert_eq!(invoke(&mut emu, Operation::Pipe2, [IOVEC, 0, 0]), 0);
-        let reader = u64::from(emu.maps.read_dword(IOVEC).unwrap());
-        let writer = u64::from(emu.maps.read_dword(IOVEC + 4).unwrap());
+        let reader = emu.maps.read_dword(IOVEC).unwrap() as u64;
+        let writer = emu.maps.read_dword(IOVEC + 4).unwrap() as u64;
         assert!(emu.maps.write_bytes(DATA, b"x\xff\0"));
         assert_eq!(library_call(&mut emu, "__write", [writer, DATA, 2]), 2);
         assert_eq!(library_call(&mut emu, "read", [reader, DATA + 4, 8]), 2);
@@ -509,8 +509,8 @@ fn libc_and_raw_syscalls_share_descriptors_and_translate_errno() {
         assert_eq!(invoke(&mut emu, Operation::Close, [reader, 0, 0]), 0);
         assert_eq!(emu.maps.read_dword(errno), Some(123));
         for (name, args, error) in [
-            ("close", [reader, 0, 0], EBADF),
-            ("read", [writer, DATA, 1], EBADF),
+            ("close", [u32::MAX as u64, 0, 0], EBADF),
+            ("read", [u32::MAX as u64, DATA, 1], EBADF),
             ("write", [1, 0, 1], EFAULT),
             ("open", [0, 0, 0], EFAULT),
             ("__open64", [DATA + 2, 0, 0], ENOENT),

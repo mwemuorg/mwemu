@@ -23,5 +23,4 @@ What it exercises:
 - `TLM_IOC_RDMSR` / `WRMSR` (`0x80002014` / `18`): `rdmsr` / `wrmsr` on a
   caller-chosen MSR.
 
-`cargo test -p libmwemu tests::kernel::windows` drives all of it; the tests
-skip when the artefact is absent, so CI without mingw stays green.
+See [the host-test instructions](../../../TEST.md#host-prerequisites) for the Windows driver suite.

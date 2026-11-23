@@ -11,12 +11,12 @@ pub mod syscall64;
 const X86_PROLOGUE: &[u8] = &[0xb8]; // mov eax, service number
 const X64_PROLOGUE: &[u8] = &[0x4c, 0x8b, 0xd1, 0xb8]; // mov r10, rcx; mov eax, number
 
-fn dispatch(emu: &mut Emu, number: u64, name: &str, handler: impl FnOnce(&mut Emu)) {
+fn dispatch(emu: &mut Emu, module: &str, number: u64, name: &str, handler: impl FnOnce(&mut Emu)) {
     if emu.api_policy.stopped() {
         return;
     }
     let previous = emu.api_policy.entry.take();
-    policy::begin_call(emu, "ntdll", name, number, ApiRoute::Syscall);
+    policy::begin_call(emu, module, name, number, ApiRoute::Syscall);
     if emu.call_syscall_hook(number) && !emu.api_policy.stopped() {
         handler(emu);
     }
@@ -28,12 +28,16 @@ fn dispatch(emu: &mut Emu, number: u64, name: &str, handler: impl FnOnce(&mut Em
 
 /// Read service numbers from direct Nt exports of the loaded guest ntdll.
 pub(crate) fn index_syscall_names(emu: &Emu) -> HashMap<u64, String> {
+    index_module_services(emu, "ntdll")
+}
+
+fn index_module_services(emu: &Emu, module: &str) -> HashMap<u64, String> {
     let prologue = match emu.cfg.arch {
         Arch::X86 => X86_PROLOGUE,
         Arch::X86_64 => X64_PROLOGUE,
         Arch::Aarch64 => return HashMap::new(),
     };
-    let Some(module) = emu.export_indexes.get_by_name("ntdll") else {
+    let Some(module) = emu.export_indexes.get_by_name(module) else {
         return HashMap::new();
     };
     module

@@ -1,5 +1,7 @@
 use crate::windows::peb::{peb32, peb64};
-use crate::windows::structures::{RtlUserProcessParameters32, RtlUserProcessParameters64};
+use crate::windows::structures::{
+    RtlUserProcessParameters32, RtlUserProcessParameters64, UnicodeString64,
+};
 use goblin::pe::dll_characteristic::IMAGE_DLLCHARACTERISTICS_NX_COMPAT;
 use itertools::iproduct;
 use rs_header::pe::pe32::PE32;
@@ -2064,6 +2066,277 @@ fn duplicate_handle_produces_independent_process_handles() {
 }
 
 #[test]
+fn process_invalid_close_policy_raises_for_stale_handles() {
+    use crate::exception::types::ExceptionType;
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let current = if is64 {
+            NT_CURRENT_PROCESS
+        } else {
+            NT_CURRENT_PROCESS as u32 as u64
+        };
+        let class = PROCESS_RAISE_UM_EXCEPTION_ON_INVALID_HANDLE_CLOSE;
+        let returned = data + 16;
+        let options = [current, class, data, 4];
+        let query = |emu: &mut Emu| {
+            emu.maps.write_dword(data, u32::MAX);
+            emu.maps.write_dword(returned, u32::MAX);
+            assert_eq!(
+                call(
+                    emu,
+                    "ntdll.dll",
+                    "NtQueryInformationProcess",
+                    &[current, class, data, 4, returned]
+                ),
+                STATUS_SUCCESS
+            );
+            assert_eq!(emu.maps.read_dword(returned), Some(u32::MAX));
+            emu.maps.read_dword(data).unwrap()
+        };
+        assert_eq!(query(&mut emu), 0);
+        let event = call(&mut emu, "kernel32.dll", "CreateEventW", &[0, 0, 0, 0]);
+        assert_ne!(event, 0);
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[event]),
+            STATUS_SUCCESS
+        );
+        let initial_faults = emu.fault_count;
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[event]),
+            STATUS_INVALID_HANDLE
+        );
+        assert_eq!(emu.fault_count, initial_faults);
+        for (value, expected) in [(3, 0), (1, 1), (2, 1)] {
+            emu.maps.write_dword(data, value);
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtSetInformationProcess", &options),
+                STATUS_SUCCESS
+            );
+            assert_eq!(query(&mut emu), expected);
+        }
+        let pid = call(&mut emu, "kernel32.dll", "GetCurrentProcessId", &[]);
+        let limited = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenProcess",
+            &[PROCESS_QUERY_LIMITED_INFORMATION as u64, 0, pid],
+        );
+        assert_ne!(limited, 0);
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "NtSetInformationProcess",
+                &[limited, class, data, 4]
+            ),
+            STATUS_ACCESS_DENIED
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "NtQueryInformationProcess",
+                &[limited, class, data, 4, 0]
+            ),
+            STATUS_SUCCESS
+        );
+        for (buffer, length, expected) in [
+            (data, 8, STATUS_INFO_LENGTH_MISMATCH),
+            (data + 1, 4, STATUS_DATATYPE_MISALIGNMENT),
+            (0, 4, STATUS_ACCESS_VIOLATION),
+        ] {
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "NtSetInformationProcess",
+                    &[current, class, buffer, length]
+                ),
+                expected
+            );
+        }
+        // Opening a process can reuse the event's former slot. Close it before testing a stale key.
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[limited]),
+            STATUS_SUCCESS
+        );
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        assert_eq!(query(&mut emu), 1);
+        emu.set_hook_on_exception(|_, _, kind| {
+            assert_eq!(kind, ExceptionType::InvalidHandle);
+            false
+        });
+        let before = emu.fault_count;
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[0]),
+            STATUS_INVALID_HANDLE
+        );
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[current]),
+            STATUS_SUCCESS
+        );
+        assert_eq!(emu.fault_count, before);
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[limited]),
+            STATUS_INVALID_HANDLE
+        );
+        assert_eq!(emu.fault_count, before + 1);
+        assert_eq!(call(&mut emu, "kernel32.dll", "CloseHandle", &[limited]), 0);
+        assert_eq!(emu.fault_count, before + 2);
+        emu.maps.write_dword(data, 0);
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtSetInformationProcess", &options),
+            STATUS_SUCCESS
+        );
+        assert_eq!(query(&mut emu), 0);
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[limited]),
+            STATUS_INVALID_HANDLE
+        );
+        assert_eq!(emu.fault_count, before + 2);
+    }
+}
+
+#[test]
+fn process_and_event_duplicates_keep_per_handle_attributes_across_restore() {
+    use crate::windows::constants::security::SYNCHRONIZE;
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let current = if is64 {
+            NT_CURRENT_PROCESS
+        } else {
+            NT_CURRENT_PROCESS as u32 as u64
+        };
+        let pid = call(&mut emu, "kernel32.dll", "GetCurrentProcessId", &[]);
+        let process = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenProcess",
+            &[PROCESS_DUP_HANDLE as u64, 1, pid],
+        );
+        let width = if is64 { 8 } else { 4 };
+        let sa = data + 32;
+        emu.maps.write_dword(sa, (3 * width) as u32);
+        emu.maps.write_dword(sa + 2 * width, 1);
+        let name = data + 96;
+        emu.maps.write_wide_string(name, "inherited event");
+        let event = call(&mut emu, "kernel32.dll", "CreateEventW", &[sa, 0, 0, name]);
+        let opened = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenEventW",
+            &[SYNCHRONIZE as u64, 1, name],
+        );
+        let flags = data + 224;
+        let returned = flags + 8;
+        let query = |emu: &mut Emu, handle, buffer, capacity| {
+            call(
+                emu,
+                "ntdll.dll",
+                "NtQueryObject",
+                &[
+                    handle,
+                    OBJECT_HANDLE_FLAG_INFORMATION as u64,
+                    buffer,
+                    capacity,
+                    returned,
+                ],
+            )
+        };
+        let assert_inherit = |emu: &mut Emu, handle, inherit| {
+            emu.maps.write_dword(flags, u32::MAX);
+            assert_eq!(query(emu, handle, flags, 4), STATUS_SUCCESS);
+            assert_eq!(emu.maps.read_word(flags), Some(u16::from(inherit)));
+            assert_eq!(emu.maps.read_word(flags + 2), Some(u16::MAX));
+            assert_eq!(emu.maps.read_dword(returned), Some(2));
+        };
+        for (buffer, capacity) in [(0, 0), (flags, 1)] {
+            emu.maps.write_dword(flags, u32::MAX);
+            assert_eq!(
+                query(&mut emu, event, buffer, capacity),
+                STATUS_INFO_LENGTH_MISMATCH
+            );
+            assert_eq!(emu.maps.read_dword(flags), Some(u32::MAX));
+            assert_eq!(emu.maps.read_dword(returned), Some(2));
+        }
+        emu.maps.write_dword(returned, u32::MAX);
+        assert_eq!(query(&mut emu, event, 0, 2), STATUS_ACCESS_VIOLATION);
+        assert_eq!(emu.maps.read_dword(returned), Some(u32::MAX));
+        assert_inherit(&mut emu, event, true);
+        assert_inherit(&mut emu, current, false);
+        assert_eq!(
+            emu.handle_management.waitable_id(opened),
+            emu.handle_management.waitable_id(event)
+        );
+
+        let sources = [(process, PROCESS_DUP_HANDLE), (opened, SYNCHRONIZE)];
+        let copies = sources.map(|(source, rights)| {
+            let args = [
+                current,
+                source,
+                current,
+                data,
+                rights as u64,
+                0,
+                DUPLICATE_SAME_ATTRIBUTES as u64,
+            ];
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtDuplicateObject", &args),
+                STATUS_SUCCESS
+            );
+            let inherited = read_pointer(&emu, data).unwrap();
+            assert_ne!(source, inherited);
+            let mut args = args;
+            args[6] = DUPLICATE_SAME_ACCESS as u64;
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtDuplicateObject", &args),
+                STATUS_SUCCESS
+            );
+            let plain = read_pointer(&emu, data).unwrap();
+            assert_ne!(inherited, plain);
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtClose", &[source]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(query(&mut emu, source, flags, 2), STATUS_INVALID_HANDLE);
+            (inherited, plain)
+        });
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        for (inherited, plain) in copies {
+            assert_inherit(&mut emu, inherited, true);
+            assert_inherit(&mut emu, plain, false);
+        }
+        let [(process, _), (event, _)] = copies;
+        assert_eq!(
+            emu.handle_management.process_access(process),
+            Some(PROCESS_DUP_HANDLE)
+        );
+        assert_eq!(
+            emu.handle_management
+                .waitable_handle(event)
+                .map(|(_, access)| access),
+            Some(SYNCHRONIZE)
+        );
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[process]),
+            STATUS_SUCCESS
+        );
+        let replacement = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenProcess",
+            &[PROCESS_DUP_HANDLE as u64, 0, pid],
+        );
+        assert_eq!(replacement, process);
+        assert_inherit(&mut emu, replacement, false);
+    }
+}
+
+#[test]
 fn lsa_status_translation_returns_win32_codes_and_preserves_last_error() {
     for is64 in [false, true] {
         let (mut emu, _) = helpers::prepare_winapi(is64);
@@ -2104,4 +2377,33 @@ fn kernel_providers_preserve_restored_errors_across_obsolete_handle_and_language
         );
         assert_eq!(call(&mut emu, library, "GetLastError", &[]), marker);
     }
+}
+
+#[test]
+fn win64_process_parameter_strings_survive_loader_relocation() {
+    let (mut emu, _) = helpers::prepare_winapi(true);
+    emu.cfg.exe_name = "sample.exe".into();
+    emu.cfg.arguments = "café 🐈".into();
+    let params = peb64::init_arguments(&mut emu);
+    let length = emu.maps.read_dword(params).unwrap() as u64;
+    assert_eq!(emu.maps.read_dword(params + 4), Some(length as u32));
+    let descriptors = [
+        RtlUserProcessParameters64::DLL_PATH_OFFSET,
+        RtlUserProcessParameters64::IMAGE_PATH_NAME_OFFSET,
+        RtlUserProcessParameters64::COMMAND_LINE_OFFSET,
+    ];
+    for offset in descriptors {
+        let text = UnicodeString64::load(params + offset, &emu.maps);
+        assert!(text.buffer >= params + RtlUserProcessParameters64::size() as u64);
+        assert!(text.buffer + text.maximum_length as u64 <= params + length);
+        assert_eq!(
+            emu.maps.read_word(text.buffer + text.length as u64),
+            Some(0)
+        );
+    }
+    let cmd = UnicodeString64::load(
+        params + RtlUserProcessParameters64::COMMAND_LINE_OFFSET,
+        &emu.maps,
+    );
+    assert!(emu.maps.read_wide_string(cmd.buffer).ends_with("café 🐈"));
 }

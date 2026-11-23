@@ -9,10 +9,56 @@ use crate::windows::constants::controls::{
     PM_REMOVE, QS_TIMER, USER_TIMER_MINIMUM, WM_KEYFIRST, WM_KEYLAST, WM_QUIT, WM_TIMER,
 };
 use crate::windows::constants::errors::{
-    ERROR_INVALID_WINDOW_HANDLE, ERROR_NOACCESS, ERROR_NOT_ENOUGH_QUOTA,
+    ERROR_INVALID_PARAMETER, ERROR_INVALID_WINDOW_HANDLE, ERROR_NOACCESS, ERROR_NOT_ENOUGH_QUOTA,
 };
 
 const MAX_POSTED_MESSAGES: usize = 10_000;
+
+pub(crate) fn registered_message(emu: &mut Emu, name: &[u16]) -> u64 {
+    match emu.atom_tables.register_user_name(name) {
+        Ok(id) => id as u64,
+        Err(error) => {
+            emu.set_last_error(error);
+            0
+        }
+    }
+}
+
+fn register_message(emu: &mut Emu, wide: bool) {
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    let text = if address == 0 {
+        Err(ERROR_INVALID_PARAMETER)
+    } else {
+        Encoding::from_wide(wide).read(emu, address)
+    };
+    let result = match text {
+        Ok(name) => {
+            let id = registered_message(emu, &name);
+            log_red!(
+                emu,
+                "user32!RegisterWindowMessage{} name={:?} id={id:#x}",
+                if wide { "W" } else { "A" },
+                String::from_utf16_lossy(&name)
+            );
+            id
+        }
+        Err(error) => {
+            emu.set_last_error(error);
+            0
+        }
+    };
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 1);
+}
+
+pub fn RegisterWindowMessageA(emu: &mut Emu) {
+    register_message(emu, false);
+}
+
+pub fn RegisterWindowMessageW(emu: &mut Emu) {
+    register_message(emu, true);
+}
 
 fn enqueue(emu: &mut Emu, thread: u64, hwnd: u64, id: u32, wparam: u64, lparam: u64) -> bool {
     let input = &mut emu.guest_windows.user;

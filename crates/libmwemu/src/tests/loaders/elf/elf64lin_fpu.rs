@@ -9,8 +9,6 @@ pub fn elf64lin_fpu() {
 
     let mut emu = emu64();
 
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
-
     let sample = sample!("elf64lin_fpu.bin");
     emu.load_code(&sample);
     emu.fpu_mut().clear();

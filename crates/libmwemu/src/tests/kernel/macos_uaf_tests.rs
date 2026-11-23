@@ -3,8 +3,7 @@
 //! use-after-free in `drivers/macos/tlm` is reported — the macOS counterpart
 //! of `linux_uaf_tests`.
 //!
-//! The kext is built from source by `make macos-driver`; when the artefact is
-//! absent these tests skip, like every other sample-dependent test here.
+//! Run `make macos-driver` before selecting the kext tests.
 
 use crate::emu::Emu;
 use crate::emu_aarch64;
@@ -39,14 +38,14 @@ fn write_write_req(emu: &mut Emu, at: u64, id: u32, len: u32, data: u64) {
     emu.maps.write_qword(at + 8, data);
 }
 
-/// Load the kext and run its `start`, or skip when the artefact is missing.
-fn boot_kext() -> Option<Emu> {
+/// Load the kext and run its `start`.
+fn boot_kext() -> Emu {
     helpers::setup();
     let path = helpers::test_data_path("macos_uaf_driver.kext");
-    if !std::path::Path::new(&path).exists() {
-        eprintln!("[skip] macos_uaf_driver.kext not built (run `make macos-driver`)");
-        return None;
-    }
+    assert!(
+        std::path::Path::new(&path).is_file(),
+        "missing {path}; run make macos-driver"
+    );
 
     let mut emu = emu_aarch64();
     emu.cfg.verbose = 1;
@@ -54,12 +53,12 @@ fn boot_kext() -> Option<Emu> {
         .expect("the kext should link against the emulated kernel");
     let ret = emu.run_module_init().expect("kext start should run");
     assert_eq!(ret, 0, "kext start returned an error");
-    Some(emu)
+    emu
 }
 
 #[test]
 fn kext_links_and_starts() {
-    let Some(emu) = boot_kext() else { return };
+    let emu = boot_kext();
 
     let kernel = emu.kernel.as_ref().expect("kernel env");
     assert_eq!(kernel.module.name, "com.mwemu.tlm");
@@ -86,7 +85,7 @@ fn kext_links_and_starts() {
 
 #[test]
 fn create_and_write_channel_is_clean() {
-    let Some(mut emu) = boot_kext() else { return };
+    let mut emu = boot_kext();
     let page = scratch_page(&mut emu);
 
     write_create_req(&mut emu, page, "sensor0", 256, 0);
@@ -114,7 +113,7 @@ fn create_and_write_channel_is_clean() {
 
 #[test]
 fn stale_hot_channel_cache_is_a_use_after_free() {
-    let Some(mut emu) = boot_kext() else { return };
+    let mut emu = boot_kext();
     let page = scratch_page(&mut emu);
 
     // 1. create a channel

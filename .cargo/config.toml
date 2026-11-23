@@ -1,3 +1,12 @@
+[alias]
+test-assets = "test --release --locked --features libmwemu/asset-tests"
+test-elf = "test-assets -p libmwemu --lib tests::loaders::elf::"
+test-macho = "test --release --locked -p libmwemu --lib tests::loaders::macho::"
+test-windows-driver = "test --release --locked -p libmwemu --lib --features host-tests tests::kernel::windows_driver_tests::lifecycle::"
+test-pe = "test-assets -p libmwemu --lib tests::loaders::pe::"
+bench-pe = "bench --locked -p libmwemu --features asset-tests --bench packed_pe"
+clippy-all = "clippy --locked --all-targets --features libmwemu/asset-tests,libmwemu/host-tests"
+
 # Intel/AMD Linux
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "target-cpu=native"]

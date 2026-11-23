@@ -79,6 +79,8 @@ impl Peb64 {
     pub(crate) const LDR_OFFSET: u64 = 0x18;
     pub(crate) const PROCESS_HEAP_OFFSET: u64 = 0x30;
     pub(crate) const SYSTEM_DEPENDENT_06_OFFSET: u64 = 0x68;
+    pub(crate) const CSR_STATIC_TABLE_OFFSET: u64 = 0xa90;
+    const CSR_SERVER_BASE: u64 = 0x7efe0000;
     pub(crate) const READ_ONLY_SHARED_MEMORY_BASE_OFFSET: u64 = 0x88;
     pub(crate) const SYSTEM_DEPENDENT_07_OFFSET: u64 = 0x90;
     pub(crate) const READ_ONLY_STATIC_SERVER_DATA_OFFSET: u64 = 0x98;
@@ -90,7 +92,7 @@ impl Peb64 {
     const SYSTEM_DEPENDENT_01_OFFSET: u64 = 0x03;
     const PADDING_OFFSET: u64 = 0x04;
     const MUTANT_OFFSET: u64 = 0x08;
-    const PROCESS_PARAMETERS_OFFSET: u64 = 0x20;
+    pub(crate) const PROCESS_PARAMETERS_OFFSET: u64 = 0x20;
     const SUBSYSTEM_DATA_OFFSET: u64 = 0x28;
     const FAST_PEB_LOCK_OFFSET: u64 = 0x38;
     const SYSTEM_DEPENDENT_02_OFFSET: u64 = 0x40;
@@ -112,7 +114,7 @@ impl Peb64 {
     const NUMBER_OF_HEAPS_OFFSET: u64 = 0xe8;
     const MAX_NUMBER_OF_HEAPS_OFFSET: u64 = 0xec;
     const PROCESS_HEAPS_OFFSET: u64 = 0xf0;
-    const GDI_SHARED_HANDLE_TABLE_OFFSET: u64 = 0xf8;
+    pub const GDI_SHARED_HANDLE_TABLE_OFFSET: u64 = 0xf8;
     const PROCESS_STARTER_HELPER_OFFSET: u64 = 0x100;
     const GDI_DC_ATTRIBUTE_LIST_OFFSET: u64 = 0x108;
     const LOADER_LOCK_OFFSET: u64 = 0x110;
@@ -129,7 +131,7 @@ impl Peb64 {
     const POST_PROCESS_INIT_ROUTINE_OFFSET: u64 = 0x230;
     const TLS_EXPANSION_BITMAP_OFFSET: u64 = 0x238;
     const TLS_EXPANSION_BITMAP_BITS_OFFSET: u64 = 0x240;
-    const SESSION_ID_OFFSET: u64 = 0x2c0;
+    pub(crate) const SESSION_ID_OFFSET: u64 = 0x2c0;
     const APP_COMPAT_FLAGS_OFFSET: u64 = 0x2c8;
     const APP_COMPAT_FLAGS_USER_OFFSET: u64 = 0x2d0;
     const P_SHIM_DATA_OFFSET: u64 = 0x2d8;
@@ -169,9 +171,9 @@ impl Peb64 {
             tls_expansion_counter: 0,
             tls_bitmap: 0x77102590,
             tls_bitmap_bits: [0x1fff, 0],
-            read_only_shared_memory_base: 0x7efe0000,
+            read_only_shared_memory_base: Self::CSR_SERVER_BASE,
             system_dependent_07: 0,
-            read_only_static_server_data: 0x7efe0a90,
+            read_only_static_server_data: Self::CSR_SERVER_BASE + Self::CSR_STATIC_TABLE_OFFSET,
             ansi_code_page_data: 0x7fffffb0000,
             oem_code_page_data: 0x7fffffc0228,
             unicode_case_table_data: 0x7fffffd0650,
@@ -210,7 +212,7 @@ impl Peb64 {
             csd_version: [0x1e001c, 0x7efe0afa],
             activate_context_data: 0,
             process_assembly_storage_map: 0,
-            system_default_activation_context_data: 0x230000,
+            system_default_activation_context_data: 0,
             system_assembly_storage_map: 0,
             minimum_stack_commit: 0,
         }

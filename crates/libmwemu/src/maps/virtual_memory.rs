@@ -57,6 +57,8 @@ pub struct Allocation {
     pub initial_protection: u32,
     pub kind: MemoryKind,
     pub maximum_permission: Option<Permission>,
+    #[serde(skip)] // The unstable snapshot records locked views separately.
+    pub(crate) protection_locked: bool,
     states: BTreeMap<u64, PageState>,
 }
 
@@ -68,6 +70,7 @@ impl Allocation {
             initial_protection: protection,
             kind,
             maximum_permission: None,
+            protection_locked: false,
             states: BTreeMap::from([(base, state)]),
         }
     }
@@ -479,7 +482,25 @@ impl Maps {
         size: u64,
         permission: Permission,
     ) -> Result<u32, MemoryError> {
+        self.validate_protection_request(address, size, permission, None)
+    }
+
+    pub(crate) fn validate_protection_request(
+        &self,
+        address: u64,
+        size: u64,
+        permission: Permission,
+        protection: Option<u32>,
+    ) -> Result<u32, MemoryError> {
         let allocation = self.checked_allocation(address, size)?;
+        if allocation.protection_locked {
+            let current = allocation.state(address);
+            if permission != current.permission
+                || protection.is_some_and(|value| value != current.protection)
+            {
+                return Err(MemoryError::InvalidParameter);
+            }
+        }
         if allocation
             .maximum_permission
             .is_some_and(|maximum| !maximum.contains(permission))
@@ -506,7 +527,8 @@ impl Maps {
         protection: u32,
         permission: Permission,
     ) -> Result<u32, MemoryError> {
-        let previous = self.validate_protection(address, size, permission)?;
+        let previous =
+            self.validate_protection_request(address, size, permission, Some(protection))?;
         let mut allocation = self.checked_allocation(address, size)?;
         self.set_page_state(
             &mut allocation,

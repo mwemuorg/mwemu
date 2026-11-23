@@ -4,9 +4,14 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::memory::{pointer_size, read_pointer, write_pointer};
 use crate::winapi::common::ntdll::read_unicode_string;
-use crate::winapi::policy::api_try;
-use crate::winapi::registry_store::{self as store, Value};
+use crate::winapi::policy::{self, api_try};
+use crate::winapi::registry_store::{
+    self as store, REG_NOTIFY_CHANGE_NAME, REG_NOTIFY_THREAD_AGNOSTIC, Value,
+};
 use crate::windows::constants::errors::*;
+
+const KEY_HANDLE_TAGS_INFORMATION: u32 = 7;
+const KEY_SET_HANDLE_TAGS_INFORMATION: u32 = 5;
 
 const KEY_VALUE_BASIC_INFORMATION: u32 = 0;
 const KEY_VALUE_FULL_INFORMATION: u32 = 1;
@@ -16,10 +21,49 @@ const KEY_VALUE_PARTIAL_INFORMATION_ALIGN64: u32 = 4;
 
 pub(crate) fn dispatch(name: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     dispatch_api!(name, {
+        "NtNotifyChangeKey" => notify_key(emu, call),
         "NtOpenKey" => open_key(emu, call, false),
         "NtOpenKeyEx" => open_key(emu, call, true),
+        "NtQueryKey" => query_key(emu, call),
+        "NtSetInformationKey" => set_key(emu, call),
         "NtQueryValueKey" => query_value(emu, call),
     }, handled(()) => true, fallback => false)
+}
+
+pub(crate) fn notify_key(emu: &mut Emu, call: WindowsAbi) {
+    let [
+        key,
+        event,
+        apc,
+        context,
+        _iosb,
+        filter,
+        subtree,
+        buffer,
+        size,
+        asynchronous,
+    ] = api_try!(emu, call.args(emu));
+    // Thread-agnostic event delivery neither retains nor writes the caller's IO_STATUS_BLOCK.
+    if event == 0
+        || apc != 0
+        || context != 0
+        || buffer != 0
+        || size as u32 != 0
+        || asynchronous as u8 == 0
+        || filter as u32 != (REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_THREAD_AGNOSTIC)
+    {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtNotifyChangeKey", emu.pc(), call);
+    }
+    let status = emu
+        .handle_management
+        .watch_registry_names(key, event, subtree as u8 != 0);
+    log_red!(
+        emu,
+        "NtNotifyChangeKey key={key:#x} event={event:#x} subtree={} => {status:#x}",
+        subtree as u8 != 0
+    );
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 10);
 }
 
 fn key_name(emu: &Emu, attributes: u64) -> Result<String, u64> {
@@ -104,6 +148,60 @@ pub(crate) fn open_key(emu: &mut Emu, call: WindowsAbi, extended: bool) {
     };
     call.set_return(emu, result.err().unwrap_or(STATUS_SUCCESS));
     call.cleanup_args(emu, 3 + usize::from(extended));
+}
+
+pub(crate) fn query_key(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, class, out, length, result] = api_try!(emu, call.args(emu));
+    if class as u32 != KEY_HANDLE_TAGS_INFORMATION {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtQueryKey", emu.pc(), call);
+    }
+    log_red!(
+        emu,
+        "NtQueryKey handle={handle:#x} class=KeyHandleTagsInformation"
+    );
+    let needed = size_of::<u32>() as u32;
+    let status = match emu.handle_management.registry_tags(handle) {
+        None => STATUS_INVALID_HANDLE,
+        Some(_) if !emu.maps.validate_write_range(result, needed as u64) => STATUS_ACCESS_VIOLATION,
+        Some(_) if (length as u32) < needed => {
+            emu.maps.write_dword(result, needed);
+            STATUS_BUFFER_TOO_SMALL
+        }
+        Some(_) if !emu.maps.validate_write_range(out, needed as u64) => STATUS_ACCESS_VIOLATION,
+        Some(tags) => {
+            emu.maps.write_dword(out, tags as u32);
+            emu.maps.write_dword(result, needed);
+            STATUS_SUCCESS
+        }
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 5);
+}
+
+pub(crate) fn set_key(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, class, data, length] = api_try!(emu, call.args(emu));
+    if class as u32 != KEY_SET_HANDLE_TAGS_INFORMATION {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtSetInformationKey", emu.pc(), call);
+    }
+    log_red!(
+        emu,
+        "NtSetInformationKey handle={handle:#x} class=KeySetHandleTagsInformation"
+    );
+    let status = if length as u32 != size_of::<u32>() as u32 {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else if let Some(value) = emu.maps.read_dword(data) {
+        match emu.handle_management.registry_tags_mut(handle) {
+            Some(tags) => {
+                *tags = value as u16;
+                STATUS_SUCCESS
+            }
+            None => STATUS_INVALID_HANDLE,
+        }
+    } else {
+        STATUS_ACCESS_VIOLATION
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 4);
 }
 
 fn value_information(class: u32, name: &str, value: &Value) -> (usize, Vec<u8>) {

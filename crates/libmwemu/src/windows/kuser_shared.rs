@@ -325,6 +325,15 @@ pub fn init_kuser_shared_data(emu: &mut emu::Emu) -> u64 {
         };
     }
 
+    emu.maps.write_wide_string(
+        base + offset_of!(KuserSharedData, NtSystemRoot) as u64,
+        WINDOWS_DIRECTORY,
+    );
+
+    wr32!(
+        FeatureConfigurationChangeStamp.LowPart,
+        FEATURE_CONFIGURATION_CHANGE_STAMP as u32
+    );
     wr32!(TickCountMultiplier, 0x0fa00000);
     wr32!(InterruptTime.LowPart, 0x17bd9547);
     wr32!(InterruptTime.High1Time, 0x0000004b);
@@ -418,6 +427,11 @@ mod tests {
         assert_eq!(
             rd32(offset_of!(KuserSharedData, InterruptTime.LowPart)),
             0x17bd9547
+        );
+        assert_eq!(
+            emu.maps
+                .read_wide_string(base + offset_of!(KuserSharedData, NtSystemRoot) as u64),
+            WINDOWS_DIRECTORY
         );
         assert_eq!(rd32(offset_of!(KuserSharedData, NtBuildNumber)), 0x6c51);
         assert_eq!(rd32(offset_of!(KuserSharedData, NtProductType)), 1); // WinNt

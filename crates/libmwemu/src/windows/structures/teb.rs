@@ -48,6 +48,8 @@ impl TEB {
     pub const EXCEPTION_CODE_OFFSET: u64 = 0x1a4;
     pub const ACTIVATION_CONTEXT_STACK_POINTER_OFFSET: u64 = 0x1a8;
     pub const DEALLOCATION_STACK_OFFSET: u64 = 0xe0c;
+    pub const TLS_SLOTS_OFFSET: u64 = 0xe10;
+    pub const TLS_EXPANSION_SLOTS_OFFSET: u64 = 0xf94;
 
     pub fn size() -> usize {
         0x1038

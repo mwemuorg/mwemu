@@ -63,19 +63,9 @@ python -m unittest discover -v tests/
 # After setup, use the test runner
 python run_tests.py                    # All tests
 python run_tests.py --python-only      # Python only
-python run_tests.py --rust-only        # Rust only
+python run_tests.py --rust-only        # Rust tests for libmwemu and pymwemu
 python run_tests.py --test test_basic_functionality --verbose
 python run_tests.py --rebuild          # Rebuild extension first
-```
-
-### Method 4: Quick setup script
-
-```bash
-# One-command setup
-python setup_test_env.py
-
-# Then run tests
-python run_tests.py
 ```
 
 ## Test Categories

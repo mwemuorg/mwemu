@@ -115,6 +115,18 @@ pub(crate) fn map(
     length: u64,
     protection: u32,
 ) -> Result<(u64, u64), u64> {
+    map_with_flags(emu, handle, address, offset, length, protection, 0)
+}
+
+fn map_with_flags(
+    emu: &mut Emu,
+    handle: u64,
+    address: u64,
+    offset: u64,
+    length: u64,
+    protection: u32,
+    flags: u32,
+) -> Result<(u64, u64), u64> {
     let section = emu
         .handle_management
         .section_handle(handle)
@@ -156,9 +168,14 @@ pub(crate) fn map(
         } else {
             (ALLOC32_MIN, ALLOC32_MAX)
         };
-        emu.maps
-            .find_free_range(size, ALLOCATION_GRANULARITY, bottom, top)
-            .ok_or(STATUS_NO_MEMORY)?
+        if flags & MEM_TOP_DOWN != 0 {
+            emu.maps
+                .find_free_range_top_down(size, ALLOCATION_GRANULARITY, bottom, top)
+        } else {
+            emu.maps
+                .find_free_range(size, ALLOCATION_GRANULARITY, bottom, top)
+        }
+        .ok_or(STATUS_NO_MEMORY)?
     } else {
         address
     };
@@ -199,6 +216,7 @@ pub(crate) fn map(
         initial,
     );
     allocation.maximum_permission = Some(requested);
+    allocation.protection_locked = flags & SEC_NO_CHANGE != 0;
     emu.maps.register_allocation(allocation);
     if let Some(pages) = emu.maps.section_commitments.get(&section.storage) {
         let first = (offset / PAGE_SIZE) as usize;
@@ -512,7 +530,7 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
     let process = api_try!(emu, call.arg(emu, 1));
     let zero_bits = api_try!(emu, call.arg(emu, 3));
     let commit_size = api_try!(emu, call.arg(emu, 4));
-    let flags = api_try!(emu, call.arg(emu, 8));
+    let flags = api_try!(emu, call.arg_u32(emu, 8));
     let handle = api_try!(emu, call.arg(emu, 0));
     let base_ptr = api_try!(emu, call.arg(emu, 2));
     let offset_ptr = api_try!(emu, call.arg(emu, 5));
@@ -520,7 +538,7 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
     let protection = api_try!(emu, call.arg_u32(emu, 9));
     let result = (|| {
         require_memory_access(emu, process, PROCESS_VM_OPERATION)?;
-        if zero_bits != 0 || flags != 0 {
+        if zero_bits != 0 || flags & !(MEM_TOP_DOWN | SEC_NO_CHANGE) != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if !memory::writable_pointer(emu, base_ptr) || !memory::writable_pointer(emu, size_ptr) {
@@ -538,7 +556,7 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
                 .read_qword(offset_ptr)
                 .ok_or(STATUS_ACCESS_VIOLATION)?
         };
-        let (address, length) = map(emu, handle, base, offset, size, protection)?;
+        let (address, length) = map_with_flags(emu, handle, base, offset, size, protection, flags)?;
         if commit_size != 0 {
             let result = align_up(commit_size, PAGE_SIZE)
                 .filter(|&n| n <= length)

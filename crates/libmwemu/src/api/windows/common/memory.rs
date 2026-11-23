@@ -108,6 +108,83 @@ fn address_limit(emu: &Emu) -> u64 {
     }
 }
 
+#[derive(Default)]
+struct AddressRequirements {
+    lowest: u64,
+    highest: u64,
+    alignment: u64,
+}
+
+impl AddressRequirements {
+    fn read(emu: &Emu, parameters: u64, count: u32) -> Result<Self, u64> {
+        if count == 0 {
+            return Ok(Self::default());
+        }
+        if count != 1 {
+            return Err(STATUS_NOT_IMPLEMENTED);
+        }
+        let kind = emu
+            .maps
+            .read_qword(parameters)
+            .ok_or(STATUS_ACCESS_VIOLATION)?;
+        if kind != MEM_EXTENDED_PARAMETER_ADDRESS_REQUIREMENTS {
+            return Err(STATUS_NOT_IMPLEMENTED);
+        }
+        let value_slot = parameters
+            .checked_add(size_of::<u64>() as u64)
+            .ok_or(STATUS_ACCESS_VIOLATION)?;
+        let ptr = read_pointer(emu, value_slot).ok_or(STATUS_ACCESS_VIOLATION)?;
+        let width = pointer_size(emu);
+        let field = |index| {
+            let address = ptr
+                .checked_add(index * width)
+                .ok_or(STATUS_ACCESS_VIOLATION)?;
+            read_pointer(emu, address).ok_or(STATUS_ACCESS_VIOLATION)
+        };
+        Ok(Self {
+            lowest: field(0)?,
+            highest: field(1)?,
+            alignment: field(2)?,
+        })
+    }
+
+    fn search_range(&self, emu: &Emu) -> Result<(u64, u64, u64), MemoryError> {
+        let limit = address_limit(emu);
+        let granularity = ALLOCATION_GRANULARITY;
+        let alignment = if self.alignment == 0 {
+            granularity
+        } else {
+            self.alignment
+        };
+        if !self.lowest.is_multiple_of(granularity)
+            || self.highest >= limit
+            || self.lowest >= limit
+            || !alignment.is_power_of_two()
+            || alignment < granularity
+        {
+            return Err(MemoryError::InvalidParameter);
+        }
+        if self.lowest == 0 && self.highest == 0 {
+            let (low, high) = if emu.cfg.arch.is_64bits() {
+                (ALLOC64_MIN, ALLOC64_MAX)
+            } else {
+                (ALLOC32_MIN, ALLOC32_MAX)
+            };
+            return Ok((low, high, alignment));
+        }
+        let low = self.lowest.max(granularity);
+        let high = if self.highest == 0 {
+            limit
+        } else {
+            self.highest + 1
+        };
+        if !high.is_multiple_of(granularity) || high <= low {
+            return Err(MemoryError::InvalidParameter);
+        }
+        Ok((low, high, alignment))
+    }
+}
+
 pub(crate) fn allocate(
     emu: &mut Emu,
     address: u64,
@@ -115,6 +192,29 @@ pub(crate) fn allocate(
     flags: u32,
     protection: u32,
 ) -> Result<(u64, u64), MemoryError> {
+    allocate_with_requirements(
+        emu,
+        address,
+        size,
+        flags,
+        protection,
+        &AddressRequirements::default(),
+    )
+}
+
+fn allocate_with_requirements(
+    emu: &mut Emu,
+    address: u64,
+    size: u64,
+    flags: u32,
+    protection: u32,
+    requirements: &AddressRequirements,
+) -> Result<(u64, u64), MemoryError> {
+    if address != 0
+        && (requirements.lowest != 0 || requirements.highest != 0 || requirements.alignment != 0)
+    {
+        return Err(MemoryError::InvalidParameter);
+    }
     let permission = permissions(protection).ok_or(MemoryError::InvalidParameter)?;
     if size == 0
         || flags & !(MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN) != 0
@@ -151,22 +251,12 @@ pub(crate) fn allocate(
         return Err(MemoryError::NoMemory);
     }
     let base = if address == 0 {
-        let bottom = if emu.cfg.arch.is_64bits() {
-            ALLOC64_MIN
-        } else {
-            ALLOC32_MIN
-        };
-        let top = if emu.cfg.arch.is_64bits() {
-            ALLOC64_MAX
-        } else {
-            ALLOC32_MAX
-        };
+        let (bottom, top, alignment) = requirements.search_range(emu)?;
         let address = if flags & MEM_TOP_DOWN != 0 {
             emu.maps
-                .find_free_range_top_down(length, ALLOCATION_GRANULARITY, bottom, top)
+                .find_free_range_top_down(length, alignment, bottom, top)
         } else {
-            emu.maps
-                .find_free_range(length, ALLOCATION_GRANULARITY, bottom, top)
+            emu.maps.find_free_range(length, alignment, bottom, top)
         };
         address.ok_or(MemoryError::NoMemory)?
     } else {
@@ -285,10 +375,13 @@ pub(crate) fn virtual_free(emu: &mut Emu, remote: bool) {
 
 pub(crate) fn nt_allocate(emu: &mut Emu, call: WindowsAbi, extended: bool) {
     let process = api_try!(emu, call.arg(emu, 0));
-    let extra_count = if extended {
-        api_try!(emu, call.arg_u32(emu, 6))
+    let (parameters, extra_count) = if extended {
+        (
+            api_try!(emu, call.arg(emu, 5)),
+            api_try!(emu, call.arg_u32(emu, 6)),
+        )
     } else {
-        0
+        (0, 0)
     };
     let zero_bits = if extended {
         0
@@ -305,7 +398,7 @@ pub(crate) fn nt_allocate(emu: &mut Emu, call: WindowsAbi, extended: bool) {
         if !writable_pointer(emu, base_ptr) || !writable_pointer(emu, size_ptr) {
             return Err(STATUS_ACCESS_VIOLATION);
         }
-        if extra_count != 0 || zero_bits != 0 {
+        if zero_bits != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if permissions(protection).is_none() {
@@ -313,7 +406,10 @@ pub(crate) fn nt_allocate(emu: &mut Emu, call: WindowsAbi, extended: bool) {
         }
         let address = read_pointer(emu, base_ptr).ok_or(STATUS_ACCESS_VIOLATION)?;
         let size = read_pointer(emu, size_ptr).ok_or(STATUS_ACCESS_VIOLATION)?;
-        let (base, length) = allocate(emu, address, size, flags, protection).map_err(status)?;
+        let requirements = AddressRequirements::read(emu, parameters, extra_count)?;
+        let (base, length) =
+            allocate_with_requirements(emu, address, size, flags, protection, &requirements)
+                .map_err(status)?;
         write_pointer(emu, base_ptr, base);
         write_pointer(emu, size_ptr, length);
         Ok(())

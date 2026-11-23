@@ -16,6 +16,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         return true;
     }
     dispatch_api!(api, {
+        "NtManageHotPatch" => ntdll::manage_hot_patch(emu, WinApi(Stdcall)),
         "RtlUnwind" => RtlUnwind(emu),
         "RtlCreateAcl" => advapi32::RtlCreateAcl(emu),
         "RtlQueryInformationAcl" => advapi32::RtlQueryInformationAcl(emu),
@@ -34,7 +35,6 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "VerSetConditionMask" => VerSetConditionMask(emu),
         "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
         "RtlDecompressBuffer" => ntdll::RtlDecompressBuffer(emu),
-        "NtSetInformationThread" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         "NtTerminateThread" => threads::nt_terminate_thread(emu),
         "RtlEncodePointer" => ntdll::pointer_round_trip(emu, api),
         "RtlDecodePointer" => ntdll::pointer_round_trip(emu, api),

@@ -1,5 +1,6 @@
 use itertools::iproduct;
 
+use crate::api::windows::common::memory::{read_pointer, write_pointer};
 use crate::context::{context32::Context32, context64::Context64};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
@@ -9,6 +10,7 @@ use crate::threading::scheduler::ThreadScheduler;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::exceptions::*;
 use crate::windows::constants::process::*;
+use crate::windows::structures::{TEB, TEB64};
 use crate::{emu32, emu64};
 
 #[test]
@@ -485,7 +487,6 @@ fn windows_thread_identity_and_suspend_counts_share_handles_and_survive_snapshot
 #[test]
 fn windows_thread_error_state_follows_teb_memory_and_survives_snapshots() {
     use crate::serialization::{Serialization, native::NativeSnapshotV5};
-    use crate::windows::structures::{TEB, TEB64};
     use iced_x86::{Code, Encoder, Instruction, MemoryOperand, Register};
 
     const CODE_BASE: u64 = 0x600000;
@@ -606,7 +607,6 @@ fn windows_thread_error_state_follows_teb_memory_and_survives_snapshots() {
 #[test]
 fn waits_observe_event_reset_mode_and_consume_semaphore_counts() {
     use crate::tests::helpers::call_winapi_export as call;
-    use crate::winapi::common::memory::write_pointer;
     use crate::windows::constants::process::{WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
     for is64 in [false, true] {
         let (mut emu, data) = helpers::prepare_winapi(is64);
@@ -749,6 +749,143 @@ fn mutex_recursion_and_relative_timer_waits_use_guest_state() {
             call(&mut emu, "kernel32.dll", "WaitForSingleObject", &[timer, 0]),
             WAIT_TIMEOUT
         );
+    }
+}
+
+#[test]
+fn zero_tls_cell_clears_dynamic_slots_across_live_threads() {
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let main_teb = data + 0x10000;
+        let (inline, expansion, static_vector, width) = if is64 {
+            (
+                TEB64::TLS_SLOTS_OFFSET,
+                TEB64::TLS_EXPANSION_SLOTS_OFFSET,
+                TEB64::THREAD_LOCAL_STORAGE_POINTER_OFFSET,
+                8,
+            )
+        } else {
+            (
+                TEB::TLS_SLOTS_OFFSET,
+                TEB::TLS_EXPANSION_SLOTS_OFFSET,
+                TEB::THREAD_LOCAL_STORAGE_POINTER_OFFSET,
+                4,
+            )
+        };
+        emu.maps
+            .create_map(
+                "teb",
+                main_teb,
+                TEB64::map_size() as u64,
+                Permission::READ_WRITE,
+            )
+            .unwrap();
+        write_pointer(&mut emu, main_teb + inline + width, 0x2222);
+        write_pointer(&mut emu, main_teb + expansion, data + 512);
+        let child = call(
+            &mut emu,
+            "kernel32.dll",
+            "CreateThread",
+            &[0, 0, data, 0, CREATE_SUSPENDED, 0],
+        );
+        assert_ne!(child, 0);
+        let child_teb = emu.threads[1].windows.teb;
+        assert_eq!(read_pointer(&emu, child_teb + inline + width), Some(0));
+        assert_eq!(read_pointer(&emu, child_teb + expansion), Some(0));
+        let main_id = emu.current_thread().id;
+        let pseudo = if is64 {
+            NT_CURRENT_THREAD
+        } else {
+            NT_CURRENT_THREAD as u32 as u64
+        };
+        let denied = call(&mut emu, "kernel32.dll", "OpenThread", &[0, 0, main_id]);
+        let own = call(
+            &mut emu,
+            "kernel32.dll",
+            "OpenThread",
+            &[THREAD_SET_INFORMATION as u64, 0, main_id],
+        );
+        let set = |emu: &mut Emu, handle, p, size| {
+            call(
+                emu,
+                "ntdll.dll",
+                "NtSetInformationThread",
+                &[handle, THREAD_ZERO_TLS_CELL as u64, p, size],
+            )
+        };
+        let slots = [1, TLS_MINIMUM_AVAILABLE + 1];
+        emu.windows_tls_slots.resize(slots[1] + 1, true);
+        for (thread, teb) in [main_teb, child_teb].into_iter().enumerate() {
+            let table = data + 512 + thread as u64 * 128;
+            write_pointer(&mut emu, teb + expansion, table);
+            write_pointer(&mut emu, teb + static_vector, table + 64);
+            write_pointer(&mut emu, table + 64 + width, 0x3333);
+            for address in [teb + inline, table] {
+                write_pointer(&mut emu, address, 0x1111);
+                write_pointer(&mut emu, address + width, 0x2222);
+            }
+            emu.current_thread_id = thread;
+            for slot in slots {
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "kernel32.dll",
+                        "TlsSetValue",
+                        &[slot as u64, 0x2222]
+                    ),
+                    1
+                );
+            }
+        }
+        emu.current_thread_id = 0;
+        emu.maps.write_dword(data, slots[0] as u32);
+        for (handle, p, len, expected) in [
+            (pseudo, data, 3, STATUS_INFO_LENGTH_MISMATCH),
+            (pseudo, data, 8, STATUS_INFO_LENGTH_MISMATCH),
+            (pseudo, 0, 4, STATUS_ACCESS_VIOLATION),
+            (pseudo, data + 1, 4, STATUS_DATATYPE_MISALIGNMENT),
+            (0, data, 4, STATUS_INVALID_HANDLE),
+            (denied, data, 4, STATUS_ACCESS_DENIED),
+            (child, data, 4, STATUS_INVALID_PARAMETER),
+            (
+                if is64 {
+                    NT_CURRENT_PROCESS
+                } else {
+                    NT_CURRENT_PROCESS as u32 as u64
+                },
+                data,
+                4,
+                STATUS_OBJECT_TYPE_MISMATCH,
+            ),
+        ] {
+            assert_eq!(set(&mut emu, handle, p, len), expected);
+        }
+        emu.maps.write_dword(data, u32::MAX);
+        assert_eq!(set(&mut emu, pseudo, data, 4), STATUS_SUCCESS);
+        assert_eq!(read_pointer(&emu, main_teb + inline + width), Some(0x2222));
+        for (slot, handle) in [(slots[0], pseudo), (slots[1], own)] {
+            emu.maps.write_dword(data, slot as u32);
+            assert_eq!(set(&mut emu, handle, data, 4), STATUS_SUCCESS);
+        }
+        for (thread, teb) in [main_teb, child_teb].into_iter().enumerate() {
+            emu.current_thread_id = thread;
+            let table = read_pointer(&emu, teb + expansion).unwrap();
+            assert_eq!(read_pointer(&emu, teb + static_vector), Some(table + 64));
+            assert_eq!(read_pointer(&emu, table + 64 + width), Some(0x3333));
+            for address in [teb + inline, table] {
+                assert_eq!(read_pointer(&emu, address + width), Some(0));
+                assert_eq!(read_pointer(&emu, address), Some(0x1111));
+            }
+            for slot in slots {
+                assert_eq!(
+                    call(&mut emu, "kernel32.dll", "TlsGetValue", &[slot as u64]),
+                    0
+                );
+                assert!(emu.windows_tls_slots[slot]);
+            }
+        }
     }
 }
 
@@ -1131,5 +1268,118 @@ fn interlocked_exchange_and_add_return_the_previous_long() {
             8
         );
         assert_eq!(emu.maps.read_qword(address), Some(0xffff_ffff_0000_0006));
+    }
+}
+
+#[test]
+fn timer2_arms_only_a_modifiable_extended_timer_and_obeys_its_deadline() {
+    use crate::windows::constants::errors::{
+        ERROR_ACCESS_DENIED, STATUS_ACCESS_DENIED, STATUS_ACCESS_VIOLATION,
+        STATUS_INVALID_PARAMETER_3, STATUS_OBJECT_TYPE_MISMATCH, STATUS_SUCCESS,
+    };
+    use crate::windows::constants::process::{WAIT_OBJECT_0, WAIT_TIMEOUT};
+    use crate::windows::constants::security::SYNCHRONIZE;
+    use crate::windows::constants::system::{TIMER_MODIFY_STATE, TIMER2_ATTRIBUTE_NO_WAKE};
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let due = data + 16;
+        let parameters = data + 32;
+        emu.maps.write_qword(due, (-50_000i64) as u64);
+        emu.maps.write_qword(parameters + 8, 750_000_000);
+        let legacy = call(&mut emu, "kernel32.dll", "CreateWaitableTimerW", &[0, 0, 0]);
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "NtSetTimer2",
+                &[legacy, due, 0, parameters]
+            ),
+            STATUS_OBJECT_TYPE_MISMATCH
+        );
+        for (access, expected) in [
+            (SYNCHRONIZE, STATUS_ACCESS_DENIED),
+            (SYNCHRONIZE | TIMER_MODIFY_STATE, STATUS_SUCCESS),
+        ] {
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "NtCreateTimer2",
+                    &[data, 0, 0, TIMER2_ATTRIBUTE_NO_WAKE as u64, access as u64]
+                ),
+                STATUS_SUCCESS
+            );
+            let handle = read_pointer(&emu, data).unwrap();
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "ZwSetTimer2",
+                    &[handle, due, 0, parameters]
+                ),
+                expected
+            );
+            if expected == STATUS_ACCESS_DENIED {
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "kernel32.dll",
+                        "SetWaitableTimer",
+                        &[handle, due, 0, 0, 0, 0]
+                    ),
+                    0
+                );
+                assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+            }
+            if expected == STATUS_SUCCESS {
+                emu.maps.write_dword(parameters, 1);
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "ntdll.dll",
+                        "NtSetTimer2",
+                        &[handle, due, 0, parameters]
+                    ),
+                    STATUS_INVALID_PARAMETER_3
+                );
+                assert_eq!(
+                    call(&mut emu, "ntdll.dll", "NtSetTimer2", &[handle, due, 0, 1]),
+                    STATUS_ACCESS_VIOLATION
+                );
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "kernel32.dll",
+                        "WaitForSingleObject",
+                        &[handle, 4]
+                    ),
+                    WAIT_TIMEOUT
+                );
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "kernel32.dll",
+                        "WaitForSingleObject",
+                        &[handle, 1]
+                    ),
+                    WAIT_OBJECT_0
+                );
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "kernel32.dll",
+                        "WaitForSingleObject",
+                        &[handle, 0]
+                    ),
+                    WAIT_TIMEOUT
+                );
+            }
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtClose", &[handle]),
+                STATUS_SUCCESS
+            );
+        }
     }
 }

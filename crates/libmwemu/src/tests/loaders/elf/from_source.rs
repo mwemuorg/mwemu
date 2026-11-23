@@ -1,68 +1,19 @@
-//! A static Go binary end to end: the runtime's heap reservations (large
-//! PROT_NONE mmaps, partial munmaps), its M threads (`clone`, `futex`,
-//! `exit`), the netpoller it drives timers through (`epoll_*`, `eventfd`),
-//! `clock_gettime` for `time.Sleep`, and `os/exec`'s vfork + execve.
-//!
-//! The sample is built here with the host's `go` toolchain (static, no cgo),
-//! so the test needs no bundle and skips itself where `go` is absent.
+//! Linux guest programs built from source with host tools.
 
-const SOURCE: &str = r#"
-package main
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::rc::Rc;
 
-import (
-	"fmt"
-	"os"
-	"os/exec"
-	"sort"
-	"sync"
-	"time"
-)
+use crate::emu64;
+use crate::syscall::linux::constants::syscalls::NR64_WRITE;
+use crate::tests::helpers;
 
-func worker(id int, jobs <-chan int, results chan<- int, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for j := range jobs {
-		time.Sleep(time.Millisecond)
-		results <- j * j
-	}
-}
-
-func main() {
-	jobs := make(chan int, 16)
-	results := make(chan int, 16)
-	var wg sync.WaitGroup
-	for w := 0; w < 4; w++ {
-		wg.Add(1)
-		go worker(w, jobs, results, &wg)
-	}
-	for i := 0; i < 8; i++ {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
-	close(results)
-	var squares []int
-	for r := range results {
-		squares = append(squares, r)
-	}
-	sort.Ints(squares)
-	fmt.Println("squares:", squares)
-	cmd := exec.Command("/bin/echo", "child")
-	cmd.Stdin = os.Stdin
-	if _, err := cmd.Output(); err != nil {
-		fmt.Println("exec error:", err)
-	}
-	fmt.Println("done")
-	os.Exit(7)
-}
-"#;
-
-fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    use std::process::Command;
-
-    let src = dir.join("main.go");
+fn build_go_runtime(dir: &Path) -> PathBuf {
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/fixtures/linux_go_runtime.go");
     let bin = dir.join("sample");
-    std::fs::write(&src, SOURCE).expect("write Go source");
     let output = Command::new("go")
+        .current_dir(dir)
         .args(["build", "-ldflags=-s -w", "-o"])
         .arg(&bin)
         .arg(&src)
@@ -71,34 +22,23 @@ fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
         .env("GOARCH", "amd64")
         .env("GOAMD64", "v1")
         .env("GOTOOLCHAIN", "local")
-        .output();
-    let output = match output {
-        Ok(output) => output,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(error) => panic!("start Go compiler: {error}"),
-    };
+        .env("GOWORK", "off")
+        .env("GOPROXY", "off")
+        .output()
+        .expect("Go compiler required in PATH");
     assert!(
         output.status.success(),
         "Go build failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    Some(bin)
+    bin
 }
 
 #[test]
-fn elf64lin_go_goroutines_timers_exec() {
-    use crate::syscall::linux::constants::syscalls::NR64_WRITE;
-    use crate::tests::helpers;
-    use crate::*;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
+fn go_goroutines_timers_and_exec() {
     helpers::setup();
     let dir = tempfile::tempdir().expect("scratch dir");
-    let Some(bin) = build_sample(dir.path()) else {
-        eprintln!("[skip] elf64lin_go: no `go` toolchain in PATH");
-        return;
-    };
+    let bin = build_go_runtime(dir.path());
 
     let mut emu = emu64();
     emu.cfg.console_enabled = false;

@@ -3,10 +3,10 @@ use crate::maps::Maps;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::modules::main_module_path;
 use crate::winapi::environment_store;
+use crate::windows::peb::command_line;
 use crate::windows::peb::peb64::ldr::create_ldr_entry;
-use crate::windows::peb::{command_line, map_wide_string};
 use crate::windows::structures::{
-    LdrDataTableEntry64, Peb64, PebLdrData64, RtlUserProcessParameters64, TEB64,
+    LdrDataTableEntry64, Peb64, PebLdrData64, RtlUserProcessParameters64, TEB64, UnicodeString64,
 };
 
 /// `PEB+0x90` (`system_dependent_07`): ntdll reads this as a pointer in loader / API-set helpers.
@@ -204,12 +204,10 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
             "locale.nls",
         ),
     ];
-    let mut nls_bases: [u64; 3] = [0; 3];
-    for (i, (name, slot_addr, nls_filename)) in slots.iter().enumerate() {
+    for (name, slot_addr, nls_filename) in slots {
         let cur = emu.maps.read_qword(*slot_addr).unwrap_or(0);
         let page = cur & !0xFFF;
         if cur != 0 && page != 0 && emu.maps.is_mapped(page) {
-            nls_bases[i] = cur;
             continue;
         }
         let base = if let Some(m) = emu.maps.get_map_by_name(name) {
@@ -245,16 +243,13 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
             }
         };
         emu.maps.write_qword(*slot_addr, base);
-        nls_bases[i] = base;
     }
 
-    ensure_peb_readonly_shared_memory(emu, peb_base, &nls_bases);
+    ensure_peb_readonly_shared_memory(emu, peb_base);
 }
 
-/// Map the ReadOnlySharedMemory region that PEB.ReadOnlyStaticServerData
-/// points into. kernel32's DllMain dereferences this pointer array to
-/// reach codepage tables; without the mapping, the access faults.
-fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_bases: &[u64; 3]) {
+/// Seed the server view that the Win11 Base client uses for directory strings.
+fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64) {
     let ro_base = emu
         .maps
         .read_qword(peb_base + Peb64::READ_ONLY_SHARED_MEMORY_BASE_OFFSET)
@@ -275,14 +270,13 @@ fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_base
     }
     emu.maps.memset(ro_base, 0, sz as usize);
 
-    // ReadOnlyStaticServerData is an array of offsets (relative to
-    // ReadOnlySharedMemoryBase). Entry [0] points to BASE_STATIC_SERVER_DATA
-    // which kernel32 reads for WindowsDirectory, CSDVersionString, etc.
+    // The Base server occupies slot 1. Embedded addresses use the server's view;
+    // kernelbase rebases them after mapping the section into the client.
     let srv_data = emu
         .maps
         .read_qword(peb_base + Peb64::READ_ONLY_STATIC_SERVER_DATA_OFFSET)
         .unwrap_or(0);
-    if srv_data >= ro_base && srv_data < ro_base + sz {
+    if srv_data >= ro_base && srv_data <= ro_base + sz - 16 {
         let bssd = ro_base;
         // BASE_STATIC_SERVER_DATA layout (64-bit):
         //   +0x00  UNICODE_STRING WindowsDirectory       (16 bytes)
@@ -323,8 +317,14 @@ fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_base
         // CSDVersionString at +0x3A: empty (null terminator)
         emu.maps.write_word(bssd + 0x3A, 0);
 
-        // Entry [0] = offset of BASE_STATIC_SERVER_DATA from ro_base
-        emu.maps.write_qword(srv_data, bssd - ro_base);
+        const BASE_SERVER_SLOT: u64 = 1;
+        const WIN11_BASE_STATIC_SERVER_DATA_SELF: u64 = 0x9e8;
+        emu.maps.write_qword(srv_data + BASE_SERVER_SLOT * 8, bssd);
+        emu.maps
+            .write_qword(bssd + WIN11_BASE_STATIC_SERVER_DATA_SELF, bssd);
+        if let Some(map) = emu.maps.get_mem_by_addr_mut(ro_base) {
+            map.set_permission(Permission::READ);
+        }
     }
 }
 
@@ -415,49 +415,56 @@ pub fn refresh_exe_name_from_filename(emu: &mut emu::Emu) {
     }
 }
 
+pub(crate) fn current_parameters(maps: &Maps) -> Option<u64> {
+    if let Some(peb) = maps.get_map_by_name("peb")
+        && let Some(params) = maps.read_qword(peb.get_base() + Peb64::PROCESS_PARAMETERS_OFFSET)
+        && params != 0
+    {
+        return Some(params);
+    }
+    maps.get_map_by_name("RtlUserProcessParameters64")
+        .map(|map| map.get_base())
+}
+
 pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
-    let addr = emu.maps.map(
-        "RtlUserProcessParameters64",
-        RtlUserProcessParameters64::size() as u64,
-        Permission::READ_WRITE_EXECUTE,
-    );
-    let mut params_struct = RtlUserProcessParameters64::new();
-
-    // `cfg.exe_name` is set to the real EXE basename by
-    // `refresh_exe_name_from_filename` BEFORE `init_ldr` runs, so the LDR
-    // entry created early shares the name `init_arguments` writes into
-    // ImagePathName. Present the path Windows-canonical (`C:\<name>`) so
-    // newer ntdll (`LdrpInitializeProcess` → `RtlGetFullPathName_UEx`)
-    // can derive FullDllName / BaseDllName for the EXE's
-    // LDR_DATA_TABLE_ENTRY — unix-style paths like `test/foo.bin` make
-    // the parser leave the freshly-allocated BaseDllName.Buffer untouched
-    // and the next `RtlHashUnicodeString` faults inside ntdll.
     let image_path = main_module_path(emu);
-    let cmdline_str = command_line(&image_path, &emu.cfg.arguments);
-
-    // UNICODE_STRING.Length is bytes WITHOUT trailing NUL; MaximumLength
-    // is the buffer capacity INCLUDING space for the NUL terminator.
-    let image_bytes = image_path.encode_utf16().count() as u64 * 2;
-    let image_maxlen = image_bytes + 2;
-    let cmd_bytes = cmdline_str.encode_utf16().count() as u64 * 2;
-    let cmd_maxlen = cmd_bytes + 2;
-
-    let filename = map_wide_string(&mut emu.maps, "file_name", &image_path, image_maxlen);
-    let cmdline = map_wide_string(&mut emu.maps, "command_line", &cmdline_str, cmd_maxlen);
-    let dll_path_buf = map_wide_string(&mut emu.maps, "dll_path", "", 4);
-
-    params_struct.image_path_name.length = image_bytes as u16;
-    params_struct.image_path_name.maximum_length = image_maxlen as u16;
-    params_struct.image_path_name.buffer = filename;
-
-    params_struct.command_line.length = cmd_bytes as u16;
-    params_struct.command_line.maximum_length = cmd_maxlen as u16;
-    params_struct.command_line.buffer = cmdline;
-
-    params_struct.dll_path.length = 0;
-    params_struct.dll_path.maximum_length = 4;
-    params_struct.dll_path.buffer = dll_path_buf;
-
+    let command = command_line(&image_path, &emu.cfg.arguments);
+    let mut params_struct = RtlUserProcessParameters64::new();
+    let mut block_size = RtlUserProcessParameters64::size() as u64;
+    // LdrInitializeThunk copies Length bytes and rebases these three string pointers.
+    let mut strings = [
+        (&mut params_struct.dll_path, ""),
+        (&mut params_struct.image_path_name, image_path.as_str()),
+        (&mut params_struct.command_line, command.as_str()),
+    ];
+    for (descriptor, text) in &mut strings {
+        let units = text.encode_utf16().count();
+        let Ok(capacity) = u16::try_from((units + 1) * size_of::<u16>()) else {
+            log::error!("process parameter exceeds UNICODE_STRING capacity");
+            return 0;
+        };
+        **descriptor = UnicodeString64 {
+            length: capacity - size_of::<u16>() as u16,
+            maximum_length: capacity,
+            buffer: block_size,
+            ..Default::default()
+        };
+        block_size += capacity as u64;
+    }
+    let Some(block) = emu
+        .maps
+        .alloc_rw_pages("RtlUserProcessParameters64", block_size)
+    else {
+        log::error!("cannot allocate the x64 process parameters");
+        return 0;
+    };
+    let addr = block.get_base();
+    for (descriptor, text) in strings {
+        descriptor.buffer += addr;
+        block.write_wide_string(descriptor.buffer, text);
+    }
+    params_struct.length = block_size as u32;
+    params_struct.maximum_length = block_size as u32;
     params_struct.save(addr, &mut emu.maps);
     if let Err(error) = environment_store::initialize(emu) {
         log::error!("cannot initialize the process environment: {error}");
