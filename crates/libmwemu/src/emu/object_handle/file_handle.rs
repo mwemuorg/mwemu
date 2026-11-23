@@ -18,6 +18,7 @@ pub use crate::windows::constants::security::{
     GENERIC_ALL, GENERIC_EXECUTE, GENERIC_READ, GENERIC_WRITE,
 };
 
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -71,6 +72,29 @@ struct FileHandleManagement {
 
 pub static FILE_SYSTEM: OnceLock<FileSystem> = OnceLock::new();
 
+/// Prefer the native lookup. On case-sensitive hosts, use a stable spelling if several entries match.
+fn host_entry(parent: &Path, name: &OsStr) -> io::Result<PathBuf> {
+    let path = parent.join(name);
+    match fs::symlink_metadata(&path) {
+        Ok(_) => return Ok(path),
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    let entries = match fs::read_dir(parent) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(path),
+        Err(error) => return Err(error),
+    };
+    let mut best = None;
+    for entry in entries {
+        let spelling = entry?.file_name();
+        if spelling.eq_ignore_ascii_case(name) && best.as_ref().is_none_or(|old| &spelling < old) {
+            best = Some(spelling);
+        }
+    }
+    Ok(best.map_or(path, |spelling| parent.join(spelling)))
+}
+
 pub(crate) fn guest_file_metadata(name: &str) -> io::Result<fs::Metadata> {
     let fs = FILE_SYSTEM
         .get()
@@ -111,7 +135,7 @@ pub(crate) fn guest_operation_path(name: &str, write: bool) -> io::Result<PathBu
     {
         return Err(ErrorKind::PermissionDenied.into());
     }
-    let parent = fs.root().join(guest.parent().to_portable_path());
+    let parent = fs.rooted_path(&guest.parent())?;
     let parent = fs::canonicalize(parent).map_err(|e| {
         if e.kind() == ErrorKind::NotFound {
             io::Error::from(ErrorKind::NotADirectory)
@@ -123,7 +147,6 @@ pub(crate) fn guest_operation_path(name: &str, write: bool) -> io::Result<PathBu
     if !parent.starts_with(&root) || !parent.is_dir() {
         return Err(ErrorKind::PermissionDenied.into());
     }
-    let path = parent.join(leaf);
     // Windows opens DOS device names and alternate streams outside ordinary directory-entry semantics.
     let stem = leaf
         .split('.')
@@ -150,7 +173,7 @@ pub(crate) fn guest_operation_path(name: &str, write: bool) -> io::Result<PathBu
     {
         return Err(ErrorKind::PermissionDenied.into());
     }
-    Ok(path)
+    host_entry(&parent, OsStr::new(leaf))
 }
 
 /// Enumerate guest-visible entries, including individually mapped files whose
@@ -813,19 +836,27 @@ impl FileSystem {
             return Ok(PathBuf::from(win_path.to_string()));
         }
 
-        // Otherwise, construct path relative to root
-        let drive = win_path.get_drive().unwrap_or('c');
-        let root_drive = PathBuf::from(format!("{}", drive));
-        let root_path = self.root.join(root_drive);
+        Ok(self.rooted_path(win_path)?)
+    }
 
-        let mut path = self.root.join(win_path.to_portable_path());
-        path = soft_canonicalize(&path)?;
-
-        if Self::is_subpath(&root_path, &path) {
-            Ok(path)
-        } else {
-            Ok(root_path)
+    fn rooted_path(&self, guest: &WindowsPath) -> io::Result<PathBuf> {
+        let portable = guest.to_portable_path();
+        let mut components = portable.iter();
+        let drive = components.next().ok_or(ErrorKind::InvalidInput)?;
+        let root = soft_canonicalize(&self.root)?;
+        let drive_root = soft_canonicalize(host_entry(&root, drive)?)?;
+        if !drive_root.starts_with(&root) {
+            return Err(ErrorKind::PermissionDenied.into());
         }
+
+        let mut path = drive_root.clone();
+        for name in components {
+            path = soft_canonicalize(host_entry(&path, name)?)?;
+            if !path.starts_with(&drive_root) {
+                return Err(ErrorKind::PermissionDenied.into());
+            }
+        }
+        Ok(path)
     }
 
     /// Accesses all mapped entries that are children of the given WindowsPath

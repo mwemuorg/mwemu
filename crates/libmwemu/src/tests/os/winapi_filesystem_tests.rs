@@ -1117,7 +1117,7 @@ fn file_changes_are_visible_through_both_libraries() {
         let drive = file_system_root().join("c");
         fs::create_dir_all(&drive).unwrap();
         let name = format!(
-            "file-changes-{}-{library}-{is64}-{wide}",
+            "File-Changes-{}-{library}-{is64}-{wide}",
             std::process::id()
         );
         let temp = tempfile::Builder::new()
@@ -1145,11 +1145,13 @@ fn file_changes_are_visible_through_both_libraries() {
         }
         let mut invoke =
             |name: &str, args: &[u64]| call(&mut emu, library, &format!("{name}{suffix}"), args);
-        fs::write(temp.path().join("source"), b"content").unwrap();
+        fs::write(temp.path().join("Source"), b"content").unwrap();
         assert_eq!(invoke("CreateDirectory", &[data, 0]), 1);
         assert_eq!(invoke("CreateDirectory", &[data, 0]), 0);
         assert_eq!(invoke("CopyFile", &[src, dst, 1]), 1);
         assert_eq!(invoke("CopyFile", &[src, dst, 1]), 0);
+        assert_eq!(invoke("DeleteFile", &[src]), 1);
+        assert!(!temp.path().join("Source").exists());
         assert_eq!(invoke("MoveFile", &[dst, moved]), 1);
         assert_eq!(fs::read(temp.path().join("sub/moved")).unwrap(), b"content");
         assert_eq!(invoke("RemoveDirectory", &[data]), 0);
