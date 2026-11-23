@@ -22,7 +22,7 @@ use crate::emu::Emu;
 use crate::debug::gdb::target_xml;
 
 use super::MwemuGdbError;
-use super::shared::{copy_range, generate_library_list_xml};
+use super::shared::{copy_range, generate_library_list_xml, read_memory, write_memory};
 
 /// GDB target wrapper for 64-bit emulation
 pub struct MwemuTarget64<'a> {
@@ -85,24 +85,11 @@ impl SingleThreadBase for MwemuTarget64<'_> {
     }
 
     fn read_addrs(&mut self, start_addr: u64, data: &mut [u8]) -> TargetResult<usize, Self> {
-        let mut bytes_read = 0;
-        for (i, byte) in data.iter_mut().enumerate() {
-            match self.emu.maps.read_byte(start_addr + i as u64) {
-                Some(b) => {
-                    *byte = b;
-                    bytes_read += 1;
-                }
-                None => break,
-            }
-        }
-        Ok(bytes_read)
+        read_memory(&self.emu.maps, start_addr, data)
     }
 
     fn write_addrs(&mut self, start_addr: u64, data: &[u8]) -> TargetResult<(), Self> {
-        for (i, &byte) in data.iter().enumerate() {
-            self.emu.maps.write_byte(start_addr + i as u64, byte);
-        }
-        Ok(())
+        write_memory(&mut self.emu.maps, start_addr, data)
     }
 
     #[inline(always)]
