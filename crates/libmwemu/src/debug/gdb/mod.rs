@@ -7,6 +7,8 @@ mod breakpoints;
 mod registers;
 mod target;
 mod target_xml;
+#[cfg(test)]
+mod tests;
 
 use std::io::{self, Read as IoRead, Write as IoWrite};
 use std::marker::PhantomData;
@@ -63,20 +65,25 @@ impl GdbServer {
     /// Start the GDB server and wait for a connection
     pub fn run(&mut self, emu: &mut Emu) -> Result<(), GdbServerError> {
         let listener = TcpListener::bind(format!("127.0.0.1:{}", self.port))?;
-        log::info!("GDB server listening on port {}...", self.port);
-        log::info!("Connect with: target remote localhost:{}", self.port);
+        let port = listener.local_addr()?.port();
+        log::info!("GDB server listening on port {}...", port);
+        log::info!("Connect with: target remote localhost:{}", port);
 
         let (stream, addr) = listener.accept()?;
         log::info!("GDB client connected from {}", addr);
 
-        // Disable console spawning when in GDB mode
-        emu.cfg.console_enabled = false;
+        self.serve_connection(emu, stream)
+    }
 
-        match self.arch {
+    pub fn serve_connection(&self, emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
+        let console_enabled = std::mem::replace(&mut emu.cfg.console_enabled, false);
+        let result = match self.arch {
             Arch::Aarch64 => run_aarch64(emu, stream),
             Arch::X86_64 => run_64bit(emu, stream),
             Arch::X86 => run_32bit(emu, stream),
-        }
+        };
+        emu.cfg.console_enabled = console_enabled;
+        result
     }
 }
 

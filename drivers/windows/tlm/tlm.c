@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * tlm — a deliberately vulnerable telemetry driver for Windows, the WDM
  * counterpart of drivers/linux/tlm. It is the reference target for mwemu's
