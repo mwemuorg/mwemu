@@ -24,6 +24,14 @@ pub const _DISABLE_PER_THREAD_LOCALE: i32 = 2;
 pub const EOF: u64 = 0xffff_ffff;
 pub const RAND_MAX: u32 = 0x7fff;
 
+pub const _CRT_INTERNAL_PRINTF_LEGACY_WIDE_SPECIFIERS: u64 = 1 << 2;
+pub const _CRT_INTERNAL_PRINTF_STANDARD_ROUNDING: u64 = 1 << 5;
+
+pub const _MCW_PC: u32 = 0x0003_0000;
+pub const _PC_64: u32 = 0x0000_0000;
+pub const _PC_53: u32 = 0x0001_0000;
+pub const _PC_24: u32 = 0x0002_0000;
+
 pub const SEEK_SET: u64 = 0;
 pub const SEEK_CUR: u64 = 1;
 pub const SEEK_END: u64 = 2;
@@ -50,3 +58,11 @@ pub const _O_RAW: i32 = _O_BINARY;
 
 pub const _S_IREAD: i32 = 0x0100;
 pub const _S_IWRITE: i32 = 0x0080;
+
+pub const SIGSEGV: u32 = 11;
+pub const SIG_DFL: u64 = 0;
+pub const SIG_IGN: u64 = 1;
+pub const SIG_GET: u64 = 2;
+pub const SIG_SGE: u64 = 3;
+pub const SIG_ACK: u64 = 4;
+pub const SIG_DIE: u64 = 5;

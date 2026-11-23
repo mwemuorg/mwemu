@@ -1,7 +1,6 @@
 use super::unicode_string64::UnicodeString64;
 use crate::maps::Maps;
 
-/// Matches the leading fields of Windows `RTL_USER_PROCESS_PARAMETERS` (x64).
 /// `Flags` bit 0 is `RTL_USER_PROCESS_PARAMETERS_NORMALIZED`: `ImagePathName.Buffer` /
 /// `CommandLine.Buffer` are absolute pointers. If this is clear, ntdll treats `Buffer` as an
 /// offset from the process-parameters base (`lea rdx,[rax+rcx]` path).
@@ -14,6 +13,7 @@ pub const RTL_USER_PROCESS_PARAMETERS_APP_MANIFEST: u32 = 0x2000;
 /// `RtlFailFast2(STATUS_STACK_BUFFER_OVERRUN)` via the ALPC error path.
 pub const RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING: u32 = 0x4000;
 
+/// Leading fields of the 64-bit Windows process parameters.
 #[derive(Debug)]
 pub struct RtlUserProcessParameters64 {
     pub maximum_length: u32,
@@ -35,6 +35,16 @@ impl Default for RtlUserProcessParameters64 {
 }
 
 impl RtlUserProcessParameters64 {
+    pub const ENVIRONMENT_OFFSET: u64 = 0x80;
+
+    const LENGTH_OFFSET: u64 = 0x04;
+    const FLAGS_OFFSET: u64 = 0x08;
+    const DEBUG_FLAGS_OFFSET: u64 = 0x0c;
+    const RESERVED2_OFFSET: u64 = 0x10;
+    const DLL_PATH_OFFSET: u64 = 0x50;
+    const IMAGE_PATH_NAME_OFFSET: u64 = 0x60;
+    const COMMAND_LINE_OFFSET: u64 = 0x70;
+
     pub fn new() -> Self {
         Self {
             maximum_length: Self::size() as u32,
@@ -58,14 +68,19 @@ impl RtlUserProcessParameters64 {
 
     pub fn save(&mut self, addr: u64, maps: &mut Maps) {
         maps.write_dword(addr, self.maximum_length);
-        maps.write_dword(addr + 4, self.length);
-        maps.write_dword(addr + 8, self.flags);
-        maps.write_dword(addr + 12, self.debug_flags);
+        maps.write_dword(addr + Self::LENGTH_OFFSET, self.length);
+        maps.write_dword(addr + Self::FLAGS_OFFSET, self.flags);
+        maps.write_dword(addr + Self::DEBUG_FLAGS_OFFSET, self.debug_flags);
         for (i, val) in self.reserved2.iter().enumerate() {
-            maps.write_qword(addr + 16 + (i * 8) as u64, *val);
+            maps.write_qword(
+                addr + Self::RESERVED2_OFFSET + (i * size_of::<u64>()) as u64,
+                *val,
+            );
         }
-        self.dll_path.save(addr + 0x50, maps);
-        self.image_path_name.save(addr + 0x60, maps);
-        self.command_line.save(addr + 0x70, maps)
+        self.dll_path.save(addr + Self::DLL_PATH_OFFSET, maps);
+        self.image_path_name
+            .save(addr + Self::IMAGE_PATH_NAME_OFFSET, maps);
+        self.command_line
+            .save(addr + Self::COMMAND_LINE_OFFSET, maps)
     }
 }

@@ -8,11 +8,11 @@ use crate::{tests::helpers, *};
 /// a missing file. `set_maps_from_winver` now seeds it from the bundled
 /// `maps/windows/<arch>/` folder.
 ///
-/// Gated on network availability: `set_winver_maps` returns `false` (skip) when
-/// the symbol server or the seed NLS tables aren't reachable, keeping the suite
-/// green offline.
+/// Run explicitly to exercise the symbol-server setup on a cold cache.
 #[test]
+#[ignore = "provisions Windows DLLs from the symbol server"]
 pub fn sc64win_winver() {
+    let sample = sample!("sc64win_metasploit.bin");
     helpers::setup();
 
     let mut emu = emu64();
@@ -30,7 +30,6 @@ pub fn sc64win_winver() {
 
     // End-to-end: the same metasploit shellcode the static-maps test uses must
     // load and run to the same point under winver maps.
-    let sample = sample!("sc64win_metasploit.bin");
     emu.load_code(&sample);
     emu.run(Some(0x3c00c8));
     emu.step();
@@ -45,4 +44,18 @@ pub fn sc64win_winver() {
     let sockaddr = emu.maps.read_qword(sockaddr_ptr).unwrap();
 
     assert_eq!(sockaddr, 0x12c190a5c110002);
+}
+
+#[test]
+fn empty_winver_cache_gets_the_bundled_loader_offline() {
+    use crate::emu::winver::seed_loader_exe;
+
+    for (is_x64, expected) in [(false, helpers::LOADER32), (true, helpers::LOADER64)] {
+        let cache = tempfile::tempdir().unwrap();
+        seed_loader_exe(cache.path(), is_x64);
+        assert_eq!(
+            std::fs::read(cache.path().join("loader.exe")).unwrap(),
+            expected
+        );
+    }
 }

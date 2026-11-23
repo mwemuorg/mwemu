@@ -94,6 +94,7 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "winhttp.text" => winhttp::gateway(addr, emu),
         "crypt32.text" => crypt32::gateway(addr, emu),
         "dnsapi.text" => dnsapi::gateway(addr, emu),
+        "vcruntime140.text" | "vcruntime140fothk" => libraries::gateway("vcruntime140", u64::from(addr), emu),
         "msvcrt.text" => msvcrt::gateway(addr, emu),
         "shell32.text" => shell32::gateway(addr, emu),
         "ntoskrnl.text" | "ntoskrnlPAGE" => libraries::gateway("ntoskrnl", addr as u64, emu),

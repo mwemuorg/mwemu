@@ -883,8 +883,7 @@ pub mod kernelbase {
         SetConsoleInputExeNameA, SetConsoleInputExeNameW, SetCriticalSectionSpinCount,
         SetEventWhenCallbackReturns, SetHandleCount, SetIoRingCompletionEvent, SetLocaleInfoW,
         SetThreadLocale, SleepConditionVariableSRW, SystemTimeToTzSpecificLocalTime,
-        TerminateProcess, TlsGetValue2, TraceMessage, UnhandledExceptionFilter, WriteConsoleA,
-        WriteConsoleW,
+        TerminateProcess, TlsGetValue2, TraceMessage, WriteConsoleA, WriteConsoleW,
     };
 }
 
@@ -2503,8 +2502,6 @@ pub mod user32 {
         DialogBoxParamA,
         DialogBoxParamW,
         DisableProcessWindowsGhosting,
-        DispatchMessageA,
-        DispatchMessageW,
         DoSoundConnect,
         DoSoundDisconnect,
         DrawMenuBar,
@@ -2613,9 +2610,7 @@ pub mod user32 {
         SetClipboardData,
         SetMessageQueue,
         SetProcessLaunchForegroundPolicy,
-        KillTimer,
         SetCoalescableTimer,
-        SetTimer,
         SetWindowsHookExW,
         ShellRegisterHotKey,
         ShowStartGlass,

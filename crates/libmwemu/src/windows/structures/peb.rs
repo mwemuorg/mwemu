@@ -1,89 +1,107 @@
 use crate::maps::{Maps, mem64::Mem64};
+use crate::windows::constants::process::PEB_BEING_DEBUGGED_OFFSET;
 
-#[derive(Debug)]
-#[allow(clippy::upper_case_acronyms)]
-pub struct PEB {
-    inheritet_addr_space: u8,
-    read_img_file_exec_options: u8,
+/// Modeled fields of the 32-bit Windows process environment block.
+#[derive(Debug, Default)]
+pub struct Peb {
+    inherited_address_space: u8,
+    read_image_file_exec_options: u8,
     pub being_debugged: u8,
-    speer_bool: u8,
-    padding: u32,
+    bit_field: u8,
+    mutant: u32,
     pub image_base_addr: u32,
-    pub ldr: u32, // ptr to PEB_LDR_DATA  +0x0c
+    pub ldr: u32,
     process_parameters: u32,
-    reserved4: [u32; 3],
-    alt_thunk_list_ptr: u32,
+    subsystem_data: u32,
+    process_heap: u32,
+    fast_peb_lock: u32,
+    atl_thunk_slist_ptr: u32,
     reserved5: u32,
     reserved6: u32,
     reserved7: u32,
     reserved8: u32,
-    alt_thunk_list_ptr_32: u32, // +52 + 45*4 + 96
-    reserved9: [u32; 45],
-    reserved10: [u8; 96],
+    atl_thunk_slist_ptr32: u32,
     post_process_init_routine: u32,
-    reserved11: [u32; 128],
     reserved12: u32,
     session_id: u32,
 }
 
-impl PEB {
+impl Peb {
+    pub(crate) const IMAGE_BASE_ADDR_OFFSET: u64 = 0x08;
+    pub(crate) const LDR_OFFSET: u64 = 0x0c;
+    pub(crate) const PROCESS_HEAP_OFFSET: u64 = 0x18;
+
+    const READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET: u64 = 0x01;
+    const BIT_FIELD_OFFSET: u64 = 0x03;
+    const MUTANT_OFFSET: u64 = 0x04;
+    const PROCESS_PARAMETERS_OFFSET: u64 = 0x10;
+    const SUBSYSTEM_DATA_OFFSET: u64 = 0x14;
+    const FAST_PEB_LOCK_OFFSET: u64 = 0x1c;
+    const ATL_THUNK_SLIST_PTR_OFFSET: u64 = 0x20;
+    const RESERVED5_OFFSET: u64 = 0x24;
+    const RESERVED6_OFFSET: u64 = 0x28;
+    const RESERVED7_OFFSET: u64 = 0x2c;
+    const RESERVED8_OFFSET: u64 = 0x30;
+    const ATL_THUNK_SLIST_PTR32_OFFSET: u64 = 0x34;
+    const POST_PROCESS_INIT_ROUTINE_OFFSET: u64 = 0x14c;
+    const RESERVED12_OFFSET: u64 = 0x1d0;
+    const SESSION_ID_OFFSET: u64 = 0x1d4;
+
     pub fn size() -> usize {
-        800 // TODO: std::mem::size_of_val
+        800
     }
 
-    pub fn new(image_base_addr: u32, ldr: u32, process_parameters: u32) -> PEB {
-        PEB {
-            inheritet_addr_space: 0,
-            read_img_file_exec_options: 0,
-            being_debugged: 0,
-            speer_bool: 0,
-            padding: 0,
+    pub fn new(image_base_addr: u32, ldr: u32, process_parameters: u32) -> Self {
+        Self {
             image_base_addr,
             ldr,
             process_parameters,
-            reserved4: [0; 3],
-            alt_thunk_list_ptr: 0,
-            reserved5: 0,
-            reserved6: 0,
-            reserved7: 0,
-            reserved8: 0,
-            alt_thunk_list_ptr_32: 0,
-            reserved9: [0; 45],
-            reserved10: [0; 96],
-            post_process_init_routine: 0,
-            reserved11: [0; 128],
-            reserved12: 0,
-            session_id: 0,
+            ..Self::default()
         }
     }
 
-    pub fn load(addr: u64, maps: &Maps) -> PEB {
-        PEB {
-            inheritet_addr_space: maps.read_byte(addr).unwrap_or(0),
-            read_img_file_exec_options: maps.read_byte(addr + 1).unwrap_or(0),
-            being_debugged: maps.read_byte(addr + 2).unwrap_or(0),
-            speer_bool: maps.read_byte(addr + 3).unwrap_or(0),
-            padding: maps.read_dword(addr + 4).unwrap_or(0),
-            image_base_addr: maps.read_dword(addr + 8).unwrap_or(0),
-            ldr: maps.read_dword(addr + 12).unwrap_or(0),
-            process_parameters: maps.read_dword(addr + 16).unwrap_or(0),
-            reserved4: [
-                maps.read_dword(addr + 20).unwrap_or(0),
-                maps.read_dword(addr + 24).unwrap_or(0),
-                maps.read_dword(addr + 28).unwrap_or(0),
-            ],
-            alt_thunk_list_ptr: maps.read_dword(addr + 32).unwrap_or(0),
-            reserved5: maps.read_dword(addr + 36).unwrap_or(0),
-            reserved6: maps.read_dword(addr + 40).unwrap_or(0),
-            reserved7: maps.read_dword(addr + 44).unwrap_or(0),
-            reserved8: maps.read_dword(addr + 48).unwrap_or(0),
-            alt_thunk_list_ptr_32: maps.read_dword(addr + 52).unwrap_or(0),
-            reserved9: [0; 45],
-            reserved10: [0; 96],
-            post_process_init_routine: maps.read_dword(addr + 56).unwrap_or(0),
-            reserved11: [0; 128],
-            reserved12: maps.read_dword(addr + 60).unwrap_or(0),
-            session_id: maps.read_dword(addr + 64).unwrap_or(0),
+    pub fn load(addr: u64, maps: &Maps) -> Self {
+        Self {
+            inherited_address_space: maps.read_byte(addr).unwrap_or(0),
+            read_image_file_exec_options: maps
+                .read_byte(addr + Self::READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET)
+                .unwrap_or(0),
+            being_debugged: maps
+                .read_byte(addr + PEB_BEING_DEBUGGED_OFFSET)
+                .unwrap_or(0),
+            bit_field: maps.read_byte(addr + Self::BIT_FIELD_OFFSET).unwrap_or(0),
+            mutant: maps.read_dword(addr + Self::MUTANT_OFFSET).unwrap_or(0),
+            image_base_addr: maps
+                .read_dword(addr + Self::IMAGE_BASE_ADDR_OFFSET)
+                .unwrap_or(0),
+            ldr: maps.read_dword(addr + Self::LDR_OFFSET).unwrap_or(0),
+            process_parameters: maps
+                .read_dword(addr + Self::PROCESS_PARAMETERS_OFFSET)
+                .unwrap_or(0),
+            subsystem_data: maps
+                .read_dword(addr + Self::SUBSYSTEM_DATA_OFFSET)
+                .unwrap_or(0),
+            process_heap: maps
+                .read_dword(addr + Self::PROCESS_HEAP_OFFSET)
+                .unwrap_or(0),
+            fast_peb_lock: maps
+                .read_dword(addr + Self::FAST_PEB_LOCK_OFFSET)
+                .unwrap_or(0),
+            atl_thunk_slist_ptr: maps
+                .read_dword(addr + Self::ATL_THUNK_SLIST_PTR_OFFSET)
+                .unwrap_or(0),
+            reserved5: maps.read_dword(addr + Self::RESERVED5_OFFSET).unwrap_or(0),
+            reserved6: maps.read_dword(addr + Self::RESERVED6_OFFSET).unwrap_or(0),
+            reserved7: maps.read_dword(addr + Self::RESERVED7_OFFSET).unwrap_or(0),
+            reserved8: maps.read_dword(addr + Self::RESERVED8_OFFSET).unwrap_or(0),
+            atl_thunk_slist_ptr32: maps
+                .read_dword(addr + Self::ATL_THUNK_SLIST_PTR32_OFFSET)
+                .unwrap_or(0),
+            post_process_init_routine: maps
+                .read_dword(addr + Self::POST_PROCESS_INIT_ROUTINE_OFFSET)
+                .unwrap_or(0),
+            reserved12: maps.read_dword(addr + Self::RESERVED12_OFFSET).unwrap_or(0),
+            session_id: maps.read_dword(addr + Self::SESSION_ID_OFFSET).unwrap_or(0),
         }
     }
 
@@ -93,26 +111,41 @@ impl PEB {
 
     pub fn save(&self, mem: &mut Mem64) {
         let base = mem.get_base();
-        mem.write_byte(base, self.inheritet_addr_space);
-        mem.write_byte(base + 1, self.read_img_file_exec_options);
-        mem.write_byte(base + 2, self.being_debugged);
-        mem.write_byte(base + 3, self.speer_bool);
-        mem.write_dword(base + 4, self.padding);
-        mem.write_dword(base + 8, self.image_base_addr);
-        mem.write_dword(base + 12, self.ldr);
-        mem.write_dword(base + 16, self.process_parameters);
-        mem.write_dword(base + 20, self.reserved4[0]);
-        mem.write_dword(base + 24, self.reserved4[1]);
-        mem.write_dword(base + 28, self.reserved4[2]);
-        mem.write_dword(base + 32, self.alt_thunk_list_ptr);
-        mem.write_dword(base + 36, self.reserved5);
-        mem.write_dword(base + 40, self.reserved6);
-        mem.write_dword(base + 44, self.reserved7);
-        mem.write_dword(base + 48, self.reserved8);
-        mem.write_dword(base + 52, self.alt_thunk_list_ptr_32);
-        mem.write_dword(base + 56, self.post_process_init_routine);
-        mem.write_dword(base + 60, self.reserved12);
-        mem.write_dword(base + 64, self.session_id);
+        mem.write_byte(base, self.inherited_address_space);
+        mem.write_byte(
+            base + Self::READ_IMAGE_FILE_EXEC_OPTIONS_OFFSET,
+            self.read_image_file_exec_options,
+        );
+        mem.write_byte(base + PEB_BEING_DEBUGGED_OFFSET, self.being_debugged);
+        mem.write_byte(base + Self::BIT_FIELD_OFFSET, self.bit_field);
+        mem.write_dword(base + Self::MUTANT_OFFSET, self.mutant);
+        mem.write_dword(base + Self::IMAGE_BASE_ADDR_OFFSET, self.image_base_addr);
+        mem.write_dword(base + Self::LDR_OFFSET, self.ldr);
+        mem.write_dword(
+            base + Self::PROCESS_PARAMETERS_OFFSET,
+            self.process_parameters,
+        );
+        mem.write_dword(base + Self::SUBSYSTEM_DATA_OFFSET, self.subsystem_data);
+        mem.write_dword(base + Self::PROCESS_HEAP_OFFSET, self.process_heap);
+        mem.write_dword(base + Self::FAST_PEB_LOCK_OFFSET, self.fast_peb_lock);
+        mem.write_dword(
+            base + Self::ATL_THUNK_SLIST_PTR_OFFSET,
+            self.atl_thunk_slist_ptr,
+        );
+        mem.write_dword(base + Self::RESERVED5_OFFSET, self.reserved5);
+        mem.write_dword(base + Self::RESERVED6_OFFSET, self.reserved6);
+        mem.write_dword(base + Self::RESERVED7_OFFSET, self.reserved7);
+        mem.write_dword(base + Self::RESERVED8_OFFSET, self.reserved8);
+        mem.write_dword(
+            base + Self::ATL_THUNK_SLIST_PTR32_OFFSET,
+            self.atl_thunk_slist_ptr32,
+        );
+        mem.write_dword(
+            base + Self::POST_PROCESS_INIT_ROUTINE_OFFSET,
+            self.post_process_init_routine,
+        );
+        mem.write_dword(base + Self::RESERVED12_OFFSET, self.reserved12);
+        mem.write_dword(base + Self::SESSION_ID_OFFSET, self.session_id);
     }
 
     pub fn print(&self) {

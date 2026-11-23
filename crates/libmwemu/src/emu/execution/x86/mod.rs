@@ -25,6 +25,11 @@ pub(crate) use crate::emu::Emu;
 pub(crate) use super::assert_x86_arch;
 
 impl Emu {
+    // Synchronous guest calls must return on the thread that owns their stack frame.
+    pub(super) fn should_schedule_x86_threads(&self) -> bool {
+        self.cfg.enable_threading && self.threads.len() > 1 && self.call_depth == 0
+    }
+
     /// x86-family variant of `step`. Panics if the configured architecture is
     /// AArch64.
     pub fn step_x86(&mut self) -> bool {
@@ -39,7 +44,7 @@ impl Emu {
         assert_x86_arch(self, "run_x86");
         self.reset_active_instruction_cache();
         self.run_preflight()?;
-        if self.cfg.enable_threading && self.threads.len() > 1 {
+        if self.should_schedule_x86_threads() {
             self.run_multi_threaded_x86(end_addr)
         } else {
             self.run_single_threaded_x86(end_addr)

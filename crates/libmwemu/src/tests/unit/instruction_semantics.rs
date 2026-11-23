@@ -14,6 +14,20 @@ use crate::{emu32, emu64};
 const DATA: u64 = 0x3000_0000;
 const PAGE: u64 = 0x1000;
 
+#[test]
+fn salc_expands_carry_to_a_byte_and_preserves_flags() {
+    for (carry_instruction, expected) in [(0xf8, 0), (0xf9, 0xff)] {
+        // CLC / STC
+        let mut emu = prepare(false, &[carry_instruction, 0xd6]);
+        emu.regs_mut().rax = 0x1234_5678;
+        assert!(emu.step());
+        let flags = emu.flags_snapshot().dump();
+        assert!(emu.step());
+        assert_eq!(emu.regs().rax, 0x1234_5600 | expected);
+        assert_eq!(emu.flags_snapshot().dump(), flags);
+    }
+}
+
 fn prepare(is_x64: bool, code: &[u8]) -> Emu {
     let mut emu = if is_x64 { emu64() } else { emu32() };
     emu.os = OperatingSystem::Linux;
@@ -37,6 +51,39 @@ fn encode(is_x64: bool, instruction: Instruction) -> Vec<u8> {
     let mut encoder = Encoder::new(if is_x64 { 64 } else { 32 });
     encoder.encode(&instruction, 0).unwrap();
     encoder.take_buffer()
+}
+
+#[test]
+fn prefetch_hints_do_not_fault_on_unmapped_memory() {
+    let hints = [
+        Code::Prefetchnta_m8,
+        Code::Prefetcht0_m8,
+        Code::Prefetcht1_m8,
+        Code::Prefetcht2_m8,
+        Code::Prefetchw_m8,
+        Code::Prefetchwt1_m8,
+    ];
+    for is_x64 in [false, true] {
+        let pointer = if is_x64 { Register::RDX } else { Register::EDX };
+        let code: Vec<_> = hints
+            .iter()
+            .flat_map(|&hint| {
+                let instruction =
+                    Instruction::with1(hint, MemoryOperand::with_base(pointer)).unwrap();
+                encode(is_x64, instruction)
+            })
+            .collect();
+        let mut emu = prepare(is_x64, &code);
+        emu.regs_mut().rdx = 0;
+        let pc = emu.pc();
+        let flags = emu.flags_snapshot().dump();
+        for hint in hints {
+            assert!(emu.step(), "{hint:?}");
+        }
+        assert_eq!(emu.pc(), pc + code.len() as u64);
+        assert_eq!(emu.fault_count, 0);
+        assert_eq!(emu.flags_snapshot().dump(), flags);
+    }
 }
 
 struct PackedRegisters {

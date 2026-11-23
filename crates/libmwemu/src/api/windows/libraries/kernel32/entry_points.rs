@@ -214,6 +214,7 @@ pub(crate) mod kernel32 {
         SetThreadpoolTimerEx,
         SetThreadpoolWait,
         SetThreadpoolWaitEx,
+        SetUnhandledExceptionFilter,
         Sleep,
         SleepConditionVariableCS,
         SleepConditionVariableSRW,

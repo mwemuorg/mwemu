@@ -42,7 +42,11 @@ pub const IMAGE_DIRECTORY_ENTRY_IAT: usize = 12;
 pub const IMAGE_DIRECTORY_ENTRY_DELAY_LOAD: usize = 13;
 pub const IMAGE_DIRECTORY_ENTRY_DOTNET_HDR: usize = 14;
 
+pub const IMAGE_FILE_RELOCS_STRIPPED: u16 = 0x0001;
+
+pub const IMAGE_REL_BASED_ABSOLUTE: u16 = 0;
 pub const IMAGE_REL_BASED_HIGHLOW: u16 = 3;
+pub const IMAGE_REL_BASED_HIGHADJ: u16 = 4;
 pub const IMAGE_REL_BASED_DIR64: u16 = 10;
 
 pub const IMAGE_SIZEOF_SHORT_NAME: usize = 8;

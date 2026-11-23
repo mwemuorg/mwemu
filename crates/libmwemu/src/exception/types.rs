@@ -1,6 +1,7 @@
 use crate::maps::Maps;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::exceptions::*;
+
 #[derive(Clone, Copy, Debug)]
 pub enum ExceptionType {
     Int3,                      // int 3 breakpoint
@@ -18,6 +19,8 @@ pub enum ExceptionType {
     ReadingXmmOperand,         // exception reading xmm operand
     HeapNoMemory,              // HeapAlloc failure with HEAP_GENERATE_EXCEPTIONS
     IllegalInstruction,        // #UD — unimplemented or invalid opcode
+    SingleStep,
+    PrivilegedInstruction,
 }
 
 impl PartialEq for ExceptionType {
@@ -45,6 +48,8 @@ impl std::fmt::Display for ExceptionType {
             ExceptionType::SettingXmmOperand => write!(f, "exception setting xmm operand"),
             ExceptionType::ReadingXmmOperand => write!(f, "exception reading xmm operand"),
             ExceptionType::HeapNoMemory => write!(f, "heap out of memory"),
+            ExceptionType::SingleStep => write!(f, "single step (#DB)"),
+            ExceptionType::PrivilegedInstruction => write!(f, "privileged instruction"),
             ExceptionType::IllegalInstruction => write!(f, "illegal instruction (#UD)"),
         }
     }
@@ -67,6 +72,8 @@ pub fn exception_type_code(ex_type: ExceptionType) -> u32 {
         ExceptionType::ReadingXmmOperand => STATUS_READING_XMM_OPERAND,
         ExceptionType::HeapNoMemory => STATUS_NO_MEMORY as u32,
         ExceptionType::IllegalInstruction => STATUS_ILLEGAL_INSTRUCTION,
+        ExceptionType::SingleStep => STATUS_SINGLE_STEP,
+        ExceptionType::PrivilegedInstruction => STATUS_PRIVILEGED_INSTRUCTION,
     }
 }
 
@@ -87,19 +94,11 @@ pub fn exception_type_from_code(code: u32) -> ExceptionType {
         STATUS_READING_XMM_OPERAND => ExceptionType::ReadingXmmOperand,
         x if x == STATUS_NO_MEMORY as u32 => ExceptionType::HeapNoMemory,
         STATUS_ILLEGAL_INSTRUCTION => ExceptionType::IllegalInstruction,
+        STATUS_SINGLE_STEP => ExceptionType::SingleStep,
+        STATUS_PRIVILEGED_INSTRUCTION => ExceptionType::PrivilegedInstruction,
         _ => ExceptionType::BadAddressDereferencing,
     }
 }
-
-// EXCEPTION_RECORD guest layout.
-const RECORD_FLAGS: u64 = 4;
-const RECORD_NESTED: u64 = 8;
-const RECORD_ADDRESS32: u64 = 12;
-const RECORD_ADDRESS64: u64 = 16;
-const RECORD_COUNT32: u64 = 16;
-const RECORD_COUNT64: u64 = 24;
-const RECORD_INFORMATION32: u64 = 20;
-const RECORD_INFORMATION64: u64 = 32;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u64)]
@@ -120,6 +119,18 @@ pub(crate) struct ExceptionRecord {
 }
 
 impl ExceptionRecord {
+    pub(crate) const FLAGS_OFFSET: u64 = 4;
+    const NESTED_OFFSET: u64 = 8;
+    const ADDRESS32_OFFSET: u64 = 12;
+    pub(crate) const ADDRESS64_OFFSET: u64 = 16;
+    const COUNT32_OFFSET: u64 = 16;
+    const COUNT64_OFFSET: u64 = 24;
+    const INFORMATION32_OFFSET: u64 = 20;
+    const INFORMATION64_OFFSET: u64 = 32;
+
+    pub(crate) const SIZE64: u64 =
+        Self::INFORMATION64_OFFSET + size_of::<[u64; EXCEPTION_MAXIMUM_PARAMETERS]>() as u64;
+
     pub fn new(ex_type: ExceptionType, address: u64) -> Self {
         use ExceptionType::*;
         let code = match ex_type {
@@ -153,18 +164,18 @@ impl ExceptionRecord {
 
     pub fn save(&self, maps: &mut Maps, address: u64, is_64: bool) {
         maps.write_dword(address, self.code);
-        maps.write_dword(address + RECORD_FLAGS, self.flags);
+        maps.write_dword(address + Self::FLAGS_OFFSET, self.flags);
         let count = self.information.len().min(EXCEPTION_MAXIMUM_PARAMETERS);
         let (information, stride) = if is_64 {
-            maps.write_qword(address + RECORD_NESTED, self.nested);
-            maps.write_qword(address + RECORD_ADDRESS64, self.address);
-            maps.write_dword(address + RECORD_COUNT64, count as u32);
-            (RECORD_INFORMATION64, size_of::<u64>() as u64)
+            maps.write_qword(address + Self::NESTED_OFFSET, self.nested);
+            maps.write_qword(address + Self::ADDRESS64_OFFSET, self.address);
+            maps.write_dword(address + Self::COUNT64_OFFSET, count as u32);
+            (Self::INFORMATION64_OFFSET, size_of::<u64>() as u64)
         } else {
-            maps.write_dword(address + RECORD_NESTED, self.nested as u32);
-            maps.write_dword(address + RECORD_ADDRESS32, self.address as u32);
-            maps.write_dword(address + RECORD_COUNT32, count as u32);
-            (RECORD_INFORMATION32, size_of::<u32>() as u64)
+            maps.write_dword(address + Self::NESTED_OFFSET, self.nested as u32);
+            maps.write_dword(address + Self::ADDRESS32_OFFSET, self.address as u32);
+            maps.write_dword(address + Self::COUNT32_OFFSET, count as u32);
+            (Self::INFORMATION32_OFFSET, size_of::<u32>() as u64)
         };
         for (i, &value) in self.information.iter().take(count).enumerate() {
             let target = address + information + i as u64 * stride;
@@ -179,18 +190,18 @@ impl ExceptionRecord {
     pub fn load(maps: &Maps, address: u64, is_64: bool) -> Option<Self> {
         let (nested, fault_pc, count, information, stride) = if is_64 {
             (
-                maps.read_qword(address + RECORD_NESTED)?,
-                maps.read_qword(address + RECORD_ADDRESS64)?,
-                maps.read_dword(address + RECORD_COUNT64)?,
-                RECORD_INFORMATION64,
+                maps.read_qword(address + Self::NESTED_OFFSET)?,
+                maps.read_qword(address + Self::ADDRESS64_OFFSET)?,
+                maps.read_dword(address + Self::COUNT64_OFFSET)?,
+                Self::INFORMATION64_OFFSET,
                 size_of::<u64>() as u64,
             )
         } else {
             (
-                maps.read_dword(address + RECORD_NESTED)? as u64,
-                maps.read_dword(address + RECORD_ADDRESS32)? as u64,
-                maps.read_dword(address + RECORD_COUNT32)?,
-                RECORD_INFORMATION32,
+                maps.read_dword(address + Self::NESTED_OFFSET)? as u64,
+                maps.read_dword(address + Self::ADDRESS32_OFFSET)? as u64,
+                maps.read_dword(address + Self::COUNT32_OFFSET)?,
+                Self::INFORMATION32_OFFSET,
                 size_of::<u32>() as u64,
             )
         };
@@ -209,7 +220,7 @@ impl ExceptionRecord {
             .collect::<Option<Vec<_>>>()?;
         Some(Self {
             code: maps.read_dword(address)?,
-            flags: maps.read_dword(address + RECORD_FLAGS)?,
+            flags: maps.read_dword(address + Self::FLAGS_OFFSET)?,
             nested,
             address: fault_pc,
             information: values,

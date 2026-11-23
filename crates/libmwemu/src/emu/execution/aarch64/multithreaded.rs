@@ -12,8 +12,16 @@ impl Emu {
     /// Retains the same scheduler, breakpoint, limit, console, `run_until_ret`,
     /// and termination behavior as the x86 path. Panics if the configured
     /// architecture is not AArch64.
-    #[allow(deprecated)]
     pub fn run_multi_threaded_aarch64(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
+        self.run_multi_threaded_aarch64_with_visits(end_addr, AHashMap::new())
+    }
+
+    #[allow(deprecated)]
+    pub(super) fn run_multi_threaded_aarch64_with_visits(
+        &mut self,
+        end_addr: Option<u64>,
+        mut looped: AHashMap<u64, u64>,
+    ) -> Result<u64, MwemuError> {
         super::super::assert_aarch64_arch(self, "run_multi_threaded_aarch64");
 
         self.check_api_stop()?;
@@ -21,18 +29,17 @@ impl Emu {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
 
-        self.ensure_run_start_pc_mapped(self.pc())?;
-
         self.is_running.store(1, atomic::Ordering::Relaxed);
         self.install_ctrlc_handler_if_enabled();
 
-        let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
-        let mut window_counter: u64 = 0;
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
+                if !self.select_runnable_thread() {
+                    return Err(MwemuError::new("all emulated threads blocked or suspended"));
+                }
                 let pc = self.regs_aarch64().pc;
 
                 if self.maps.get_mem_by_addr(pc).is_none() {
@@ -80,7 +87,6 @@ impl Emu {
                     &mut prev_addr,
                     &mut repeat_counter,
                     &mut looped,
-                    &mut window_counter,
                     "infinite loop found",
                 )?;
                 if loop_hit {
@@ -89,7 +95,7 @@ impl Emu {
 
                 self.trace_pre_step_state(next_pos);
 
-                let step_ok = self.step_multi_threaded();
+                let step_ok = self.step_scheduled_thread();
                 self.check_api_stop()?;
 
                 self.instruction_count = self.instruction_count.saturating_add(1);

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
 pub const FPU_80_BITS_MAX: u128 = (1u128 << 80) - 1;
@@ -20,6 +22,16 @@ const F64_FRACTION_BITS: u32 = f64::MANTISSA_DIGITS - 1;
 const F64_FRACTION_MASK: u64 = (1 << F64_FRACTION_BITS) - 1;
 const F64_MAX_EXPONENT: u64 = (F64_EXP_BIAS as u64) * 2 + 1;
 const F64_ALIGNMENT: u32 = MANTISSA_BITS - f64::MANTISSA_DIGITS;
+
+const EXTENDED_NEAREST: u16 = 0x037f;
+const GUARD_BITS: u32 = 3;
+const QUIET_BIT: u128 = INT_BIT_MASK >> 1;
+
+fn shift_with_sticky(value: u128, shift: u32) -> u128 {
+    let high = value.checked_shr(shift).unwrap_or(0);
+    let discarded = high.checked_shl(shift).unwrap_or(0) != value;
+    high | u128::from(discarded)
+}
 
 pub const SIGN_SHIFT: u32 = 79;
 pub const EXP_SHIFT: u32 = 64;
@@ -173,131 +185,255 @@ impl F80 {
         (mantissa as u64) | (int_bit << 63)
     }
 
-    fn normalize_add(&self, mantissa: u64, exponent: u16) -> (u64, u16) {
-        let mut man = mantissa;
-        let mut exp = exponent;
-        if man == 0 {
-            return (0, 0);
+    fn propagate_nan(&mut self, other: F80) -> bool {
+        let unsupported = |x: F80| x.get_exponent() != 0 && !x.bit_integer();
+        if unsupported(*self) || unsupported(other) {
+            self.set_real_indefinite();
+            return true;
         }
-        while (man & INT_BIT_MASK64) == 0 {
-            man <<= 1;
-            exp -= 1;
+        if self.is_nan() || other.is_nan() {
+            if !self.is_nan() || (other.is_nan() && other.get_mantissa() > self.get_mantissa()) {
+                *self = other;
+            }
+            self.st |= QUIET_BIT;
+            return true;
         }
-        (man, exp)
+        false
     }
 
-    pub fn add(&mut self, b: F80) {
-        let a_sign = self.get_sign();
-        let b_sign = b.get_sign();
+    pub fn add(&mut self, other: F80) {
+        self.add_with_control(other, false, EXTENDED_NEAREST);
+    }
 
-        let mut a_exp = self.get_exponent();
-        let b_exp = b.get_exponent();
+    pub fn sub(&mut self, other: F80) {
+        self.add_with_control(other, true, EXTENDED_NEAREST);
+    }
 
-        let mut a_man = self.get_mantissa() as u128;
-        let mut b_man = b.get_mantissa() as u128;
-
-        if a_exp > b_exp {
-            let shift = (a_exp - b_exp) as u32;
-            b_man >>= shift;
-        } else if b_exp > a_exp {
-            let shift = (b_exp - a_exp) as u32;
-            a_man >>= shift;
-            a_exp = b_exp;
+    pub(super) fn add_with_control(&mut self, mut other: F80, subtract: bool, control: u16) {
+        if self.propagate_nan(other) {
+            return;
+        }
+        if subtract {
+            other.neg();
+        }
+        if self.is_infinite() || other.is_infinite() {
+            if self.is_infinite() && other.is_infinite() && self.get_sign() != other.get_sign() {
+                self.set_real_indefinite();
+            } else if other.is_infinite() {
+                *self = other;
+            }
+            return;
         }
 
-        let mut result_sign;
-        let mut result_exp = a_exp;
-        let mut result_man: u128;
-
-        if a_sign == b_sign {
-            result_man = a_man + b_man;
-            if (result_man & (1u128 << 64)) != 0 {
-                result_man >>= 1;
-                result_exp += 1;
-            }
-            result_sign = a_sign;
+        // Subnormals and the smallest normals have the same exponent scale.
+        let parts = |x: F80| (x.get_exponent().max(1), x.get_mantissa());
+        let (larger, smaller) = if parts(*self) >= parts(other) {
+            (*self, other)
         } else {
-            if a_man >= b_man {
-                result_man = a_man - b_man;
-                result_sign = a_sign;
-            } else {
-                result_man = b_man - a_man;
-                result_sign = b_sign;
-            }
-            let (norm_man, norm_exp) = self.normalize_add(result_man as u64, result_exp);
-            result_man = norm_man as u128;
-            result_exp = norm_exp;
-
-            if result_man == 0 {
-                result_sign = false;
-                result_exp = 0;
-            }
+            (other, *self)
+        };
+        let (mut exponent, larger_mantissa) = parts(larger);
+        let (smaller_exponent, smaller_mantissa) = parts(smaller);
+        let a = u128::from(larger_mantissa) << GUARD_BITS;
+        let b = shift_with_sticky(
+            u128::from(smaller_mantissa) << GUARD_BITS,
+            u32::from(exponent - smaller_exponent),
+        );
+        let same_sign = larger.get_sign() == smaller.get_sign();
+        let mut sum = if same_sign { a + b } else { a - b };
+        let rounding = (control >> 10) & 3;
+        let negative = larger.get_sign();
+        if sum == 0 {
+            let negative_zero = if same_sign { negative } else { rounding == 1 };
+            self.st = if negative_zero { SIGN_MASK } else { 0 };
+            return;
         }
 
-        self.set_sign(result_sign);
-        self.set_exponent(result_exp);
-        self.set_mantissa(result_man as u64);
-    }
-
-    pub fn sub(&mut self, b: F80) {
-        let a_sign = self.get_sign();
-        let b_sign = b.get_sign();
-
-        let mut a_exp = self.get_exponent();
-        let b_exp = b.get_exponent();
-
-        let mut a_man = self.get_mantissa() as u128;
-        let mut b_man = b.get_mantissa() as u128;
-
-        if a_exp > b_exp {
-            let shift = (a_exp - b_exp) as u32;
-            b_man >>= shift;
-        } else if b_exp > a_exp {
-            let shift = (b_exp - a_exp) as u32;
-            a_man >>= shift;
-            a_exp = b_exp;
-        }
-
-        let mut result_sign;
-        let mut result_exp = a_exp;
-        let mut result_man: u128;
-
-        if a_sign != b_sign {
-            result_man = a_man + b_man;
-            if (result_man & (1u128 << 64)) != 0 {
-                result_man >>= 1;
-                result_exp += 1;
-            }
-            result_sign = a_sign;
+        let leading_bit = INT_BIT_SHIFT + GUARD_BITS;
+        if sum.ilog2() > leading_bit {
+            sum = shift_with_sticky(sum, 1);
+            exponent += 1;
         } else {
-            if a_man >= b_man {
-                result_man = a_man - b_man;
-                result_sign = a_sign;
-            } else {
-                result_man = b_man - a_man;
-                result_sign = !a_sign;
-            }
-            let (norm_man, norm_exp) = self.normalize_sub(result_man as u64, result_exp);
-            result_man = norm_man as u128;
-            result_exp = norm_exp;
-
-            if result_man == 0 {
-                result_sign = false; // +0
-                result_exp = 0;
-            }
+            let left = (leading_bit - sum.ilog2()).min(u32::from(exponent - 1));
+            sum <<= left;
+            exponent -= left as u16;
         }
 
-        self.set_sign(result_sign);
-        self.set_exponent(result_exp);
-        self.set_mantissa(result_man as u64);
+        self.set_rounded(sum, i32::from(exponent), negative, control);
     }
 
-    fn normalize_sub(&self, mut mant: u64, mut exp: u16) -> (u64, u16) {
-        while mant != 0 && (mant & (1 << 63)) == 0 {
-            mant <<= 1;
-            exp -= 1;
+    fn set_rounded(&mut self, mut sum: u128, mut exponent: i32, negative: bool, control: u16) {
+        if exponent < 1 {
+            sum = shift_with_sticky(sum, (1 - exponent) as u32);
+            exponent = 1;
         }
-        (mant, exp)
+        let rounding = (control >> 10) & 3;
+        // Precision control selects 24, 53 or 64 significand bits; the exponent range stays extended.
+        let precision = match (control >> 8) & 3 {
+            0 => f32::MANTISSA_DIGITS,
+            2 => f64::MANTISSA_DIGITS,
+            _ => MANTISSA_BITS,
+        };
+        let discard = MANTISSA_BITS - precision + GUARD_BITS;
+        let half = 1 << (discard - 1);
+        let mut mantissa = sum >> discard;
+        let tail = sum & ((half << 1) - 1);
+        let away = match rounding {
+            0 => tail > half || (tail == half && mantissa & 1 != 0),
+            1 => negative && tail != 0,
+            2 => !negative && tail != 0,
+            _ => false,
+        };
+        mantissa = (mantissa + u128::from(away)) << (MANTISSA_BITS - precision);
+        if mantissa > MANTISSA_MASK {
+            mantissa >>= 1;
+            exponent += 1;
+        }
+        if exponent >= EXP_MASK as i32 {
+            if rounding == 0 || (rounding == 1 && negative) || (rounding == 2 && !negative) {
+                exponent = EXP_MASK as i32;
+                mantissa = INT_BIT_MASK;
+            } else {
+                exponent = EXP_MASK as i32 - 1;
+                mantissa =
+                    (MANTISSA_MASK >> (MANTISSA_BITS - precision)) << (MANTISSA_BITS - precision);
+            }
+        } else if mantissa < INT_BIT_MASK {
+            exponent = 0;
+        }
+        self.st = ((exponent as u128) << EXP_SHIFT) | mantissa;
+        self.set_sign(negative);
+    }
+
+    fn normalized_parts(self) -> (i32, u128) {
+        let significand = self.get_mantissa();
+        let shift = significand.leading_zeros();
+        (
+            i32::from(self.get_exponent().max(1)) - shift as i32,
+            u128::from(significand << shift),
+        )
+    }
+
+    pub(crate) fn divide(&mut self, divisor: F80, control: u16) {
+        if self.propagate_nan(divisor) {
+            return;
+        }
+        let negative = self.get_sign() != divisor.get_sign();
+        let sign = if negative { SIGN_MASK } else { 0 };
+        if (self.is_zero() && divisor.is_zero()) || (self.is_infinite() && divisor.is_infinite()) {
+            self.set_real_indefinite();
+        } else if self.is_infinite() || divisor.is_zero() {
+            self.st = sign | (EXP_MASK << EXP_SHIFT) | INT_BIT_MASK;
+        } else if self.is_zero() || divisor.is_infinite() {
+            self.st = sign;
+        } else {
+            let (a_exp, a) = self.normalized_parts();
+            let (b_exp, b) = divisor.normalized_parts();
+            let below_one = a < b;
+            let exponent = a_exp - b_exp + F80_EXP_BIAS - i32::from(below_one);
+            let numerator = a << (INT_BIT_SHIFT + u32::from(below_one));
+            let mantissa = numerator / b;
+            let tail = (numerator % b) << GUARD_BITS;
+            let sum = (mantissa << GUARD_BITS) | (tail / b) | u128::from(!tail.is_multiple_of(b));
+            self.set_rounded(sum, exponent, negative, control);
+        }
+    }
+
+    // A complete FPREM reports the low three quotient bits. For a partial
+    // reduction Intel permits eliminating 32 to 63 exponent bits per step.
+    pub(crate) fn remainder(&mut self, divisor: F80) -> Option<u8> {
+        if self.get_exponent() == 0 && self.bit_integer() {
+            self.set_exponent(1);
+        }
+        if self.propagate_nan(divisor) {
+            return Some(0);
+        }
+        if self.is_infinite() || divisor.is_zero() {
+            self.set_real_indefinite();
+            return Some(0);
+        }
+        if self.is_zero() || divisor.is_infinite() {
+            return Some(0);
+        }
+        let (a_exp, a) = self.normalized_parts();
+        let (b_exp, b) = divisor.normalized_parts();
+        let gap = a_exp - b_exp;
+        if gap < 0 {
+            return Some(0);
+        }
+        let partial = gap >= MANTISSA_BITS as i32;
+        let shift = if partial { 32 } else { gap };
+        let scaled = a << shift;
+        let remainder = (scaled % b) as u64;
+        let negative = self.get_sign();
+        if remainder == 0 {
+            self.st = if negative { SIGN_MASK } else { 0 };
+        } else {
+            let normalize = remainder.leading_zeros();
+            let significand = u128::from(remainder << normalize) << GUARD_BITS;
+            self.set_rounded(
+                significand,
+                a_exp - shift - normalize as i32,
+                negative,
+                EXTENDED_NEAREST,
+            );
+        }
+        (!partial).then(|| ((scaled / b) & 7) as u8)
+    }
+
+    pub(crate) fn numeric_cmp(self, other: F80) -> Option<Ordering> {
+        if [self, other]
+            .iter()
+            .any(|x| x.is_nan() || (x.get_exponent() != 0 && !x.bit_integer()))
+        {
+            return None;
+        }
+        if self.is_zero() && other.is_zero() {
+            return Some(Ordering::Equal);
+        }
+        if self.get_sign() != other.get_sign() {
+            return Some(other.get_sign().cmp(&self.get_sign()));
+        }
+        let magnitude = |x: F80| (x.get_exponent().max(1), x.get_mantissa());
+        let order = magnitude(self).cmp(&magnitude(other));
+        Some(if self.get_sign() {
+            order.reverse()
+        } else {
+            order
+        })
+    }
+
+    pub(crate) fn signed_integer(self, width: u32, control: u16) -> Option<i64> {
+        if self.get_exponent() == EXP_MASK as u16
+            || (self.get_exponent() != 0 && !self.bit_integer())
+        {
+            return None;
+        }
+        let exponent = i32::from(self.get_exponent().max(1)) - F80_EXP_BIAS;
+        if exponent > INT_BIT_SHIFT as i32 {
+            return None;
+        }
+        let shift = (INT_BIT_SHIFT as i32 - exponent) as u32;
+        let significand = self.get_mantissa();
+        let whole = significand.checked_shr(shift).unwrap_or(0);
+        let tail = significand - whole.checked_shl(shift).unwrap_or(0);
+        let rounding = (control >> 10) & 3;
+        let negative = self.get_sign();
+        let away = match rounding {
+            0 if (1..=MANTISSA_BITS).contains(&shift) => {
+                let half = 1 << (shift - 1);
+                tail > half || (tail == half && whole & 1 != 0)
+            }
+            1 => negative && tail != 0,
+            2 => !negative && tail != 0,
+            _ => false,
+        };
+        let magnitude = i128::from(whole) + i128::from(away);
+        let limit = 1i128 << (width - 1);
+        if (negative && magnitude > limit) || (!negative && magnitude >= limit) {
+            return None;
+        }
+        Some(if negative { -magnitude } else { magnitude } as i64)
     }
 
     pub fn is_integer(&self) -> bool {

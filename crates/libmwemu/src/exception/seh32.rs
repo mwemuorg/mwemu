@@ -6,11 +6,16 @@ use crate::exception::types::ExceptionRecord;
 use crate::maps::mem64::Permission;
 use crate::windows::constants::exceptions::*;
 
+pub(crate) mod unwind;
+
 const FRAME_SIZE: u64 = 0x1000;
 const FRAME_MAGIC: u32 = u32::from_le_bytes(*b"SEH3");
+const UNWIND_MAGIC: u32 = u32::from_le_bytes(*b"UNW3");
 const PREVIOUS_CONTEXT: u64 = 4;
 const ESTABLISHER_FRAME: u64 = 8;
 const HANDLERS_VISITED: u64 = 12;
+const HANDLER_GUARD: u64 = 24;
+const GUARD_COOKIE_OFFSET: u64 = 0xf04;
 const MAX_HANDLERS: u32 = 64;
 const RECORD_OFFSET: u64 = 0x20;
 const DISPATCHER_OFFSET: u64 = 0x80;
@@ -30,7 +35,8 @@ impl Frame {
             return None;
         }
         let base = emu.eh_ctx().checked_sub(CONTEXT_OFFSET)?;
-        (emu.maps.read_dword(base) == Some(FRAME_MAGIC)).then_some(Self { base })
+        matches!(emu.maps.read_dword(base), Some(FRAME_MAGIC | UNWIND_MAGIC))
+            .then_some(Self { base })
     }
 
     fn context(self) -> u64 {
@@ -66,21 +72,36 @@ impl Frame {
         Some(frame)
     }
 
-    fn push_arguments(self, emu: &mut Emu, establisher: u32) -> bool {
+    fn push_arguments(self, emu: &mut Emu, establisher: u32, record: u64) -> bool {
         emu.maps
             .write_dword(self.base + ESTABLISHER_FRAME, establisher);
         emu.maps.write_dword(self.base + DISPATCHER_OFFSET, 0);
-        // Right-to-left: DispatcherContext, ContextRecord, EstablisherFrame,
-        // ExceptionRecord, then a private return address handled by RET.
-        [
+        let sp = emu.sp();
+        let previous = emu.seh() as u32;
+        if !emu.stack_push32((self.base + GUARD_COOKIE_OFFSET) as u32)
+            || !emu.stack_push32(previous)
+        {
+            emu.set_sp(sp);
+            return false;
+        }
+        let guard = emu.sp();
+        let pushed = [
             (self.base + DISPATCHER_OFFSET) as u32,
             self.context() as u32,
             establisher,
-            self.record() as u32,
+            record as u32,
             (self.base + RETURN_COOKIE_OFFSET) as u32,
         ]
         .into_iter()
-        .all(|value| emu.stack_push32(value))
+        .all(|value| emu.stack_push32(value));
+        if !pushed {
+            emu.set_sp(sp);
+            return false;
+        }
+        emu.maps
+            .write_dword(self.base + HANDLER_GUARD, guard as u32);
+        emu.set_seh(guard);
+        true
     }
 
     fn restore_context(self, emu: &mut Emu) {
@@ -107,7 +128,11 @@ impl Frame {
             .maps
             .read_dword(self.base + ESTABLISHER_FRAME)
             .unwrap_or(0);
-        let Some(next) = emu.maps.read_dword(frame as u64) else {
+        let Some(next) = emu
+            .maps
+            .read_dword(frame as u64)
+            .and_then(|next| guest_registration(emu, next))
+        else {
             self.stop(emu, "unreadable registration record");
             return;
         };
@@ -141,7 +166,7 @@ impl Frame {
         }
         emu.maps
             .write_dword(self.base + HANDLERS_VISITED, visited + 1);
-        if !self.push_arguments(emu, next) {
+        if !self.push_arguments(emu, next, self.record()) {
             self.restore_context(emu);
             self.stop(emu, "cannot build handler stack");
             return;
@@ -150,6 +175,16 @@ impl Frame {
     }
 
     fn finish(self, emu: &mut Emu) {
+        if let Some(guard) = emu.maps.read_dword(self.base + HANDLER_GUARD)
+            && emu.seh() == guard as u64
+            && let Some(previous) = emu.maps.read_dword(guard as u64)
+        {
+            emu.set_seh(previous as u64);
+        }
+        if emu.maps.read_dword(self.base) == Some(UNWIND_MAGIC) {
+            unwind::finish(self, emu);
+            return;
+        }
         let disposition = emu.regs().get_eax() as u32;
         self.restore_context(emu);
         match disposition {
@@ -163,13 +198,39 @@ impl Frame {
     }
 }
 
+/// Internal handler registrations link to the interrupted chain just like the NT dispatcher.
+fn guard_owner(emu: &Emu, registration: u32) -> Option<Frame> {
+    let callback = emu
+        .maps
+        .read_dword(registration as u64 + REGISTRATION_HANDLER)? as u64;
+    let base = callback.checked_sub(GUARD_COOKIE_OFFSET)?;
+    let owner = Frame { base };
+    (matches!(emu.maps.read_dword(base), Some(FRAME_MAGIC | UNWIND_MAGIC))
+        && emu.maps.read_dword(base + HANDLER_GUARD) == Some(registration))
+    .then_some(owner)
+}
+
+pub(crate) fn guest_registration(emu: &Emu, mut head: u32) -> Option<u32> {
+    for _ in 0..MAX_HANDLERS {
+        if head == 0 || head == EXCEPTION_CHAIN_END || guard_owner(emu, head).is_none() {
+            return Some(head);
+        }
+        head = emu.maps.read_dword(head as u64)?;
+    }
+    None
+}
+
 pub(crate) fn enter_record(emu: &mut Emu, record: &ExceptionRecord) {
+    let Some(registration) = guest_registration(emu, emu.seh() as u32) else {
+        emu.stop();
+        return;
+    };
     let Some(frame) = Frame::allocate(emu, record) else {
         log::error!("x86 SEH: cannot allocate exception records");
         emu.stop();
         return;
     };
-    if !frame.push_arguments(emu, emu.seh() as u32) {
+    if !frame.push_arguments(emu, registration, frame.record()) {
         frame.restore_context(emu);
         frame.stop(emu, "cannot build handler stack");
     }
@@ -197,5 +258,10 @@ pub(crate) fn exit(emu: &mut Emu) {
 }
 
 pub(crate) fn active_record(emu: &Emu) -> Option<u64> {
-    Frame::active(emu).map(|frame| frame.record())
+    let frame = Frame::active(emu)?;
+    if emu.maps.read_dword(frame.base) == Some(UNWIND_MAGIC) {
+        unwind::record_pointer(frame, emu)
+    } else {
+        Some(frame.record())
+    }
 }

@@ -533,6 +533,20 @@ impl HandleManagement {
             .insert(HandleType::ProcessAccess(id, access)) as u32
     }
 
+    pub(crate) fn native_type_name(&self, handle: u64) -> Option<&'static str> {
+        match self.handle_types.get(usize::try_from(handle).ok()?)? {
+            HandleType::FileHandle(_) | HandleType::Console(..) | HandleType::Ipc => Some("File"),
+            HandleType::SectionHandle(_) | HandleType::MappingHandle(_) => Some("Section"),
+            HandleType::Process(_) | HandleType::ProcessAccess(..) => Some("Process"),
+            HandleType::Thread(_) => Some("Thread"),
+            HandleType::ProcessToken(_) => Some("Token"),
+            HandleType::RegistryKey(_) | HandleType::RegistryKeyAccess(..) => Some("Key"),
+            HandleType::Native(NativeObject::KnownDllDirectory { .. }) => Some("Directory"),
+            HandleType::Native(NativeObject::KnownDllPath { .. }) => Some("SymbolicLink"),
+            _ => None,
+        }
+    }
+
     pub(crate) fn contains_handle(&self, handle: u64) -> bool {
         handle != 0 && usize::try_from(handle).is_ok_and(|index| self.handle_types.contains(index))
     }

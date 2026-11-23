@@ -1,7 +1,10 @@
 use crate::fpu::FPU;
 use crate::maps::Maps;
 use crate::regs64::Regs64;
-use crate::windows::constants::exceptions::{WOW64_CONTEXT_CONTROL, WOW64_CONTEXT_INTEGER};
+use crate::windows::constants::exceptions::{
+    WOW64_CONTEXT_CONTROL, WOW64_CONTEXT_DEBUG_REGISTERS, WOW64_CONTEXT_INTEGER,
+    WOW64_USER_CODE_SELECTOR,
+};
 
 pub struct Context32 {
     ctx_flags: u32,
@@ -31,6 +34,16 @@ pub struct Context32 {
 }
 
 impl Context32 {
+    pub const FLAGS_OFFSET: u64 = 0x0;
+    pub const EFLAGS_OFFSET: u64 = 0xc0;
+    pub const INTEGER_CONTROL_SIZE: u64 = 0xcc;
+
+    const DR0_OFFSET: u64 = 0x04;
+    const DR1_OFFSET: u64 = 0x08;
+    const DR2_OFFSET: u64 = 0x0c;
+    const DR3_OFFSET: u64 = 0x10;
+    const DR6_OFFSET: u64 = 0x14;
+    const DR7_OFFSET: u64 = 0x18;
     const EDI_OFFSET: u64 = 0x9c;
     const ESI_OFFSET: u64 = 0xa0;
     const EBX_OFFSET: u64 = 0xa4;
@@ -39,17 +52,19 @@ impl Context32 {
     const EAX_OFFSET: u64 = 0xb0;
     const EBP_OFFSET: u64 = 0xb4;
     const EIP_OFFSET: u64 = 0xb8;
+    const CS_OFFSET: u64 = 0xbc;
     const ESP_OFFSET: u64 = 0xc4;
-    const DR0_OFFSET: u64 = 4;
-    const DR1_OFFSET: u64 = 8;
-    const DR2_OFFSET: u64 = 12;
-    const DR3_OFFSET: u64 = 16;
-    const DR6_OFFSET: u64 = 20;
-    const DR7_OFFSET: u64 = 24;
-    pub const INTEGER_CONTROL_SIZE: u64 = 0xcc;
 
     /// Transfer only the supported register groups selected by ContextFlags.
     pub(crate) fn load_selected(&mut self, addr: u64, maps: &Maps, flags: u32) {
+        if flags & WOW64_CONTEXT_DEBUG_REGISTERS == WOW64_CONTEXT_DEBUG_REGISTERS {
+            self.dr0 = maps.read_dword(addr + Self::DR0_OFFSET).unwrap_or(0);
+            self.dr1 = maps.read_dword(addr + Self::DR1_OFFSET).unwrap_or(0);
+            self.dr2 = maps.read_dword(addr + Self::DR2_OFFSET).unwrap_or(0);
+            self.dr3 = maps.read_dword(addr + Self::DR3_OFFSET).unwrap_or(0);
+            self.dr6 = maps.read_dword(addr + Self::DR6_OFFSET).unwrap_or(0);
+            self.dr7 = maps.read_dword(addr + Self::DR7_OFFSET).unwrap_or(0);
+        }
         if flags & WOW64_CONTEXT_INTEGER == WOW64_CONTEXT_INTEGER {
             self.edi = maps.read_dword(addr + Self::EDI_OFFSET).unwrap_or(0);
             self.esi = maps.read_dword(addr + Self::ESI_OFFSET).unwrap_or(0);
@@ -67,6 +82,14 @@ impl Context32 {
     }
 
     fn save_registers(&self, addr: u64, maps: &mut Maps, flags: u32) {
+        if flags & WOW64_CONTEXT_DEBUG_REGISTERS == WOW64_CONTEXT_DEBUG_REGISTERS {
+            maps.write_dword(addr + Self::DR0_OFFSET, self.dr0);
+            maps.write_dword(addr + Self::DR1_OFFSET, self.dr1);
+            maps.write_dword(addr + Self::DR2_OFFSET, self.dr2);
+            maps.write_dword(addr + Self::DR3_OFFSET, self.dr3);
+            maps.write_dword(addr + Self::DR6_OFFSET, self.dr6);
+            maps.write_dword(addr + Self::DR7_OFFSET, self.dr7);
+        }
         if flags & WOW64_CONTEXT_INTEGER == WOW64_CONTEXT_INTEGER {
             maps.write_dword(addr + Self::EDI_OFFSET, self.edi);
             maps.write_dword(addr + Self::ESI_OFFSET, self.esi);
@@ -78,6 +101,7 @@ impl Context32 {
         if flags & WOW64_CONTEXT_CONTROL == WOW64_CONTEXT_CONTROL {
             maps.write_dword(addr + Self::EBP_OFFSET, self.ebp);
             maps.write_dword(addr + Self::EIP_OFFSET, self.eip);
+            maps.write_dword(addr + Self::CS_OFFSET, self.seg_cs);
             maps.write_dword(addr + Self::ESP_OFFSET, self.esp);
         }
     }
@@ -89,18 +113,15 @@ impl Context32 {
         }
     }
 
-    pub const FLAGS_OFFSET: u64 = 0x0;
-    pub const EFLAGS_OFFSET: u64 = 0xc0;
-
     pub fn new(regs: &Regs64) -> Context32 {
         Context32 {
             ctx_flags: 0,
-            dr0: 0,
-            dr1: 0,
-            dr2: 0,
-            dr3: 0,
-            dr6: 0,
-            dr7: 0,
+            dr0: regs.dr0 as u32,
+            dr1: regs.dr1 as u32,
+            dr2: regs.dr2 as u32,
+            dr3: regs.dr3 as u32,
+            dr6: regs.dr6 as u32,
+            dr7: regs.dr7 as u32,
             fpu: FPU::new(),
             seg_gs: 0,
             seg_fd: 0,
@@ -114,7 +135,7 @@ impl Context32 {
             eax: regs.get_eax() as u32,
             ebp: regs.get_ebp() as u32,
             eip: regs.get_eip() as u32,
-            seg_cs: 0,
+            seg_cs: WOW64_USER_CODE_SELECTOR as u32,
             eflags: 0,
             esp: regs.get_esp() as u32,
             seg_ss: 0,
@@ -123,29 +144,29 @@ impl Context32 {
 
     pub fn save(&self, addr: u32, maps: &mut Maps) {
         let addr = addr as u64;
-        maps.write_dword(addr + Self::DR0_OFFSET, self.dr0);
-        maps.write_dword(addr + Self::DR1_OFFSET, self.dr1);
-        maps.write_dword(addr + Self::DR2_OFFSET, self.dr2);
-        maps.write_dword(addr + Self::DR3_OFFSET, self.dr3);
-        maps.write_dword(addr + Self::DR6_OFFSET, self.dr6);
-        maps.write_dword(addr + Self::DR7_OFFSET, self.dr7);
-
-        self.save_registers(addr, maps, WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER);
+        self.save_registers(
+            addr,
+            maps,
+            WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER | WOW64_CONTEXT_DEBUG_REGISTERS,
+        );
     }
 
     pub fn load(&mut self, addr: u32, maps: &mut Maps) {
         let addr = addr as u64;
-        self.dr0 = maps.read_dword(addr + Self::DR0_OFFSET).unwrap_or(0);
-        self.dr1 = maps.read_dword(addr + Self::DR1_OFFSET).unwrap_or(0);
-        self.dr2 = maps.read_dword(addr + Self::DR2_OFFSET).unwrap_or(0);
-        self.dr3 = maps.read_dword(addr + Self::DR3_OFFSET).unwrap_or(0);
-        self.dr6 = maps.read_dword(addr + Self::DR6_OFFSET).unwrap_or(0);
-        self.dr7 = maps.read_dword(addr + Self::DR7_OFFSET).unwrap_or(0);
-
-        self.load_selected(addr, maps, WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER);
+        self.load_selected(
+            addr,
+            maps,
+            WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER | WOW64_CONTEXT_DEBUG_REGISTERS,
+        );
     }
 
     pub fn sync(&self, regs: &mut Regs64) {
+        regs.dr0 = self.dr0 as u64;
+        regs.dr1 = self.dr1 as u64;
+        regs.dr2 = self.dr2 as u64;
+        regs.dr3 = self.dr3 as u64;
+        regs.dr6 = self.dr6 as u64;
+        regs.dr7 = self.dr7 as u64;
         regs.set_eax(self.eax as u64);
         regs.set_ebx(self.ebx as u64);
         regs.set_ecx(self.ecx as u64);

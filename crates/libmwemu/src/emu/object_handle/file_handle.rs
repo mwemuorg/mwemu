@@ -19,7 +19,7 @@ pub use crate::windows::constants::security::{
 };
 
 use std::fs::File;
-use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
@@ -266,6 +266,12 @@ pub fn init_file_system_with_mappings<P: AsRef<Path>>(
         .map_err(|_| io::Error::other("FileSystem already initialized"))
 }
 
+enum FileBacking {
+    Host(File),
+    Guest(Cursor<Vec<u8>>),
+    Null,
+}
+
 // Represents the state and metadata associated with a Windows file handle
 pub struct FileHandle {
     // --- Core File/Directory Info ---
@@ -273,7 +279,7 @@ pub struct FileHandle {
     path: PathBuf, // Resolved path
     is_dir: bool,  // Whether this handle represents a directory
     // --- Rust File/ReadDir Objects ---
-    file: Option<File>, // Actual Rust file handle (for files)
+    file: Option<FileBacking>,
     // --- WinAPI Handle State ---
     access_mode: u32,          // Access flags (e.g., GENERIC_READ, GENERIC_WRITE)
     creation_disposition: u32, // How the file was opened (CREATE_ALWAYS, OPEN_EXISTING, etc.)
@@ -396,7 +402,7 @@ impl FileHandle {
         if is_dir && !allow_directory {
             return Err(io::Error::from(ErrorKind::PermissionDenied).into());
         }
-        let file = Some(opened_file);
+        let file = Some(FileBacking::Host(opened_file));
         let file_size = metadata.len();
         Ok((
             FileHandle {
@@ -417,19 +423,78 @@ impl FileHandle {
         ))
     }
 
+    pub(crate) fn from_guest_bytes(
+        name: String,
+        bytes: Vec<u8>,
+        access_mode: u32,
+        flags_and_attributes: u32,
+        sharing_mode: u32,
+    ) -> Self {
+        let size = bytes.len() as u64;
+        Self::virtual_file(
+            name,
+            FileBacking::Guest(Cursor::new(bytes)),
+            size,
+            access_mode,
+            flags_and_attributes,
+            sharing_mode,
+        )
+    }
+
+    pub(crate) fn null_device(name: String, access: u32, attributes: u32, share: u32) -> Self {
+        Self::virtual_file(name, FileBacking::Null, 0, access, attributes, share)
+    }
+
+    pub(crate) fn is_null_device(&self) -> bool {
+        matches!(self.file, Some(FileBacking::Null))
+    }
+
+    fn virtual_file(
+        name: String,
+        backing: FileBacking,
+        size: u64,
+        access_mode: u32,
+        flags_and_attributes: u32,
+        sharing_mode: u32,
+    ) -> Self {
+        Self {
+            name,
+            path: PathBuf::new(),
+            is_dir: false,
+            file_size: size,
+            file: Some(backing),
+            access_mode,
+            creation_disposition: OPEN_EXISTING as u32,
+            flags_and_attributes,
+            file_position: 0,
+            sharing_mode,
+            is_valid: true,
+            is_eof: false,
+        }
+    }
+
     /// Read backing bytes without changing the guest file position.
     pub fn mapping_bytes(&self, size: usize) -> io::Result<Vec<u8>> {
+        if self.is_null_device() {
+            return Err(ErrorKind::Unsupported.into());
+        }
         if !self.is_valid || self.is_dir {
             return Err(io::Error::new(
                 ErrorKind::InvalidInput,
                 "invalid file handle",
             ));
         }
-        let mut file = self.open_file()?.try_clone()?;
-        let position = self.file_position;
         let mut bytes = Vec::new();
         bytes.try_reserve_exact(size).map_err(io::Error::other)?;
         bytes.resize(size, 0);
+        if let Some(FileBacking::Guest(cursor)) = &self.file {
+            let source = cursor.get_ref();
+            let count = bytes.len().min(source.len());
+            bytes[..count].copy_from_slice(&source[..count]);
+            return Ok(bytes);
+        }
+        let mut file = self.open_file()?.try_clone()?;
+        let position = self.file_position;
         file.seek(SeekFrom::Start(0))?;
         let result: io::Result<()> = (|| {
             let mut read = 0;
@@ -456,18 +521,15 @@ impl FileHandle {
                 "Invalid handle or operation for directory",
             ));
         }
-        if let Some(ref mut f) = self.file {
-            let bytes_read = f.read(buffer)?;
-            self.file_position += bytes_read as u64;
-            // Update EOF flag if necessary
-            self.is_eof = self.file_position >= self.file_size && bytes_read == 0;
-            Ok(bytes_read)
-        } else {
-            Err(io::Error::new(
-                ErrorKind::InvalidInput,
-                "No file object associated",
-            ))
-        }
+        let bytes_read = match &mut self.file {
+            Some(FileBacking::Host(file)) => file.read(buffer)?,
+            Some(FileBacking::Guest(file)) => file.read(buffer)?,
+            Some(FileBacking::Null) => 0,
+            None => return Err(ErrorKind::InvalidInput.into()),
+        };
+        self.file_position += bytes_read as u64;
+        self.is_eof = self.file_position >= self.file_size && bytes_read == 0;
+        Ok(bytes_read)
     }
 
     pub fn write(&mut self, buffer: &[u8]) -> Result<usize, io::Error> {
@@ -478,7 +540,10 @@ impl FileHandle {
                 "Invalid handle or operation for directory",
             ));
         }
-        if let Some(ref mut f) = self.file {
+        if self.is_null_device() {
+            return Ok(buffer.len());
+        }
+        if let Some(FileBacking::Host(ref mut f)) = self.file {
             let bytes_written = f.write(buffer)?;
             self.file_position += bytes_written as u64;
             self.file_size = self.file_size.max(self.file_position);
@@ -499,17 +564,15 @@ impl FileHandle {
                 "Invalid handle or operation for directory",
             ));
         }
-        if let Some(ref mut f) = self.file {
-            let new_pos = f.seek(pos)?;
-            self.file_position = new_pos;
-            self.is_eof = false; // Seeking usually means not at EOF
-            Ok(new_pos)
-        } else {
-            Err(io::Error::new(
-                ErrorKind::InvalidInput,
-                "No file object associated",
-            ))
-        }
+        let new_pos = match &mut self.file {
+            Some(FileBacking::Host(file)) => file.seek(pos)?,
+            Some(FileBacking::Guest(file)) => file.seek(pos)?,
+            Some(FileBacking::Null) => return Err(ErrorKind::Unsupported.into()),
+            None => return Err(ErrorKind::InvalidInput.into()),
+        };
+        self.file_position = new_pos;
+        self.is_eof = false;
+        Ok(new_pos)
     }
 
     pub fn close(&mut self) {
@@ -520,10 +583,11 @@ impl FileHandle {
     }
 
     pub(crate) fn open_file(&self) -> io::Result<&File> {
-        self.file
-            .as_ref()
-            .filter(|_| self.is_valid)
-            .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "No file object associated"))
+        match &self.file {
+            Some(FileBacking::Host(file)) if self.is_valid => Ok(file),
+            Some(FileBacking::Guest(_) | FileBacking::Null) => Err(ErrorKind::Unsupported.into()),
+            _ => Err(ErrorKind::InvalidInput.into()),
+        }
     }
 
     fn require_access(&self, access: u32) -> io::Result<()> {
@@ -560,6 +624,12 @@ impl FileHandle {
 
     /// Current size of the file.
     pub fn length(&self) -> io::Result<u64> {
+        if self.is_null_device() {
+            return Ok(0);
+        }
+        if let Some(FileBacking::Guest(file)) = &self.file {
+            return Ok(file.get_ref().len() as u64);
+        }
         Ok(self.open_file()?.metadata()?.len())
     }
 
@@ -632,12 +702,7 @@ impl FileHandle {
 
     // Setter for file_position (e.g., from SetFilePointer)
     pub fn set_position(&mut self, pos: u64) {
-        if let Some(ref mut f) = self.file
-            && f.seek(SeekFrom::Start(pos)).is_ok()
-        {
-            self.file_position = pos;
-            self.is_eof = false; // Seeking usually means not at EOF
-        }
+        let _ = self.seek(SeekFrom::Start(pos));
     }
 }
 

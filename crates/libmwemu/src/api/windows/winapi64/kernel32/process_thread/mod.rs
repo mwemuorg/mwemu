@@ -1,8 +1,8 @@
 pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
     CheckRemoteDebuggerPresent, CreateProcessA, CreateProcessW, CreateRemoteThread,
     DuplicateHandle, GetThreadLocale, IsDebuggerPresent, IsProcessorFeaturePresent, IsWow64Process,
-    RaiseException, SetThreadLocale, SetThreadStackGuarantee, TerminateProcess,
-    UnhandledExceptionFilter,
+    RaiseException, SetThreadLocale, SetThreadStackGuarantee, SetUnhandledExceptionFilter,
+    TerminateProcess, UnhandledExceptionFilter,
 };
 
 use crate::api::dispatch_api;
@@ -30,9 +30,6 @@ mod exit_process;
 pub use exit_process::ExitProcess;
 
 pub use crate::winapi::common::security::OpenProcessToken;
-
-mod set_unhandled_exception_filter;
-pub use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     dispatch_api!(api, {

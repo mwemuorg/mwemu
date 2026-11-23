@@ -216,3 +216,68 @@ impl WindowTable {
             .map_or(0, |(&h, _)| h)
     }
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct UserTimer {
+    pub thread: u64,
+    pub deadline: u64,
+    pub period: u32,
+    pub callback: u64,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub(crate) struct TimerTable {
+    timers: BTreeMap<(u64, u64), UserTimer>,
+    last_id: u32,
+}
+
+impl TimerTable {
+    pub fn set(&mut self, hwnd: u64, requested: u64, timer: UserTimer) -> Option<u64> {
+        let id = if hwnd != 0 || self.timers.contains_key(&(hwnd, requested)) {
+            requested
+        } else {
+            // Windows chooses an ID when a thread timer does not replace an existing timer.
+            let first = self.last_id.wrapping_add(1).max(1);
+            let mut id = first;
+            while self.timers.contains_key(&(0, u64::from(id))) {
+                id = id.wrapping_add(1).max(1);
+                if id == first {
+                    return None;
+                }
+            }
+            self.last_id = id;
+            u64::from(id)
+        };
+        self.timers.insert((hwnd, id), timer);
+        Some(id.max(1))
+    }
+
+    pub fn kill(&mut self, hwnd: u64, id: u64) -> bool {
+        self.timers.remove(&(hwnd, id)).is_some()
+    }
+
+    pub fn next(
+        &mut self,
+        thread: u64,
+        accepts: impl Fn(u64) -> bool,
+    ) -> Option<((u64, u64), &mut UserTimer)> {
+        self.timers
+            .iter_mut()
+            .filter(|((hwnd, _), timer)| timer.thread == thread && accepts(*hwnd))
+            .min_by_key(|(_, timer)| timer.deadline)
+            .map(|(key, timer)| (*key, timer))
+    }
+
+    pub fn has_callback(&self, callback: u64) -> bool {
+        self.timers.values().any(|timer| timer.callback == callback)
+    }
+
+    pub fn remove_thread(&mut self, thread: u64) {
+        self.timers.retain(|_, timer| timer.thread != thread);
+    }
+
+    pub fn remove_destroyed_windows(&mut self, windows: &WindowTable) {
+        self.timers
+            .retain(|(hwnd, _), _| *hwnd == 0 || windows.contains(*hwnd));
+    }
+}

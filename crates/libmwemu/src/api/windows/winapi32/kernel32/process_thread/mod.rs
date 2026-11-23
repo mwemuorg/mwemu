@@ -2,7 +2,7 @@ pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
     CreateProcessA, CreateProcessW, CreateRemoteThread, GetActiveProcessorCount,
     GetExitCodeProcessImplementation, GetMaximumProcessorCount, GetProcessWorkingSetSize,
     GetThreadPreferredUILanguages, IsDebuggerPresent, IsProcessorFeaturePresent, RaiseException,
-    SetThreadLocale, TerminateProcess, UnhandledExceptionFilter,
+    SetThreadLocale, SetUnhandledExceptionFilter, TerminateProcess, UnhandledExceptionFilter,
 };
 
 use crate::api::dispatch_api;
@@ -25,9 +25,6 @@ pub use exit_process::ExitProcess;
 
 pub use crate::winapi::common::security::OpenProcessToken;
 
-mod set_unhandled_exception_filter;
-pub use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
-
 unsupported_exports!(
     "kernel32",
     DebugSetProcessKillOnExit,
@@ -36,13 +33,11 @@ unsupported_exports!(
     GetNumaNodeProcessorMask,
     GetNumaProcessorNode,
     GetNumaProcessorNodeEx,
-    GetProcessDEPPolicy,
     GetProcessIoCounters,
     GetThreadSelectorEntry,
     IsThreadAFiber,
     QueryThreadProfiling,
     ReadThreadProfilingData,
-    SetProcessDEPPolicy,
     SetThreadExecutionState
 );
 

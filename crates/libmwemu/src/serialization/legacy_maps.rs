@@ -107,9 +107,10 @@ impl<M: Into<Mem64>> From<LegacySerializableMaps<M>> for Maps {
 mod tests {
     use crate::emu32;
     use crate::maps::mem64::Permission;
+    use crate::serialization::NATIVE_V2_MAGIC;
     use crate::serialization::Serialization;
     use crate::serialization::emu::SerializableEmu;
-    use crate::serialization::legacy_maps::LegacySerializableMaps;
+    use crate::serialization::legacy_maps::{LegacySerializableMaps, RangeMem64};
 
     #[test]
     fn reads_native_snapshots_with_the_previous_memory_layout() {
@@ -124,17 +125,31 @@ mod tests {
         assert!(emu.maps.write_dword(0x500100, 0x12345678));
         emu.maps.dealloc(0x400000);
         let key = emu.maps.maps[&0x500000];
-        // Encode the old field layout without the new format marker. JSON is
-        // only used here to retain the other Emu fields while replacing maps.
+        let kept = emu.maps.get_mem_mut("kept");
+        assert!(kept.set_permission_range(0x500800, 0x800, Permission::READ));
+
+        // JSON projects the current map state onto each historical wire layout.
         let state = serde_json::to_value(SerializableEmu::from(&emu)).unwrap();
-        let legacy: SerializableEmu<LegacySerializableMaps> =
+        let v1: SerializableEmu<LegacySerializableMaps> =
+            serde_json::from_value(state.clone()).unwrap();
+        let v2: SerializableEmu<LegacySerializableMaps<RangeMem64>> =
             serde_json::from_value(state).unwrap();
-        let bytes = bitcode::serialize(&legacy).unwrap();
-        let restored = Serialization::deserialize(&bytes);
-        assert_eq!(restored.regs().rax, 0x1234);
-        assert_eq!(restored.maps.maps[&0x500000], key);
-        assert_eq!(restored.maps.get_mem("kept").get_base(), 0x500000);
-        assert_eq!(restored.maps.read_dword(0x500100), Some(0x12345678));
-        assert!(!restored.maps.is_mapped(0x400000));
+        let mut tagged = NATIVE_V2_MAGIC.to_vec();
+        tagged.extend(bitcode::serialize(&v2).unwrap());
+
+        for (bytes, upper_permission) in [
+            (bitcode::serialize(&v1).unwrap(), Permission::READ_WRITE),
+            (tagged, Permission::READ),
+        ] {
+            let restored = Serialization::try_deserialize(&bytes).unwrap();
+            assert_eq!(restored.regs().rax, 0x1234);
+            assert_eq!(restored.maps.maps[&0x500000], key);
+            let kept = restored.maps.get_mem("kept");
+            assert_eq!(kept.get_base(), 0x500000);
+            assert_eq!(kept.permission_at(0x5007ff), Permission::READ_WRITE);
+            assert_eq!(kept.permission_at(0x500800), upper_permission);
+            assert_eq!(restored.maps.read_dword(0x500100), Some(0x12345678));
+            assert!(!restored.maps.is_mapped(0x400000));
+        }
     }
 }

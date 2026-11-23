@@ -7,6 +7,7 @@
 
 use rs_header::pe::{IMAGE_FILE_MACHINE_I386, pe_machine_type};
 
+use crate::api::abi::windows::{X64_SHADOW_SPACE, X64_STACK_ALIGNMENT};
 use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
@@ -16,6 +17,7 @@ mod detect;
 mod elf;
 mod elf32;
 mod format;
+pub(crate) mod guest_dll;
 mod kext;
 mod ko;
 mod ldr_init;
@@ -35,16 +37,14 @@ impl Emu {
     /// Execute initialization under the same API policy as the entry point.
     pub(crate) fn run_tls_callbacks(&mut self, base: u64) -> Result<(), MwemuError> {
         self.check_api_stop()?;
-        const WIN64_SHADOW_SPACE: u64 = 4 * size_of::<u64>() as u64;
-        const WIN64_STACK_ALIGNMENT: u64 = 16;
         for i in 0..self.tls_callbacks.len() {
             self.check_api_stop()?;
             let callback = self.tls_callbacks[i];
             let saved_sp = self.sp();
             log::trace!("emulating TLS callback {} at 0x{:x}", i + 1, callback);
             let frame_written = if self.cfg.arch.is_64bits() {
-                let frame = (saved_sp & !(WIN64_STACK_ALIGNMENT - 1))
-                    .checked_sub(WIN64_SHADOW_SPACE)
+                let frame = (saved_sp & !(X64_STACK_ALIGNMENT - 1))
+                    .checked_sub(X64_SHADOW_SPACE)
                     .ok_or_else(|| MwemuError::new("invalid TLS callback stack"))?;
                 self.set_sp(frame);
                 self.regs_mut().rcx = base;

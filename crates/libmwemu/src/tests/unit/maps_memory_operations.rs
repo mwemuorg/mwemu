@@ -59,3 +59,42 @@ pub fn maps_memory_operations() {
         .create_map("test_map", base, size, Permission::READ_WRITE);
     assert!(result2.is_err());
 }
+
+#[test]
+fn scalars_and_buffers_span_every_contiguous_map() {
+    let mut emu = emu64();
+    let maps = &mut emu.maps;
+    let start = 0x1000;
+    for (name, offset, size, permission) in [
+        ("first", 0, 3, Permission::READ_WRITE),
+        ("code", 3, 2, Permission::READ_WRITE_EXECUTE),
+        ("last", 5, 16, Permission::READ_WRITE),
+    ] {
+        maps.create_map(name, start + offset, size, permission)
+            .unwrap();
+    }
+    let mut writes = Vec::new();
+    maps.drain_code_writes(&mut writes);
+    let value = u128::from_le_bytes(*b"0123456789abcdef");
+    assert!(maps.write_128bits_le(start + 1, value));
+    assert_eq!(maps.read_128bits_le(start + 1), Some(value));
+    assert_eq!(maps.read_128bits_be(start + 1), Some(value.swap_bytes()));
+    assert_eq!(
+        maps.try_read_bytes(start + 1, 16).as_deref(),
+        Some(b"0123456789abcdef".as_slice())
+    );
+    maps.drain_code_writes(&mut writes);
+    assert_eq!(writes, [(start + 3, 2)]);
+
+    maps.get_mem_mut("last").set_permission(Permission::READ);
+    assert!(!maps.write_qword(start + 1, u64::MAX));
+    assert_eq!(
+        maps.read_qword(start + 1),
+        Some(u64::from_le_bytes(*b"01234567"))
+    );
+    assert!(!maps.has_code_writes());
+    maps.free("code");
+    assert!(maps.try_read_bytes(start + 1, 8).is_none());
+    assert!(!maps.write_qword(start + 1, 0));
+    assert_eq!(maps.read_word(start + 1), Some(u16::from_le_bytes(*b"01")));
+}

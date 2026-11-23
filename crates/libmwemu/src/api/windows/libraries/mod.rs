@@ -24,12 +24,15 @@ pub mod winhttp;
 pub mod wininet;
 pub mod ws2_32;
 
-use crate::api::windows::common::{fallback, iphlpapi, ntdll};
+use crate::api::windows::common::{crt, fallback, iphlpapi, ntdll, seh4};
 use crate::emu::Emu;
 use crate::winapi::{winapi32, winapi64};
 
 pub(crate) fn dispatch(library: &str, api: &str, emu: &mut Emu) -> bool {
     match library.trim_end_matches(".dll") {
+        "vcruntime140" => {
+            seh4::dispatch(emu, "vcruntime140", api) || crt::dispatch_memory(api, emu)
+        }
         "bcrypt" => bcrypt::dispatch(api, emu),
         "crypt32" => crypt32::dispatch(api, emu),
         "ole32" => ole32::dispatch(api, emu),

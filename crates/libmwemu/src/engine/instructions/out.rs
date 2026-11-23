@@ -1,5 +1,6 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::exception::types::ExceptionType;
 use iced_x86::{Instruction, OpKind, Register};
 
 /// `out dx|imm8, al/ax/eax`: write an I/O port (see `in_`).
@@ -9,6 +10,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
     if emu.kernel.as_ref().is_none_or(|k| k.ledger_only) {
+        if emu.os.is_windows() {
+            emu.exception(ExceptionType::PrivilegedInstruction);
+        }
         log::warn!("out: port I/O outside kernel mode");
         return false;
     }

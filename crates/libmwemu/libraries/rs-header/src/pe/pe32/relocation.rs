@@ -1,60 +1,42 @@
 use super::PE32;
 use crate::pe::loader::PeLoader;
-use crate::pe::readers::{read_u16_le, read_u32_le};
-use crate::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, IMAGE_REL_BASED_HIGHLOW};
+use crate::pe::relocation;
+use crate::pe::shared::IMAGE_REL_BASED_HIGHLOW;
 
-const BLOCK_HEADER_SIZE: usize = 8;
-const RELOCATION_OFFSET_MASK: u16 = 0x0fff;
-const RELOCATION_TYPE_SHIFT: u32 = 12;
+const DATA_DIRECTORY_OFFSET: usize = 96;
 
 impl PE32 {
+    fn visit_relocations(&self, raw: &[u8], apply: impl FnMut(u32, [u8; 4])) -> Option<()> {
+        let layout = self.image_layout();
+        let blocks = relocation::directory(
+            raw,
+            layout,
+            self.dos.e_lfanew,
+            &self.fh,
+            DATA_DIRECTORY_OFFSET,
+            self.opt.number_of_rva_and_sizes,
+            &self.opt.data_directory,
+        )?;
+        relocation::visit(raw, layout, blocks, IMAGE_REL_BASED_HIGHLOW, apply)
+    }
+
+    /// Whether the image can move without losing a base fixup. Position-independent
+    /// images can have no fixups and leave the relocation directory empty.
+    pub fn can_relocate(&self, raw: &[u8]) -> bool {
+        self.visit_relocations(raw, |_, _| {}).is_some()
+    }
+
     /// Rebase initialized image values through the same layout used to map them.
     pub fn apply_relocations<L: PeLoader>(&self, raw: &[u8], loader: &mut L, base_addr: u32) {
-        let Some(directory) = self.opt.data_directory.get(IMAGE_DIRECTORY_ENTRY_BASERELOC) else {
-            return;
-        };
-        if directory.virtual_address == 0 || directory.size == 0 {
-            return;
-        }
         let delta = base_addr.wrapping_sub(self.opt.image_base);
         if delta == 0 {
             return;
         }
-        let layout = self.image_layout();
-        let Some(data) = layout.data_at(raw, directory.virtual_address) else {
-            return;
-        };
-        let Some(mut blocks) = data.get(..directory.size as usize) else {
-            return;
-        };
-        log::trace!("applying base relocations (delta 0x{:x})...", delta);
-        while blocks.len() >= BLOCK_HEADER_SIZE {
-            let page = read_u32_le(blocks, 0);
-            let size = read_u32_le(blocks, 4) as usize;
-            if size < BLOCK_HEADER_SIZE || size > blocks.len() {
-                break;
+        log::trace!("applying PE32 base relocations (delta {delta:#x})");
+        let _ = self.visit_relocations(raw, |rva, value| {
+            if let Some(address) = u64::from(base_addr).checked_add(u64::from(rva)) {
+                loader.write_dword(address, u32::from_le_bytes(value).wrapping_add(delta));
             }
-            for entry in blocks[BLOCK_HEADER_SIZE..size].chunks_exact(size_of::<u16>()) {
-                let entry = read_u16_le(entry, 0);
-                if entry >> RELOCATION_TYPE_SHIFT != IMAGE_REL_BASED_HIGHLOW {
-                    continue;
-                }
-                let Some(rva) = page.checked_add((entry & RELOCATION_OFFSET_MASK) as u32) else {
-                    continue;
-                };
-                let Some(value) = layout
-                    .data_at(raw, rva)
-                    .and_then(|data| data.get(..size_of::<u32>()))
-                else {
-                    continue;
-                };
-                let Some(address) = (base_addr as u64).checked_add(rva as u64) else {
-                    continue;
-                };
-                loader.write_dword(address, read_u32_le(value, 0).wrapping_add(delta));
-            }
-            blocks = &blocks[size..];
-        }
-        log::trace!("base relocations applied.");
+        });
     }
 }

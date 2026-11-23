@@ -288,10 +288,18 @@ impl crate::emu::Emu {
     /// under `…/x86/`). Set the guest architecture (e.g. `init_win64()` /
     /// `--64bits`) before calling, since the default is 32-bit.
     pub fn set_maps_from_winver(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+        self.set_maps_from_winver_in(name, Path::new(""))
+    }
+
+    pub(crate) fn set_maps_from_winver_in(
+        &mut self,
+        name: &str,
+        root: &Path,
+    ) -> Result<(), Box<dyn Error>> {
         let build = resolve_build(name);
         let is_x64 = self.cfg.arch.is_x64();
         let machine = if is_x64 { MACHINE_AMD64 } else { MACHINE_I386 };
-        let cache = cache_folder(&build, is_x64);
+        let cache = root.join(cache_folder(&build, is_x64));
         fs::create_dir_all(&cache)?;
         eprintln!(
             "[mwemu] --winver {}: build {} ({}) → fetching system DLLs from the symbol server",
@@ -366,7 +374,7 @@ fn seed_data_files(cache: &Path, is_x64: bool) {
 /// folder, best-effort. This placeholder host EXE is an mwemu support file (not
 /// a symbol-server artifact) that shellcode loading uses as the PEB's main
 /// image; without it the PEB ImageBase would point at a missing file.
-fn seed_loader_exe(cache: &Path, is_x64: bool) {
+pub(crate) fn seed_loader_exe(cache: &Path, is_x64: bool) {
     let dest = cache.join(EXE_NAME);
     if dest.is_file() {
         return;

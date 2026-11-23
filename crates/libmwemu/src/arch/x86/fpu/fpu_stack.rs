@@ -50,7 +50,7 @@ impl FPUStack {
         info!("invalid_flag: {:b}", self.invalid_flag);
     }
 
-    pub fn get_top(&mut self) -> u8 {
+    pub fn get_top(&self) -> u8 {
         self.top
     }
 

@@ -58,6 +58,46 @@ fn heap_ownership_and_zero_initialization_are_shared_across_modes() {
 }
 
 #[test]
+fn growable_heaps_own_large_blocks_through_resize_restore_and_destroy() {
+    const MIB: usize = 1024 * 1024;
+    for is64 in [false, true] {
+        let (mut emu, fixed, _) = prepare(is64, false);
+        let arena = emu.create_heap_arena(0, 0, 0).unwrap();
+        let handle = emu.heap_arenas[arena].base();
+        let key = emu
+            .handle_management
+            .insert_heap_handle(HeapHandle::new(0, 0, 0, arena));
+        emu.handle_management.set_heap_base_addr(key, handle);
+        let size = 5 * MIB + 8;
+        assert!(heap::allocate(&mut emu, fixed, size as u64, 0).is_none());
+        let block = heap::allocate(&mut emu, handle, size as u64, HEAP_ZERO_MEMORY).unwrap();
+        assert_eq!(heap::owned_size(&emu, handle, block), Some(size));
+        assert!(!heap::heap_free(&mut emu, fixed, block));
+        emu.maps.write_qword(block, 42);
+        let grown = heap::reallocate(
+            &mut emu,
+            handle,
+            block,
+            (size + 8) as u64,
+            HEAP_REALLOC_IN_PLACE_ONLY | HEAP_ZERO_MEMORY,
+        );
+        assert_eq!(grown, Some(block));
+        assert_eq!(emu.maps.read_qword(block + size as u64), Some(0));
+        let moved = heap::reallocate(&mut emu, handle, block, (6 * MIB) as u64, 0).unwrap();
+        assert_ne!(moved, block);
+        assert!(!emu.maps.is_mapped(block));
+        assert_eq!(emu.maps.read_qword(moved), Some(42));
+        let encoded = Serialization::serialize(&emu);
+        let mut restored = Serialization::deserialize(&encoded);
+        assert_eq!(heap::owned_size(&restored, handle, moved), Some(6 * MIB));
+        restored.destroy_heap_arena(arena);
+        assert!(!restored.maps.is_mapped(moved));
+        assert!(heap::heap_free(&mut emu, handle, moved));
+        assert!(!emu.maps.is_mapped(moved));
+    }
+}
+
+#[test]
 fn failed_reallocation_keeps_original_allocation_and_bytes() {
     for is64 in [false, true] {
         let (mut emu, handle, _) = prepare(is64, false);

@@ -1,9 +1,9 @@
-use crate::api::windows::common::{crypto_state, ntdll as ntdll_common};
+use crate::api::windows::common::{crypto_state::CryptoStore, ntdll as ntdll_common};
 use crate::emu64;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::common::memory::read_pointer;
-use crate::winapi::{helper, winapi64};
+use crate::winapi::winapi64;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::memory::*;
 
@@ -13,192 +13,208 @@ use crate::windows::constants::memory::*;
 
 #[test]
 fn crypto_state_md5_empty() {
-    let h = helper::handler_create("test://md5_empty");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://md5_empty");
+    assert!(store.create_hash(h, CALG_MD5));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // MD5("") = d41d8cd98f00b204e9800998ecf8427e
     assert_eq!(digest.len(), 16);
     assert_eq!(digest[0], 0xd4);
     assert_eq!(digest[1], 0x1d);
     assert_eq!(digest[15], 0x7e);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_md5_hello() {
-    let h = helper::handler_create("test://md5_hello");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
-    assert!(crypto_state::hash_data(h, b"Hello"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://md5_hello");
+    assert!(store.create_hash(h, CALG_MD5));
+    assert!(store.hash_data(h, b"Hello"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // MD5("Hello") = 8b1a9953c4611296a827abf8c47804d7
     assert_eq!(digest.len(), 16);
     assert_eq!(digest[0], 0x8b);
     assert_eq!(digest[1], 0x1a);
     assert_eq!(digest[15], 0xd7);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_md5_incremental() {
-    let h = helper::handler_create("test://md5_incr");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
-    assert!(crypto_state::hash_data(h, b"Hel"));
-    assert!(crypto_state::hash_data(h, b"lo"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://md5_incr");
+    assert!(store.create_hash(h, CALG_MD5));
+    assert!(store.hash_data(h, b"Hel"));
+    assert!(store.hash_data(h, b"lo"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // same as MD5("Hello")
     assert_eq!(digest[0], 0x8b);
     assert_eq!(digest[15], 0xd7);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_sha1_empty() {
-    let h = helper::handler_create("test://sha1_empty");
-    assert!(crypto_state::create_hash(h, CALG_SHA1));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://sha1_empty");
+    assert!(store.create_hash(h, CALG_SHA1));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // SHA1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
     assert_eq!(digest.len(), 20);
     assert_eq!(digest[0], 0xda);
     assert_eq!(digest[19], 0x09);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_sha1_abc() {
-    let h = helper::handler_create("test://sha1_abc");
-    assert!(crypto_state::create_hash(h, CALG_SHA1));
-    assert!(crypto_state::hash_data(h, b"abc"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://sha1_abc");
+    assert!(store.create_hash(h, CALG_SHA1));
+    assert!(store.hash_data(h, b"abc"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // SHA1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
     assert_eq!(digest.len(), 20);
     assert_eq!(digest[0], 0xa9);
     assert_eq!(digest[1], 0x99);
     assert_eq!(digest[19], 0x9d);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_sha256_empty() {
-    let h = helper::handler_create("test://sha256_empty");
-    assert!(crypto_state::create_hash(h, CALG_SHA_256));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://sha256_empty");
+    assert!(store.create_hash(h, CALG_SHA_256));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // SHA256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     assert_eq!(digest.len(), 32);
     assert_eq!(digest[0], 0xe3);
     assert_eq!(digest[1], 0xb0);
     assert_eq!(digest[31], 0x55);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_sha256_hello_world() {
-    let h = helper::handler_create("test://sha256_hw");
-    assert!(crypto_state::create_hash(h, CALG_SHA_256));
-    assert!(crypto_state::hash_data(h, b"hello world"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://sha256_hw");
+    assert!(store.create_hash(h, CALG_SHA_256));
+    assert!(store.hash_data(h, b"hello world"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     // SHA256("hello world") = b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
     assert_eq!(digest.len(), 32);
     assert_eq!(digest[0], 0xb9);
     assert_eq!(digest[1], 0x4d);
     assert_eq!(digest[31], 0xe9);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_sha256_incremental() {
-    let h = helper::handler_create("test://sha256_incr");
-    assert!(crypto_state::create_hash(h, CALG_SHA_256));
-    assert!(crypto_state::hash_data(h, b"hello "));
-    assert!(crypto_state::hash_data(h, b"world"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://sha256_incr");
+    assert!(store.create_hash(h, CALG_SHA_256));
+    assert!(store.hash_data(h, b"hello "));
+    assert!(store.hash_data(h, b"world"));
 
-    let digest = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let digest = store.get_hash_param(h, HP_HASHVAL).unwrap();
     assert_eq!(digest[0], 0xb9);
     assert_eq!(digest[31], 0xe9);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_hash_param_size() {
-    let h = helper::handler_create("test://hp_size");
-    assert!(crypto_state::create_hash(h, CALG_SHA_256));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://hp_size");
+    assert!(store.create_hash(h, CALG_SHA_256));
 
-    let size = crypto_state::get_hash_param(h, HP_HASHSIZE).unwrap();
+    let size = store.get_hash_param(h, HP_HASHSIZE).unwrap();
     let size_val = u32::from_le_bytes([size[0], size[1], size[2], size[3]]);
     assert_eq!(size_val, 32);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_hash_param_algid() {
-    let h = helper::handler_create("test://hp_algid");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://hp_algid");
+    assert!(store.create_hash(h, CALG_MD5));
 
-    let algid = crypto_state::get_hash_param(h, HP_ALGID).unwrap();
+    let algid = store.get_hash_param(h, HP_ALGID).unwrap();
     let algid_val = u32::from_le_bytes([algid[0], algid[1], algid[2], algid[3]]);
     assert_eq!(algid_val, CALG_MD5);
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_invalid_algo() {
-    let h = helper::handler_create("test://invalid_algo");
-    assert!(!crypto_state::create_hash(h, 0xDEAD));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://invalid_algo");
+    assert!(!store.create_hash(h, 0xDEAD));
 }
 
 #[test]
 fn crypto_state_hash_data_after_finalize_fails() {
-    let h = helper::handler_create("test://finalize_then_data");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
-    assert!(crypto_state::hash_data(h, b"test"));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://finalize_then_data");
+    assert!(store.create_hash(h, CALG_MD5));
+    assert!(store.hash_data(h, b"test"));
 
-    let _ = crypto_state::get_hash_param(h, HP_HASHVAL).unwrap();
+    let _ = store.get_hash_param(h, HP_HASHVAL).unwrap();
 
     // after finalization, hash_data should fail
-    assert!(!crypto_state::hash_data(h, b"more"));
+    assert!(!store.hash_data(h, b"more"));
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 #[test]
 fn crypto_state_destroy_nonexistent() {
-    assert!(!crypto_state::destroy_hash(0xDEAD_BEEF));
+    let mut store = CryptoStore::default();
+    assert!(!store.destroy_hash(0xDEAD_BEEF));
 }
 
 #[test]
 fn crypto_state_hash_data_nonexistent() {
-    assert!(!crypto_state::hash_data(0xDEAD_BEEF, b"data"));
+    let mut store = CryptoStore::default();
+    assert!(!store.hash_data(0xDEAD_BEEF, b"data"));
 }
 
 #[test]
 fn crypto_state_get_param_nonexistent() {
-    assert!(crypto_state::get_hash_param(0xDEAD_BEEF, HP_HASHVAL).is_none());
+    let mut store = CryptoStore::default();
+    assert!(store.get_hash_param(0xDEAD_BEEF, HP_HASHVAL).is_none());
 }
 
 #[test]
 fn crypto_state_get_param_invalid_param() {
-    let h = helper::handler_create("test://invalid_param");
-    assert!(crypto_state::create_hash(h, CALG_MD5));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://invalid_param");
+    assert!(store.create_hash(h, CALG_MD5));
 
-    assert!(crypto_state::get_hash_param(h, 0xFF).is_none());
+    assert!(store.get_hash_param(h, 0xFF).is_none());
 
-    assert!(crypto_state::destroy_hash(h));
+    assert!(store.destroy_hash(h));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -207,120 +223,131 @@ fn crypto_state_get_param_invalid_param() {
 
 #[test]
 fn crypto_state_create_key_rc4() {
-    let h = helper::handler_create("test://key_rc4");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_rc4");
+    assert!(store.create_key(h, CALG_RC4, 128));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = store.get_key_param(h, KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128);
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_create_key_aes128() {
-    let h = helper::handler_create("test://key_aes128");
-    assert!(crypto_state::create_key(h, CALG_AES_128, 128));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_aes128");
+    assert!(store.create_key(h, CALG_AES_128, 128));
 
-    let kp_algid = crypto_state::get_key_param(h, KP_ALGID).unwrap();
+    let kp_algid = store.get_key_param(h, KP_ALGID).unwrap();
     let algid = u32::from_le_bytes([kp_algid[0], kp_algid[1], kp_algid[2], kp_algid[3]]);
     assert_eq!(algid, CALG_AES_128);
 
-    let kp_block = crypto_state::get_key_param(h, KP_BLOCKLEN).unwrap();
+    let kp_block = store.get_key_param(h, KP_BLOCKLEN).unwrap();
     let block_bits = u32::from_le_bytes([kp_block[0], kp_block[1], kp_block[2], kp_block[3]]);
     assert_eq!(block_bits, 128);
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_create_key_aes256() {
-    let h = helper::handler_create("test://key_aes256");
-    assert!(crypto_state::create_key(h, CALG_AES_256, 256));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_aes256");
+    assert!(store.create_key(h, CALG_AES_256, 256));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = store.get_key_param(h, KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 256);
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_create_key_default_size() {
-    let h = helper::handler_create("test://key_default");
-    assert!(crypto_state::create_key(h, CALG_RC4, 0));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_default");
+    assert!(store.create_key(h, CALG_RC4, 0));
 
-    let kp = crypto_state::get_key_param(h, KP_KEYLEN).unwrap();
+    let kp = store.get_key_param(h, KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128); // default for RC4
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_encrypt_decrypt_roundtrip() {
-    let h = helper::handler_create("test://key_enc_dec");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_enc_dec");
+    assert!(store.create_key(h, CALG_RC4, 128));
 
     let original = b"Hello, CryptoAPI!".to_vec();
     let mut data = original.clone();
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert_ne!(&data, &original, "encrypted should differ from original");
 
-    assert!(crypto_state::decrypt_data(h, &mut data));
+    assert!(store.decrypt_data(h, &mut data));
     assert_eq!(&data, &original, "decrypted should match original");
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_encrypt_empty() {
-    let h = helper::handler_create("test://key_enc_empty");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_enc_empty");
+    assert!(store.create_key(h, CALG_RC4, 128));
 
     let mut data = vec![];
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert!(data.is_empty());
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_encrypt_nonexistent_key() {
+    let store = CryptoStore::default();
     let mut data = b"test".to_vec();
-    assert!(!crypto_state::encrypt_data(0xDEADBEEF, &mut data));
+    assert!(!store.encrypt_data(0xDEADBEEF, &mut data));
     assert_eq!(&data, b"test", "data unchanged on failure");
 }
 
 #[test]
 fn crypto_state_destroy_key_nonexistent() {
-    assert!(!crypto_state::destroy_key(0xDEADBEEF));
+    let mut store = CryptoStore::default();
+    assert!(!store.destroy_key(0xDEADBEEF));
 }
 
 #[test]
 fn crypto_state_get_key_param_nonexistent() {
-    assert!(crypto_state::get_key_param(0xDEADBEEF, KP_KEYLEN).is_none());
+    let store = CryptoStore::default();
+    assert!(store.get_key_param(0xDEADBEEF, KP_KEYLEN).is_none());
 }
 
 #[test]
 fn crypto_state_get_key_param_invalid() {
-    let h = helper::handler_create("test://key_invalid_param");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
-    assert!(crypto_state::get_key_param(h, 0xFF).is_none());
-    assert!(crypto_state::destroy_key(h));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://key_invalid_param");
+    assert!(store.create_key(h, CALG_RC4, 128));
+    assert!(store.get_key_param(h, 0xFF).is_none());
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_rc4_blocklen_zero() {
-    let h = helper::handler_create("test://rc4_block");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
+    let mut store = CryptoStore::default();
+    let h = store.open("test://rc4_block");
+    assert!(store.create_key(h, CALG_RC4, 128));
 
-    let kp = crypto_state::get_key_param(h, KP_BLOCKLEN).unwrap();
+    let kp = store.get_key_param(h, KP_BLOCKLEN).unwrap();
     let block = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(block, 0, "RC4 is a stream cipher, block length should be 0");
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -329,14 +356,15 @@ fn crypto_state_rc4_blocklen_zero() {
 
 #[test]
 fn crypto_state_rc4_known_vector() {
+    let mut store = CryptoStore::default();
     // RC4 with key = [0x01, 0x02, 0x03, 0x04, 0x05] encrypting [0x00; 8]
     // Known output: 0xb2 0x39 0x63 0x05 0xf0 0x3d 0xc0 0x27
-    let h = helper::handler_create("test://rc4_known");
-    assert!(crypto_state::create_key(h, CALG_RC4, 40));
-    crypto_state::set_key_data(h, &[0x01, 0x02, 0x03, 0x04, 0x05]);
+    let h = store.open("test://rc4_known");
+    assert!(store.create_key(h, CALG_RC4, 40));
+    store.set_key_data(h, &[0x01, 0x02, 0x03, 0x04, 0x05]);
 
     let mut data = vec![0u8; 8];
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert_eq!(data[0], 0xb2, "RC4 known-answer byte 0");
     assert_eq!(data[1], 0x39, "RC4 known-answer byte 1");
     assert_eq!(data[2], 0x63, "RC4 known-answer byte 2");
@@ -346,31 +374,32 @@ fn crypto_state_rc4_known_vector() {
     assert_eq!(data[6], 0xc0, "RC4 known-answer byte 6");
     assert_eq!(data[7], 0x27, "RC4 known-answer byte 7");
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_rc4_roundtrip_long() {
-    let h = helper::handler_create("test://rc4_long");
-    assert!(crypto_state::create_key(h, CALG_RC4, 128));
-    crypto_state::set_key_data(h, b"SecretKey1234567");
+    let mut store = CryptoStore::default();
+    let h = store.open("test://rc4_long");
+    assert!(store.create_key(h, CALG_RC4, 128));
+    store.set_key_data(h, b"SecretKey1234567");
 
     let original: Vec<u8> = (0..256).map(|i| i as u8).collect();
     let mut data = original.clone();
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert_ne!(&data, &original);
 
     // RC4 is symmetric — create a fresh key with same data for decryption
-    assert!(crypto_state::destroy_key(h));
-    let h2 = helper::handler_create("test://rc4_long_dec");
-    assert!(crypto_state::create_key(h2, CALG_RC4, 128));
-    crypto_state::set_key_data(h2, b"SecretKey1234567");
+    assert!(store.destroy_key(h));
+    let h2 = store.open("test://rc4_long_dec");
+    assert!(store.create_key(h2, CALG_RC4, 128));
+    store.set_key_data(h2, b"SecretKey1234567");
 
-    assert!(crypto_state::decrypt_data(h2, &mut data));
+    assert!(store.decrypt_data(h2, &mut data));
     assert_eq!(&data, &original, "RC4 roundtrip must recover original");
 
-    assert!(crypto_state::destroy_key(h2));
+    assert!(store.destroy_key(h2));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -379,9 +408,10 @@ fn crypto_state_rc4_roundtrip_long() {
 
 #[test]
 fn crypto_state_aes128_roundtrip() {
-    let h = helper::handler_create("test://aes128_rt");
-    assert!(crypto_state::create_key(h, CALG_AES_128, 128));
-    crypto_state::set_key_data(
+    let mut store = CryptoStore::default();
+    let h = store.open("test://aes128_rt");
+    assert!(store.create_key(h, CALG_AES_128, 128));
+    store.set_key_data(
         h,
         &[
             0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
@@ -395,26 +425,27 @@ fn crypto_state_aes128_roundtrip() {
     ];
     let mut data = original.to_vec();
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert_ne!(&data[..], &original[..], "AES encrypted data must differ");
     assert_eq!(data.len(), 16, "AES-128 ECB preserves block size");
 
-    assert!(crypto_state::decrypt_data(h, &mut data));
+    assert!(store.decrypt_data(h, &mut data));
     assert_eq!(
         &data[..],
         &original[..],
         "AES-128 roundtrip must recover original"
     );
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_aes128_known_vector() {
+    let mut store = CryptoStore::default();
     // NIST FIPS-197 Appendix B test vector
-    let h = helper::handler_create("test://aes128_nist");
-    assert!(crypto_state::create_key(h, CALG_AES_128, 128));
-    crypto_state::set_key_data(
+    let h = store.open("test://aes128_nist");
+    assert!(store.create_key(h, CALG_AES_128, 128));
+    store.set_key_data(
         h,
         &[
             0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
@@ -427,21 +458,22 @@ fn crypto_state_aes128_known_vector() {
         0x34,
     ];
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     // Expected: 3925841d02dc09fbdc118597196a0b32
     assert_eq!(data[0], 0x39, "AES-128 NIST byte 0");
     assert_eq!(data[1], 0x25, "AES-128 NIST byte 1");
     assert_eq!(data[2], 0x84, "AES-128 NIST byte 2");
     assert_eq!(data[15], 0x32, "AES-128 NIST byte 15");
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_aes256_roundtrip() {
-    let h = helper::handler_create("test://aes256_rt");
-    assert!(crypto_state::create_key(h, CALG_AES_256, 256));
-    crypto_state::set_key_data(
+    let mut store = CryptoStore::default();
+    let h = store.open("test://aes256_rt");
+    assert!(store.create_key(h, CALG_AES_256, 256));
+    store.set_key_data(
         h,
         &[
             0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d,
@@ -456,25 +488,26 @@ fn crypto_state_aes256_roundtrip() {
     ];
     let mut data = original.to_vec();
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     assert_ne!(&data[..], &original[..]);
 
-    assert!(crypto_state::decrypt_data(h, &mut data));
+    assert!(store.decrypt_data(h, &mut data));
     assert_eq!(
         &data[..],
         &original[..],
         "AES-256 roundtrip must recover original"
     );
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_aes256_known_vector() {
+    let mut store = CryptoStore::default();
     // NIST FIPS-197 AES-256 test vector
-    let h = helper::handler_create("test://aes256_nist");
-    assert!(crypto_state::create_key(h, CALG_AES_256, 256));
-    crypto_state::set_key_data(
+    let h = store.open("test://aes256_nist");
+    assert!(store.create_key(h, CALG_AES_256, 256));
+    store.set_key_data(
         h,
         &[
             0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d,
@@ -488,39 +521,40 @@ fn crypto_state_aes256_known_vector() {
         0x2a,
     ];
 
-    assert!(crypto_state::encrypt_data(h, &mut data));
+    assert!(store.encrypt_data(h, &mut data));
     // Expected: f3eed1bdb5d2a03c064b5a7e3db181f8
     assert_eq!(data[0], 0xf3, "AES-256 NIST byte 0");
     assert_eq!(data[1], 0xee, "AES-256 NIST byte 1");
     assert_eq!(data[15], 0xf8, "AES-256 NIST byte 15");
 
-    assert!(crypto_state::destroy_key(h));
+    assert!(store.destroy_key(h));
 }
 
 #[test]
 fn crypto_state_derive_key_from_hash() {
-    let hh = helper::handler_create("test://derive_hash");
-    assert!(crypto_state::create_hash(hh, CALG_MD5));
-    assert!(crypto_state::hash_data(hh, b"password"));
+    let mut store = CryptoStore::default();
+    let hh = store.open("test://derive_hash");
+    assert!(store.create_hash(hh, CALG_MD5));
+    assert!(store.hash_data(hh, b"password"));
 
-    let hk = helper::handler_create("test://derive_key");
-    assert!(crypto_state::derive_key_from_hash(hk, hh, CALG_AES_128));
+    let hk = store.open("test://derive_key");
+    assert!(store.derive_key_from_hash(hk, hh, CALG_AES_128));
 
     // Key should be the first 16 bytes of MD5("password") = 5f4dcc3b5aa765d61d8327deb882cf99
-    let kp = crypto_state::get_key_param(hk, KP_KEYLEN).unwrap();
+    let kp = store.get_key_param(hk, KP_KEYLEN).unwrap();
     let bits = u32::from_le_bytes([kp[0], kp[1], kp[2], kp[3]]);
     assert_eq!(bits, 128);
 
     // Verify the derived key works for encrypt/decrypt
     let original = [0u8; 16];
     let mut data = original.to_vec();
-    assert!(crypto_state::encrypt_data(hk, &mut data));
+    assert!(store.encrypt_data(hk, &mut data));
     assert_ne!(&data[..], &original[..]);
-    assert!(crypto_state::decrypt_data(hk, &mut data));
+    assert!(store.decrypt_data(hk, &mut data));
     assert_eq!(&data[..], &original[..]);
 
-    assert!(crypto_state::destroy_hash(hh));
-    assert!(crypto_state::destroy_key(hk));
+    assert!(store.destroy_hash(hh));
+    assert!(store.destroy_key(hk));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -529,21 +563,22 @@ fn crypto_state_derive_key_from_hash() {
 
 #[test]
 fn crypto_state_concurrent_hashes() {
-    let h_md5 = helper::handler_create("test://concurrent_md5");
-    let h_sha1 = helper::handler_create("test://concurrent_sha1");
-    let h_sha256 = helper::handler_create("test://concurrent_sha256");
+    let mut store = CryptoStore::default();
+    let h_md5 = store.open("test://concurrent_md5");
+    let h_sha1 = store.open("test://concurrent_sha1");
+    let h_sha256 = store.open("test://concurrent_sha256");
 
-    assert!(crypto_state::create_hash(h_md5, CALG_MD5));
-    assert!(crypto_state::create_hash(h_sha1, CALG_SHA1));
-    assert!(crypto_state::create_hash(h_sha256, CALG_SHA_256));
+    assert!(store.create_hash(h_md5, CALG_MD5));
+    assert!(store.create_hash(h_sha1, CALG_SHA1));
+    assert!(store.create_hash(h_sha256, CALG_SHA_256));
 
-    assert!(crypto_state::hash_data(h_md5, b"test"));
-    assert!(crypto_state::hash_data(h_sha1, b"test"));
-    assert!(crypto_state::hash_data(h_sha256, b"test"));
+    assert!(store.hash_data(h_md5, b"test"));
+    assert!(store.hash_data(h_sha1, b"test"));
+    assert!(store.hash_data(h_sha256, b"test"));
 
-    let d_md5 = crypto_state::get_hash_param(h_md5, HP_HASHVAL).unwrap();
-    let d_sha1 = crypto_state::get_hash_param(h_sha1, HP_HASHVAL).unwrap();
-    let d_sha256 = crypto_state::get_hash_param(h_sha256, HP_HASHVAL).unwrap();
+    let d_md5 = store.get_hash_param(h_md5, HP_HASHVAL).unwrap();
+    let d_sha1 = store.get_hash_param(h_sha1, HP_HASHVAL).unwrap();
+    let d_sha256 = store.get_hash_param(h_sha256, HP_HASHVAL).unwrap();
 
     assert_eq!(d_md5.len(), 16);
     assert_eq!(d_sha1.len(), 20);
@@ -556,9 +591,9 @@ fn crypto_state_concurrent_hashes() {
     // SHA256("test") = 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
     assert_eq!(d_sha256[0], 0x9f);
 
-    assert!(crypto_state::destroy_hash(h_md5));
-    assert!(crypto_state::destroy_hash(h_sha1));
-    assert!(crypto_state::destroy_hash(h_sha256));
+    assert!(store.destroy_hash(h_md5));
+    assert!(store.destroy_hash(h_sha1));
+    assert!(store.destroy_hash(h_sha256));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1684,5 +1719,118 @@ fn csp_plaintext_blob_and_duplicated_key_preserve_material_on_both_guests() {
             call(&mut emu, dll, "CryptReleaseContext", &[provider, 0]),
             1
         );
+    }
+}
+
+#[test]
+fn crypto_snapshots_preserve_partial_blocks_and_fork_object_lifetimes() {
+    use crate::serialization::Serialization;
+    use crate::winapi::common::memory;
+    use crate::windows::constants::errors::{STATUS_INVALID_HANDLE, STATUS_SUCCESS};
+
+    let call = helpers::call_winapi_export;
+    let dll = "bcrypt.dll";
+    let prefix = [0x5a; 79];
+    for (algorithm, size) in [
+        (BCRYPT_MD5_ALG_HANDLE, 16),
+        (BCRYPT_SHA1_ALG_HANDLE, 20),
+        (BCRYPT_SHA256_ALG_HANDLE, 32),
+    ] {
+        let (mut original, buffer) = helpers::prepare_winapi(true);
+        let (mut other, _) = helpers::prepare_winapi(true);
+        assert_eq!(
+            call(
+                &mut original,
+                dll,
+                "BCryptCreateHash",
+                &[algorithm, buffer, 0, 0, 0, 0, 0]
+            ),
+            STATUS_SUCCESS
+        );
+        let hash = memory::read_pointer(&original, buffer).unwrap();
+        original.maps.write_bytes(buffer, &prefix);
+        assert_eq!(
+            call(
+                &mut original,
+                dll,
+                "BCryptHashData",
+                &[hash, buffer, prefix.len() as u64, 0]
+            ),
+            STATUS_SUCCESS
+        );
+        assert_eq!(
+            call(&mut other, dll, "BCryptDestroyHash", &[hash]),
+            STATUS_INVALID_HANDLE
+        );
+
+        let mut restored = Serialization::deserialize(&Serialization::serialize(&original));
+        let digest = |emu: &mut crate::Emu, tail: u8| {
+            emu.maps.write_byte(buffer, tail);
+            assert_eq!(
+                call(emu, dll, "BCryptHashData", &[hash, buffer, 1, 0]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(
+                call(emu, dll, "BCryptFinishHash", &[hash, buffer, size, 0]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(call(emu, dll, "BCryptDestroyHash", &[hash]), STATUS_SUCCESS);
+            emu.maps.read_bytes(buffer, size as usize).to_vec()
+        };
+        assert_eq!(digest(&mut original, 1), digest(&mut restored, 1));
+    }
+}
+
+#[test]
+fn certificate_stores_and_csp_providers_belong_to_the_restored_guest() {
+    use crate::serialization::Serialization;
+    use crate::winapi::common::memory;
+
+    let (mut original, buffer) = helpers::prepare_winapi(false);
+    let (mut other, _) = helpers::prepare_winapi(false);
+    let call = helpers::call_winapi_export;
+    let store = call(
+        &mut original,
+        "crypt32.dll",
+        "CertOpenStore",
+        &[CERT_STORE_PROV_MEMORY, 0, 0, 0, 0],
+    );
+    assert_ne!(store, 0);
+    assert_eq!(
+        call(
+            &mut original,
+            "advapi32.dll",
+            "CryptAcquireContextA",
+            &[
+                buffer,
+                0,
+                0,
+                PROV_RSA_FULL.into(),
+                CRYPT_VERIFYCONTEXT.into()
+            ]
+        ),
+        1
+    );
+    let provider = memory::read_pointer(&original, buffer).unwrap();
+    assert_eq!(
+        call(
+            &mut original,
+            "advapi32.dll",
+            "CryptGenKey",
+            &[provider, CALG_RC4.into(), CRYPT_EXPORTABLE.into(), buffer]
+        ),
+        1
+    );
+    let key = memory::read_pointer(&original, buffer).unwrap();
+    let mut restored = Serialization::deserialize(&Serialization::serialize(&original));
+
+    for (dll, api, args) in [
+        ("crypt32.dll", "CertCloseStore", &[store, 0][..]),
+        ("advapi32.dll", "CryptDestroyKey", &[key][..]),
+        ("advapi32.dll", "CryptReleaseContext", &[provider, 0][..]),
+    ] {
+        assert_eq!(call(&mut other, dll, api, args), 0);
+        assert_eq!(call(&mut original, dll, api, args), 1);
+        assert_eq!(call(&mut restored, dll, api, args), 1);
     }
 }

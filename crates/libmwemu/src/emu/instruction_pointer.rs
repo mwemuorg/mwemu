@@ -1,5 +1,6 @@
 use crate::api::unix;
 use crate::api::windows::policy::{self, ApiRoute};
+use crate::api::windows::prologue;
 use crate::utils::helpers::unlikely;
 use crate::winapi::common::threads;
 use crate::windows::constants::memory::*;
@@ -197,7 +198,7 @@ impl Emu {
                 !caller_name.starts_with("ntdll")
             };
 
-        if addr < LIBS64_MIN && !is_ntdll_cross_call {
+        if (addr < LIBS64_MIN && !is_ntdll_cross_call) || self.is_guest_dll_address(addr) {
             // This is the normal case, no linux syscall or winapi to handle
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
@@ -535,7 +536,7 @@ impl Emu {
                 !caller_name.starts_with("ntdll")
             };
 
-        if addr < LIBS32_MIN && !is_ntdll_cross_call {
+        if (addr < LIBS32_MIN && !is_ntdll_cross_call) || self.is_guest_dll_address(addr) {
             if self.cfg.verbose > 1 {
                 let eip = self.regs().get_eip();
                 let prev = self.maps.get_addr_name(eip).unwrap_or("??");
@@ -565,7 +566,13 @@ impl Emu {
                 return false;
             }
 
+            let in_code_section = self.os.is_windows() && name.ends_with(".text");
             let library = name.split('.').next().unwrap_or(name).to_string();
+            let addr = if in_code_section {
+                prologue::unwind_x86(self, addr).unwrap_or(addr)
+            } else {
+                addr
+            };
             policy::begin_call(self, &library, "", addr, ApiRoute::Address);
             if !policy::consume_return(self) {
                 return true;

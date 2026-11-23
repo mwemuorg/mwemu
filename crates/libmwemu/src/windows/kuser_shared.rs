@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::windows::constants::process::DEP_OPT_IN;
 use crate::windows::constants::system::*;
 use crate::windows::structures::PROCESSORS;
 use bitfield::bitfield;
@@ -346,9 +347,10 @@ pub fn init_kuser_shared_data(emu: &mut emu::Emu) -> u64 {
     wr32!(BootId, 0x0000000b);
     wr64!(SystemExpirationDate, 0x01dc26860a9ff300);
     wr32!(SuiteMask, 0x00000110);
-    // MitigationPolicies (u8) = 0x0a already encodes NXSupportPolicy=2 (bits 0-1)
-    // and SEHValidationPolicy=2 (bits 2-3).
-    wr8!(MitigationPolicies, 0x0a);
+    let mut mitigation = KuserSharedData00(0);
+    mitigation.set_nx_support_policy(DEP_OPT_IN);
+    mitigation.set_seh_validation_policy(2);
+    wr8!(MitigationPolicies, mitigation.0);
     wr16!(CyclesPerYield, 0x0064);
     wr32!(DismountCount, 0x00000006);
     wr32!(ComPlusPackage, 0x00000001);

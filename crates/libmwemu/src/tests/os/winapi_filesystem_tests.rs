@@ -1,18 +1,22 @@
-use crate::winapi::policy::ApiMode;
 use std::fs;
 
 use itertools::iproduct;
+use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
+use crate::api::windows::common::guest_files::{self, GuestFileRead};
 use crate::api::windows::common::strings;
 use crate::emu::Emu;
+use crate::emu::object_handle::FileHandle;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers::{
     self, call_winapi_export as call, file_system_root, prepare_winapi as prepare,
 };
 use crate::winapi::common::memory::{pointer_size, read_pointer, write_pointer};
+use crate::winapi::policy::ApiMode;
 use crate::winapi::{helper, registry_store};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
+use crate::windows::constants::memory::{PAGE_READONLY, SEC_COMMIT};
 use crate::windows::constants::nls::EN_US_LOCALE;
 use crate::windows::constants::process::*;
 use crate::windows::constants::security::*;
@@ -20,6 +24,521 @@ use crate::windows::constants::shell::*;
 use crate::{emu32, emu64};
 
 const MARKER: u32 = 0xcccc_cccc;
+
+const FILE_EXPORT_BASE: u64 = 0x0500_0000;
+const FILE_PROVIDER_CODE: u64 = 0x0510_0000;
+const FILE_EXPORT_NAMES: [&str; 7] = [
+    "NtOpenFile",
+    "NtQueryInformationFile",
+    "NtReadFile",
+    "NtCreateSection",
+    "NtMapViewOfSection",
+    "NtUnmapViewOfSection",
+    "NtClose",
+];
+const FILE_API_STRIDE: u64 = 32;
+const FILE_CONTENT: &[u8] = b"data from the guest file provider";
+const FILE_TOKEN: u64 = 0xdead;
+const SECTION_TOKEN: u64 = 0xbeef;
+
+#[derive(Clone, Copy, PartialEq)]
+enum FileProvider {
+    Complete,
+    InterruptRead,
+    Empty,
+    MissingSize,
+}
+
+fn file_provider(is64: bool, mode: FileProvider, expected_share: u32) -> (Emu, u64) {
+    let (mut emu, data) = prepare(is64);
+    for (name, base) in [
+        ("ntdll.text", FILE_EXPORT_BASE),
+        ("file_provider", FILE_PROVIDER_CODE),
+    ] {
+        emu.maps
+            .create_map(name, base, 4096, Permission::READ_WRITE_EXECUTE)
+            .unwrap();
+    }
+    let mut exports = ExportIndexData {
+        export_base: 1,
+        number_of_functions: FILE_EXPORT_NAMES.len() as u32,
+        ordinal_targets: Vec::new(),
+        named_exports: Vec::new(),
+    };
+    for (i, name) in FILE_EXPORT_NAMES.iter().enumerate() {
+        let rva = FILE_API_STRIDE * (i + 1) as u64;
+        let export = FILE_EXPORT_BASE + rva;
+        let callback = FILE_PROVIDER_CODE + rva;
+        // Each export jumps to a guest callback. The test supplies its result before RET.
+        emu.maps.write_byte(export, 0xe9);
+        emu.maps
+            .write_dword(export + 1, (callback - (export + 5)) as u32);
+        emu.maps.write_byte(callback, 0xc3);
+        exports
+            .ordinal_targets
+            .push(Some(ExportTarget::Direct { rva: rva as u32 }));
+        exports.named_exports.push(NamedExport {
+            name: (*name).into(),
+            ordinal_index: i as u32,
+        });
+    }
+    helpers::register_export_module(&mut emu, "ntdll.dll", FILE_EXPORT_BASE, &exports);
+    let original_pc = FILE_PROVIDER_CODE + 1024;
+    emu.regs_mut().rip = original_pc;
+    emu.maps.write_byte(original_pc, 0x90);
+    emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+        let Some(i) = pc
+            .checked_sub(FILE_PROVIDER_CODE)
+            .and_then(|rva| rva.checked_div(FILE_API_STRIDE))
+            .and_then(|i| i.checked_sub(1))
+        else {
+            return true;
+        };
+        let Some(api) = FILE_EXPORT_NAMES.get(i as usize) else {
+            return true;
+        };
+        let arg = |index: usize| {
+            if is64 && index < 4 {
+                [emu.regs().rcx, emu.regs().rdx, emu.regs().r8, emu.regs().r9][index]
+            } else {
+                read_pointer(emu, emu.sp() + (index as u64 + 1) * pointer_size(emu)).unwrap()
+            }
+        };
+        match *api {
+            "NtOpenFile" => {
+                let (file, object, share) = (arg(0), arg(2), arg(4));
+                assert_eq!(share, u64::from(expected_share));
+                let width = pointer_size(emu);
+                let descriptor = read_pointer(emu, object + 2 * width).unwrap();
+                let name = read_pointer(emu, descriptor + width).unwrap();
+                assert_eq!(emu.maps.read_wide_string(name), r"\??\C:\test.bin");
+                assert!(write_pointer(emu, file, FILE_TOKEN));
+            }
+            "NtQueryInformationFile" => {
+                let (file, output, size, class) = (arg(0), arg(2), arg(3), arg(4));
+                assert_eq!((file, size, class), (FILE_TOKEN, 24, 5));
+                if mode != FileProvider::MissingSize {
+                    let size = if mode == FileProvider::Empty {
+                        0
+                    } else {
+                        FILE_CONTENT.len()
+                    };
+                    assert!(emu.maps.write_qword(output + 8, size as u64));
+                }
+            }
+            "NtReadFile" => {
+                let (file, io, buffer, length, offset) = (arg(0), arg(4), arg(5), arg(6), arg(7));
+                assert_eq!(file, FILE_TOKEN);
+                if mode == FileProvider::InterruptRead {
+                    emu.regs_mut().rbx = FILE_TOKEN;
+                    emu.stop();
+                    return false;
+                }
+                let offset = emu.maps.read_qword(offset).unwrap() as usize;
+                // A successful short read must advance the offset and request the remainder.
+                let n = (length as usize).min(7);
+                assert!(
+                    emu.maps
+                        .write_bytes(buffer, &FILE_CONTENT[offset..offset + n])
+                );
+                assert!(write_pointer(emu, io + pointer_size(emu), n as u64));
+                let reads = emu.maps.read_dword(data).unwrap();
+                emu.maps.write_dword(data, reads + 1);
+            }
+            "NtCreateSection" => {
+                let (output, kind, file) = (arg(0), arg(5), arg(6));
+                assert_eq!((kind, file), (u64::from(SEC_COMMIT), FILE_TOKEN));
+                assert!(write_pointer(emu, output, SECTION_TOKEN));
+            }
+            "NtMapViewOfSection" => {
+                let (section, base, size) = (arg(0), arg(2), arg(6));
+                assert_eq!(section, SECTION_TOKEN);
+                assert!(emu.maps.write_bytes(data + 256, FILE_CONTENT));
+                assert!(write_pointer(emu, base, data + 256));
+                assert!(write_pointer(emu, size, 512));
+            }
+            "NtUnmapViewOfSection" => {
+                assert_eq!(arg(1), data + 256);
+                emu.maps.write_dword(data + 4, 1);
+            }
+            "NtClose" => {
+                let offset = match arg(0) {
+                    FILE_TOKEN => 8,
+                    SECTION_TOKEN => 12,
+                    other => panic!("unexpected handle {other:#x}"),
+                };
+                let closes = emu.maps.read_dword(data + offset).unwrap();
+                emu.maps.write_dword(data + offset, closes + 1);
+            }
+            _ => unreachable!(),
+        }
+        emu.regs_mut().rbx = 0x5678;
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        true
+    });
+    (emu, data)
+}
+
+#[test]
+fn redirected_nt_file_reads_preserve_the_caller_and_close_guest_objects() {
+    for (is64, use_section) in iproduct!([false, true], [false, true]) {
+        let (mut emu, data) = file_provider(is64, FileProvider::Complete, FILE_SHARE_READ);
+        let pc = emu.pc();
+        let sp = emu.sp();
+        emu.regs_mut().rbx = 0x1234;
+        let read = if use_section {
+            guest_files::read_image_file
+        } else {
+            guest_files::read_file
+        };
+        let path = if is64 {
+            r"\\.\C:\test.bin"
+        } else {
+            r"C:\test.bin"
+        };
+        let result = read(&mut emu, path, FILE_SHARE_READ);
+        assert!(matches!(result, GuestFileRead::File(bytes) if bytes == FILE_CONTENT));
+        assert_eq!((emu.pc(), emu.sp(), emu.regs().rbx), (pc, sp, 0x1234));
+        assert_eq!(
+            emu.maps.read_dword(data),
+            Some(if use_section {
+                0
+            } else {
+                FILE_CONTENT.len().div_ceil(7) as u32
+            })
+        );
+        assert_eq!(emu.maps.read_dword(data + 4), Some(u32::from(use_section)));
+        assert_eq!(emu.maps.read_dword(data + 8), Some(1));
+        assert_eq!(emu.maps.read_dword(data + 12), Some(u32::from(use_section)));
+    }
+}
+
+#[test]
+fn object_type_queries_size_and_write_the_guest_string() {
+    let dll = "ntdll.dll";
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let file = FileHandle::from_guest_bytes(
+            r"C:\type-query".into(),
+            b"guest".to_vec(),
+            GENERIC_READ,
+            0,
+            FILE_SHARE_READ,
+        );
+        let handle = u64::from(emu.handle_management.insert_file_handle(file));
+        let width = pointer_size(&emu);
+        let header = if is64 { 104 } else { 96 };
+        let required = if is64 { 120 } else { 112 };
+        let returned = data + 192;
+        emu.maps.write_dword(data, MARKER);
+        assert_eq!(
+            call(&mut emu, dll, "NtQueryObject", &[handle, 2, 0, 0, returned]),
+            STATUS_INFO_LENGTH_MISMATCH
+        );
+        assert_eq!(emu.maps.read_dword(returned), Some(required as u32));
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "NtQueryObject",
+                &[handle, 2, data, required - 1, returned]
+            ),
+            STATUS_INFO_LENGTH_MISMATCH
+        );
+        assert_eq!(emu.maps.read_dword(data), Some(MARKER));
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "ZwQueryObject",
+                &[handle, 2, data, required, returned]
+            ),
+            STATUS_SUCCESS
+        );
+        assert_eq!(emu.maps.read_word(data), Some(8));
+        assert_eq!(emu.maps.read_word(data + 2), Some(10));
+        assert_eq!(read_pointer(&emu, data + width), Some(data + header));
+        assert_eq!(emu.maps.read_wide_string(data + header), "File");
+        assert_eq!(
+            emu.maps.read_dword(returned),
+            Some(if is64 { 120 } else { 106 })
+        );
+        assert_eq!(call(&mut emu, dll, "NtClose", &[handle]), STATUS_SUCCESS);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "NtQueryObject",
+                &[handle, 2, data, required, returned]
+            ),
+            STATUS_INVALID_HANDLE
+        );
+        let anonymous = if is64 { u64::MAX } else { u64::from(u32::MAX) };
+        let section = call(
+            &mut emu,
+            "kernel32.dll",
+            "CreateFileMappingW",
+            &[anonymous, 0, 4, 0, 4096, 0],
+        );
+        assert_ne!(section, 0);
+        assert_eq!(
+            call(
+                &mut emu,
+                dll,
+                "NtQueryObject",
+                &[section, 2, data, required, 0]
+            ),
+            STATUS_SUCCESS
+        );
+        assert_eq!(emu.maps.read_wide_string(data + header), "Section");
+    }
+}
+
+#[test]
+fn native_nt_file_queries_and_reads_use_the_open_handle() {
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let file = FileHandle::from_guest_bytes(
+            r"C:\sample.bin".into(),
+            b"abcde".to_vec(),
+            GENERIC_READ,
+            0,
+            FILE_SHARE_READ,
+        );
+        let handle = u64::from(emu.handle_management.insert_file_handle(file));
+        let (io, output, offset, buffer) = (data, data + 64, data + 128, data + 160);
+        let width = pointer_size(&emu);
+        let query = |emu: &mut Emu, handle, length| {
+            call(
+                emu,
+                "ntdll.dll",
+                "NtQueryInformationFile",
+                &[
+                    handle,
+                    io,
+                    output,
+                    length,
+                    u64::from(FILE_STANDARD_INFORMATION),
+                ],
+            )
+        };
+        assert!(write_pointer(&mut emu, io + width, u64::from(MARKER)));
+        assert_eq!(query(&mut emu, handle, 23), STATUS_INFO_LENGTH_MISMATCH);
+        assert_eq!(query(&mut emu, 0, 24), STATUS_INVALID_HANDLE);
+        assert_eq!(read_pointer(&emu, io + width), Some(u64::from(MARKER)));
+        assert_eq!(query(&mut emu, handle, 24), STATUS_SUCCESS);
+        assert_eq!(read_pointer(&emu, io + width), Some(24));
+        assert_eq!(emu.maps.read_qword(output + 8), Some(5));
+        assert_eq!(emu.maps.read_dword(output + 16), Some(1));
+        let read = |emu: &mut Emu, position| {
+            call(
+                emu,
+                "ntdll.dll",
+                "NtReadFile",
+                &[handle, 0, 0, 0, io, buffer, 2, position, 0],
+            )
+        };
+        emu.maps.write_qword(offset, 2);
+        assert_eq!(read(&mut emu, offset), STATUS_SUCCESS);
+        assert_eq!(emu.maps.read_word(buffer), Some(u16::from_le_bytes(*b"cd")));
+        assert_eq!(read_pointer(&emu, io + width), Some(2));
+        emu.maps.write_qword(offset, 99);
+        assert_eq!(read(&mut emu, offset), STATUS_END_OF_FILE);
+        assert_eq!(read_pointer(&emu, io + width), Some(0));
+        emu.maps.write_qword(offset, (-2i64) as u64);
+        assert_eq!(read(&mut emu, offset), STATUS_SUCCESS);
+        assert_eq!(emu.maps.read_byte(buffer), Some(b'e'));
+        assert_eq!(read_pointer(&emu, io + width), Some(1));
+        assert_eq!(read(&mut emu, 0), STATUS_END_OF_FILE);
+        emu.maps.write_qword(offset, u64::MAX);
+        assert_eq!(read(&mut emu, offset), STATUS_INVALID_PARAMETER);
+        assert_eq!(read_pointer(&emu, io), Some(STATUS_END_OF_FILE));
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "NtClose", &[handle]),
+            STATUS_SUCCESS
+        );
+        assert_eq!(query(&mut emu, handle, 24), STATUS_INVALID_HANDLE);
+    }
+}
+
+#[test]
+fn nt_file_queries_distinguish_empty_files_from_missing_output() {
+    for (is64, mode) in iproduct!(
+        [false, true],
+        [FileProvider::Empty, FileProvider::MissingSize]
+    ) {
+        let (mut emu, data) = file_provider(is64, mode, FILE_SHARE_READ);
+        let result = guest_files::read_file(&mut emu, r"C:\test.bin", FILE_SHARE_READ);
+        if mode == FileProvider::Empty {
+            assert!(matches!(result, GuestFileRead::File(bytes) if bytes.is_empty()));
+        } else {
+            assert!(matches!(result, GuestFileRead::Failed(STATUS_FILE_INVALID)));
+        }
+        assert_eq!(emu.maps.read_dword(data), Some(0));
+        assert_eq!(emu.maps.read_dword(data + 8), Some(1));
+    }
+}
+
+#[test]
+fn stopped_nt_file_callback_preserves_the_guest_frame() {
+    for is64 in [false, true] {
+        let (mut emu, data) = file_provider(is64, FileProvider::InterruptRead, FILE_SHARE_READ);
+        let original_pc = emu.pc();
+        let original_sp = emu.sp();
+        assert!(matches!(
+            guest_files::read_file(&mut emu, r"C:\test.bin", FILE_SHARE_READ),
+            GuestFileRead::Stopped
+        ));
+        assert_ne!(emu.pc(), original_pc);
+        assert_ne!(emu.sp(), original_sp);
+        assert_eq!(emu.regs().rbx, FILE_TOKEN);
+        assert!(emu.process_terminated);
+        assert_eq!(emu.maps.read_dword(data + 8), Some(0));
+    }
+}
+
+#[test]
+fn win32_file_and_loader_ask_the_guest_provider_for_the_same_path() {
+    for is64 in [false, true] {
+        let (mut emu, data) = file_provider(is64, FileProvider::Complete, FILE_SHARE_READ);
+        let path = data + 1024;
+        let buffer = data + 512;
+        let count = data + 128;
+        emu.maps.write_wide_string(path, r"C:\test.bin");
+        let file = call(
+            &mut emu,
+            "kernel32.dll",
+            "CreateFileW",
+            &[
+                path,
+                u64::from(GENERIC_READ),
+                u64::from(FILE_SHARE_READ),
+                0,
+                OPEN_EXISTING as u64,
+                FILE_ATTRIBUTE_NORMAL as u64,
+                0,
+            ],
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                "kernel32.dll",
+                "ReadFile",
+                &[file, buffer, FILE_CONTENT.len() as u64, count, 0]
+            ),
+            1
+        );
+        assert_eq!(
+            emu.maps
+                .try_read_bytes(buffer, FILE_CONTENT.len())
+                .unwrap()
+                .as_ref(),
+            FILE_CONTENT
+        );
+        assert_eq!(call(&mut emu, "kernel32.dll", "CloseHandle", &[file]), 1);
+
+        let (mut emu, data) = file_provider(
+            is64,
+            FileProvider::Complete,
+            FILE_SHARE_READ | FILE_SHARE_DELETE,
+        );
+        let path = data + 1024;
+        emu.maps.write_wide_string(path, r"C:\test.bin");
+        assert_eq!(call(&mut emu, "kernel32.dll", "LoadLibraryW", &[path]), 0);
+        // The guest file exists, but its contents are not a PE image.
+        assert_eq!(emu.get_last_error(), ERROR_BAD_EXE_FORMAT);
+        assert_eq!(emu.maps.read_dword(data + 4), Some(1));
+        assert_eq!(emu.maps.read_dword(data + 12), Some(1));
+    }
+}
+
+#[test]
+fn read_only_guest_file_shares_bytes_with_section_without_moving_the_cursor() {
+    let library = "kernel32.dll";
+    let contents = b"mapped file data";
+    for is64 in [false, true] {
+        let (mut emu, buffer) = prepare(is64);
+        let count = buffer + 64;
+        let file = FileHandle::from_guest_bytes(
+            r"C:\private\data.bin".into(),
+            contents.to_vec(),
+            GENERIC_READ,
+            FILE_ATTRIBUTE_NORMAL as u32,
+            FILE_SHARE_READ,
+        );
+        let handle = u64::from(emu.handle_management.insert_file_handle(file));
+        assert_eq!(
+            call(
+                &mut emu,
+                library,
+                "ReadFile",
+                &[handle, buffer, 3, count, 0]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_dword(count), Some(3));
+        assert_eq!(
+            emu.maps.try_read_bytes(buffer, 3).unwrap().as_ref(),
+            &contents[..3]
+        );
+
+        let section = call(
+            &mut emu,
+            library,
+            "CreateFileMappingW",
+            &[handle, 0, PAGE_READONLY as u64, 0, 0, 0],
+        );
+        assert_ne!(section, 0);
+        let view = call(
+            &mut emu,
+            library,
+            "MapViewOfFile",
+            &[section, u64::from(FILE_MAP_READ), 0, 0, 0],
+        );
+        assert_ne!(view, 0);
+        assert_eq!(
+            emu.maps
+                .try_read_bytes(view, contents.len())
+                .unwrap()
+                .as_ref(),
+            contents
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                library,
+                "ReadFile",
+                &[handle, buffer, 32, count, 0]
+            ),
+            1
+        );
+        assert_eq!(
+            emu.maps.read_dword(count),
+            Some((contents.len() - 3) as u32)
+        );
+        assert_eq!(
+            emu.maps
+                .try_read_bytes(buffer, contents.len() - 3)
+                .unwrap()
+                .as_ref(),
+            &contents[3..]
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                library,
+                "ReadFile",
+                &[handle, buffer, 32, count, 0]
+            ),
+            1
+        );
+        assert_eq!(emu.maps.read_dword(count), Some(0));
+        assert_eq!(call(&mut emu, library, "CloseHandle", &[handle]), 1);
+        assert_eq!(call(&mut emu, library, "CloseHandle", &[section]), 1);
+        assert_eq!(emu.maps.read_byte(view), Some(contents[0]));
+        assert_eq!(call(&mut emu, library, "UnmapViewOfFile", &[view]), 1);
+    }
+}
 
 #[test]
 fn file_queries_agree_on_existing_and_missing_guest_paths() {
@@ -1258,6 +1777,53 @@ fn prepare_resource_image(is64: bool, named: bool) -> (Emu, u64, u64) {
         .write_dword(base + RESOURCE_RVA + RESOURCE_DATA_ENTRY + 4, 4);
     emu.maps.write_bytes(base + RESOURCE_PAYLOAD, b"DATA");
     (emu, base, data)
+}
+
+#[test]
+fn activation_context_rejects_invalid_requests_and_missing_module_manifests() {
+    let flags = ACTCTX_FLAG_HMODULE_VALID
+        | ACTCTX_FLAG_SET_PROCESS_DEFAULT
+        | ACTCTX_FLAG_RESOURCE_NAME_VALID
+        | ACTCTX_FLAG_LANGID_VALID;
+    for (is64, (dll, api)) in iproduct!(
+        [false, true],
+        [
+            ("kernel32.dll", "CreateActCtxA"),
+            ("kernel32.dll", "CreateActCtxW"),
+            ("kernelbase.dll", "CreateActCtxW")
+        ]
+    ) {
+        let (mut emu, base, actctx) = prepare_resource_image(is64, false);
+        let (size, resource, module) = if is64 { (56, 32, 48) } else { (32, 20, 28) };
+        let invalid_handle = if is64 {
+            INVALID_HANDLE_VALUE_64
+        } else {
+            INVALID_HANDLE_VALUE_32
+        };
+        let source = actctx + 128;
+        if api.ends_with('W') {
+            emu.maps.write_wide_string(source, r"C:\fixture.exe");
+        } else {
+            emu.maps.write_string(source, r"C:\fixture.exe");
+        }
+        write_pointer(&mut emu, actctx + 8, source);
+        write_pointer(&mut emu, actctx + module, base);
+        for (size, flags, id, error) in [
+            (size, flags, 0, ERROR_INVALID_PARAMETER),
+            (size - 1, flags, 1, ERROR_INVALID_PARAMETER),
+            (size, flags | 0x100, 1, ERROR_INVALID_PARAMETER),
+            (size, flags, 1, ERROR_RESOURCE_TYPE_NOT_FOUND),
+        ] {
+            emu.maps.write_dword(actctx, size);
+            emu.maps.write_dword(actctx + 4, flags);
+            write_pointer(&mut emu, actctx + resource, id);
+            assert_eq!(call(&mut emu, dll, api, &[actctx]), invalid_handle);
+            assert_eq!(emu.get_last_error(), error);
+        }
+        emu.maps.write_dword(base + RESOURCE_RVA + 16, RT_MANIFEST);
+        assert_eq!(call(&mut emu, dll, api, &[actctx]), invalid_handle);
+        assert_eq!(emu.get_last_error(), ERROR_RESOURCE_NAME_NOT_FOUND);
+    }
 }
 
 #[test]
@@ -2644,8 +3210,141 @@ fn native_writes_validate_buffers_and_report_bytes_at_the_guest_pointer_width() 
 }
 
 #[test]
+fn native_path_keeps_dos_devices_and_verbatim_files_in_their_namespaces() {
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let width = pointer_size(&emu);
+        let (descriptor, part) = (data + 256, data + 320);
+        for (input, expected, file_part) in [
+            ("NUL", r"\??\NUL", None),
+            (r"C:\NuL:", r"\??\NuL", None),
+            ("COM1", r"\??\COM1", None),
+            ("LPT²", r"\??\LPT²", None),
+            (r"\\.\NUL", r"\??\NUL", Some("NUL")),
+            (r"\\?\C:\NUL", r"\??\C:\NUL", Some("NUL")),
+            (
+                r"\\server\share\NUL",
+                r"\??\UNC\server\share\NUL",
+                Some("NUL"),
+            ),
+            (r"C:\COM10", r"\??\C:\COM10", Some("COM10")),
+        ] {
+            emu.maps.write_wide_string(data, input);
+            write_pointer(&mut emu, part, u64::from(MARKER));
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "RtlDosPathNameToNtPathName_U",
+                    &[data, descriptor, part, 0]
+                ),
+                1,
+                "{input}"
+            );
+            let buffer = read_pointer(&emu, descriptor + width).unwrap();
+            let part_address = read_pointer(&emu, part).unwrap();
+            assert_eq!(emu.maps.read_wide_string(buffer), expected, "{input}");
+            assert_eq!(
+                (part_address != 0)
+                    .then(|| emu.maps.read_wide_string(part_address))
+                    .as_deref(),
+                file_part,
+                "{input}"
+            );
+            call(&mut emu, "ntdll.dll", "RtlFreeUnicodeString", &[descriptor]);
+        }
+        emu.maps
+            .write_wide_string(data, r"C:\missing-device-parent\NUL");
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "RtlDosPathNameToNtPathName_U",
+                &[data, descriptor, part, 0]
+            ),
+            0
+        );
+    }
+}
+
+#[test]
+fn native_null_device_reads_eof_and_reports_a_character_device() {
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let width = pointer_size(&emu);
+        let (desc, obj, out, io, buf) =
+            (data + 128, data + 192, data + 256, data + 288, data + 320);
+        for name in [r"\??\NUL", r"\Device\Null", r"\??\C:\NUL"] {
+            emu.maps.write_wide_string(data, name);
+            let byte_len = (name.encode_utf16().count() * 2) as u16;
+            emu.maps.write_word(desc, byte_len);
+            emu.maps.write_word(desc + 2, byte_len + 2);
+            write_pointer(&mut emu, desc + width, data);
+            emu.maps.write_dword(obj, (6 * width) as u32);
+            write_pointer(&mut emu, obj + 2 * width, desc);
+            emu.maps.write_dword(obj + 3 * width, OBJ_OPENIF);
+            write_pointer(&mut emu, io + width, 99);
+            let status = call(
+                &mut emu,
+                "ntdll.dll",
+                "NtCreateFile",
+                &[
+                    out,
+                    u64::from(FILE_GENERIC_READ | GENERIC_WRITE),
+                    obj,
+                    io,
+                    0,
+                    0,
+                    u64::from(FILE_SHARE_READ),
+                    u64::from(FILE_OPEN),
+                    u64::from(FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT),
+                    0,
+                    0,
+                ],
+            );
+            if name == r"\??\C:\NUL" {
+                assert_eq!(status, STATUS_OBJECT_NAME_NOT_FOUND);
+                assert_eq!(read_pointer(&emu, io + width), Some(99));
+                continue;
+            }
+            assert_eq!(status, STATUS_SUCCESS);
+            assert_eq!(read_pointer(&emu, io + width), Some(0));
+            let file = read_pointer(&emu, out).unwrap();
+            assert_eq!(
+                call(&mut emu, "kernel32.dll", "GetFileType", &[file]),
+                FILE_TYPE_CHAR
+            );
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "NtReadFile",
+                    &[file, 0, 0, 0, io, buf, 8, 0, 0]
+                ),
+                STATUS_END_OF_FILE
+            );
+            assert_eq!(read_pointer(&emu, io), Some(STATUS_END_OF_FILE));
+            assert_eq!(read_pointer(&emu, io + width), Some(0));
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "NtWriteFile",
+                    &[file, 0, 0, 0, io, buf, 8, 0, 0]
+                ),
+                STATUS_SUCCESS
+            );
+            assert_eq!(read_pointer(&emu, io + width), Some(8));
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtClose", &[file]),
+                STATUS_SUCCESS
+            );
+        }
+    }
+}
+
+#[test]
 fn native_path_open_read_and_close_share_the_guest_file() {
-    use crate::winapi::common::memory::read_pointer;
     let root = file_system_root().join("c/native-path-io");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("test.bin"), b"guest").unwrap();
@@ -2677,51 +3376,65 @@ fn native_path_open_read_and_close_share_the_guest_file() {
         );
         emu.maps.write_dword(obj, (6 * width) as u32);
         write_pointer(&mut emu, obj + 2 * width, desc);
-        assert_eq!(
-            call(
-                &mut emu,
-                "ntdll.dll",
-                "NtCreateFile",
-                &[
-                    out,
-                    u64::from(FILE_READ_DATA),
-                    obj,
-                    io,
-                    0,
-                    0,
-                    1,
-                    1,
-                    0x20,
-                    0,
-                    0
-                ]
-            ),
-            STATUS_SUCCESS
-        );
-        let file = read_pointer(&emu, out).unwrap();
-        for (expected, size) in [(STATUS_SUCCESS, 5), (STATUS_END_OF_FILE, 0)] {
-            assert_eq!(
-                call(
-                    &mut emu,
-                    "ntdll.dll",
-                    "ZwReadFile",
-                    &[file, 0, 0, 0, io, buf, 7, 0, 0]
-                ),
-                expected
-            );
-            assert_eq!(read_pointer(&emu, io + width), Some(size));
-            for (i, byte) in b"guest".iter().enumerate() {
-                assert_eq!(emu.maps.read_byte(buf + i as u64), Some(*byte));
+        let access = u64::from(FILE_GENERIC_READ);
+        let options = u64::from(FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT);
+        let share = u64::from(FILE_SHARE_READ);
+        let open = [out, access, obj, io, share, options];
+        let create = [
+            out,
+            access,
+            obj,
+            io,
+            0,
+            0,
+            share,
+            u64::from(FILE_OPEN),
+            options,
+            0,
+            0,
+        ];
+        for (api, args) in [
+            ("NtCreateFile", create.as_slice()),
+            ("ZwOpenFile", open.as_slice()),
+        ] {
+            assert_eq!(call(&mut emu, "ntdll.dll", api, args), STATUS_SUCCESS);
+            assert_eq!(read_pointer(&emu, io + width), Some(FILE_OPENED));
+            let file = read_pointer(&emu, out).unwrap();
+            for (expected, size) in [(STATUS_SUCCESS, 5), (STATUS_END_OF_FILE, 0)] {
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        "ntdll.dll",
+                        "ZwReadFile",
+                        &[file, 0, 0, 0, io, buf, 7, 0, 0]
+                    ),
+                    expected
+                );
+                assert_eq!(read_pointer(&emu, io + width), Some(size));
+                for (i, byte) in b"guest".iter().enumerate() {
+                    assert_eq!(emu.maps.read_byte(buf + i as u64), Some(*byte));
+                }
             }
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtClose", &[file]),
+                STATUS_SUCCESS
+            );
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtClose", &[file]),
+                STATUS_INVALID_HANDLE
+            );
         }
+        let native = read_pointer(&emu, desc + width).unwrap();
+        emu.maps
+            .write_wide_string(native, r"\??\C:\native-path-io\none.bin");
+        write_pointer(&mut emu, io, 0xf00d);
+        write_pointer(&mut emu, io + width, 0xfeed);
         assert_eq!(
-            call(&mut emu, "ntdll.dll", "NtClose", &[file]),
-            STATUS_SUCCESS
+            call(&mut emu, "ntdll.dll", "NtOpenFile", &open),
+            STATUS_OBJECT_NAME_NOT_FOUND
         );
-        assert_eq!(
-            call(&mut emu, "ntdll.dll", "NtClose", &[file]),
-            STATUS_INVALID_HANDLE
-        );
+        assert_eq!(read_pointer(&emu, io), Some(0xf00d));
+        assert_eq!(read_pointer(&emu, io + width), Some(0xfeed));
         call(&mut emu, "ntdll.dll", "RtlFreeUnicodeString", &[desc]);
         assert_eq!(read_pointer(&emu, desc + width), Some(0));
     }

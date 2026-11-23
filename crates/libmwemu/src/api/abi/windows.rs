@@ -11,7 +11,10 @@ use crate::emu::Emu;
 use CallingConvention::{Stdcall, Thiscall};
 use WindowsAbi::{WinApi, WinInterrupt, WinSyscall, WinSysenter};
 
-const X64_REGISTER_ARGS: usize = 4;
+pub(crate) const X64_REGISTER_ARGS: usize = 4;
+pub(crate) const X64_SHADOW_SPACE: u64 = (X64_REGISTER_ARGS * QWORD_BYTES) as u64;
+pub(crate) const X64_STACK_ALIGNMENT: u64 = 16;
+
 const SYSENTER_RETURN_SLOTS: usize = 2;
 
 /// Source-level function convention; x64/ARM64 use the native Windows ABI.

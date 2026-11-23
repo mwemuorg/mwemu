@@ -1,3 +1,4 @@
+use rand_chacha::ChaCha12Rng;
 use std::collections::BTreeMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -11,6 +12,8 @@ use iced_x86::Formatter as _;
 use crate::api::macos::libsystem::FtsState;
 use crate::kernel::KernelEnv;
 use crate::threading::process::ProcessTable;
+use crate::winapi::common::crypto_state::CryptoStore;
+use crate::winapi::common::fls::FlsCleanup;
 use crate::winapi::common::handles::ConsoleCursor;
 use crate::winapi::common::process::Priorities;
 use crate::winapi::libraries::kernel32::atoms::AtomTables;
@@ -54,7 +57,7 @@ use crate::winapi::common::winsock::sockets::SocketState;
 use crate::winapi::environment_store::Environment;
 use crate::winapi::libraries::ole32::runtime::Apartment;
 use crate::winapi::registry_store::Registry;
-use crate::winapi::window_table::WindowTable;
+use crate::winapi::window_table::{TimerTable, WindowTable};
 use crate::{
     api::banzai::Banzai,
     arch::OperatingSystem,
@@ -120,6 +123,7 @@ pub mod disassemble;
 mod display;
 pub mod emu_context;
 mod exception_handlers;
+pub(crate) use exception_handlers::RuntimeFunctionTable;
 mod execution;
 mod flags;
 mod fls;
@@ -184,6 +188,7 @@ pub struct Emu {
     pub(crate) sockets: SocketState,
     pub(crate) oem_file_names: bool,
     pub(crate) process_error_mode: u32,
+    pub(crate) process_dep_flags: u32,
     pub(crate) ipc: IpcState,
     pub(crate) priorities: Priorities,
     pub(crate) last_luid: u64,
@@ -191,14 +196,18 @@ pub struct Emu {
     pub(crate) profiles: ProfileStore,
     pub(crate) console_cursor: ConsoleCursor,
     pub(crate) windows_tls_slots: Vec<bool>,
-    pub(crate) windows_fls_slots: Vec<bool>,
+    pub(crate) windows_fls_slots: Vec<Option<u64>>,
+    pub(crate) fls_cleanup: FlsCleanup,
     pub(crate) veh_registration_ids: Vec<u32>,
     pub(crate) last_veh_id: u32,
     pub(crate) app_user_model_id: Vec<u16>,
     pub(crate) registry: Registry,
+    pub(crate) crypto: CryptoStore,
+    pub(crate) runtime_function_tables: Vec<RuntimeFunctionTable>,
     pub(crate) com_apartments: BTreeMap<u64, Apartment>,
     pub(crate) keyboard_state: BTreeMap<u64, Vec<u8>>,
     pub(crate) guest_windows: WindowTable,
+    pub(crate) user_timers: TimerTable,
     pub(crate) environment: Option<Environment>,
     pub(crate) crt_environments: [CrtEnvironment; 2],
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
@@ -207,8 +216,8 @@ pub struct Emu {
     pub(crate) ldr_init_done: bool, // true after LdrInitializeThunk call64 completes; switches API dispatch to virtual stubs
     pub(crate) force_reload: bool,  // trigger instruction re-decode
     pub(crate) run_until_ret: bool, // step-over mode: run until next RET
-    pub(crate) rng: rand::rngs::StdRng, // random source for rdrand/rdseed; reproducible via `set_seed`
-    pub(crate) rng_seed: Option<u64>,   // seed `rng` was last seeded with (None = from the OS)
+    pub(crate) rng: ChaCha12Rng,    // random source for rdrand/rdseed; reproducible via `set_seed`
+    pub(crate) rng_seed: Option<u64>, // seed `rng` was last seeded with (None = from the OS)
 
     // --- Platform & loaded binary ---
     pub os: OperatingSystem,       // target OS (set by loader / init)
@@ -298,6 +307,7 @@ pub struct Emu {
     /// once at mapping/relocation time and used as the fast path for
     /// named/ordinal/address lookups. The PEB/export scanner remains as a
     /// compatibility fallback for unregistered or malformed modules.
+    pub(crate) guest_dlls: BTreeMap<u64, loaders::guest_dll::GuestDll>,
     pub(crate) export_indexes: ExportIndexRegistry,
     pub(crate) symbolic_link_targets: HashMap<u64, String>, // NtOpenSymbolicLinkObject handle → resolved link target (e.g. "\KnownDlls\KnownDllPath" → "C:\\Windows\\System32"); read back by NtQuerySymbolicLinkObject so ntdll's LdrInit can resolve the KnownDlls search path
     pub(crate) ssdt_pad_stack: Vec<u64>, // expected return addresses for PE→DLL CALLs that received an extra 0x20 of shadow-space padding (--ssdt only); a matching RET to PE pops and unpads
@@ -311,7 +321,7 @@ impl Emu {
         use rand::SeedableRng as _;
         self.cfg.seed = Some(seed);
         self.rng_seed = Some(seed);
-        self.rng = rand::rngs::StdRng::seed_from_u64(seed);
+        self.rng = ChaCha12Rng::seed_from_u64(seed);
     }
 
     /// Apply `cfg.seed` if it changed since the random source was seeded.

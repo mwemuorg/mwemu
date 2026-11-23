@@ -20,12 +20,10 @@
     export too.
 */
 
-use iced_x86::{Decoder, DecoderOptions, Instruction, Mnemonic, OpKind, Register};
+use iced_x86::{Instruction, Mnemonic, OpKind, Register};
 
+use crate::api::windows::prologue::{MAX_PREFIX_BYTES, direct_entry_before, instructions};
 use crate::emu;
-
-/// Longest stolen prologue we try to unwind.
-const MAX_STOLEN_BYTES: u64 = 64;
 
 /// Register arguments of APIs whose stolen prologue writes argument
 /// registers. Registers past the count carry nothing the stub reads, so the
@@ -80,28 +78,15 @@ pub fn unwind(emu: &mut emu::Emu, addr: u64) -> Option<u64> {
     let skipped = emu.maps.try_read_bytes(code, (addr - code) as usize)?;
     let prologue = decode_prologue(&skipped, code, argument_count)?;
 
-    let entry_rsp = emu.regs().rsp + prologue.rsp_delta;
-    for reg in &prologue.clobbered {
-        let value = emu
-            .maps
-            .read_qword(entry_rsp.wrapping_add_signed(prologue.slot(*reg)?))?;
-        emu.regs_mut().set_reg(*reg, value);
-    }
-    emu.regs_mut().rsp = entry_rsp;
+    prologue.restore(emu)?;
     Some(entry)
 }
 
-/// Closest entry point at most MAX_STOLEN_BYTES below `addr`: where the
+/// Closest entry point at most MAX_PREFIX_BYTES below `addr`: where the
 /// skipped bytes start, and the export to dispatch.
 fn export_entry_before(emu: &emu::Emu, addr: u64) -> Option<(u64, u64)> {
-    let near = |entry: u64| entry < addr && addr - entry <= MAX_STOLEN_BYTES;
-    let direct = emu
-        .export_indexes
-        .iter_ordered()
-        .flat_map(|module| module.by_address.keys().copied())
-        .filter(|&entry| near(entry))
-        .max()
-        .map(|entry| (entry, entry));
+    let near = |entry: u64| entry < addr && addr - entry <= MAX_PREFIX_BYTES;
+    let direct = direct_entry_before(emu, addr).map(|entry| (entry, entry));
     // exports of the module containing `addr` that are a `jmp rel32` stub
     let module = emu
         .export_indexes
@@ -139,22 +124,12 @@ fn argument_count(emu: &mut emu::Emu, entry: u64) -> usize {
 
 /// `code` must decode into whole instructions that Prologue::step accepts.
 fn decode_prologue(code: &[u8], ip: u64, argument_count: usize) -> Option<Prologue> {
-    let mut decoder = Decoder::with_ip(64, code, ip, DecoderOptions::NONE);
     let mut prologue = Prologue {
         argument_count,
         ..Prologue::default()
     };
-    let mut ins = Instruction::default();
-    while decoder.can_decode() {
-        decoder.decode_out(&mut ins);
-        if ins.is_invalid() {
-            return None;
-        }
+    for ins in instructions(64, code, ip) {
         prologue.step(&ins)?;
-    }
-    // the jump target must be an instruction boundary
-    if decoder.position() != code.len() {
-        return None;
     }
     // every overwritten callee-saved register needs a slot to reload it from
     if prologue
@@ -168,6 +143,21 @@ fn decode_prologue(code: &[u8], ip: u64, argument_count: usize) -> Option<Prolog
 }
 
 impl Prologue {
+    fn restore(&self, emu: &mut emu::Emu) -> Option<()> {
+        let entry_rsp = emu.regs().rsp.checked_add(self.rsp_delta)?;
+        let mut saved = Vec::with_capacity(self.clobbered.len());
+        for &reg in &self.clobbered {
+            let address = entry_rsp.checked_add_signed(self.slot(reg)?)?;
+            let value = emu.maps.read_qword(address)?;
+            saved.push((reg, value));
+        }
+        for (reg, value) in saved {
+            emu.regs_mut().set_reg(reg, value);
+        }
+        emu.regs_mut().rsp = entry_rsp;
+        Some(())
+    }
+
     /// Account for one instruction; None when it cannot be undone.
     fn step(&mut self, ins: &Instruction) -> Option<()> {
         match ins.mnemonic() {
@@ -330,6 +320,35 @@ mod tests {
         assert_eq!(prologue.rsp_delta, 0x28);
         assert_eq!(prologue.clobbered, vec![Register::RBX]);
         assert_eq!(prologue.slot(Register::RBX), Some(-8));
+    }
+
+    #[test]
+    fn rejected_prologue_preserves_registers_and_stack() {
+        use crate::emu64;
+        use crate::maps::mem64::Permission;
+
+        let mut emu = emu64();
+        let slot = 0x20000;
+        emu.maps
+            .create_map("saved register", slot, 8, Permission::READ_WRITE)
+            .unwrap();
+        assert!(emu.maps.write_qword(slot, 123));
+        let prologue = Prologue {
+            rsp_delta: 16,
+            saved: vec![(Register::RBX, -16), (Register::RDI, -8)],
+            clobbered: vec![Register::RBX, Register::RDI],
+            ..Default::default()
+        };
+        for rsp in [slot, u64::MAX - 7] {
+            emu.regs_mut().rsp = rsp;
+            emu.regs_mut().rbx = 1;
+            emu.regs_mut().rdi = 2;
+            assert!(prologue.restore(&mut emu).is_none());
+            assert_eq!(
+                (emu.regs().rsp, emu.regs().rbx, emu.regs().rdi),
+                (rsp, 1, 2)
+            );
+        }
     }
 
     #[test]

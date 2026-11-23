@@ -36,7 +36,7 @@ The steps below show the bare commands; add that flag on Apple Silicon or use th
 
 1. `make tests` --> must pass all tests
 2. `make test_linux` --> you have to see the result of ls and good termination
-3. `make test_windows` --> (takes time) you have to see that arrives at least to 231067159 instructions emulated.
+3. `make test_windows` runs long Windows PE emulation tests in release mode, including packed programs. Each test checks that the guest reaches its expected behavior.
 4. (Linux only) `make test_inception` --> arrives to exit: ** syscall exit()  1
 5. `make test_syscall` --> (takes a lot of time) you have to see yellow syscalls and you have to see that LdrInitializeThunk is completed: ntdll!LdrInitializeThunk emulated completely.
 6. check that format is ok, otherwise fix it: `cargo fmt --all -- --check`

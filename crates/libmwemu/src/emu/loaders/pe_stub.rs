@@ -299,10 +299,10 @@ impl Emu {
         w32(&mut hdr, 0xd0, size_of_image); // SizeOfImage
         w32(&mut hdr, 0xd4, 0x200); // SizeOfHeaders
         w16(&mut hdr, 0xdc, 3); // Subsystem = CONSOLE
-        w32(&mut hdr, 0x108, 16); // NumberOfRvaAndSizes
+        w32(&mut hdr, 0x104, 16); // NumberOfRvaAndSizes
 
-        w32(&mut hdr, 0x10c, edata_rva); // DataDirectory[0] Export RVA
-        w32(&mut hdr, 0x110, edata_raw); // Export Size
+        w32(&mut hdr, 0x108, edata_rva); // DataDirectory[0] Export RVA
+        w32(&mut hdr, 0x10c, edata_raw); // Export Size
 
         let s0 = 0x188;
         copy_name(&mut hdr, s0, b".text\0\0\0");

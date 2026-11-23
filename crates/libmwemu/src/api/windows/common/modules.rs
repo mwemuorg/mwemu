@@ -1,11 +1,13 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::virtual_memory::MemoryKind;
+use crate::winapi::common::guest_files::{self, GuestFileRead};
 use crate::winapi::common::memory::{writable_pointer, write_pointer};
 use crate::winapi::common::ntdll::read_unicode_string;
 use crate::winapi::common::{file_names, strings};
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
+use crate::windows::constants::files::{FILE_SHARE_DELETE, FILE_SHARE_READ};
 use crate::windows::constants::process::*;
 
 use crate::windows::peb::{peb32, peb64};
@@ -285,23 +287,79 @@ pub(crate) fn native_module(emu: &mut Emu, lookup: bool) {
             return Err(STATUS_NOT_SUPPORTED);
         }
         let name = read_unicode_string(emu, descriptor)?;
-        let basename = normalize_library_name(&name, true).ok_or(STATUS_DLL_NOT_FOUND)?;
-        let base = find_loaded_module(emu, &basename)
-            .or_else(|| {
-                if lookup {
-                    return None;
-                }
-                let base = emu.link_library(&basename);
-                (base != 0).then_some(base)
-            })
-            .ok_or(STATUS_DLL_NOT_FOUND)?;
+        let base = if lookup {
+            find_loaded_module(emu, &name).ok_or(STATUS_DLL_NOT_FOUND)?
+        } else {
+            load_named(emu, &name).unwrap_or(Err(STATUS_UNSUCCESSFUL))?
+        };
         write_pointer(emu, out, base)
             .then_some(())
             .ok_or(STATUS_ACCESS_VIOLATION)
     })();
+    if emu.api_stopped() || emu.process_terminated {
+        return;
+    }
     log_red!(emu, "ntdll!{api} name={descriptor:#x} result={result:?}");
     call.set_return(emu, result.err().unwrap_or(STATUS_SUCCESS));
     call.cleanup_args(emu, first + 4);
+}
+
+/// None means the nested guest operation stopped emulation.
+fn load_named(emu: &mut Emu, name: &str) -> Option<Result<u64, u64>> {
+    if normalize_library_name(name, true).is_none() {
+        return Some(Err(STATUS_DLL_NOT_FOUND));
+    }
+    let qualified = name.contains(['\\', '/', ':']);
+    if !qualified {
+        if let Some(base) = emu.retain_guest_dll(name) {
+            return Some(Ok(base));
+        }
+        let base = find_loaded_module(emu, name).unwrap_or_else(|| emu.link_library(name));
+        if base != 0 {
+            return Some(Ok(base));
+        }
+    }
+    let path = match file_names::absolute_path(&emu.cfg.cwd_path, name.encode_utf16().collect())
+        .and_then(|units| String::from_utf16(&units).map_err(|_| ERROR_INVALID_PARAMETER))
+    {
+        Ok(path) => path,
+        Err(_) => return Some(Err(STATUS_INVALID_PARAMETER)),
+    };
+    if qualified && let Some(base) = emu.retain_guest_dll(&path) {
+        return Some(Ok(base));
+    }
+    let result = match guest_files::read_image_file(emu, &path, FILE_SHARE_READ | FILE_SHARE_DELETE)
+    {
+        GuestFileRead::File(bytes) => emu.load_guest_dll(&path, bytes).map_err(|error| {
+            log::debug!("LoadLibrary: cannot map {path}: {error}");
+            match error.win32_error() {
+                ERROR_DLL_INIT_FAILED => STATUS_DLL_INIT_FAILED,
+                ERROR_INVALID_ADDRESS => STATUS_CONFLICTING_ADDRESSES,
+                ERROR_NOT_ENOUGH_MEMORY => STATUS_NO_MEMORY,
+                ERROR_NOT_SUPPORTED => STATUS_NOT_SUPPORTED,
+                _ => STATUS_INVALID_IMAGE_FORMAT,
+            }
+        }),
+        GuestFileRead::NotIntercepted => {
+            let base = if qualified { emu.link_library(name) } else { 0 };
+            if base == 0 {
+                Err(STATUS_DLL_NOT_FOUND)
+            } else {
+                Ok(base)
+            }
+        }
+        GuestFileRead::Failed(status) => Err(match status {
+            STATUS_OBJECT_NAME_NOT_FOUND | STATUS_OBJECT_PATH_NOT_FOUND | STATUS_NO_SUCH_FILE => {
+                STATUS_DLL_NOT_FOUND
+            }
+            _ => status,
+        }),
+        GuestFileRead::Stopped => return None,
+    };
+    if emu.api_stopped() || emu.process_terminated {
+        return None;
+    }
+    Some(result)
 }
 
 pub(crate) fn load(emu: &mut Emu, library: &str, api: &str) {
@@ -331,11 +389,18 @@ pub(crate) fn load(emu: &mut Emu, library: &str, api: &str) {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
         0
     } else if let Some(name) = name {
-        let base = emu.link_library(&name);
-        if base == 0 {
-            emu.set_last_error(ERROR_MOD_NOT_FOUND);
-        }
-        base
+        let Some(result) = load_named(emu, &name) else {
+            return;
+        };
+        result.unwrap_or_else(|status| {
+            emu.set_last_error(match status {
+                STATUS_DLL_NOT_FOUND => ERROR_MOD_NOT_FOUND,
+                STATUS_DLL_INIT_FAILED => ERROR_DLL_INIT_FAILED,
+                STATUS_CONFLICTING_ADDRESSES => ERROR_INVALID_ADDRESS,
+                _ => guest_files::win32_error(status),
+            });
+            0
+        })
     } else {
         emu.set_last_error(ERROR_NOACCESS);
         0
@@ -348,6 +413,17 @@ pub(crate) fn free(emu: &mut Emu, library: &str) {
     let call = WinApi(Stdcall);
     let module = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "{library}!FreeLibrary module={module:#x}");
+    if let Some(released) = emu.release_guest_dll(module) {
+        if emu.api_stopped() || emu.process_terminated {
+            return;
+        }
+        if !released {
+            emu.set_last_error(ERROR_INVALID_HANDLE);
+        }
+        call.set_return(emu, u64::from(released));
+        call.cleanup_args(emu, 1);
+        return;
+    }
     let indexed = emu.export_indexes.get_by_base(module);
     if indexed.is_some_and(|index| {
         matches!(

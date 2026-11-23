@@ -1,12 +1,16 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use goblin::pe::dll_characteristic::IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE;
+use goblin::pe::header::{Header, SIZEOF_COFF_HEADER, SIZEOF_PE_MAGIC};
+use goblin::pe::section_table::SIZEOF_SECTION_TABLE;
 use itertools::iproduct;
 
 use crate::ApiMode;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::{Allocation, MemoryKind, PageState};
+use crate::maps::virtual_memory::{Allocation, MemoryKind, PAGE_SIZE, PageState};
+use crate::serialization::Serialization;
 use crate::tests::helpers::{
     self, WINAPI_MODULE_BASE, call_winapi_export as call, prepare_winapi as prepare,
 };
@@ -15,6 +19,7 @@ use crate::winapi::policy::{ApiDisposition, ApiStopReason};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
+use crate::windows::peb::{peb32, peb64};
 use crate::windows::structures;
 use crate::{emu32, emu64};
 
@@ -61,7 +66,7 @@ fn assert_x64_loader_order(emu: &Emu) {
     let peb_addr = peb_map.get_base();
     let ldr_map = emu.maps.get_mem("ldr");
     let ldr_addr = ldr_map.get_base();
-    let peb = structures::PEB64::load(peb_addr, &emu.maps);
+    let peb = structures::Peb64::load(peb_addr, &emu.maps);
     let ldr = structures::PebLdrData64::load(ldr_addr, &emu.maps);
 
     assert_eq!(peb.ldr, ldr_addr, "PEB.Ldr must point to the LDR map");
@@ -133,7 +138,7 @@ fn assert_x86_loader_order(emu: &Emu) {
     let peb_addr = peb_map.get_base();
     let ldr_map = emu.maps.get_mem("ldr");
     let ldr_addr = ldr_map.get_base();
-    let peb = structures::PEB::load(peb_addr, &emu.maps);
+    let peb = structures::Peb::load(peb_addr, &emu.maps);
     let ldr = structures::PebLdrData::load(ldr_addr, &emu.maps);
 
     assert_eq!(
@@ -484,10 +489,13 @@ fn free_library_rejects_unknown_modules_and_preserves_pinned_system_images() {
 #[test]
 fn resource_updates_and_activation_contexts_use_policy() {
     let (mut emu, data) = prepare(true);
-    emu.maps.write_wide_string(data, r"C:\guest-resource.dll");
+    let path = data + 128;
+    emu.maps.write_wide_string(path, r"C:\guest-resource.dll");
+    emu.maps.write_dword(data, 56);
+    emu.maps.write_qword(data + 8, path);
     emu.set_api_mode(ApiMode::Strict);
     for (api, args) in [
-        ("BeginUpdateResourceW", &[data, 0][..]),
+        ("BeginUpdateResourceW", &[path, 0][..]),
         ("CreateActCtxW", &[data][..]),
     ] {
         helpers::call_winapi64(
@@ -503,5 +511,175 @@ fn resource_updates_and_activation_contexts_use_policy() {
             Some(&ApiDisposition::Stopped(ApiStopReason::StrictPolicy))
         );
         emu.api_policy.clear_outcome();
+    }
+}
+
+const GUEST_CALLER: u64 = 0x0040_0000;
+const GUEST_DLL_MAIN: u32 = 0x1080;
+
+fn guest_dll_image(is64: bool, preferred: u64, accept_attach: bool) -> Vec<u8> {
+    let mut template = if is64 { emu64() } else { emu32() };
+    let base = if is64 {
+        template.create_stub_pe64("probe.dll", &["Answer"])
+    } else {
+        template.create_stub_pe32("probe.dll", &["Answer"]) as u64
+    };
+    let size = template.maps.allocation_at(base).unwrap().size as usize;
+    // Stub images use RVAs as their file offsets, so the mapped bytes form a PE file.
+    let mut raw = template
+        .maps
+        .try_read_bytes(base, size)
+        .unwrap()
+        .into_owned();
+    let nt = u32::from_le_bytes(raw[0x3c..0x40].try_into().unwrap()) as usize;
+    let opt = nt + SIZEOF_PE_MAGIC + SIZEOF_COFF_HEADER;
+    raw[opt + 16..opt + 20].copy_from_slice(&GUEST_DLL_MAIN.to_le_bytes());
+    if is64 {
+        raw[opt + 24..opt + 32].copy_from_slice(&preferred.to_le_bytes());
+    } else {
+        raw[opt + 28..opt + 32].copy_from_slice(&(preferred as u32).to_le_bytes());
+    }
+
+    let answer = (template.export_indexes.resolve_name_by_base(base, "Answer") - base) as usize;
+    raw[answer..answer + 6].copy_from_slice(&[0xb8, 42, 0, 0, 0, 0xc3]); // mov eax,42; ret
+    let entry = GUEST_DLL_MAIN as usize;
+    raw[entry..entry + 5].copy_from_slice(&[0xb8, u8::from(accept_attach), 0, 0, 0]);
+    let ret = if is64 {
+        &[0xc3][..]
+    } else {
+        &[0xc2, 12, 0][..]
+    };
+    raw[entry + 5..entry + 5 + ret.len()].copy_from_slice(ret);
+    raw
+}
+
+fn guest_dll_caller(is64: bool) -> (Emu, u64, u64) {
+    let (mut emu, data) = prepare(is64);
+    if is64 {
+        peb64::init_peb(&mut emu);
+    } else {
+        peb32::init_peb(&mut emu);
+    }
+    emu.maps
+        .create_map(
+            "caller",
+            GUEST_CALLER,
+            PAGE_SIZE,
+            Permission::READ_WRITE_EXECUTE,
+        )
+        .unwrap();
+    assert!(emu.maps.write_bytes(GUEST_CALLER, &[0xff, 0xd0, 0x90])); // call eax/rax; nop
+    emu.set_pc(GUEST_CALLER);
+    let base = if is64 { LIBS64_MIN } else { LIBS32_MIN } + 0x0100_0000;
+    (emu, data, base)
+}
+
+#[test]
+fn guest_dll_exports_execute_and_unload_at_the_last_reference() {
+    for is64 in [false, true] {
+        const DLL_CHARACTERISTICS_OFFSET: usize = 70;
+        let (mut emu, data, preferred) = guest_dll_caller(is64);
+        emu.set_seed(1);
+        let mut plugin = guest_dll_image(is64, preferred, true);
+        let header = Header::parse(&plugin).unwrap();
+        let flags = header.dos_header.pe_pointer as usize
+            + SIZEOF_PE_MAGIC
+            + SIZEOF_COFF_HEADER
+            + DLL_CHARACTERISTICS_OFFSET;
+        plugin[flags..flags + 2]
+            .copy_from_slice(&IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE.to_le_bytes());
+        let path = r"C:\app\plugin.probe.dll";
+        let base = emu.load_guest_dll(path, plugin).unwrap();
+        assert_ne!(base, preferred);
+        assert_eq!(emu.retain_guest_dll("PLUGIN.PROBE.DLL"), Some(base));
+        let sibling = preferred;
+        assert_eq!(
+            emu.load_guest_dll(r"C:\app\sibling.dll", guest_dll_image(is64, sibling, true))
+                .unwrap(),
+            sibling
+        );
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        emu.maps.write_string(data, "Answer");
+        let address = call(&mut emu, "kernel32.dll", "GetProcAddress", &[base, data]);
+        assert!(address > base);
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "GetProcAddress", &[base, 1]),
+            address
+        );
+        emu.regs_mut().rax = address;
+        emu.set_pc(GUEST_CALLER);
+        assert_eq!(emu.run(Some(GUEST_CALLER + 2)).unwrap(), GUEST_CALLER + 2);
+        assert_eq!(emu.regs().rax, 42);
+        assert_eq!(call(&mut emu, "kernel32.dll", "FreeLibrary", &[base]), 1);
+        assert!(emu.maps.is_mapped(address));
+        assert_eq!(call(&mut emu, "kernel32.dll", "FreeLibrary", &[base]), 1);
+        assert!(!emu.maps.is_mapped(address));
+        assert!(emu.export_indexes.get_by_base(base).is_none());
+        assert!(emu.maps.allocation_at(base).is_none());
+        let find = if is64 {
+            peb64::get_module_base
+        } else {
+            peb32::get_module_base
+        };
+        assert_eq!(find("plugin.probe.dll", &mut emu), None);
+        assert_eq!(find("sibling.dll", &mut emu), Some(sibling));
+        assert_eq!(
+            call(&mut emu, "kernel32.dll", "GetProcAddress", &[base, data]),
+            0
+        );
+    }
+}
+
+#[test]
+fn guest_dll_attach_failure_runs_detach_and_rolls_back_the_load() {
+    for is64 in [false, true] {
+        let (mut emu, output, base) = guest_dll_caller(is64);
+        emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+            if pc == base + GUEST_DLL_MAIN as u64 {
+                let reason = if is64 {
+                    emu.regs().rdx as u32
+                } else {
+                    emu.maps.read_dword(emu.sp() + 8).unwrap()
+                };
+                let count = emu.maps.read_dword(output).unwrap();
+                emu.maps.write_dword(output, count + 1);
+                emu.maps.write_dword(output + 4 + count as u64 * 4, reason);
+            }
+            true
+        });
+        let err = emu
+            .load_guest_dll("rejected.dll", guest_dll_image(is64, base, false))
+            .unwrap_err();
+        assert_eq!(err.win32_error(), ERROR_DLL_INIT_FAILED);
+        assert_eq!(emu.maps.read_dword(output), Some(2));
+        assert_eq!(emu.maps.read_dword(output + 4), Some(DLL_PROCESS_ATTACH));
+        assert_eq!(emu.maps.read_dword(output + 8), Some(DLL_PROCESS_DETACH));
+        assert!(emu.maps.allocation_at(base).is_none());
+        assert!(emu.export_indexes.get_by_base(base).is_none());
+        assert!(emu.guest_dll_base("rejected.dll").is_none());
+        assert_eq!(emu.pc(), GUEST_CALLER);
+    }
+}
+
+#[test]
+fn malformed_guest_dll_does_not_publish_a_partial_image() {
+    for is64 in [false, true] {
+        let (mut emu, _, base) = guest_dll_caller(is64);
+        let mut raw = guest_dll_image(is64, base, true);
+        let header = Header::parse(&raw).unwrap();
+        let coff = header.dos_header.pe_pointer as usize + SIZEOF_PE_MAGIC;
+        let sections =
+            coff + SIZEOF_COFF_HEADER + header.coff_header.size_of_optional_header as usize;
+        // A third section aliases the export section without changing its file contents.
+        let third = sections + 2 * SIZEOF_SECTION_TABLE;
+        raw.copy_within(third - SIZEOF_SECTION_TABLE..third, third);
+        raw[coff + 2..coff + 4].copy_from_slice(&3u16.to_le_bytes());
+        let err = emu.load_guest_dll("broken.dll", raw).unwrap_err();
+        assert_eq!(err.win32_error(), ERROR_BAD_EXE_FORMAT);
+        assert!(err.to_string().contains("cannot map PE"), "{err}");
+        assert!(emu.maps.is_range_free(base, PAGE_SIZE * 3));
+        assert!(emu.guest_dll_base("broken.dll").is_none());
+        assert!(emu.export_indexes.get_by_base(base).is_none());
+        assert_eq!(emu.pc(), GUEST_CALLER);
     }
 }

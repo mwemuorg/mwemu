@@ -3,9 +3,9 @@ use crate::api::dispatch_api;
 use crate::api::windows::common::heap::heap_allocation_size;
 use crate::api::windows::libraries::advapi32;
 use crate::emu;
+use crate::exception::seh32::unwind;
 use crate::syscall::windows::syscall64::query_system_information;
 use crate::winapi::common::ntdll;
-pub use crate::winapi::common::ntdll::RtlDecompressBuffer;
 use crate::winapi::common::threads;
 use crate::winapi::libraries::kernel32::file_time::nt_performance;
 use crate::winapi::policy;
@@ -16,6 +16,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         return true;
     }
     dispatch_api!(api, {
+        "RtlUnwind" => RtlUnwind(emu),
         "RtlCreateAcl" => advapi32::RtlCreateAcl(emu),
         "RtlQueryInformationAcl" => advapi32::RtlQueryInformationAcl(emu),
         "RtlGetAce" => advapi32::RtlGetAce(emu),
@@ -32,7 +33,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlSetUnhandledExceptionFilter" => ntdll::set_exception_filter(emu),
         "VerSetConditionMask" => VerSetConditionMask(emu),
         "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
-        "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
+        "RtlDecompressBuffer" => ntdll::RtlDecompressBuffer(emu),
         "NtSetInformationThread" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         "NtTerminateThread" => threads::nt_terminate_thread(emu),
         "RtlEncodePointer" => ntdll::pointer_round_trip(emu, api),
@@ -86,4 +87,20 @@ fn RtlSizeHeap(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!RtlSizeHeap mem=0x{:x} ={:?}", mem, size);
     call.set_return(emu, size.map(|s| s as u64).unwrap_or(0xffff_ffff));
     call.cleanup_args(emu, 3);
+}
+
+pub fn RtlUnwind(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let target = api_try!(emu, call.arg_u32(emu, 0));
+    let target_ip = api_try!(emu, call.arg_u32(emu, 1));
+    let record = api_try!(emu, call.arg_u32(emu, 2));
+    let value = api_try!(emu, call.arg_u32(emu, 3));
+    log_red!(
+        emu,
+        "RtlUnwind target_frame={target:#x} target_ip={target_ip:#x} exception_record={record:#x} return_value={value:#x}"
+    );
+    // Windows i386 resumes at the caller's return address, including when TargetIp is nonzero.
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, value as u64);
+    unwind::start(emu, target, record);
 }

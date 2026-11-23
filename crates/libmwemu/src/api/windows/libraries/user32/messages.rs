@@ -4,14 +4,14 @@ use crate::emu::Emu;
 use crate::winapi::common::memory::pointer_size;
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::{self, api_try};
-use crate::winapi::window_table::PostedMessage;
-use crate::windows::constants::errors::{ERROR_INVALID_WINDOW_HANDLE, ERROR_NOACCESS};
-const ERROR_NOT_ENOUGH_QUOTA: u64 = 1816;
+use crate::winapi::window_table::{PostedMessage, WindowTable};
+use crate::windows::constants::controls::{
+    PM_REMOVE, QS_TIMER, USER_TIMER_MINIMUM, WM_KEYFIRST, WM_KEYLAST, WM_QUIT, WM_TIMER,
+};
+use crate::windows::constants::errors::{
+    ERROR_INVALID_WINDOW_HANDLE, ERROR_NOACCESS, ERROR_NOT_ENOUGH_QUOTA,
+};
 
-const WM_QUIT: u32 = 0x0012;
-const WM_KEYFIRST: u32 = 0x0100;
-const WM_KEYLAST: u32 = 0x0109;
-const PM_REMOVE: u32 = 1;
 const MAX_POSTED_MESSAGES: usize = 10_000;
 
 fn enqueue(emu: &mut Emu, thread: u64, hwnd: u64, id: u32, wparam: u64, lparam: u64) -> bool {
@@ -83,6 +83,84 @@ fn write_message(emu: &mut Emu, at: u64, m: &PostedMessage) -> bool {
         && emu.maps.write_bytes(at, &bytes)
 }
 
+struct MessageFilter {
+    window: u64,
+    thread_only: bool,
+    minimum: u64,
+    maximum: u64,
+    include_timers: bool,
+}
+
+impl MessageFilter {
+    fn accepts_window(&self, windows: &WindowTable, hwnd: u64) -> bool {
+        self.window == 0
+            || (self.thread_only && hwnd == 0)
+            || (!self.thread_only && (hwnd == self.window || windows.is_child(self.window, hwnd)))
+    }
+
+    fn accepts_id(&self, id: u32) -> bool {
+        if id == WM_TIMER && !self.include_timers {
+            return false;
+        }
+        id == WM_QUIT
+            || (self.minimum == 0 && self.maximum == 0)
+            || (self.minimum..=self.maximum).contains(&u64::from(id))
+    }
+
+    fn queued(&self, emu: &Emu, thread: u64) -> Option<(usize, PostedMessage)> {
+        let queue = emu.guest_windows.user.messages.get(&thread)?;
+        let index = queue.iter().position(|m| {
+            self.accepts_id(m.id) && self.accepts_window(&emu.guest_windows, m.hwnd)
+        })?;
+        Some((index, queue[index].clone()))
+    }
+}
+
+fn materialize_timer(
+    emu: &mut Emu,
+    thread: u64,
+    filter: &MessageFilter,
+    wait: bool,
+) -> Option<(usize, PostedMessage)> {
+    if !filter.accepts_id(WM_TIMER) {
+        return None;
+    }
+    let windows = &emu.guest_windows;
+    let ((hwnd, id), timer) = emu
+        .user_timers
+        .next(thread, |hwnd| filter.accepts_window(windows, hwnd))?;
+    let now = emu.tick as u64;
+    if timer.deadline > now {
+        let deadline = usize::try_from(timer.deadline).ok()?;
+        if !wait
+            || (emu.cfg.enable_threading
+                && emu
+                    .threads
+                    .iter()
+                    .any(|other| other.id != thread && other.is_runnable(deadline)))
+        {
+            return None;
+        }
+        emu.tick = deadline;
+    }
+    let now = emu.tick as u64;
+    let period = u64::from(timer.period.max(USER_TIMER_MINIMUM));
+    let elapsed = now.saturating_sub(timer.deadline);
+    timer.deadline = now.saturating_add(period - elapsed % period);
+    let m = PostedMessage {
+        hwnd,
+        id: WM_TIMER,
+        wparam: id,
+        lparam: timer.callback,
+        time: emu.tick as u32,
+        point: windows.user.cursor_position.unwrap_or([960, 540]),
+    };
+    let queue = emu.guest_windows.user.messages.entry(thread).or_default();
+    let index = queue.len();
+    queue.push(m.clone());
+    Some((index, m))
+}
+
 fn receive(emu: &mut Emu, api: &str, peek: bool) {
     let call = WinApi(Stdcall);
     let [output, window, minimum, maximum] = api_try!(emu, call.args(emu));
@@ -103,28 +181,24 @@ fn receive(emu: &mut Emu, api: &str, peek: bool) {
         "user32!{api} output={output:#x} hwnd={window:#x} minimum={minimum:#x} maximum={maximum:#x} flags={flags:#x}"
     );
     let failure = if peek { 0 } else { u64::from(u32::MAX) };
-    let result = if output == 0 {
+    let msg_size = if emu.cfg.arch.is_64bits() { 48 } else { 32 };
+    let result = if output == 0 || !emu.maps.validate_write_range(output, msg_size) {
         emu.set_last_error(ERROR_NOACCESS);
         failure
     } else if window != 0 && !thread_only && !emu.guest_windows.contains(window) {
         emu.set_last_error(ERROR_INVALID_WINDOW_HANDLE);
         failure
     } else {
-        let next = emu.guest_windows.user.messages.get(&thread).and_then(|q| {
-            q.iter()
-                .enumerate()
-                .find(|(_, m)| {
-                    (m.id == WM_QUIT
-                        || ((minimum == 0 && maximum == 0)
-                            || (minimum..=maximum).contains(&u64::from(m.id))))
-                        && (window == 0
-                            || (thread_only && m.hwnd == 0)
-                            || (!thread_only
-                                && (m.hwnd == window
-                                    || emu.guest_windows.is_child(window, m.hwnd))))
-                })
-                .map(|(i, m)| (i, m.clone()))
-        });
+        let filter = MessageFilter {
+            window,
+            thread_only,
+            minimum,
+            maximum,
+            include_timers: flags >> 16 == 0 || ((flags >> 16) & QS_TIMER) != 0,
+        };
+        let next = filter
+            .queued(emu, thread)
+            .or_else(|| materialize_timer(emu, thread, &filter, !peek));
         if let Some((index, m)) = next {
             if !write_message(emu, output, &m) {
                 emu.set_last_error(ERROR_NOACCESS);
@@ -148,6 +222,7 @@ fn receive(emu: &mut Emu, api: &str, peek: bool) {
     call.set_return(emu, result);
     call.cleanup_args(emu, 4 + usize::from(peek));
 }
+
 pub fn PostMessageA(emu: &mut Emu) {
     post(emu, "PostMessageA");
 }
@@ -295,6 +370,19 @@ pub fn WaitMessage(emu: &mut Emu) {
         .messages
         .get(&thread)
         .is_none_or(Vec::is_empty)
+        && materialize_timer(
+            emu,
+            thread,
+            &MessageFilter {
+                window: 0,
+                thread_only: false,
+                minimum: 0,
+                maximum: 0,
+                include_timers: true,
+            },
+            true,
+        )
+        .is_none()
     {
         policy::unsupported(emu, "user32", "WaitMessage", emu.pc());
         return;

@@ -10,22 +10,42 @@ impl Emu {
         let is64 = self.cfg.arch.is_64bits();
         let mut slots = 0;
         let mut callbacks = Vec::new();
+        // Older versions kept one top-level exception filter per thread. Prefer
+        // the interrupted thread's filter if it differs from the primary thread's.
+        let current_filter = match &self.current_thread().arch {
+            ArchThreadState::X86 { uef, .. } => *uef,
+            _ => 0,
+        };
+        let mut other_filter = 0;
         for (index, thread) in self.threads.iter_mut().enumerate() {
             if let ArchThreadState::X86 {
-                tls32, tls64, veh, ..
+                tls32,
+                tls64,
+                veh,
+                uef,
+                ..
             } = &mut thread.arch
             {
                 slots = slots.max(if is64 { tls64.len() } else { tls32.len() });
                 if index != 0 {
                     callbacks.append(veh);
+                    if other_filter == 0 {
+                        other_filter = *uef;
+                    }
+                    *uef = 0;
                 }
             }
         }
         self.windows_tls_slots
             .resize(slots.min(TLS_MAXIMUM_AVAILABLE), true);
         if let Some(thread) = self.threads.first_mut()
-            && let ArchThreadState::X86 { veh, .. } = &mut thread.arch
+            && let ArchThreadState::X86 { veh, uef, .. } = &mut thread.arch
         {
+            if current_filter != 0 {
+                *uef = current_filter;
+            } else if *uef == 0 {
+                *uef = other_filter;
+            }
             veh.extend(callbacks);
             // Old snapshots used callback addresses as removal handles.
             self.veh_registration_ids.resize(veh.len(), 0);

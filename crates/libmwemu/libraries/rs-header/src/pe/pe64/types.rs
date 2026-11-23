@@ -104,9 +104,9 @@ impl ImageOptionalHeader64 {
             size_of_stack_reserve: read_u64_le!(raw, off + 72),
             size_of_stack_commit: read_u64_le!(raw, off + 80),
             size_of_heap_reserve: read_u64_le!(raw, off + 88),
-            size_of_heap_commit: read_u64_le!(raw, off + 94),
-            loader_flags: read_u32_le!(raw, off + 102),
-            number_of_rva_and_sizes: read_u32_le!(raw, off + 106),
+            size_of_heap_commit: read_u64_le!(raw, off + 96),
+            loader_flags: read_u32_le!(raw, off + 104),
+            number_of_rva_and_sizes: read_u32_le!(raw, off + 108),
             data_directory: dd,
         }
     }

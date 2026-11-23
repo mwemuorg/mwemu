@@ -37,7 +37,12 @@ pub(crate) fn create(
     name: String,
 ) -> Result<(u64, bool), u64> {
     let rights = memory::permissions(protection & 0xff).ok_or(STATUS_INVALID_PARAMETER)?;
-    if protection & !(SEC_COMMIT | 0xff) != 0 || matches!(protection & 0xff, 8 | 0x80) {
+    let reserved = protection & SEC_RESERVE != 0;
+    if reserved && protection & SEC_COMMIT != 0 {
+        return Err(STATUS_INVALID_PARAMETER);
+    }
+    if protection & !(SEC_COMMIT | SEC_RESERVE | 0xff) != 0 || matches!(protection & 0xff, 8 | 0x80)
+    {
         return Err(STATUS_NOT_IMPLEMENTED);
     }
     if !rights.can_read() {
@@ -84,6 +89,11 @@ pub(crate) fn create(
         bytes
     };
     let storage = emu.maps.create_shared_storage(bytes);
+    if reserved && file.is_none() {
+        emu.maps
+            .section_commitments
+            .insert(storage, vec![false; (size / PAGE_SIZE) as usize]);
+    }
     let section = SectionHandle {
         name,
         max_size: length,
@@ -161,18 +171,58 @@ pub(crate) fn map(
         return Err(STATUS_INVALID_PARAMETER);
     }
     let name = emu.maps.unique_map_name(&format!("section_view_{base:x}"));
+    let reserved = emu.maps.section_commitments.contains_key(&section.storage);
+    let initial = if reserved {
+        PageState::reserved()
+    } else {
+        PageState::committed(protection, requested)
+    };
     emu.maps
-        .create_shared_view(&name, base, size, section.storage, offset, requested)
+        .create_shared_view(
+            &name,
+            base,
+            size,
+            section.storage,
+            offset,
+            initial.permission,
+        )
         .map_err(|_| STATUS_CONFLICTING_ADDRESSES)?;
     let mut allocation = Allocation::new(
         base,
         size,
-        section.protection,
+        if reserved {
+            protection
+        } else {
+            section.protection
+        },
         MemoryKind::Mapped,
-        PageState::committed(protection, requested),
+        initial,
     );
     allocation.maximum_permission = Some(requested);
     emu.maps.register_allocation(allocation);
+    if let Some(pages) = emu.maps.section_commitments.get(&section.storage) {
+        let first = (offset / PAGE_SIZE) as usize;
+        let count = (size / PAGE_SIZE) as usize;
+        let Some(range) = pages.get(first..first + count) else {
+            emu.maps.unmap_range(base, size);
+            return Err(STATUS_INVALID_PARAMETER);
+        };
+        let mut runs = Vec::new();
+        let mut cursor = base;
+        for group in range.chunk_by(|a, b| a == b) {
+            let length = group.len() as u64 * PAGE_SIZE;
+            if group.first() == Some(&true) {
+                runs.push((cursor, length));
+            }
+            cursor += length;
+        }
+        for (at, len) in runs {
+            if emu.maps.apply_section_commit(at, len, None).is_err() {
+                emu.maps.unmap_range(base, size);
+                return Err(STATUS_INVALID_PARAMETER);
+            }
+        }
+    }
     Ok((base, size))
 }
 
@@ -193,6 +243,7 @@ pub(crate) fn collect_unused(emu: &mut Emu) {
         .collect();
     for id in unused {
         emu.maps.shared_stores.remove(&id);
+        emu.maps.section_commitments.remove(&id);
         emu.handle_management.forget_section(id);
     }
 }
@@ -469,7 +520,7 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
     let protection = api_try!(emu, call.arg_u32(emu, 9));
     let result = (|| {
         require_memory_access(emu, process, PROCESS_VM_OPERATION)?;
-        if zero_bits != 0 || commit_size != 0 || flags != 0 {
+        if zero_bits != 0 || flags != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if !memory::writable_pointer(emu, base_ptr) || !memory::writable_pointer(emu, size_ptr) {
@@ -488,6 +539,16 @@ pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
                 .ok_or(STATUS_ACCESS_VIOLATION)?
         };
         let (address, length) = map(emu, handle, base, offset, size, protection)?;
+        if commit_size != 0 {
+            let result = align_up(commit_size, PAGE_SIZE)
+                .filter(|&n| n <= length)
+                .zip(memory::permissions(protection))
+                .and_then(|(n, perm)| emu.maps.commit_memory(address, n, protection, perm).ok());
+            if result.is_none() {
+                unmap(emu, address)?;
+                return Err(STATUS_INVALID_PARAMETER);
+            }
+        }
         memory::write_pointer(emu, base_ptr, address);
         memory::write_pointer(emu, size_ptr, length);
         Ok(())

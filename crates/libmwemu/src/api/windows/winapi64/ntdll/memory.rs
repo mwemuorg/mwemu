@@ -24,8 +24,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtProtectVirtualMemory" => NtProtectVirtualMemory(emu),
         "memset" => memset(emu),
         "NtFlushInstructionCache" => memory_api::nt_flush_cache(emu),
-        "RtlAddFunctionTable" => policy::unsupported(emu, "ntdll", api, emu.pc()),
-        "RtlDeleteFunctionTable" => policy::unsupported(emu, "ntdll", api, emu.pc()),
+        "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
+        "RtlDeleteFunctionTable" => RtlDeleteFunctionTable(emu),
         "RtlInstallFunctionTableCallback" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         "RtlCaptureContext" => threads::capture_context(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
@@ -69,16 +69,26 @@ fn memset(emu: &mut emu::Emu) {
     crt::fill(emu);
 }
 
-/*
-BOOLEAN RtlInstallFunctionTableCallback(
-  [in] DWORD64                        TableIdentifier,
-  [in] DWORD64                        BaseAddress,
-  [in] DWORD                          Length,
-  [in] PGET_RUNTIME_FUNCTION_CALLBACK Callback,
-  [in] PVOID                          Context,
-  [in] PCWSTR                         OutOfProcessCallbackDll
-);
-*/
+fn RtlAddFunctionTable(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let table = api_try!(emu, call.arg(emu, 0));
+    let count = api_try!(emu, call.arg_u32(emu, 1));
+    let base = api_try!(emu, call.arg(emu, 2));
+    let registered = emu.register_runtime_functions(table, count, base);
+    log_red!(
+        emu,
+        "RtlAddFunctionTable table={table:#x} count={count} base={base:#x} => {registered}"
+    );
+    call.set_return(emu, registered.into());
+}
+
+fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let table = api_try!(emu, call.arg(emu, 0));
+    let removed = emu.unregister_runtime_functions(table);
+    log_red!(emu, "RtlDeleteFunctionTable table={table:#x} => {removed}");
+    call.set_return(emu, removed.into());
+}
 
 fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
     let call = WinApi(Stdcall);

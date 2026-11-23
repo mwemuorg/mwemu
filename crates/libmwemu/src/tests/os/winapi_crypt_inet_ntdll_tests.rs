@@ -1118,48 +1118,348 @@ fn rtl_critical_sections_share_ownership_and_return_native_status() {
 }
 
 #[test]
-fn runtime_function_lookup_returns_a_guest_table_entry_for_an_image_pc() {
+fn static_function_table_must_fit_in_its_image() {
+    use goblin::pe::exception::RuntimeFunction;
+    use goblin::pe::header::PE_POINTER_OFFSET;
+
     use crate::maps::mem64::Permission;
     use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+
+    const BASE: u64 = 0x4100_0000;
+    const IMAGE_SIZE: u32 = 0x1000;
+    const ENTRY_SIZE: u32 = size_of::<RuntimeFunction>() as u32;
+    const NT_RVA: u32 = 0x80;
+    const NT: u64 = BASE + NT_RVA as u64;
+    const SIZE_OF_IMAGE: u64 = NT + 0x50;
+    const NUMBER_OF_DIRECTORIES: u64 = NT + 0x84;
+    const EXCEPTION_DIRECTORY: u64 = NT + 0xa0;
+    const BEGIN_RVA: u32 = 0x300;
+    const END_RVA: u32 = 0x380;
+
     let (mut emu, out) = prepare_winapi(true);
-    let base = 0x4100_0000;
-    let pe_offset = 0x80;
-    let table_rva = 0x200;
-    let entry = base + table_rva;
+    for (name, base) in [
+        ("unwind_fixture.pe", BASE),
+        ("neighbor", BASE + u64::from(IMAGE_SIZE)),
+    ] {
+        emu.maps
+            .create_map(name, base, u64::from(IMAGE_SIZE), Permission::READ_WRITE)
+            .unwrap();
+    }
     emu.maps
-        .create_map("unwind_fixture.pe", base, 0x1000, Permission::READ_WRITE)
-        .unwrap();
-    emu.maps.write_dword(base + 0x3c, pe_offset as u32);
-    let pe = base + pe_offset;
-    emu.maps.write_dword(pe + 0x50, 0x1000);
-    emu.maps.write_dword(pe + 0x84, 16);
-    emu.maps.write_dword(pe + 0xa0, table_rva as u32);
-    emu.maps.write_dword(pe + 0xa4, 12);
-    emu.maps.write_dword(entry, 0x300);
-    emu.maps.write_dword(entry + 4, 0x380);
-    emu.maps.write_dword(entry + 8, 0x480);
-    for dll in ["ntdll.dll", "kernel32.dll"] {
-        emu.maps.write_qword(out, 0);
+        .write_dword(BASE + u64::from(PE_POINTER_OFFSET), NT_RVA);
+    emu.maps.write_dword(SIZE_OF_IMAGE, IMAGE_SIZE);
+    emu.maps.write_dword(NUMBER_OF_DIRECTORIES, 16);
+
+    for (table_rva, directory_size, inside_image) in [
+        (IMAGE_SIZE - ENTRY_SIZE, ENTRY_SIZE, true),
+        (IMAGE_SIZE - ENTRY_SIZE, ENTRY_SIZE + 1, false),
+        (IMAGE_SIZE, ENTRY_SIZE, false),
+    ] {
+        let entry = BASE + u64::from(table_rva);
+        emu.maps.write_dword(EXCEPTION_DIRECTORY, table_rva);
+        emu.maps
+            .write_dword(EXCEPTION_DIRECTORY + 4, directory_size);
+        assert!(emu.maps.write_dword(entry, BEGIN_RVA));
+        assert!(emu.maps.write_dword(entry + 4, END_RVA));
+        assert!(emu.maps.write_dword(entry + 8, 0x480));
+
+        for dll in ["ntdll.dll", "kernel32.dll"] {
+            emu.maps.write_qword(out, 0);
+            let lookup = |emu: &mut Emu, rva: u32| {
+                call(
+                    emu,
+                    dll,
+                    "RtlLookupFunctionEntry",
+                    &[BASE + u64::from(rva), out, 0],
+                )
+            };
+            assert_eq!(
+                lookup(&mut emu, END_RVA - 1),
+                if inside_image { entry } else { 0 },
+                "{dll}, RVA {table_rva:#x}, size {directory_size:#x}"
+            );
+            if inside_image {
+                assert_eq!(emu.maps.read_qword(out), Some(BASE));
+                assert_eq!(lookup(&mut emu, END_RVA), 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn registered_runtime_function_tables_resolve_guest_entries_and_survive_snapshots() {
+    use crate::serialization::Serialization;
+    use crate::tests::helpers::{call_winapi_export as call, prepare_winapi};
+    let (mut emu, data) = prepare_winapi(true);
+    let table = data + 0x200;
+    let image_base = data + 0x1000;
+    for starts in [[0x40, 0x80], [0x80, 0x40]] {
+        for (index, begin) in starts.into_iter().enumerate() {
+            let entry = table + index as u64 * 12;
+            emu.maps.write_dword(entry, begin);
+            emu.maps.write_dword(entry + 4, begin + 0x10);
+            emu.maps.write_dword(entry + 8, 0x100);
+        }
         assert_eq!(
             call(
                 &mut emu,
-                dll,
-                "RtlLookupFunctionEntry",
-                &[base + 0x37f, out, 0]
+                "kernel32.dll",
+                "RtlAddFunctionTable",
+                &[table, 2, image_base]
             ),
-            entry
+            1
         );
-        assert_eq!(emu.maps.read_qword(out), Some(base));
+        let mut snapshot = Serialization::deserialize(&Serialization::serialize(&emu));
         assert_eq!(
-            call(
-                &mut emu,
-                dll,
-                "RtlLookupFunctionEntry",
-                &[base + 0x380, out, 0]
-            ),
+            call(&mut emu, "ntdll.dll", "RtlDeleteFunctionTable", &[table]),
+            1
+        );
+        assert_eq!(
+            call(&mut emu, "ntdll.dll", "RtlDeleteFunctionTable", &[table]),
             0
         );
+        assert_eq!(emu.resolve_function_range(image_base + 0x40), None);
+        for (index, begin) in starts.into_iter().enumerate() {
+            let pc = image_base + u64::from(begin);
+            assert_eq!(
+                call(
+                    &mut snapshot,
+                    "ntdll.dll",
+                    "RtlLookupFunctionEntry",
+                    &[pc + 15, data, 0]
+                ),
+                table + index as u64 * 12
+            );
+            assert_eq!(snapshot.maps.read_qword(data), Some(image_base));
+            assert_eq!(snapshot.resolve_function_range(pc), Some((pc, pc + 16)));
+            assert_eq!(snapshot.resolve_function_range(pc + 16), None);
+        }
+        assert_eq!(
+            call(
+                &mut snapshot,
+                "kernel32.dll",
+                "RtlDeleteFunctionTable",
+                &[table]
+            ),
+            1
+        );
     }
+    assert_eq!(
+        call(
+            &mut emu,
+            "ntdll.dll",
+            "RtlAddFunctionTable",
+            &[u64::MAX, 1, image_base]
+        ),
+        0
+    );
+}
+
+#[test]
+fn virtual_unwind_restores_the_caller_and_selects_handlers_only_in_the_body() {
+    use crate::context::context64::Context64;
+    use crate::tests::helpers::{call_winapi_export, prepare_winapi};
+    use crate::windows::constants::exceptions::UNW_FLAG_EHANDLER;
+
+    // push rbp; sub rsp, 0x80; mov [rsp+0x18], rbx. The epilog restores the stack and pops rbp.
+    let codes = [
+        0x09, 12, 5, 0, 12, 0x34, 3, 0, 8, 0x01, 16, 0, 1, 0x50, 0, 0,
+    ];
+    let epilog_code = [0x48, 0x81, 0xc4, 0x80, 0, 0, 0, 0x5d, 0xc3];
+    for dll in ["kernel32.dll", "ntdll.dll"] {
+        for (offset, allocation, restores_rbx, has_handler) in [
+            (0x20, 0x80, true, true), // body
+            (1, 0, false, false),     // only the push completed
+            (0x77, 0, false, false),  // inside the epilog, after add rsp
+        ] {
+            let (mut emu, base) = prepare_winapi(true);
+            let (entry, info, code, context) =
+                (base + 0x20, base + 0x40, base + 0x100, base + 0x200);
+            let (handler_data, establisher, pointers, sp) =
+                (base + 0x500, base + 0x508, base + 0x600, base + 0x800);
+            let reg = |index: u64| context + Context64::RAX_OFFSET + 8 * index;
+            emu.maps.write_dword(entry, 0x100);
+            emu.maps.write_dword(entry + 4, 0x180);
+            emu.maps.write_dword(entry + 8, 0x40);
+            emu.maps.write_bytes(info, &codes);
+            emu.maps.write_dword(info + codes.len() as u64, 0x1a0);
+            emu.maps.write_bytes(code + 0x70, &epilog_code);
+            emu.maps.write_qword(reg(4), sp);
+            emu.maps.write_qword(sp + 0x18, 0x1234);
+            emu.maps.write_qword(sp + allocation, 0x5678);
+            emu.maps.write_qword(sp + allocation + 8, code + 0x40);
+            let handler = call_winapi_export(
+                &mut emu,
+                dll,
+                "RtlVirtualUnwind",
+                &[
+                    UNW_FLAG_EHANDLER as u64,
+                    base,
+                    code + offset,
+                    entry,
+                    context,
+                    handler_data,
+                    establisher,
+                    pointers,
+                ],
+            );
+            assert_eq!(handler, if has_handler { base + 0x1a0 } else { 0 });
+            if has_handler {
+                assert_eq!(
+                    emu.maps.read_qword(handler_data),
+                    Some(info + codes.len() as u64 + 4)
+                );
+            }
+            assert_eq!(emu.maps.read_qword(establisher), Some(sp));
+            assert_eq!(
+                emu.maps.read_qword(reg(3)),
+                Some(if restores_rbx { 0x1234 } else { 0 })
+            );
+            assert_eq!(emu.maps.read_qword(reg(5)), Some(0x5678));
+            assert_eq!(
+                emu.maps.read_qword(pointers + (16 + 5) * 8),
+                Some(sp + allocation)
+            );
+            assert_eq!(emu.maps.read_qword(reg(4)), Some(sp + allocation + 16));
+            assert_eq!(
+                emu.maps.read_qword(context + Context64::RIP_OFFSET),
+                Some(code + 0x40)
+            );
+        }
+    }
+}
+
+#[test]
+fn unwind_ex_calls_the_termination_handler_then_resumes_the_target_frame() {
+    use crate::context::context64::Context64;
+    use crate::maps::mem64::Permission;
+    use crate::tests::helpers::{call_winapi64, invoke_winapi_export, prepare_winapi};
+    use crate::windows::constants::exceptions::EXCEPTION_UNWINDING;
+
+    for dll in ["kernel32.dll", "ntdll.dll"] {
+        let (mut emu, context) = prepare_winapi(true);
+        let base = 0x4100_0000;
+        let current = base + 0x320;
+        let target_ip = base + 0x750;
+        let record = context + 0x600;
+        let flag_copy = base + 0x900;
+        let handler = base + 0x500;
+        emu.maps
+            .create_map(
+                "target_unwind.pe",
+                base,
+                0x1000,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        emu.maps.write_dword(base + 0x3c, 0x80);
+        let pe = base + 0x80;
+        emu.maps.write_dword(pe + 0x50, 0x1000);
+        emu.maps.write_dword(pe + 0x84, 16);
+        emu.maps.write_dword(pe + 0xa0, 0x200);
+        emu.maps.write_dword(pe + 0xa4, 12);
+        emu.maps.write_dword(base + 0x200, 0x300);
+        emu.maps.write_dword(base + 0x204, 0x380);
+        emu.maps.write_dword(base + 0x208, 0x400);
+        // Version 1, termination handler, one 64-byte stack allocation.
+        emu.maps
+            .write_bytes(base + 0x400, &[0x11, 4, 1, 0, 4, 0x72, 0, 0]);
+        emu.maps.write_dword(base + 0x408, (handler - base) as u32);
+        // mov eax,[rcx+4]; mov [rip+disp32],eax; mov eax,ExceptionContinueSearch; ret
+        let mut body = vec![0x8b, 0x41, 0x04, 0x89, 0x05];
+        body.extend_from_slice(&((flag_copy - (handler + 9)) as u32).to_le_bytes());
+        body.extend_from_slice(&[0xb8, 1, 0, 0, 0, 0xc3]);
+        emu.maps.write_bytes(handler, &body);
+        emu.set_pc(current);
+        emu.gateway_return = current;
+        let sp = emu.sp();
+        let target_sp = sp + 0x48;
+        emu.maps.write_qword(sp + 0x40, base + 0x710);
+        let result = call_winapi64(
+            &mut emu,
+            |emu| invoke_winapi_export(emu, dll, "RtlUnwindEx"),
+            &[target_sp, target_ip, record, 0x1234, context, 0],
+        );
+        assert!(
+            !emu.api_policy.stopped(),
+            "{dll}: {:?}",
+            emu.api_policy.last_outcome
+        );
+        assert_eq!(emu.maps.read_dword(flag_copy), Some(EXCEPTION_UNWINDING));
+        assert_eq!((emu.pc(), emu.sp(), result), (target_ip, target_sp, 0x1234));
+        assert_eq!(
+            emu.maps.read_qword(context + Context64::RIP_OFFSET),
+            Some(target_ip)
+        );
+    }
+}
+
+#[test]
+fn unwind_ex_ignores_the_continuation_address_during_exit_unwind() {
+    use crate::tests::helpers::{call_winapi64, invoke_winapi_export, prepare_winapi};
+    use crate::windows::constants::errors::STATUS_UNWIND;
+    use crate::windows::constants::exceptions::{EXCEPTION_EXIT_UNWIND, EXCEPTION_UNWINDING};
+
+    let (mut emu, context) = prepare_winapi(true);
+    let record = context + 0x600;
+    let caller = 0x4100_0300;
+    let target = 0x4100_0420;
+    emu.set_pc(caller);
+    emu.gateway_return = caller;
+    emu.maps.write_qword(emu.sp(), 0);
+    emu.maps.write_dword(record, STATUS_UNWIND);
+    call_winapi64(
+        &mut emu,
+        |emu| invoke_winapi_export(emu, "ntdll.dll", "RtlUnwindEx"),
+        &[0, target, record, 0, context, 0],
+    );
+    assert_eq!(
+        emu.maps.read_dword(record + 4),
+        Some(EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)
+    );
+    assert!(!emu.api_policy.stopped());
+    assert_ne!(emu.pc(), target);
+}
+
+#[test]
+fn virtual_unwind_rejects_an_unwritable_output_before_updating_context() {
+    use crate::context::context64::Context64;
+    use crate::tests::helpers::{call_winapi64, invoke_winapi_export, prepare_winapi};
+    use crate::winapi::policy::{ApiDisposition, ApiStopReason};
+
+    let (mut emu, base) = prepare_winapi(true);
+    let (entry, info, code, context, sp) = (
+        base + 0x20,
+        base + 0x40,
+        base + 0x100,
+        base + 0x200,
+        base + 0x800,
+    );
+    let saved_rsp = context + Context64::RAX_OFFSET + 4 * 8;
+    emu.maps.write_dword(entry, 0x100);
+    emu.maps.write_dword(entry + 4, 0x180);
+    emu.maps.write_dword(entry + 8, 0x40);
+    emu.maps.write_dword(info, 1);
+    emu.maps.write_qword(saved_rsp, sp);
+    emu.maps.write_qword(sp, code + 1);
+    let invalid_establisher = u64::MAX;
+    call_winapi64(
+        &mut emu,
+        |emu| invoke_winapi_export(emu, "ntdll.dll", "RtlVirtualUnwind"),
+        &[0, base, code, entry, context, 0, invalid_establisher, 0],
+    );
+    assert_eq!(
+        emu.api_policy
+            .last_outcome
+            .as_ref()
+            .map(|outcome| &outcome.disposition),
+        Some(&ApiDisposition::Stopped(ApiStopReason::InvalidMemory))
+    );
+    assert_eq!(emu.maps.read_qword(saved_rsp), Some(sp));
+    assert_eq!(
+        emu.maps.read_qword(context + Context64::RIP_OFFSET),
+        Some(0)
+    );
 }
 
 #[test]

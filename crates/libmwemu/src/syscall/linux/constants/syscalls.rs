@@ -390,6 +390,7 @@ pub const NR32_PIPE2: u32 = 331;
 
 pub const NR32_CLOCK_GETTIME: u64 = 265;
 pub const NR32_CLOCK_GETTIME64: u64 = 403;
+pub const NR32_SOCKETCALL: u64 = 102;
 pub const NR32_UNAME: u64 = 122;
 pub const NR32_GETRANDOM: u64 = 355;
 pub const NR32_GETUID: u64 = 24;

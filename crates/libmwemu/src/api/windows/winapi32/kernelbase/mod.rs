@@ -8,8 +8,6 @@ use crate::winapi::winapi32::kernel32;
 use crate::winapi::common::security::GetTokenInformation;
 mod local_alloc;
 use local_alloc::LocalAlloc;
-mod set_unhandled_exception_filter;
-use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
 mod _initterm;
 use _initterm::_initterm;
 mod _initterm_e;
@@ -34,7 +32,6 @@ pub(super) fn gateway_by_name(addr: u32, api: &str, emu: &mut emu::Emu) -> Strin
         "AreAnyAccessesGranted" => advapi32::AreAnyAccessesGranted(emu),
         "FlushInstructionCache" => memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache"),
 
-        "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
         "_initterm" => _initterm(emu),
         "_initterm_e" => _initterm_e(emu),
         "LocalAlloc" => LocalAlloc(emu),

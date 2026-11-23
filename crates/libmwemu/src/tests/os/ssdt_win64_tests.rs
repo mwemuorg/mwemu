@@ -324,6 +324,8 @@ fn ssdt_msgbox_reaches_messageboxa() {
         sample
     );
 
+    emu.load_code(&sample).expect("load MessageBoxA sample");
+
     // Strategy: the in-loop MessageBoxA shim short-circuits the function
     // entry — it sets rax/rsp directly and never decodes the instruction at
     // `user32!MessageBoxA`. Detecting the shim with `on_pre_instruction(rip
@@ -332,30 +334,22 @@ fn ssdt_msgbox_reaches_messageboxa() {
     // Instead, watch for:
     //   * `user32_loaded`: the user32 PE map appearing (= LoadLibraryA shim
     //     fired and `load_library("user32.dll")` succeeded), and
-    //   * `mba_returned`: the EXE's post-call return PC. In the
-    //     loader.exe-style resolver the call to MessageBoxA lives at
-    //     0x14000123f (`call rax`, 2 bytes); the instruction immediately
-    //     after is at 0x140001241, which is only ever reached if the call
-    //     returns normally. Anything that lands there proves the MessageBoxA
-    //     shim ran AND it correctly popped the return address back.
+    //   * `mba_returned`: execution of the instruction after the sample's
+    //     `call MessageBoxA`, at the return RVA in its mapped image.
     let user32_loaded = Rc::new(RefCell::new(false));
     let mba_returned = Rc::new(RefCell::new(false));
     let user32_loaded_c = Rc::clone(&user32_loaded);
     let mba_returned_c = Rc::clone(&mba_returned);
-    const POST_MBA_CALL_RIP: u64 = 0x140001241;
+    let post_call_pc = emu.base + helpers::MSGBOX64_RETURN_RVA;
     emu.hooks.on_pre_instruction(move |emu, rip, _ins, _sz| {
         if !*user32_loaded_c.borrow() && emu.maps.get_map_by_name("user32.pe").is_some() {
             *user32_loaded_c.borrow_mut() = true;
         }
-        if rip == POST_MBA_CALL_RIP {
+        if rip == post_call_pc {
             *mba_returned_c.borrow_mut() = true;
         }
         true
     });
-
-    // `load_code` with `emulate_winapi = true` drives LdrInitializeThunk via
-    // `call64` and then leaves RIP at the EXE entry point.
-    emu.load_code(&sample);
 
     assert!(
         emu.ldr_init_done,
@@ -382,7 +376,7 @@ fn ssdt_msgbox_reaches_messageboxa() {
         "EXE never returned from `call MessageBoxA` (no execution at 0x{:x}) — \
          either the MessageBoxA shim didn't fire, didn't pop the return address \
          correctly, or LdrInit / GetProcAddress regressed (pos={} rip=0x{:x}).",
-        POST_MBA_CALL_RIP,
+        post_call_pc,
         emu.pos,
         emu.regs().rip,
     );

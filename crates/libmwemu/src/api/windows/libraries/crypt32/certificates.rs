@@ -3,7 +3,6 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::memory::{pointer_size, read_array, read_guest_bytes, read_pointer};
 use crate::winapi::common::strings;
-use crate::winapi::helper;
 use crate::winapi::libraries::kernel32::file_time::guest_file_time;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::crypto::{
@@ -168,17 +167,17 @@ pub fn CertVerifyValidityNesting(emu: &mut Emu) {
     call.cleanup_args(emu, 2);
 }
 
-fn is_store(handle: u64) -> bool {
-    let uri = helper::handler_get_uri(handle);
+fn is_store(emu: &Emu, handle: u64) -> bool {
+    let uri = emu.crypto.name(handle);
     uri == "cert_store" || uri == "CertOpenSystemStore" || uri.starts_with("cert_sys_store://")
 }
 
 pub fn CertCloseStore(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let [store, flags] = api_try!(emu, call.args(emu));
-    let ok = store == 0 || is_store(store);
+    let ok = store == 0 || is_store(emu, store);
     if ok && store != 0 {
-        helper::handler_close(store);
+        emu.crypto.close(store);
     } else if !ok {
         emu.set_last_error(ERROR_INVALID_HANDLE);
     }
@@ -193,7 +192,7 @@ pub fn CertCloseStore(emu: &mut Emu) {
 pub fn CertEnumCertificatesInStore(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let [store, previous] = api_try!(emu, call.args(emu));
-    emu.set_last_error(if is_store(store) {
+    emu.set_last_error(if is_store(emu, store) {
         CRYPT_E_NOT_FOUND
     } else {
         ERROR_INVALID_HANDLE
@@ -208,7 +207,7 @@ pub fn CertEnumCertificatesInStore(emu: &mut Emu) {
 
 fn system_store(emu: &mut Emu, name: u64, wide: bool) -> u64 {
     if let Some(name) = strings::read_text_checked(emu, name, wide).filter(|s| !s.is_empty()) {
-        helper::handler_create(&format!("cert_sys_store://{name}"))
+        emu.crypto.open(format!("cert_sys_store://{name}"))
     } else {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
         0
@@ -224,7 +223,7 @@ pub fn CertOpenStore(emu: &mut Emu) {
     );
     let store = match provider {
         CERT_STORE_PROV_MEMORY if flags == 0 && crypt_provider == 0 => {
-            helper::handler_create("cert_store")
+            emu.crypto.open("cert_store")
         }
         CERT_STORE_PROV_SYSTEM_A | CERT_STORE_PROV_SYSTEM_W if parameter == 0 => {
             emu.set_last_error(ERROR_INVALID_PARAMETER);
@@ -279,7 +278,7 @@ pub fn CertFindCertificateInStore(emu: &mut Emu) {
         policy::unsupported(emu, "crypt32", "CertFindCertificateInStore", emu.pc());
         return;
     }
-    emu.set_last_error(if is_store(store) {
+    emu.set_last_error(if is_store(emu, store) {
         CRYPT_E_NOT_FOUND
     } else {
         ERROR_INVALID_HANDLE

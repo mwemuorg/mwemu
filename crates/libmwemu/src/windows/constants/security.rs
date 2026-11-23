@@ -1,3 +1,6 @@
+pub const READ_CONTROL: u32 = 0x0002_0000;
+pub const SYNCHRONIZE: u32 = 0x0010_0000;
+
 pub const GENERIC_READ: u32 = 0x80000000;
 pub const GENERIC_WRITE: u32 = 0x40000000;
 pub const GENERIC_EXECUTE: u32 = 0x20000000;

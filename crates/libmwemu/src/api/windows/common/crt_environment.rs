@@ -244,6 +244,7 @@ fn replace_variables(
     emu: &mut Emu,
     state: &mut CrtEnvironment,
     variables: Environment,
+    process_variables: Environment,
 ) -> EnvironmentResult<()> {
     let width = pointer_size(emu);
     if state
@@ -267,6 +268,16 @@ fn replace_variables(
                 return Err(error);
             }
         }
+    }
+    if let Err(error) = environment_store::replace(emu, process_variables) {
+        for (_, array) in replacements {
+            buffers::free(emu, array.address, BufferKind::Crt);
+        }
+        return Err(if error == ERROR_NOACCESS {
+            EnvironmentError::Access
+        } else {
+            EnvironmentError::NoMemory
+        });
     }
     for (index, array) in replacements {
         let encoded = &mut state.encodings[index];
@@ -338,10 +349,10 @@ fn put_value(
     with_environment(emu, runtime, |emu, state| {
         let mut variables = state.variables.clone().ok_or(EnvironmentError::Invalid)?;
         variables.set(name.clone(), value.clone());
-        replace_variables(emu, state, variables)
-    })?;
-    environment_store::process(emu).set(name, value);
-    Ok(())
+        let mut process_variables = environment_store::process(emu).clone();
+        process_variables.set(name, value);
+        replace_variables(emu, state, variables, process_variables)
+    })
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu, runtime: Runtime) -> bool {

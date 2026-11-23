@@ -505,6 +505,40 @@ fn linux_credential_queries_use_the_guest_id_and_native_element_width() {
 }
 
 #[test]
+fn i386_socketcall_reads_the_complete_argument_array_from_ecx() {
+    use crate::syscall::linux::constants::errors::{EFAULT, EINVAL};
+    use crate::syscall::linux::constants::syscalls::{NR32_SOCKETCALL, SYS_RECVFROM, SYS_SOCKET};
+    use crate::winapi::helper::socket_close;
+
+    let mut emu = emu32();
+    let args = 0x20000;
+    emu.maps
+        .create_map("socketcall arguments", args, 24, Permission::READ_WRITE)
+        .unwrap();
+    emu.regs_mut().set_esp(0x40000);
+    let invoke = |emu: &mut Emu, selector: u32, address: u64| {
+        emu.regs_mut().set_eax(NR32_SOCKETCALL);
+        emu.regs_mut().set_ebx(selector as u64);
+        emu.regs_mut().set_ecx(address);
+        syscall32::gateway(emu);
+        emu.regs().get_eax()
+    };
+    assert_eq!(
+        invoke(&mut emu, SYS_SOCKET, args + 16),
+        EFAULT as u32 as u64
+    );
+    assert_eq!(invoke(&mut emu, 0, args), EINVAL as u32 as u64);
+    assert!(emu.maps.write_dword(args, 2));
+    assert!(emu.maps.write_dword(args + 4, 2));
+    let descriptor = invoke(&mut emu, SYS_SOCKET, args);
+    assert!(emu.maps.write_dword(args, descriptor as u32));
+    assert!(emu.maps.write_dword(args + 8, 31));
+    assert_eq!(invoke(&mut emu, SYS_RECVFROM, args), 31);
+    assert_eq!(emu.regs().get_esp(), 0x40000);
+    assert!(socket_close(descriptor));
+}
+
+#[test]
 fn long_mode_int80_uses_i386_numbers_arguments_and_buffer_layout() {
     const CODE: u64 = 0x1_0040_0000;
     const BUFFER: u64 = 0x500000;

@@ -6,6 +6,12 @@ Current status:
 - Minidump `dump_to_minidump` / `load_from_minidump` works for x86/x86_64/AArch64.
 - All previously-ignored AArch64 serialization and minidump tests are enabled and passing.
 
+## Native snapshot compatibility
+
+The writer uses one development format named `UNSTABLE`. Keep the build or source revision that wrote a snapshot if you need to resume it later. The layout can change between commits under the same header. The reader also accepts the frozen formats V1–V5.
+
+Add guest state to the existing unstable layout and cover it with a round-trip test. Introduce a numbered format only when a consumer needs a compatibility guarantee across builds. At that point, freeze the complete wire layout, including its nested types, reserve a fresh numeric identifier, and keep a read test using data from the build that wrote it. Continue development under `UNSTABLE`.
+
 ## Phase 1: Native Serialization Architecture Parity
 
 - [x] Replace x86-only `SerializableThreadContext` payloads with architecture-aware variants.

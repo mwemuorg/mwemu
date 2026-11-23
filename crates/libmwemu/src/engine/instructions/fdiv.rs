@@ -1,50 +1,30 @@
 use crate::color;
 use crate::emu::Emu;
 use crate::emu::decoded_instruction::DecodedInstruction;
-use iced_x86::Instruction;
+use crate::fpu::f80::F80;
+use iced_x86::{Instruction, MemorySize};
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
-    if ins.op_count() == 2 {
-        let st0 = emu.fpu_mut().get_st(0);
-        let value1 = try_operand!(emu.get_operand_value(ins, 1, false));
-        let stn = emu.fpu_mut().get_st(value1 as usize);
-        emu.fpu_mut().set_st(0, st0 / stn);
-    } else if ins.op_count() == 1 && ins.op_kind(0) == iced_x86::OpKind::Memory {
-        let mem_addr = match emu.get_operand_value(ins, 0, false) {
-            Some(v) => v,
-            None => return false,
-        };
-        let divisor = match ins.memory_size() {
-            iced_x86::MemorySize::Float32 => match emu.maps.read_f32(mem_addr) {
-                Some(v) => v as f64,
-                None => return false,
-            },
-            iced_x86::MemorySize::Float64 => match emu.maps.read_f64(mem_addr) {
-                Some(v) => v,
-                None => return false,
-            },
-            iced_x86::MemorySize::Int16 => {
-                let v = try_operand!(emu.maps.read_word(mem_addr)) as i16;
-                v as f64
-            }
-            iced_x86::MemorySize::Int32 => {
-                let v = try_operand!(emu.maps.read_dword(mem_addr)) as i32;
-                v as f64
-            }
-            _ => {
-                log::warn!("fdiv: unsupported memory size {:?}", ins.memory_size());
-                return false;
-            }
-        };
-        let st0 = emu.fpu_mut().get_st(0);
-        emu.fpu_mut().set_st(0, st0 / divisor);
+    let (destination, divisor) = if ins.op_count() == 2 {
+        let destination = emu.fpu().reg_to_id(ins.op_register(0));
+        let source = emu.fpu().reg_to_id(ins.op_register(1));
+        (destination, emu.fpu_mut().get_st_f80_copy(source))
     } else {
-        log::warn!("fdiv: unexpected operand count {}", ins.op_count());
-        return false;
-    }
-
+        let bits = try_operand!(emu.get_operand_value(ins, 0, true));
+        let operand = match ins.memory_size() {
+            MemorySize::Float32 => f64::from(f32::from_bits(bits as u32)),
+            MemorySize::Float64 => f64::from_bits(bits),
+            _ => return false,
+        };
+        let mut divisor = F80::new();
+        divisor.set_f64(operand);
+        (0, divisor)
+    };
+    let mut value = emu.fpu_mut().get_st_f80_copy(destination);
+    value.divide(divisor, emu.fpu().get_ctrl());
+    emu.fpu_mut().set_st_u80(destination, value.get());
     emu.sync_fpu_ip();
     true
 }

@@ -214,6 +214,22 @@ impl ExceptionLayout {
 }
 
 #[test]
+fn windows_user_int_1_reports_a_read_fault_at_the_interrupt() {
+    for is_64 in [false, true] {
+        let mut emu = faulting_emu(is_64);
+        let layout = ExceptionLayout::new(is_64);
+        emu.set_veh(HANDLER);
+        assert!(emu.maps.write_bytes(CODE, &[0xcd, 0x01]));
+        assert!(!emu.step());
+        assert_eq!(emu.pc(), HANDLER);
+        let (record, context) = layout.callback_records(&emu);
+        let address = if is_64 { u64::MAX } else { u32::MAX as u64 };
+        layout.assert_access_violation(&emu, record, CODE, EXCEPTION_READ_FAULT, address);
+        assert_eq!(layout.pointer(&emu, context + layout.context_ip), CODE);
+    }
+}
+
+#[test]
 fn cpu_fault_callbacks_receive_exception_pointers() {
     const FAULT_ADDRESS: u64 = 0xdeadbeef;
     for (is_64, use_veh) in iproduct!([false, true], [false, true]) {

@@ -44,7 +44,11 @@ impl Emu {
 
         // Only in pure-execution mode: anything that observes individual elements
         // disables the fast path so debugging keeps byte-for-byte fidelity.
-        if self.cfg.verbose >= 3
+        if self.flags_ref().f_tf
+            || self.flags_ref().f_rf
+            || self.cfg.verbose >= 3
+            || self.cfg.loops
+            || self.cfg.loop_limit != 0
             || self.cfg.trace_mem
             || self.cfg.trace_regs
             || self.cfg.trace_reg
@@ -265,6 +269,14 @@ impl Emu {
     pub(crate) fn execute_x86_rep_fully(&mut self, ins: &Instruction, sz: usize) -> bool {
         let mut ok = true;
         self.rep = Some(0);
+        if self.regs().rcx == 0 {
+            self.rep = None;
+            self.flags_mut().f_rf = false;
+            if self.flags_ref().f_tf && self.os.is_windows() && !self.kernel_driver_active() {
+                engine::single_step(self, ins.next_ip());
+            }
+            return true;
+        }
         while self.regs().rcx != 0 {
             ok = engine::emulate_instruction(self, ins, sz, true);
             if ok {
@@ -324,7 +336,10 @@ impl Emu {
 
         if self.regs().rcx == 0 {
             self.rep = None;
-            if self.cfg.is_x64() {
+            self.flags_mut().f_rf = false;
+            if self.flags_ref().f_tf && self.os.is_windows() && !self.kernel_driver_active() {
+                engine::single_step(self, instruction.next_ip());
+            } else if self.cfg.is_x64() {
                 self.regs_mut().rip += size as u64;
             } else {
                 let new_eip = self.regs().get_eip() + size as u64;
@@ -381,20 +396,15 @@ impl Emu {
                 | Mnemonic::Scasq
         );
 
-        if is_string_movement {
-            return;
+        if !is_string_movement
+            && (!is_string_comparison
+                || (instruction.has_repe_prefix() && !self.flag_zf())
+                || (instruction.has_repne_prefix() && self.flag_zf()))
+        {
+            self.rep = None;
         }
-
-        if is_string_comparison {
-            if instruction.has_repe_prefix() && !self.flag_zf() {
-                self.rep = None;
-            }
-            if instruction.has_repne_prefix() && self.flag_zf() {
-                self.rep = None;
-            }
-            return;
+        if self.rep.is_none() {
+            self.flags_mut().f_rf = false;
         }
-
-        self.rep = None;
     }
 }

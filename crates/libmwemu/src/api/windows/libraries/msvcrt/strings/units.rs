@@ -104,7 +104,7 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu, runtime: Runtime) -> bool {
     true
 }
 
-fn string_operation(emu: &mut Emu, api: &str, arguments: usize) {
+pub(crate) fn string_operation(emu: &mut Emu, api: &str, arguments: usize) {
     let call = WinApi(Cdecl);
     let a = api_try!(emu, call.arg(emu, 0));
     let b = if arguments >= 2 {

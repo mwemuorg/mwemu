@@ -1,7 +1,8 @@
+use rand_chacha::ChaCha12Rng;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::IsTerminal;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
+use std::sync::{Arc, Once};
 use std::time::Instant;
 
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
@@ -16,12 +17,15 @@ use crate::emu::{Emu, InstructionState, LastOp};
 use crate::err::MwemuError;
 use crate::maps::heap_allocation::O1Heap;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::syscall::windows::{index_syscall_names, syscall64};
 use crate::threading::context::ArchThreadState;
 use crate::threading::process::ProcessTable;
 use crate::winapi::common::crt_stdio::CrtIoState;
 use crate::winapi::common::winsock::sockets::SocketState;
+use crate::windows::constants::memory::{DEFAULT_STACK_RESERVE, USER32_ADDRESS_LIMIT};
 use crate::windows::peb::{peb32, peb64};
+use crate::windows::structures::TEB;
 use crate::{
     api::banzai::Banzai, config::Config, debug::breakpoint::Breakpoints, hooks::Hooks, maps::Maps,
     threading::context::ThreadContext, threading::global_locks::GlobalLocks, utils::colors::Colors,
@@ -82,6 +86,7 @@ impl Emu {
             sockets: SocketState::default(),
             oem_file_names: false,
             process_error_mode: 0,
+            process_dep_flags: 0,
             ipc: Default::default(),
             priorities: Default::default(),
             last_luid: 0x10000,
@@ -90,11 +95,15 @@ impl Emu {
             console_cursor: Default::default(),
             windows_tls_slots: Vec::new(),
             windows_fls_slots: Vec::new(),
+            fls_cleanup: Default::default(),
             veh_registration_ids: Vec::new(),
             last_veh_id: 0,
             app_user_model_id: Vec::new(),
             registry: Default::default(),
+            crypto: Default::default(),
+            runtime_function_tables: Vec::new(),
             guest_windows: Default::default(),
+            user_timers: Default::default(),
             com_apartments: Default::default(),
             keyboard_state: Default::default(),
             environment: None,
@@ -146,7 +155,7 @@ impl Emu {
             heap_addr: 0,
             rng: {
                 use rand::SeedableRng as _;
-                rand::rngs::StdRng::from_os_rng()
+                ChaCha12Rng::from_os_rng()
             },
             rng_seed: None,
             threads: vec![ThreadContext::new(0x1000, arch)],
@@ -185,6 +194,7 @@ impl Emu {
             api_resolve_cache: HashMap::new(),
             api_addr_name_cache: HashMap::new(),
             export_indexes: ExportIndexRegistry::new(),
+            guest_dlls: Default::default(),
             symbolic_link_targets: HashMap::new(),
             ssdt_pad_stack: Vec::new(),
         }
@@ -222,6 +232,7 @@ impl Emu {
             }
         };
 
+        self.set_stack32_bounds(stack_bottom, stack_base, stack_base);
         if esp >= ebp
             || esp <= stack_base
             || esp >= stack_bottom
@@ -236,6 +247,76 @@ impl Emu {
                 stack_bottom
             );
         }
+    }
+
+    fn set_stack32_bounds(&mut self, top: u64, limit: u64, reserve_base: u64) {
+        if let Some(teb) = self.windows_teb() {
+            self.maps
+                .write_dword(teb + TEB::NT_TIB_STACK_BASE_OFFSET, top as u32);
+            self.maps
+                .write_dword(teb + TEB::NT_TIB_STACK_LIMIT_OFFSET, limit as u32);
+            self.maps
+                .write_dword(teb + TEB::DEALLOCATION_STACK_OFFSET, reserve_base as u32);
+        }
+    }
+
+    /// Initialize the process's first thread after the image address and stack sizes are known.
+    pub(crate) fn init_pe_stack32(&mut self, reserve: u64, commit: u64) -> Result<(), MwemuError> {
+        if self.maps.exists_mapname("stack") {
+            // Embedders may supply a live stack before loading the image.
+            self.init_stack32();
+            return Ok(());
+        }
+        const DEFAULT_STACK_BASE: u64 = 0x200000;
+        const STARTUP_FRAME: u64 = 0x100;
+
+        let commit = align_up(commit.max(PAGE_SIZE), PAGE_SIZE)
+            .ok_or_else(|| MwemuError::new("invalid PE32 stack commit"))?;
+        let reserve = if reserve == 0 {
+            DEFAULT_STACK_RESERVE
+        } else {
+            reserve
+        };
+        let minimum = commit
+            .checked_add(PAGE_SIZE)
+            .ok_or_else(|| MwemuError::new("invalid PE32 stack commit"))?;
+        if commit > self.maps.max_alloc_size {
+            return Err(MwemuError::new(
+                "PE32 stack commit exceeds allocation limit",
+            ));
+        }
+        let size = align_up(reserve.max(minimum), ALLOCATION_GRANULARITY)
+            .ok_or_else(|| MwemuError::new("invalid PE32 stack reserve"))?;
+        let base = if self.cfg.stack_addr == 0 {
+            self.maps
+                .find_free_range(
+                    size,
+                    ALLOCATION_GRANULARITY,
+                    DEFAULT_STACK_BASE,
+                    USER32_ADDRESS_LIMIT - PAGE_SIZE,
+                )
+                .ok_or_else(|| MwemuError::new("no free range for PE32 stack"))?
+        } else {
+            let base = self.cfg.stack_addr;
+            if !base.is_multiple_of(PAGE_SIZE)
+                || base
+                    .checked_add(size)
+                    .is_none_or(|end| end >= USER32_ADDRESS_LIMIT)
+            {
+                return Err(MwemuError::new("invalid configured PE32 stack address"));
+            }
+            base
+        };
+        let top = base + size;
+        let limit = top - commit;
+        self.maps
+            .reserve_stack32(base, size, commit)
+            .map_err(|err| MwemuError::new(&format!("cannot reserve PE32 stack: {err:?}")))?;
+        self.cfg.stack_addr = base;
+        self.regs_mut().set_esp(top - STARTUP_FRAME);
+        self.regs_mut().set_ebp(top - size_of::<u32>() as u64);
+        self.set_stack32_bounds(top, limit, base);
+        Ok(())
     }
 
     /// This inits the 64bits stack, it's called from init_cpu() and init()
@@ -366,13 +447,19 @@ impl Emu {
     }
 
     pub fn init_logger(&mut self) {
-        fast_log::init(
-            fast_log::Config::new()
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            let level = log::max_level();
+            let config = fast_log::Config::new()
                 .format(CustomLogFormat::new())
                 .console()
-                .chan_len(Some(100000)),
-        )
-        .unwrap();
+                .chan_len(Some(100000));
+            if let Err(error) = fast_log::init(config) {
+                // fast_log sets the global filter before it tries to register.
+                log::set_max_level(level);
+                log::debug!("keeping the existing logger: {error}");
+            }
+        });
     }
 
     /// Initialize windows simulator, this does like init_cpu() but also setup the windows memory.
@@ -381,6 +468,19 @@ impl Emu {
     /// This is called from load_code if the code is a PE or shellcode.
     /// load_code_bytes() and other loading ways don't call this, if you need windows simulation call this.
     pub fn init_win32(
+        &mut self,
+        clear_registers: bool,
+        clear_flags: bool,
+    ) -> Result<(), MwemuError> {
+        self.init_windows_environment(clear_registers, clear_flags)?;
+        if !self.cfg.arch.is_64bits() {
+            self.init_win32_process_maps();
+            self.init_stack32();
+        }
+        Ok(())
+    }
+
+    pub(super) fn init_windows_environment(
         &mut self,
         clear_registers: bool,
         clear_flags: bool,
@@ -441,8 +541,7 @@ impl Emu {
             // 32bits
             self.maps.is_64bits = false;
             self.regs_mut().sanitize32();
-            self.init_win32_mem32();
-            self.init_stack32();
+            self.init_win32_fixed_maps();
         }
 
         // Load banzai metadata only when 32-bit skip-unimplemented mode needs it.
@@ -562,6 +661,9 @@ impl Emu {
         });
         for address in guarded {
             self.kernel_free(address, "HeapDestroy");
+        }
+        for address in self.heap_arenas[arena_idx].external_blocks() {
+            let _ = self.maps.release_memory(address);
         }
         let name = format!(".heap_{}", arena_idx);
         if self.maps.exists_mapname(&name) {
@@ -915,18 +1017,18 @@ impl Emu {
         self.regs_mut().fs = tcb_addr;
     }
 
-    /// This is called from init(), this setup the 32bits windows memory simulation.
     pub fn init_win32_mem32(&mut self) {
-        log::trace!("loading memory maps");
+        self.init_win32_fixed_maps();
+        self.init_win32_process_maps();
+    }
 
+    fn init_win32_fixed_maps(&mut self) {
         self.maps.is_64bits = self.cfg.arch.is_64bits();
-
-        // (Historic `set_current_dir(maps_folder)` removed — the block in
-        // between had no file-system calls and the chdir raced with parallel
-        // tests that needed the process CWD to point at the repo root.)
-
-        peb32::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
+    }
+
+    pub(super) fn init_win32_process_maps(&mut self) {
+        peb32::init_peb(self);
         winapi32::kernel32::load_library(self, "ntdll.dll");
         self.syscall_name_by_real = index_syscall_names(self);
         let ntdll_base = self
@@ -949,12 +1051,6 @@ impl Emu {
         //winapi32::kernel32::load_library(self, "dnsapi.dll");
         winapi32::kernel32::load_library(self, "shell32.dll");
         //winapi32::kernel32::load_library(self, "shlwapi.dll");
-
-        let teb_map = self.maps.get_mem_mut("teb");
-        let mut teb = structures::TEB::load_map(teb_map.get_base(), teb_map);
-        teb.nt_tib.stack_base = self.cfg.stack_addr as u32;
-        teb.nt_tib.stack_limit = (self.cfg.stack_addr + 0x30000) as u32;
-        teb.save(teb_map);
     }
 
     //TODO: tests on tests.rs

@@ -15,7 +15,10 @@ use std::collections::HashMap;
 use rs_header::pe::PeLoader;
 use rs_header::pe::pe32::{DelayLoadDirectory, PE32};
 use rs_header::pe::pe64::PE64;
-use rs_header::pe::shared::{IMAGE_REL_BASED_DIR64, IMAGE_REL_BASED_HIGHLOW};
+use rs_header::pe::shared::{
+    IMAGE_DIRECTORY_ENTRY_BASERELOC, IMAGE_FILE_RELOCS_STRIPPED, IMAGE_REL_BASED_DIR64,
+    IMAGE_REL_BASED_HIGHLOW,
+};
 
 /// Minimal in-memory PeLoader: records writes and hands out fake, stable
 /// addresses for resolved imports.
@@ -246,6 +249,104 @@ fn pe32_apply_relocations_highlow_patches_target() {
         4,
         "only the HIGHLOW target should be written"
     );
+}
+
+#[test]
+fn pe32_rebase_distinguishes_fixed_images_no_fixups_and_invalid_tables() {
+    const BLOCK_OFFSET: usize = 0x200;
+    const SECOND_ENTRY: usize = BLOCK_OFFSET + 10;
+    const RESERVED_RELOCATION: u16 = 6 << 12;
+
+    let mut raw = build_synthetic_pe32_with_reloc(0x401234);
+    let mut pe = PE32::parse("relocations.exe", &raw);
+    assert!(pe.can_relocate(&raw));
+
+    raw[SECOND_ENTRY..SECOND_ENTRY + 2].copy_from_slice(&RESERVED_RELOCATION.to_le_bytes());
+    assert!(
+        !pe.can_relocate(&raw),
+        "unsupported fixup after a valid one"
+    );
+    raw[BLOCK_OFFSET + 8..SECOND_ENTRY + 2].fill(0);
+    assert!(pe.can_relocate(&raw), "valid no-op block");
+
+    pe.fh.characteristics |= IMAGE_FILE_RELOCS_STRIPPED;
+    assert!(!pe.can_relocate(&raw));
+    pe.fh.characteristics &= !IMAGE_FILE_RELOCS_STRIPPED;
+    for tail_length in [2, 4, 16] {
+        pe.opt.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC].size = 12 + tail_length;
+        assert!(
+            !pe.can_relocate(&raw),
+            "incomplete zero block of {tail_length} bytes"
+        );
+    }
+    pe.opt.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC].size = 0;
+    assert!(
+        !pe.can_relocate(&raw),
+        "nonzero relocation RVA with zero size"
+    );
+    pe.opt.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC].virtual_address = 0;
+    assert!(pe.can_relocate(&raw), "no fixups required");
+    pe.opt.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC].size = 12;
+    pe.opt.number_of_rva_and_sizes = IMAGE_DIRECTORY_ENTRY_BASERELOC as u32;
+    assert!(
+        pe.can_relocate(&raw),
+        "an undeclared directory must be ignored"
+    );
+}
+
+#[test]
+fn incomplete_optional_headers_cannot_declare_a_position_independent_image() {
+    let raw = build_synthetic_pe32_with_reloc(0x0040_1234);
+    let mut pe = PE32::parse("short-x86.exe", &raw);
+    pe.opt.number_of_rva_and_sizes = 0;
+    let optional = pe.dos.e_lfanew as usize + 24;
+    assert!(pe.can_relocate(&raw));
+    assert!(
+        !pe.can_relocate(&raw[..optional + 95]),
+        "truncated directory count"
+    );
+    pe.opt.number_of_rva_and_sizes = 6;
+    assert!(
+        !pe.can_relocate(&raw[..optional + 96 + 5 * 8]),
+        "missing directory entry"
+    );
+
+    let (mut pe, raw, _) = build_synthetic_pe64_with_ordinal_iat(0);
+    pe.opt.number_of_rva_and_sizes = 0;
+    assert!(pe.can_relocate(&raw));
+    pe.fh.size_of_optional_header = 8;
+    assert!(
+        !pe.can_relocate(&raw),
+        "directory count outside the declared optional header"
+    );
+    pe.opt.number_of_rva_and_sizes = 6;
+    pe.fh.size_of_optional_header = 112;
+    assert!(
+        !pe.can_relocate(&raw),
+        "claimed directory outside the declared optional header"
+    );
+}
+
+#[test]
+fn explicit_rebase_keeps_valid_fixups_after_unsupported_or_unreadable_targets() {
+    const BASE: u32 = 0x0050_0000;
+    const ENTRIES: usize = 0x208;
+    const RESERVED: u16 = 6 << 12;
+    const OUTSIDE_RAW_DATA: u16 = (IMAGE_REL_BASED_HIGHLOW << 12) | 0xfff;
+    for invalid in [RESERVED, OUTSIDE_RAW_DATA] {
+        let mut raw = build_synthetic_pe32_with_reloc(0x0040_1234);
+        raw.copy_within(ENTRIES..ENTRIES + 2, ENTRIES + 2);
+        raw[ENTRIES..ENTRIES + 2].copy_from_slice(&invalid.to_le_bytes());
+        let image = PE32::parse("mixed.exe", &raw);
+        assert!(!image.can_relocate(&raw));
+        let mut mock = Mock::new();
+        image.apply_relocations(&raw, &mut mock, BASE);
+        assert_eq!(
+            read_dword_le(&mock, u64::from(BASE) + 0x2030),
+            BASE + 0x1234
+        );
+        assert_eq!(mock.mem.len(), 4);
+    }
 }
 
 #[test]
@@ -1137,12 +1238,29 @@ fn named_imports_in_headers_bind_with_aligned_image_offsets() {
 }
 
 #[test]
+fn pe64_optional_header_reads_heap_commit_loader_flags_and_directory_count() {
+    let (image, mut raw, _) = build_synthetic_pe64_with_ordinal_iat(0);
+    let optional = image.dos.e_lfanew as usize + 24;
+    let heap_commit = 0x0000_0001_2345_6000u64;
+    let loader_flags = 0x1234u32;
+    let directory_count = 6u32;
+    raw[optional + 96..optional + 104].copy_from_slice(&heap_commit.to_le_bytes());
+    raw[optional + 104..optional + 108].copy_from_slice(&loader_flags.to_le_bytes());
+    raw[optional + 108..optional + 112].copy_from_slice(&directory_count.to_le_bytes());
+    let pe = PE64::parse("headers.exe", &raw);
+    assert_eq!(pe.opt.size_of_heap_commit, heap_commit);
+    assert_eq!(pe.opt.loader_flags, loader_flags);
+    assert_eq!(pe.opt.number_of_rva_and_sizes, directory_count);
+}
+
+#[test]
 fn pe64_relocations_follow_image_layout_and_directory_bounds() {
     const ORIGINAL: u64 = 0x180001234;
     const TARGET: u32 = 0x300;
     for pointer_delta in [0, 1] {
         let (mut pe, mut raw, _) = build_synthetic_pe64_with_ordinal_iat(0);
-        let directory = &mut pe.opt.data_directory[5];
+        pe.opt.number_of_rva_and_sizes = (IMAGE_DIRECTORY_ENTRY_BASERELOC + 1) as u32;
+        let directory = &mut pe.opt.data_directory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
         directory.virtual_address = pe.sect_hdr[0].virtual_address;
         directory.size = 12;
         let offset = pe.sect_hdr[0].pointer_to_raw_data as usize;
@@ -1154,12 +1272,14 @@ fn pe64_relocations_follow_image_layout_and_directory_bounds() {
         raw[TARGET as usize..TARGET as usize + 8].copy_from_slice(&ORIGINAL.to_le_bytes());
         let base = pe.opt.image_base + 0x10000;
         let mut mock = Mock::new();
+        assert!(pe.can_relocate(&raw));
         pe.apply_relocations(&raw, &mut mock, base);
         assert_eq!(
             read_qword_le(&mock, base + TARGET as u64),
             ORIGINAL + 0x10000
         );
         pe.opt.data_directory[5].size = 8;
+        assert!(!pe.can_relocate(&raw));
         mock.writes.clear();
         pe.apply_relocations(&raw, &mut mock, base);
         assert!(mock.writes.is_empty());

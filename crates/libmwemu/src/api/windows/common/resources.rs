@@ -3,6 +3,7 @@
 use crate::emu::object_handle::FileHandle;
 use goblin::pe::section_table::{SIZEOF_SECTION_TABLE, SectionTable};
 use std::io::SeekFrom;
+use std::mem::offset_of;
 
 use goblin::pe::header::{
     CoffHeader, DOS_MAGIC, Header, PE_MAGIC, PE_POINTER_OFFSET, SIZEOF_COFF_HEADER, SIZEOF_PE_MAGIC,
@@ -13,13 +14,17 @@ use rs_header::pe::structures::ImageResourceDataEntry32;
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::dispatch_api;
 use crate::emu::Emu;
-use crate::winapi::common::memory::{read_guest_bytes, writable_pointer, write_pointer};
+use crate::exception::types::{ExceptionType, MemoryAccess};
+use crate::winapi::common::memory::{
+    read_guest_bytes, read_pointer, writable_pointer, write_pointer,
+};
 use crate::winapi::common::strings;
 use crate::winapi::environment_store::Encoding;
-use crate::winapi::policy::api_try;
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
-use crate::windows::constants::files::RT_STRING;
+use crate::windows::constants::files::*;
 use crate::windows::constants::nls::EN_US_LOCALE;
+use crate::windows::constants::process::INVALID_HANDLE_VALUE_64;
 
 struct ResourceImage {
     base: u64,
@@ -309,6 +314,160 @@ fn resource_error(error: ResourceError) -> u64 {
         ResourceError::TypeNotFound => ERROR_RESOURCE_TYPE_NOT_FOUND,
         ResourceError::NameNotFound => ERROR_RESOURCE_NAME_NOT_FOUND,
         ResourceError::LanguageNotFound => ERROR_RESOURCE_LANG_NOT_FOUND,
+    }
+}
+
+#[repr(C)]
+struct ActCtx<Ptr> {
+    size: u32,
+    flags: u32,
+    source: Ptr,
+    architecture: u16,
+    language: u16,
+    directory: Ptr,
+    resource: Ptr,
+    application: Ptr,
+    module: Ptr,
+}
+
+enum ActCtxError {
+    Win32(u64),
+    ReadFault(u64, usize),
+}
+
+fn check_activation_context<Ptr>(emu: &Emu, address: u64) -> Result<(), ActCtxError> {
+    use ActCtxError::{ReadFault, Win32};
+    const MODULE_RESOURCE: u32 = ACTCTX_FLAG_HMODULE_VALID | ACTCTX_FLAG_RESOURCE_NAME_VALID;
+    const LOOKUP_FLAGS: u32 =
+        MODULE_RESOURCE | ACTCTX_FLAG_LANGID_VALID | ACTCTX_FLAG_SET_PROCESS_DEFAULT;
+    const KNOWN_FLAGS: u32 = LOOKUP_FLAGS
+        | ACTCTX_FLAG_PROCESSOR_ARCHITECTURE_VALID
+        | ACTCTX_FLAG_ASSEMBLY_DIRECTORY_VALID
+        | ACTCTX_FLAG_APPLICATION_NAME_VALID
+        | ACTCTX_FLAG_SOURCE_IS_ASSEMBLYREF;
+
+    let width = size_of::<Ptr>();
+    let size = emu
+        .maps
+        .read_dword(address)
+        .ok_or(ReadFault(address, size_of::<u32>()))? as usize;
+    if size < offset_of!(ActCtx<Ptr>, source) + width {
+        return Err(Win32(ERROR_INVALID_PARAMETER));
+    }
+    let at = |offset: usize| address.saturating_add(offset as u64);
+    let flags_address = at(offset_of!(ActCtx<Ptr>, flags));
+    let flags = emu
+        .maps
+        .read_dword(flags_address)
+        .ok_or(ReadFault(flags_address, size_of::<u32>()))?;
+    let required = [
+        (
+            ACTCTX_FLAG_PROCESSOR_ARCHITECTURE_VALID,
+            offset_of!(ActCtx<Ptr>, architecture) + size_of::<u16>(),
+        ),
+        (
+            ACTCTX_FLAG_LANGID_VALID,
+            offset_of!(ActCtx<Ptr>, language) + size_of::<u16>(),
+        ),
+        (
+            ACTCTX_FLAG_ASSEMBLY_DIRECTORY_VALID,
+            offset_of!(ActCtx<Ptr>, directory) + width,
+        ),
+        (
+            ACTCTX_FLAG_RESOURCE_NAME_VALID,
+            offset_of!(ActCtx<Ptr>, resource) + width,
+        ),
+        (
+            ACTCTX_FLAG_APPLICATION_NAME_VALID,
+            offset_of!(ActCtx<Ptr>, application) + width,
+        ),
+        (
+            ACTCTX_FLAG_HMODULE_VALID,
+            offset_of!(ActCtx<Ptr>, module) + width,
+        ),
+    ];
+    if flags & !KNOWN_FLAGS != 0
+        || required
+            .iter()
+            .any(|(flag, end)| flags & flag != 0 && size < *end)
+    {
+        return Err(Win32(ERROR_INVALID_PARAMETER));
+    }
+
+    let pointer = |offset| {
+        let field = at(offset);
+        read_pointer(emu, field).ok_or(ReadFault(field, width))
+    };
+    if (flags & ACTCTX_FLAG_HMODULE_VALID == 0 && pointer(offset_of!(ActCtx<Ptr>, source))? == 0)
+        || (flags & ACTCTX_FLAG_ASSEMBLY_DIRECTORY_VALID != 0
+            && pointer(offset_of!(ActCtx<Ptr>, directory))? == 0)
+    {
+        return Err(Win32(ERROR_INVALID_PARAMETER));
+    }
+    if flags & ACTCTX_FLAG_RESOURCE_NAME_VALID == 0 {
+        return Ok(());
+    }
+    let resource = pointer(offset_of!(ActCtx<Ptr>, resource))?;
+    if resource == 0 {
+        return Err(Win32(ERROR_INVALID_PARAMETER));
+    }
+    if flags & MODULE_RESOURCE != MODULE_RESOURCE
+        || flags & !LOOKUP_FLAGS != 0
+        || resource > u64::from(u16::MAX)
+    {
+        return Ok(());
+    }
+    if flags & ACTCTX_FLAG_LANGID_VALID != 0 {
+        let field = at(offset_of!(ActCtx<Ptr>, language));
+        let language = emu
+            .maps
+            .read_word(field)
+            .ok_or(ReadFault(field, size_of::<u16>()))?;
+        if language != 0 {
+            return Ok(());
+        }
+    }
+    let module = pointer(offset_of!(ActCtx<Ptr>, module))?;
+    let entry = ResourceImage::load(emu, module).and_then(|image| {
+        image.lookup(
+            emu,
+            ResourceKey::Id(RT_MANIFEST),
+            ResourceKey::Id(resource as u32),
+            0,
+        )
+    });
+    match entry {
+        Err(
+            error @ (ERROR_RESOURCE_DATA_NOT_FOUND
+            | ERROR_RESOURCE_TYPE_NOT_FOUND
+            | ERROR_RESOURCE_NAME_NOT_FOUND),
+        ) => Err(Win32(error)),
+        _ => Ok(()),
+    }
+}
+
+pub(crate) fn create_activation_context(emu: &mut Emu, library: &str, api: &str) {
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    log_red!(emu, "{library}!{api} act_ctx={address:#x}");
+    let checked = if emu.cfg.arch.is_64bits() {
+        check_activation_context::<u64>(emu, address)
+    } else {
+        check_activation_context::<u32>(emu, address)
+    };
+    match checked {
+        Err(ActCtxError::Win32(error)) => {
+            emu.set_last_error(error);
+            call.cleanup_args(emu, 1);
+            call.set_return(emu, INVALID_HANDLE_VALUE_64);
+        }
+        Err(ActCtxError::ReadFault(address, size)) => emu.memory_exception(
+            ExceptionType::BadAddressDereferencing,
+            address,
+            size,
+            MemoryAccess::Read,
+        ),
+        Ok(()) => policy::unsupported(emu, library, api, emu.pc()),
     }
 }
 

@@ -6,7 +6,6 @@ use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::{crypto_state, memory, strings};
-use crate::winapi::helper;
 use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
@@ -37,7 +36,10 @@ pub fn BCryptGenRandom(emu: &mut Emu) {
         STATUS_INVALID_PARAMETER
     } else if !system
         && provider != BCRYPT_RNG_ALG_HANDLE
-        && !helper::handler_get_uri(provider).eq_ignore_ascii_case("bcrypt://RNG")
+        && !emu
+            .crypto
+            .name(provider)
+            .eq_ignore_ascii_case("bcrypt://RNG")
     {
         STATUS_INVALID_HANDLE
     } else if buffer == 0 || !emu.fill_random(buffer, size.into()) {
@@ -53,14 +55,14 @@ pub fn BCryptGenRandom(emu: &mut Emu) {
     call.cleanup_args(emu, 4);
 }
 
-fn hash_algorithm(provider: u64) -> Result<(&'static str, u32), u64> {
+fn hash_algorithm(emu: &Emu, provider: u64) -> Result<(&'static str, u32), u64> {
     match provider {
         BCRYPT_MD5_ALG_HANDLE => return Ok(("MD5", CALG_MD5)),
         BCRYPT_SHA1_ALG_HANDLE => return Ok(("SHA1", CALG_SHA1)),
         BCRYPT_SHA256_ALG_HANDLE => return Ok(("SHA256", CALG_SHA_256)),
         _ => {}
     }
-    let uri = helper::handler_get_uri(provider);
+    let uri = emu.crypto.name(provider);
     if uri.starts_with("bcrypt-hmac://") {
         return Err(STATUS_NOT_SUPPORTED);
     }
@@ -73,27 +75,23 @@ fn hash_algorithm(provider: u64) -> Result<(&'static str, u32), u64> {
     }
 }
 
-fn create_hash(provider: u64) -> Result<u64, u64> {
-    let (name, alg_id) = hash_algorithm(provider)?;
-    let handle = helper::handler_create(&format!("bcrypthash://{name}"));
-    crypto_state::create_hash(handle, alg_id);
+fn create_hash(emu: &mut Emu, provider: u64) -> Result<u64, u64> {
+    let (name, alg_id) = hash_algorithm(emu, provider)?;
+    let handle = emu.crypto.open(format!("bcrypthash://{name}"));
+    emu.crypto.create_hash(handle, alg_id);
     Ok(handle)
 }
 
-fn release_hash(handle: u64) -> bool {
-    if !helper::handler_get_uri(handle).starts_with("bcrypthash://")
-        || !crypto_state::destroy_hash(handle)
-    {
+fn release_hash(emu: &mut Emu, handle: u64) -> bool {
+    if !emu.crypto.name(handle).starts_with("bcrypthash://") || !emu.crypto.destroy_hash(handle) {
         return false;
     }
-    helper::handler_close(handle);
+    emu.crypto.close(handle);
     true
 }
 
-fn update_hash(emu: &Emu, handle: u64, input: u64, size: usize) -> Result<(), u64> {
-    if !helper::handler_get_uri(handle).starts_with("bcrypthash://")
-        || !crypto_state::hash_data(handle, &[])
-    {
+fn update_hash(emu: &mut Emu, handle: u64, input: u64, size: usize) -> Result<(), u64> {
+    if !emu.crypto.name(handle).starts_with("bcrypthash://") || !emu.crypto.hash_data(handle, &[]) {
         return Err(STATUS_INVALID_HANDLE);
     }
     if size != 0 && (input == 0 || !emu.maps.can_access_range(input, size, Permission::READ)) {
@@ -108,7 +106,7 @@ fn update_hash(emu: &Emu, handle: u64, input: u64, size: usize) -> Result<(), u6
             .ok_or(STATUS_INVALID_PARAMETER)?;
         let length = (map.get_bottom() - address).min((size - consumed) as u64) as usize;
         let data = map.read_bytes(address, length);
-        if data.len() != length || !crypto_state::hash_data(handle, &data) {
+        if data.len() != length || !emu.crypto.hash_data(handle, &data) {
             return Err(STATUS_INVALID_PARAMETER);
         }
         consumed += length;
@@ -117,20 +115,23 @@ fn update_hash(emu: &Emu, handle: u64, input: u64, size: usize) -> Result<(), u6
 }
 
 fn finish_hash(emu: &mut Emu, handle: u64, output: u64, size: u32) -> Result<(), u64> {
-    if !helper::handler_get_uri(handle).starts_with("bcrypthash://")
-        || !crypto_state::hash_data(handle, &[])
-    {
+    if !emu.crypto.name(handle).starts_with("bcrypthash://") || !emu.crypto.hash_data(handle, &[]) {
         return Err(STATUS_INVALID_HANDLE);
     }
-    let expected =
-        crypto_state::get_hash_param(handle, HP_HASHSIZE).ok_or(STATUS_INVALID_HANDLE)?;
+    let expected = emu
+        .crypto
+        .get_hash_param(handle, HP_HASHSIZE)
+        .ok_or(STATUS_INVALID_HANDLE)?;
     if output == 0
         || size.to_le_bytes().as_slice() != expected
         || !emu.maps.validate_write_range(output, u64::from(size))
     {
         return Err(STATUS_INVALID_PARAMETER);
     }
-    let digest = crypto_state::get_hash_param(handle, HP_HASHVAL).ok_or(STATUS_INVALID_HANDLE)?;
+    let digest = emu
+        .crypto
+        .get_hash_param(handle, HP_HASHVAL)
+        .ok_or(STATUS_INVALID_HANDLE)?;
     if emu.maps.write_bytes(output, &digest) {
         Ok(())
     } else {
@@ -155,11 +156,11 @@ pub fn BCryptCreateHash(emu: &mut Emu) {
         } else if flags as u32 != 0 || secret != 0 || secret_size as u32 != 0 {
             Err(STATUS_NOT_SUPPORTED)
         } else {
-            create_hash(provider).and_then(|handle| {
+            create_hash(emu, provider).and_then(|handle| {
                 if memory::write_pointer(emu, output, handle) {
                     Ok(())
                 } else {
-                    release_hash(handle);
+                    release_hash(emu, handle);
                     Err(STATUS_INVALID_PARAMETER)
                 }
             })
@@ -211,10 +212,10 @@ pub fn BCryptHash(emu: &mut Emu) {
     let result = if secret != 0 || secret_size as u32 != 0 {
         Err(STATUS_NOT_SUPPORTED)
     } else {
-        create_hash(provider).and_then(|handle| {
+        create_hash(emu, provider).and_then(|handle| {
             let result = update_hash(emu, handle, input, size as u32 as usize)
                 .and_then(|()| finish_hash(emu, handle, output, capacity as u32));
-            release_hash(handle);
+            release_hash(emu, handle);
             result
         })
     };
@@ -229,7 +230,7 @@ pub fn BCryptHash(emu: &mut Emu) {
 pub fn BCryptDestroyHash(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let hash = api_try!(emu, call.arg(emu, 0));
-    let status = if release_hash(hash) {
+    let status = if release_hash(emu, hash) {
         STATUS_SUCCESS
     } else {
         STATUS_INVALID_HANDLE
@@ -269,11 +270,11 @@ pub fn BCryptOpenAlgorithmProvider(emu: &mut Emu) {
                 } else {
                     "bcrypt"
                 };
-                let handle = helper::handler_create(&format!("{prefix}://{name}"));
+                let handle = emu.crypto.open(format!("{prefix}://{name}"));
                 if memory::write_pointer(emu, output, handle) {
                     Ok(())
                 } else {
-                    helper::handler_close(handle);
+                    emu.crypto.close(handle);
                     Err(STATUS_INVALID_PARAMETER)
                 }
             }
@@ -291,11 +292,11 @@ pub fn BCryptOpenAlgorithmProvider(emu: &mut Emu) {
 pub fn BCryptCloseAlgorithmProvider(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let [provider, flags] = api_try!(emu, call.args(emu));
-    let uri = helper::handler_get_uri(provider);
+    let uri = emu.crypto.name(provider);
     let status = if flags as u32 != 0 {
         STATUS_INVALID_PARAMETER
     } else if uri.starts_with("bcrypt://") || uri.starts_with("bcrypt-hmac://") {
-        helper::handler_close(provider);
+        emu.crypto.close(provider);
         STATUS_SUCCESS
     } else {
         STATUS_INVALID_HANDLE
@@ -332,8 +333,8 @@ pub fn BCryptDeriveKeyPBKDF2(emu: &mut Emu) {
         "bcrypt!BCryptDeriveKeyPBKDF2 provider={provider:#x} password_size={password_size} salt_size={salt_size} iterations={iterations} output_size={size}"
     );
     let result = (|| {
-        let uri = helper::handler_get_uri(provider);
-        let (alg_id, block) = match (provider, uri.as_str()) {
+        let uri = emu.crypto.name(provider);
+        let (alg_id, block) = match (provider, uri) {
             (BCRYPT_HMAC_SHA1_ALG_HANDLE, _) | (_, "bcrypt-hmac://SHA1") => (CALG_SHA1, 20),
             (BCRYPT_HMAC_SHA256_ALG_HANDLE, _) | (_, "bcrypt-hmac://SHA256") => (CALG_SHA_256, 32),
             _ => return Err(STATUS_INVALID_HANDLE),
@@ -388,8 +389,8 @@ pub fn BCryptGenerateSymmetricKey(emu: &mut Emu) {
         {
             return Err(STATUS_INVALID_PARAMETER);
         }
-        let uri = helper::handler_get_uri(provider);
-        let (algorithm, key_type) = match (provider, uri.as_str(), length) {
+        let uri = emu.crypto.name(provider);
+        let (algorithm, key_type) = match (provider, uri, length) {
             (BCRYPT_AES_CBC_ALG_HANDLE, _, 16) | (_, "bcrypt://AES", 16) => {
                 (CALG_AES_128, "aes-cbc")
             }
@@ -404,14 +405,14 @@ pub fn BCryptGenerateSymmetricKey(emu: &mut Emu) {
             _ => return Err(STATUS_INVALID_HANDLE),
         };
         let bytes = cng_input(emu, secret, length)?;
-        let key = helper::handler_create(&format!("bcryptkey://{key_type}"));
-        crypto_state::create_key(key, algorithm, length * 8);
-        crypto_state::set_key_data(key, &bytes);
+        let key = emu.crypto.open(format!("bcryptkey://{key_type}"));
+        emu.crypto.create_key(key, algorithm, length * 8);
+        emu.crypto.set_key_data(key, &bytes);
         if memory::write_pointer(emu, output, key) {
             Ok(())
         } else {
-            crypto_state::destroy_key(key);
-            helper::handler_close(key);
+            emu.crypto.destroy_key(key);
+            emu.crypto.close(key);
             Err(STATUS_INVALID_PARAMETER)
         }
     })();
@@ -422,10 +423,9 @@ pub fn BCryptGenerateSymmetricKey(emu: &mut Emu) {
 pub fn BCryptDestroyKey(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let key = api_try!(emu, call.arg(emu, 0));
-    let ok =
-        helper::handler_get_uri(key).starts_with("bcryptkey://") && crypto_state::destroy_key(key);
+    let ok = emu.crypto.name(key).starts_with("bcryptkey://") && emu.crypto.destroy_key(key);
     if ok {
-        helper::handler_close(key);
+        emu.crypto.close(key);
     }
     log_red!(emu, "bcrypt!BCryptDestroyKey key={key:#x}");
     call.set_return(
@@ -460,7 +460,7 @@ fn cipher(emu: &mut Emu, name: &str, decrypt: bool) {
         "bcrypt!{name} key={key:#x} input_size={length} iv_size={iv_len} output_size={capacity} flags={flags:#x}"
     );
     let result = (|| {
-        let block: usize = match helper::handler_get_uri(key).as_str() {
+        let block: usize = match emu.crypto.name(key) {
             "bcryptkey://rc4" => 1,
             "bcryptkey://aes-cbc" => 16,
             "bcryptkey://3des-cbc" => 8,
@@ -512,7 +512,7 @@ fn cipher(emu: &mut Emu, name: &str, decrypt: bool) {
             data.resize(required, (required - length) as u8);
         }
         if block == 1 {
-            if !crypto_state::encrypt_data(key, &mut data) {
+            if !emu.crypto.encrypt_data(key, &mut data) {
                 return Err(STATUS_INVALID_HANDLE);
             }
         } else {
@@ -520,7 +520,7 @@ fn cipher(emu: &mut Emu, name: &str, decrypt: bool) {
                 if decrypt {
                     let mut next = [0; 16];
                     next[..block].copy_from_slice(chunk);
-                    if !crypto_state::decrypt_data(key, chunk) {
+                    if !emu.crypto.decrypt_data(key, chunk) {
                         return Err(STATUS_INVALID_HANDLE);
                     }
                     for (byte, prev) in chunk.iter_mut().zip(&chain) {
@@ -531,7 +531,7 @@ fn cipher(emu: &mut Emu, name: &str, decrypt: bool) {
                     for (byte, prev) in chunk.iter_mut().zip(&chain) {
                         *byte ^= prev;
                     }
-                    if !crypto_state::encrypt_data(key, chunk) {
+                    if !emu.crypto.encrypt_data(key, chunk) {
                         return Err(STATUS_INVALID_HANDLE);
                     }
                     chain.copy_from_slice(chunk);
@@ -585,8 +585,8 @@ pub fn BCryptGetProperty(emu: &mut Emu) {
         if flags as u32 != 0 || written == 0 || !emu.maps.validate_write_range(written, 4) {
             return Err(STATUS_INVALID_PARAMETER);
         }
-        let uri = helper::handler_get_uri(object);
-        let alg = hash_algorithm(object)
+        let uri = emu.crypto.name(object);
+        let alg = hash_algorithm(emu, object)
             .ok()
             .map(|(n, _)| n)
             .or_else(|| {

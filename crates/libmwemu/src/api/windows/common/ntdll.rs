@@ -945,6 +945,10 @@ pub(crate) fn native_tick(emu: &mut emu::Emu) {
     call.set_return(emu, u64::from(emu.tick as u32));
 }
 pub(crate) fn set_exception_filter(emu: &mut emu::Emu) {
+    if emu.cfg.arch.is_aarch64() {
+        policy::unsupported(emu, "ntdll", "RtlSetUnhandledExceptionFilter", emu.pc());
+        return;
+    }
     let call = WinApi(Stdcall);
     let filter = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "RtlSetUnhandledExceptionFilter filter={filter:#x}");

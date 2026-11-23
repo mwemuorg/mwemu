@@ -979,7 +979,7 @@ impl Script {
 
                     match args[1] {
                         "peb" => {
-                            let s = structures::PEB::load(addr, &emu.maps);
+                            let s = structures::Peb::load(addr, &emu.maps);
                             s.print();
                         }
                         "teb" => {
@@ -1015,7 +1015,7 @@ impl Script {
                             s.print();
                         }
                         "peb64" => {
-                            let s = structures::PEB64::load(addr, &emu.maps);
+                            let s = structures::Peb64::load(addr, &emu.maps);
                             s.print();
                         }
                         "teb64" => {

@@ -59,6 +59,9 @@ pub use input_state::{
 mod load_string;
 pub use load_string::{LoadStringA, LoadStringW};
 
+mod timers;
+pub use timers::{DispatchMessageA, DispatchMessageW, KillTimer, SetTimer};
+
 mod messages;
 pub use messages::{
     DefWindowProcA, DefWindowProcW, GetMessageA, GetMessageTime, GetMessageW, PeekMessageA,

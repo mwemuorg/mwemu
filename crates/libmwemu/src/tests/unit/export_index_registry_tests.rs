@@ -530,7 +530,7 @@ fn pe_loader_resolves_ordinals_within_the_requested_module() {
 }
 
 #[test]
-fn synthetic_dll_unwind_exports_match_the_guest_architecture() -> std::io::Result<()> {
+fn synthetic_system_dll_exports_match_the_guest_architecture() -> std::io::Result<()> {
     let maps = tempfile::tempdir()?;
     for is64 in [false, true] {
         let (mut emu, name) = prepare_winapi(is64);
@@ -549,6 +549,9 @@ fn synthetic_dll_unwind_exports_match_the_guest_architecture() -> std::io::Resul
             ("ntdll.dll", "RtlLookupFunctionEntry", is64),
             ("ntdll.dll", "RtlVirtualUnwind", is64),
             ("ntdll.dll", "RtlAddFunctionTable", is64),
+            ("ntdll.dll", "RtlDeleteFunctionTable", is64),
+            ("kernel32.dll", "RtlAddFunctionTable", is64),
+            ("kernel32.dll", "RtlDeleteFunctionTable", is64),
         ] {
             let base = emu.link_library(dll);
             assert_ne!(base, 0, "x64={is64}, {dll}");
@@ -558,6 +561,17 @@ fn synthetic_dll_unwind_exports_match_the_guest_architecture() -> std::io::Resul
             assert_eq!(address != 0, available, "x64={is64}, {dll}!{export}");
             if !available {
                 assert_eq!(emu.get_last_error(), ERROR_PROC_NOT_FOUND);
+            }
+        }
+
+        for dll in ["SHFolder.dll", "shell32.dll"] {
+            assert_ne!(emu.load_library(dll), 0);
+            for import in ["SHGetFolderPathA", "SHGetFolderPathW"] {
+                let address = emu.resolve_api_name_in_module(dll, import);
+                assert!(
+                    address != 0 && emu.maps.is_mapped(address),
+                    "x64={is64}, {dll}!{import}"
+                );
             }
         }
     }

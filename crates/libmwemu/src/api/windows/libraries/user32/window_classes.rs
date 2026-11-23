@@ -213,7 +213,9 @@ pub fn DestroyWindow(emu: &mut Emu) {
     let hwnd = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "user32!DestroyWindow hwnd={hwnd:#x}");
     let success = emu.guest_windows.destroy(hwnd);
-    if !success {
+    if success {
+        emu.user_timers.remove_destroyed_windows(&emu.guest_windows);
+    } else {
         emu.set_last_error(ERROR_INVALID_WINDOW_HANDLE);
     }
     call.set_return(emu, success.into());

@@ -3,6 +3,8 @@ pub mod fpu_stack;
 
 use crate::emu;
 use f80::F80;
+
+pub(crate) const FPU_INVALID_OPERATION: u16 = 1;
 use fpu_stack::FPUStack;
 use iced_x86::Register;
 
@@ -202,6 +204,12 @@ impl FPU {
         }
     }
 
+    pub fn status_word(&self) -> u16 {
+        const TOP_SHIFT: u32 = 11;
+        const TOP_MASK: u16 = 7 << TOP_SHIFT;
+        (self.status & !TOP_MASK) | (u16::from(self.st.get_top()) << TOP_SHIFT)
+    }
+
     pub fn get_top(&mut self) -> u8 {
         self.st.get_top()
     }
@@ -332,28 +340,28 @@ impl FPU {
     pub fn add_to_st0(&mut self, i: usize) {
         let v = self.st.get(i);
         if let Some(st) = self.st.get_mut(0) {
-            st.add(v)
+            st.add_with_control(v, false, self.ctrl)
         }
     }
 
     pub fn add(&mut self, i: usize, j: usize) {
         let v = self.st.get(j);
         if let Some(st) = self.st.get_mut(i) {
-            st.add(v)
+            st.add_with_control(v, false, self.ctrl)
         }
     }
 
     pub fn sub(&mut self, i: usize, j: usize) {
         let v = self.st.get(j);
         if let Some(st) = self.st.get_mut(i) {
-            st.sub(v)
+            st.add_with_control(v, true, self.ctrl)
         }
     }
 
     pub fn subr(&mut self, i: usize, j: usize) {
         let a = self.st.get(i);
         let mut b = self.st.get(j);
-        b.sub(a);
+        b.add_with_control(a, true, self.ctrl);
         if let Some(st) = self.st.get_mut(i) {
             st.set(b.get())
         }

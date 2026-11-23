@@ -1,11 +1,11 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::policy::{self, api_try};
+use crate::windows::constants::controls::WS_VISIBLE;
 use crate::windows::constants::errors::{
     ERROR_INVALID_PARAMETER, ERROR_INVALID_WINDOW_HANDLE, ERROR_NOACCESS,
 };
 
-const WS_VISIBLE: u32 = 0x1000_0000;
 const WS_MINIMIZE: u32 = 0x2000_0000;
 const SW_HIDE: u32 = 0;
 const SW_SHOWMINIMIZED: u32 = 2;

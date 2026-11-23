@@ -20,8 +20,8 @@ pub use crate::winapi::libraries::kernel32::entry_points::kernelbase::{
     ReleaseSemaphoreWhenCallbackReturns, SetLastConsoleEventActive, SetLastError,
     SetThreadpoolTimer, SetThreadpoolTimerEx, SetThreadpoolWait, SetThreadpoolWaitEx, Sleep,
     SleepConditionVariableCS, SleepEx, TryAcquireSRWLockExclusive, TryAcquireSRWLockShared,
-    TryEnterCriticalSection, UnmapViewOfFile, WaitForDebugEventEx, WaitForThreadpoolIoCallbacks,
-    WaitForThreadpoolTimerCallbacks, WaitForThreadpoolWaitCallbacks,
+    TryEnterCriticalSection, UnhandledExceptionFilter, UnmapViewOfFile, WaitForDebugEventEx,
+    WaitForThreadpoolIoCallbacks, WaitForThreadpoolTimerCallbacks, WaitForThreadpoolWaitCallbacks,
     WaitForThreadpoolWorkCallbacks, WakeAllConditionVariable, WakeConditionVariable,
 };
 
@@ -88,8 +88,8 @@ pub use crate::winapi::libraries::unsupported::kernelbase::{
     SetThreadToken, SetThreadpoolThreadMaximum, SleepConditionVariableSRW, StartThreadpoolIo,
     SubmitIoRing, SubmitThreadpoolWork, SystemTimeToTzSpecificLocalTime,
     SystemTimeToTzSpecificLocalTimeEx, TerminateProcess, TlsGetValue2, TraceEvent, TraceMessage,
-    TraceMessageVa, TzSpecificLocalTimeToSystemTimeEx, UnhandledExceptionFilter,
-    UpdateProcThreadAttribute, VirtualLock, Wow64Transition, WriteConsoleA, WriteConsoleW,
+    TraceMessageVa, TzSpecificLocalTimeToSystemTimeEx, UpdateProcThreadAttribute, VirtualLock,
+    Wow64Transition, WriteConsoleA, WriteConsoleW,
 };
 use crate::winapi::winapi64;
 
@@ -447,8 +447,6 @@ pub use lstrlen::{lstrlen, lstrlenA, lstrlenW};
 pub use crate::winapi::common::security::{GetTokenInformation, OpenProcessToken};
 mod local_alloc;
 use local_alloc::LocalAlloc;
-mod set_unhandled_exception_filter;
-use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
 mod _initterm;
 use _initterm::_initterm;
 mod _initterm_e;

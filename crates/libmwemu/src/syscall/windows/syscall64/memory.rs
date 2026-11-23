@@ -14,7 +14,9 @@ use crate::windows::constants::process::PROCESS_VM_OPERATION;
 use crate::windows::constants::syscalls::*;
 use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
 
-use crate::windows::structures::MemoryBasicInformation64;
+use crate::windows::structures::{
+    LdrDataTableEntry64, MemoryBasicInformation64, Peb64, PebLdrData64,
+};
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
 
 pub fn patch_ntdll_load_reason_checks(emu: &mut Emu) {
@@ -720,17 +722,23 @@ pub fn nt_are_mapped_files_the_same(emu: &mut Emu) {
 /// every LDR_DATA_TABLE_ENTRY, including entries the parallel loader created.
 fn mark_all_ldr_entries_ready(emu: &mut Emu) {
     let peb = emu.maps.get_mem("peb").get_base();
-    let ldr = emu.maps.read_qword(peb + 0x18).unwrap_or(0);
+    let ldr = emu.maps.read_qword(peb + Peb64::LDR_OFFSET).unwrap_or(0);
     if ldr == 0 {
         return;
     }
-    let sentinel = ldr + 0x10; // InLoadOrderModuleList head
+    let sentinel = ldr + PebLdrData64::IN_LOAD_ORDER_MODULE_LIST_OFFSET;
     let mut cur = emu.maps.read_qword(sentinel).unwrap_or(0);
     let mut count = 0u32;
     while cur != 0 && cur != sentinel && count < 64 {
-        let prev = emu.maps.read_dword(cur + 0x10C).unwrap_or(0);
-        if prev != 9 {
-            emu.maps.write_dword(cur + 0x10C, 9);
+        let prev = emu
+            .maps
+            .read_dword(cur + LdrDataTableEntry64::LOAD_REASON_OFFSET)
+            .unwrap_or(0);
+        if prev != LdrDataTableEntry64::BOOTSTRAP_LOAD_REASON {
+            emu.maps.write_dword(
+                cur + LdrDataTableEntry64::LOAD_REASON_OFFSET,
+                LdrDataTableEntry64::BOOTSTRAP_LOAD_REASON,
+            );
         }
         cur = emu.maps.read_qword(cur).unwrap_or(0); // Flink
         count += 1;

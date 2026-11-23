@@ -120,6 +120,7 @@ impl Maps {
 impl Clone for Maps {
     fn clone(&self) -> Self {
         let mut clone = Self {
+            section_commitments: self.section_commitments.clone(),
             buffers: self.buffers.clone(),
             allocations: self.allocations.clone(),
             banzai: self.banzai,

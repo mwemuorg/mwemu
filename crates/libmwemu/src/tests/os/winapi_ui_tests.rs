@@ -1015,8 +1015,6 @@ fn queued_messages_use_the_guest_msg_layout_and_only_quit_returns_zero() {
     use crate::winapi::policy::{ApiDisposition, ApiMode};
     use crate::windows::constants::errors::ERROR_CALL_NOT_IMPLEMENTED;
     use helpers::call_winapi_export as call;
-    const WM_QUIT: u32 = 0x0012;
-    const WM_APP: u64 = 0x8000;
     for is64 in [false, true] {
         let (mut emu, data) = helpers::prepare_winapi(is64);
         let dll = "user32.dll";
@@ -1042,7 +1040,12 @@ fn queued_messages_use_the_guest_msg_layout_and_only_quit_returns_zero() {
         }
         let hwnd = create_test_window(&mut emu, "test");
         assert_eq!(
-            call(&mut emu, dll, "PostMessageW", &[hwnd, WM_APP, 123, 456]),
+            call(
+                &mut emu,
+                dll,
+                "PostMessageW",
+                &[hwnd, WM_APP as u64, 123, 456]
+            ),
             1
         );
         let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
@@ -1051,22 +1054,32 @@ fn queued_messages_use_the_guest_msg_layout_and_only_quit_returns_zero() {
                 &mut emu,
                 dll,
                 "PeekMessageW",
-                &[data, hwnd, WM_APP, WM_APP, 0]
+                &[data, hwnd, WM_APP as u64, WM_APP as u64, 0]
             ),
             1
         );
         assert_eq!(
-            call(&mut emu, dll, "GetMessageA", &[data, hwnd, WM_APP, WM_APP]),
+            call(
+                &mut emu,
+                dll,
+                "GetMessageA",
+                &[data, hwnd, WM_APP as u64, WM_APP as u64]
+            ),
             1
         );
         let (message, wparam, lparam) = if is64 { (8, 16, 24) } else { (4, 8, 12) };
-        assert_eq!(emu.maps.read_dword(data + message), Some(WM_APP as u32));
+        assert_eq!(emu.maps.read_dword(data + message), Some(WM_APP));
         assert_eq!(emu.maps.read_dword(data + wparam), Some(123));
         assert_eq!(emu.maps.read_dword(data + lparam), Some(456));
         assert_eq!(emu.maps.read_byte(data + size), Some(0xa5));
         call(&mut emu, dll, "PostQuitMessage", &[42]);
         assert_eq!(
-            call(&mut emu, dll, "GetMessageW", &[data, 0, WM_APP, WM_APP]),
+            call(
+                &mut emu,
+                dll,
+                "GetMessageW",
+                &[data, 0, WM_APP as u64, WM_APP as u64]
+            ),
             0
         );
         assert_eq!(emu.maps.read_dword(data + message), Some(WM_QUIT));
@@ -1170,5 +1183,174 @@ fn shell_runtime_exports_follow_their_hresult_and_output_contracts() {
             assert_eq!(read_pointer(&emu, data), Some(0));
         }
         assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+    }
+}
+
+#[test]
+fn user_timers_deliver_coalesced_messages_and_dispatch_live_guest_callbacks() {
+    use crate::serialization::Serialization;
+    use helpers::{call_winapi_export as call, prepare_winapi};
+
+    const DLL: &str = "user32.dll";
+    const CALLBACK: u64 = 0x2800_0000;
+    let timer = u64::from(WM_TIMER);
+    for is64 in [false, true] {
+        let (mut emu, msg) = prepare_winapi(is64);
+        let word = if is64 { 8 } else { 4 };
+        let hwnd = create_test_window(&mut emu, "timer");
+        emu.maps
+            .create_map(
+                "timer_callback",
+                CALLBACK,
+                0x1000,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        let ret: &[u8] = if is64 { &[0xc3] } else { &[0xc2, 16, 0] };
+        emu.maps.write_bytes(CALLBACK, ret);
+        emu.set_pc(CALLBACK + 0x80);
+        let id = call(&mut emu, DLL, "SetTimer", &[0, 0xbeef, 1, CALLBACK]);
+        assert_ne!(id, 0);
+        assert_ne!(id, 0xbeef);
+        assert_eq!(call(&mut emu, DLL, "PeekMessageW", &[msg, 0, 0, 0, 0]), 0);
+        assert_ne!(call(&mut emu, DLL, "SetTimer", &[hwnd, 0, 100, 0]), 0);
+        emu.tick += USER_TIMER_MINIMUM as usize;
+        call(&mut emu, DLL, "PostMessageW", &[hwnd, WM_APP as u64, 0, 0]);
+        assert_eq!(call(&mut emu, DLL, "GetMessageA", &[msg, 0, 0, 0]), 1);
+        assert_eq!(emu.maps.read_dword(msg + word), Some(WM_APP));
+        assert_eq!(
+            call(&mut emu, DLL, "PeekMessageW", &[msg, 0, timer, timer, 0]),
+            1
+        );
+        let mut emu = Serialization::deserialize(&Serialization::serialize(&emu));
+        let generated_at = emu.tick as u32;
+        assert_eq!(
+            call(&mut emu, DLL, "GetMessageA", &[msg, u64::MAX, timer, timer]),
+            1
+        );
+        assert_eq!(emu.maps.read_dword(msg + 2 * word), Some(id as u32));
+        assert_eq!(emu.maps.read_dword(msg + 4 * word), Some(generated_at));
+        emu.tick += 125;
+        let callback_time = emu.tick as u32;
+        emu.set_hook_on_pre_instruction(move |emu, pc, _, _| {
+            if pc == CALLBACK {
+                let args = if is64 {
+                    let r = emu.regs();
+                    [r.rcx, r.rdx, r.r8, r.r9]
+                } else {
+                    [4, 8, 12, 16]
+                        .map(|offset| u64::from(emu.maps.read_dword(emu.sp() + offset).unwrap()))
+                };
+                assert_eq!(args, [0, timer, id, u64::from(callback_time)]);
+                emu.regs_mut().rax = 0x1234_5678;
+            }
+            true
+        });
+        assert_eq!(call(&mut emu, DLL, "DispatchMessageW", &[msg]), 0x1234_5678);
+        // A timer that expired repeatedly produces one message when the queue is inspected.
+        assert_eq!(
+            call(
+                &mut emu,
+                DLL,
+                "PeekMessageA",
+                &[msg, u64::MAX, timer, timer, 1]
+            ),
+            1
+        );
+        assert_eq!(
+            call(
+                &mut emu,
+                DLL,
+                "PeekMessageA",
+                &[msg, u64::MAX, timer, timer, 1]
+            ),
+            0
+        );
+        assert_eq!(call(&mut emu, DLL, "KillTimer", &[0, id]), 1);
+        // The old MSG still exists. Its callback runs only while registered somewhere in the process.
+        assert_eq!(call(&mut emu, DLL, "DispatchMessageA", &[msg]), 0);
+        let mut peer = emu.current_thread().clone();
+        peer.id += 1;
+        emu.threads.push(peer);
+        emu.current_thread_id = 1;
+        let other = call(&mut emu, DLL, "SetTimer", &[0, 0, 500, CALLBACK]);
+        emu.current_thread_id = 0;
+        assert_ne!(other, id);
+        assert_eq!(call(&mut emu, DLL, "DispatchMessageA", &[msg]), 0x1234_5678);
+        assert_eq!(call(&mut emu, DLL, "KillTimer", &[0, other]), 1);
+        assert_eq!(
+            call(&mut emu, DLL, "GetMessageW", &[msg, hwnd, timer, timer]),
+            1
+        );
+        assert_eq!(emu.maps.read_dword(msg + 2 * word), Some(0));
+        assert_eq!(call(&mut emu, DLL, "DispatchMessageW", &[msg]), 0);
+        assert_eq!(call(&mut emu, DLL, "KillTimer", &[hwnd, 0]), 1);
+        emu.set_last_error(123);
+        assert_eq!(call(&mut emu, DLL, "KillTimer", &[hwnd, 0]), 0);
+        assert_eq!(emu.get_last_error(), 123);
+    }
+}
+
+#[test]
+fn timer_replacement_resets_the_deadline_and_leaves_materialized_messages_in_the_queue() {
+    use crate::windows::constants::errors::ERROR_INVALID_WINDOW_HANDLE;
+    use helpers::{call_winapi_export as call, prepare_winapi};
+    const DLL: &str = "user32.dll";
+    let timer = u64::from(WM_TIMER);
+    for is64 in [false, true] {
+        let (mut emu, msg) = prepare_winapi(is64);
+        let word = if is64 { 8 } else { 4 };
+        let hwnd = create_test_window(&mut emu, "owner");
+        let id = call(&mut emu, DLL, "SetTimer", &[0, 0, 100, 0]);
+        emu.tick += 90;
+        let start = emu.tick;
+        let mut peer = emu.current_thread().clone();
+        peer.id += 1;
+        emu.threads.push(peer);
+        emu.current_thread_id = 1;
+        assert_eq!(call(&mut emu, DLL, "SetTimer", &[0, id, 50, 0]), id);
+        emu.tick += 10;
+        assert_eq!(
+            call(&mut emu, DLL, "PeekMessageA", &[msg, 0, timer, timer, 0]),
+            0
+        );
+        assert_eq!(
+            call(&mut emu, DLL, "GetMessageW", &[msg, 0, timer, timer]),
+            1
+        );
+        assert_eq!(emu.tick, start + 50);
+        emu.tick += 50;
+        assert_eq!(
+            call(&mut emu, DLL, "PeekMessageA", &[msg, 0, timer, timer, 0]),
+            1
+        );
+        // Replacing a windowless timer transfers delivery to this thread. The old thread can still cancel its ID.
+        emu.current_thread_id = 0;
+        assert_eq!(
+            call(&mut emu, DLL, "PeekMessageA", &[msg, 0, timer, timer, 1]),
+            0
+        );
+        assert_eq!(call(&mut emu, DLL, "KillTimer", &[0, id]), 1);
+        emu.current_thread_id = 1;
+        assert_eq!(
+            call(&mut emu, DLL, "GetMessageW", &[msg, 0, timer, timer]),
+            1
+        );
+        assert_eq!(emu.maps.read_dword(msg + 2 * word), Some(id as u32));
+        emu.current_thread_id = 0;
+        let mut child = emu.guest_windows.get(hwnd).unwrap().clone();
+        child.parent = hwnd;
+        let child = emu.guest_windows.insert(child).unwrap();
+        for window in [hwnd, child] {
+            assert_ne!(call(&mut emu, DLL, "SetTimer", &[window, 33, 10, 0]), 0);
+        }
+        assert_eq!(call(&mut emu, DLL, "DestroyWindow", &[hwnd]), 1);
+        emu.tick += 10;
+        assert_eq!(
+            call(&mut emu, DLL, "PeekMessageW", &[msg, 0, timer, timer, 1]),
+            0
+        );
+        assert_eq!(call(&mut emu, DLL, "SetTimer", &[hwnd, 33, 10, 0]), 0);
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_WINDOW_HANDLE);
     }
 }

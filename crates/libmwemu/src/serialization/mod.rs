@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{Read as _, Write as _},
+    io::{self, Read as _, Write as _},
 };
 
 use serde::de::DeserializeOwned;
@@ -9,7 +9,7 @@ use crate::emu::Emu;
 use crate::serialization::emu::SerializableEmu;
 use crate::serialization::legacy_maps::{LegacySerializableMaps, RangeMem64};
 use crate::serialization::native::{
-    NativeSnapshot, NativeSnapshotV3, NativeSnapshotV4, NativeSnapshotV5,
+    NativeSnapshotUnstable, NativeSnapshotV3, NativeSnapshotV4, NativeSnapshotV5,
 };
 
 pub mod emu;
@@ -23,7 +23,7 @@ mod pe32;
 mod pe64;
 mod thread_context;
 
-const NATIVE_V11_MAGIC: &[u8; 8] = b"MWEMU\0\x0b\0";
+const NATIVE_UNSTABLE_MAGIC: &[u8] = b"MWEMU\0UNSTABLE\0";
 const NATIVE_V5_MAGIC: &[u8; 8] = b"MWEMU\0\x05\0";
 const NATIVE_V4_MAGIC: &[u8; 8] = b"MWEMU\0\x04\0";
 const NATIVE_V3_MAGIC: &[u8; 8] = b"MWEMU\0\x03\0";
@@ -32,39 +32,52 @@ const NATIVE_V2_MAGIC: &[u8; 8] = b"MWEMU\0\x02\0";
 pub struct Serialization;
 
 // Decode only the selected layout. Each snapshot contains a large emulator state.
-fn decode_native<T: DeserializeOwned + Into<Emu>>(payload: &[u8]) -> Emu {
-    bitcode::deserialize::<T>(payload).unwrap().into()
+fn decode_native<T: DeserializeOwned + Into<Emu>>(payload: &[u8]) -> io::Result<Emu> {
+    bitcode::deserialize::<T>(payload)
+        .map(Into::into)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
 }
 
 impl Serialization {
     pub fn serialize(emu: &Emu) -> Vec<u8> {
-        let serialized = NativeSnapshot::from(emu);
-        let mut data = NATIVE_V11_MAGIC.to_vec();
+        let serialized = NativeSnapshotUnstable::from(emu);
+        let mut data = NATIVE_UNSTABLE_MAGIC.to_vec();
         data.extend(bitcode::serialize(&serialized).unwrap());
         data
     }
 
     pub fn deserialize(data: &[u8]) -> Emu {
-        if let Some(payload) = data.strip_prefix(NATIVE_V11_MAGIC) {
-            return decode_native::<NativeSnapshot>(payload);
+        Self::try_deserialize(data).expect("cannot decode native snapshot")
+    }
+
+    pub fn try_deserialize(data: &[u8]) -> io::Result<Emu> {
+        if let Some(payload) = data.strip_prefix(NATIVE_UNSTABLE_MAGIC) {
+            return decode_native::<NativeSnapshotUnstable>(payload).map_err(|error| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid UNSTABLE snapshot (use the build that wrote it): {error}"),
+                )
+            });
         }
-        let mut emu: Emu = if let Some(payload) = data.strip_prefix(NATIVE_V5_MAGIC) {
-            decode_native::<NativeSnapshotV5>(payload)
+        let mut emu = if let Some(payload) = data.strip_prefix(NATIVE_V5_MAGIC) {
+            decode_native::<NativeSnapshotV5>(payload)?
         } else if let Some(payload) = data.strip_prefix(NATIVE_V4_MAGIC) {
-            decode_native::<NativeSnapshotV4>(payload)
+            decode_native::<NativeSnapshotV4>(payload)?
         } else if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
-            decode_native::<NativeSnapshotV3>(payload)
+            decode_native::<NativeSnapshotV3>(payload)?
         } else if let Some(payload) = data.strip_prefix(NATIVE_V2_MAGIC) {
-            decode_native::<SerializableEmu<LegacySerializableMaps<RangeMem64>>>(payload)
+            decode_native::<SerializableEmu<LegacySerializableMaps<RangeMem64>>>(payload)?
         } else {
-            assert!(
-                !data.starts_with(b"MWEMU\0"),
-                "unsupported native snapshot version"
-            );
-            decode_native::<SerializableEmu<LegacySerializableMaps>>(data)
+            if data.starts_with(b"MWEMU\0") {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unsupported native snapshot version (use the build that wrote it)",
+                ));
+            }
+            decode_native::<SerializableEmu<LegacySerializableMaps>>(data)?
         };
         emu.restore_legacy_windows_slots();
-        emu
+        Ok(emu)
     }
 
     /// Directory where the per-map `.bin` dumps are written: the parent
@@ -120,17 +133,22 @@ impl Serialization {
     }
 
     pub fn load(filename: &str) -> Emu {
-        if minidump::is_minidump_path(filename) {
-            return Self::load_from_minidump(filename);
-        }
+        Self::try_load(filename).expect("cannot load snapshot")
+    }
 
-        let mut file = File::open(filename).unwrap();
+    pub fn try_load(filename: &str) -> io::Result<Emu> {
+        let mut file = File::open(filename)?;
         let mut signature = [0u8; 4];
-        let bytes_read = file.read(&mut signature).unwrap();
-        if bytes_read == signature.len() && minidump::has_minidump_signature(&signature) {
-            Self::load_from_minidump(filename)
-        } else {
-            Self::load_from_file(filename)
+        let count = file.read(&mut signature)?;
+        if minidump::is_minidump_path(filename)
+            || count == signature.len() && minidump::has_minidump_signature(&signature)
+        {
+            return minidump::load_from_minidump(filename)
+                .map(Into::into)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()));
         }
+        let mut bytes = signature[..count].to_vec();
+        file.read_to_end(&mut bytes)?;
+        Self::try_deserialize(&bytes)
     }
 }

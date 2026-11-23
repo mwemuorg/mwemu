@@ -1,9 +1,13 @@
 use crate::emu;
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::modules::main_module_path;
+use crate::winapi::environment_store;
 use crate::windows::peb::peb64::ldr::create_ldr_entry;
 use crate::windows::peb::{command_line, map_wide_string};
-use crate::windows::structures::{PEB64, PebLdrData64, RtlUserProcessParameters64, TEB64};
+use crate::windows::structures::{
+    LdrDataTableEntry64, Peb64, PebLdrData64, RtlUserProcessParameters64, TEB64,
+};
 
 /// `PEB+0x90` (`system_dependent_07`): ntdll reads this as a pointer in loader / API-set helpers.
 /// Real CSRSS/kernel fills it; under emulation `LdrInitializeThunk` (and related code) often leaves
@@ -17,7 +21,10 @@ pub fn ensure_peb_system_dependent_07(emu: &mut emu::Emu) {
         Some(m) => m.get_base(),
         None => return,
     };
-    let cur = emu.maps.read_qword(peb_base + 0x90).unwrap_or(0);
+    let cur = emu
+        .maps
+        .read_qword(peb_base + Peb64::SYSTEM_DEPENDENT_07_OFFSET)
+        .unwrap_or(0);
     if cur != 0 && emu.maps.is_mapped(cur) {
         return;
     }
@@ -31,7 +38,8 @@ pub fn ensure_peb_system_dependent_07(emu: &mut emu::Emu) {
         emu.maps.memset(base, 0, SD07_SZ as usize);
         base
     };
-    emu.maps.write_qword(peb_base + 0x90, sd07);
+    emu.maps
+        .write_qword(peb_base + Peb64::SYSTEM_DEPENDENT_07_OFFSET, sd07);
 }
 
 /// `TEB+0x1480` (FlsData) and `TEB+0x1858` (heap Flags pointer) are read by
@@ -117,7 +125,10 @@ fn ensure_peb_system_dependent_06(emu: &mut emu::Emu) {
         Some(m) => m.get_base(),
         None => return,
     };
-    let cur = emu.maps.read_qword(peb_base + 0x68).unwrap_or(0);
+    let cur = emu
+        .maps
+        .read_qword(peb_base + Peb64::SYSTEM_DEPENDENT_06_OFFSET)
+        .unwrap_or(0);
     if cur != 0 && emu.maps.is_mapped(cur) {
         return;
     }
@@ -152,7 +163,8 @@ fn ensure_peb_system_dependent_06(emu: &mut emu::Emu) {
         );
         base
     };
-    emu.maps.write_qword(peb_base + 0x68, sd06);
+    emu.maps
+        .write_qword(peb_base + Peb64::SYSTEM_DEPENDENT_06_OFFSET, sd06);
 }
 
 /// Map the three NLS code-page sections that `RtlInitNlsTables` reads via
@@ -176,9 +188,21 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
     const FALLBACK_SZ: u64 = 0x1000;
     // (PEB slot, map name, NLS filename)
     let slots: &[(&str, u64, &str)] = &[
-        ("peb_nls_ansi", peb_base + 0xA0, "C_1252.NLS"),
-        ("peb_nls_oem", peb_base + 0xA8, "C_437.NLS"),
-        ("peb_nls_unicode", peb_base + 0xB0, "locale.nls"),
+        (
+            "peb_nls_ansi",
+            peb_base + Peb64::ANSI_CODE_PAGE_DATA_OFFSET,
+            "C_1252.NLS",
+        ),
+        (
+            "peb_nls_oem",
+            peb_base + Peb64::OEM_CODE_PAGE_DATA_OFFSET,
+            "C_437.NLS",
+        ),
+        (
+            "peb_nls_unicode",
+            peb_base + Peb64::UNICODE_CASE_TABLE_DATA_OFFSET,
+            "locale.nls",
+        ),
     ];
     let mut nls_bases: [u64; 3] = [0; 3];
     for (i, (name, slot_addr, nls_filename)) in slots.iter().enumerate() {
@@ -231,7 +255,10 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
 /// points into. kernel32's DllMain dereferences this pointer array to
 /// reach codepage tables; without the mapping, the access faults.
 fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_bases: &[u64; 3]) {
-    let ro_base = emu.maps.read_qword(peb_base + 0x88).unwrap_or(0x7efe0000);
+    let ro_base = emu
+        .maps
+        .read_qword(peb_base + Peb64::READ_ONLY_SHARED_MEMORY_BASE_OFFSET)
+        .unwrap_or(0x7efe0000);
     if ro_base == 0 {
         return;
     }
@@ -251,7 +278,10 @@ fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_base
     // ReadOnlyStaticServerData is an array of offsets (relative to
     // ReadOnlySharedMemoryBase). Entry [0] points to BASE_STATIC_SERVER_DATA
     // which kernel32 reads for WindowsDirectory, CSDVersionString, etc.
-    let srv_data = emu.maps.read_qword(peb_base + 0x98).unwrap_or(0);
+    let srv_data = emu
+        .maps
+        .read_qword(peb_base + Peb64::READ_ONLY_STATIC_SERVER_DATA_OFFSET)
+        .unwrap_or(0);
     if srv_data >= ro_base && srv_data < ro_base + sz {
         let bssd = ro_base;
         // BASE_STATIC_SERVER_DATA layout (64-bit):
@@ -314,16 +344,20 @@ pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
         log::error!("cannot create ldr map: {}", e);
         return 0;
     }
-    let exe_name = emu.cfg.exe_name.clone();
-    let module_entry = create_ldr_entry(emu, 0, 0, &exe_name, 0, 0);
+    let image_path = main_module_path(emu);
+    let module_entry = create_ldr_entry(emu, 0, 0, &image_path, 0, 0);
     let mut ldr = PebLdrData64::new();
     ldr.initializated = 1;
     ldr.in_load_order_module_list.flink = module_entry;
     ldr.in_load_order_module_list.blink = module_entry;
-    ldr.in_memory_order_module_list.flink = module_entry + 0x10;
-    ldr.in_memory_order_module_list.blink = module_entry + 0x10;
-    ldr.in_initialization_order_module_list.flink = module_entry + 0x20;
-    ldr.in_initialization_order_module_list.blink = module_entry + 0x20;
+    ldr.in_memory_order_module_list.flink =
+        module_entry + LdrDataTableEntry64::IN_MEMORY_ORDER_LINKS_OFFSET;
+    ldr.in_memory_order_module_list.blink =
+        module_entry + LdrDataTableEntry64::IN_MEMORY_ORDER_LINKS_OFFSET;
+    ldr.in_initialization_order_module_list.flink =
+        module_entry + LdrDataTableEntry64::IN_INITIALIZATION_ORDER_LINKS_OFFSET;
+    ldr.in_initialization_order_module_list.blink =
+        module_entry + LdrDataTableEntry64::IN_INITIALIZATION_ORDER_LINKS_OFFSET;
     ldr.entry_in_progress.flink = module_entry;
     ldr.entry_in_progress.blink = module_entry;
     ldr.save(ldr_addr, &mut emu.maps);
@@ -398,7 +432,7 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     // LDR_DATA_TABLE_ENTRY — unix-style paths like `test/foo.bin` make
     // the parser leave the freshly-allocated BaseDllName.Buffer untouched
     // and the next `RtlHashUnicodeString` faults inside ntdll.
-    let image_path = format!("C:\\{}", emu.cfg.exe_name);
+    let image_path = main_module_path(emu);
     let cmdline_str = command_line(&image_path, &emu.cfg.arguments);
 
     // UNICODE_STRING.Length is bytes WITHOUT trailing NUL; MaximumLength
@@ -425,7 +459,10 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     params_struct.dll_path.buffer = dll_path_buf;
 
     params_struct.save(addr, &mut emu.maps);
-
+    if let Err(error) = environment_store::initialize(emu) {
+        log::error!("cannot initialize the process environment: {error}");
+        return 0;
+    }
     addr
 }
 
@@ -433,7 +470,7 @@ pub fn init_peb(emu: &mut emu::Emu) {
     let ldr = init_ldr(emu);
     let params_addr = init_arguments(emu);
 
-    let peb_addr = match emu.maps.lib64_alloc(PEB64::size() as u64) {
+    let peb_addr = match emu.maps.lib64_alloc(Peb64::size() as u64) {
         Some(a) => a,
         None => {
             log::error!("cannot alloc the PEB64");
@@ -443,7 +480,7 @@ pub fn init_peb(emu: &mut emu::Emu) {
     let peb_map = match emu.maps.create_map(
         "peb",
         peb_addr,
-        PEB64::size() as u64,
+        Peb64::size() as u64,
         Permission::READ_WRITE,
     ) {
         Ok(m) => m,
@@ -452,9 +489,8 @@ pub fn init_peb(emu: &mut emu::Emu) {
             return;
         }
     };
-    let peb = PEB64::new(0, ldr, params_addr);
+    let peb = Peb64::new(0, ldr, params_addr);
     peb.save(peb_map);
-    emu.maps.write_byte(peb_addr + 2, 0);
 
     let teb_addr = match emu.maps.lib64_alloc(TEB64::map_size() as u64) {
         Some(a) => a,
@@ -543,7 +579,7 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
     let ldr_addr = init_ldr(emu);
     let params_addr = init_arguments(emu);
 
-    let peb_addr = match emu.maps.lib64_alloc(PEB64::size() as u64) {
+    let peb_addr = match emu.maps.lib64_alloc(Peb64::size() as u64) {
         Some(a) => a,
         None => {
             log::error!("cannot alloc the PEB64 (empty)");
@@ -553,17 +589,17 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
     if let Err(e) = emu.maps.create_map(
         "peb",
         peb_addr,
-        PEB64::size() as u64,
+        Peb64::size() as u64,
         Permission::READ_WRITE,
     ) {
         log::error!("cannot create peb map (empty): {}", e);
         return;
     }
     let heap_addr = init_process_heap(emu);
-    let peb = PEB64::new(0, ldr_addr, params_addr);
+    let peb = Peb64::new(0, ldr_addr, params_addr);
     peb.save(emu.maps.get_mem_mut("peb"));
-    emu.maps.write_byte(peb_addr + 2, 0);
-    emu.maps.write_qword(peb_addr + 0x30, heap_addr);
+    emu.maps
+        .write_qword(peb_addr + Peb64::PROCESS_HEAP_OFFSET, heap_addr);
 
     let teb_addr = match emu.maps.lib64_alloc(TEB64::map_size() as u64) {
         Some(a) => a,
@@ -596,5 +632,6 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
 pub fn update_peb_image_base(emu: &mut emu::Emu, base: u64) {
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
-    emu.maps.write_qword(peb_base + 0x10, base);
+    emu.maps
+        .write_qword(peb_base + Peb64::IMAGE_BASE_ADDR_OFFSET, base);
 }

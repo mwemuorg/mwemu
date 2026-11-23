@@ -28,7 +28,7 @@ mod text;
 pub(crate) use text::dispatch_text;
 
 pub(super) mod units;
-pub(crate) use units::dispatch as dispatch_units;
+pub(crate) use units::{dispatch as dispatch_units, string_operation};
 
 mod integer;
 pub(crate) use integer::dispatch as dispatch_integer;

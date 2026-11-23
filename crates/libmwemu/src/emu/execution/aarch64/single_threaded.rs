@@ -50,10 +50,9 @@ impl Emu {
             || !self.bp.addr.is_empty()
             || !self.bp.instruction.is_empty();
 
-        let mut looped: AHashMap<u64, u32> = AHashMap::new();
+        let mut looped: AHashMap<u64, u64> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
-        let mut window_counter: u64 = 0;
 
         let mut aarch64_ins = yaxpeax_arm::armv8::a64::Instruction::default();
         let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
@@ -63,7 +62,7 @@ impl Emu {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 // pthread_create() turned threading on: hand over to the scheduler.
                 if self.scheduler_active() {
-                    return self.run_multi_threaded_aarch64(end_addr);
+                    return self.run_multi_threaded_aarch64_with_visits(end_addr, looped);
                 }
                 // No other thread can run here (a forked child, or a host-driven
                 // callback), so a thread parked on a lock or join is deadlocked.
@@ -210,7 +209,6 @@ impl Emu {
                             &mut prev_addr,
                             &mut repeat_counter,
                             &mut looped,
-                            &mut window_counter,
                             "infinite loop found",
                         )?;
                         if loop_hit {

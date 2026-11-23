@@ -280,6 +280,150 @@ impl Maps {
         Ok(())
     }
 
+    /// A stack owns its whole address range, but only the initial commit and guard need backing.
+    pub(crate) fn reserve_stack32(
+        &mut self,
+        base: u64,
+        size: u64,
+        commit: u64,
+    ) -> Result<(), MemoryError> {
+        if !self.is_range_free(base, size) || size < commit + PAGE_SIZE {
+            return Err(MemoryError::Conflict);
+        }
+        let limit = base + size - commit;
+        let guard = limit - PAGE_SIZE;
+        let map = self
+            .create_map("stack", guard, commit + PAGE_SIZE, Permission::READ_WRITE)
+            .map_err(|_| MemoryError::NoMemory)?;
+        map.set_permission_range(guard, PAGE_SIZE, Permission::NONE);
+        let mut allocation = Allocation::new(
+            base,
+            size,
+            PAGE_READWRITE,
+            MemoryKind::Private,
+            PageState::reserved(),
+        );
+        allocation.set_state(
+            guard,
+            PAGE_SIZE,
+            PageState::committed(PAGE_READWRITE | PAGE_GUARD, Permission::NONE),
+        );
+        allocation.set_state(
+            limit,
+            commit,
+            PageState::committed(PAGE_READWRITE, Permission::READ_WRITE),
+        );
+        self.register_allocation(allocation);
+        Ok(())
+    }
+
+    fn back_reserved_pages(
+        &mut self,
+        allocation: &Allocation,
+        address: u64,
+        size: u64,
+    ) -> Result<(), MemoryError> {
+        if size > self.max_alloc_size {
+            return Err(MemoryError::NoMemory);
+        }
+        let end = address + size;
+        let mut cursor = address;
+        let mut created = Vec::new();
+        while cursor < end {
+            if let Some(map) = self.get_mem_by_addr(cursor) {
+                cursor = map.get_bottom();
+                continue;
+            }
+            let next = self.next_mapped_addr(cursor).unwrap_or(end).min(end);
+            let name = self.unique_map_name(&format!("commit_{cursor:x}"));
+            if self
+                .create_backing_map(&name, cursor, next - cursor, Permission::NONE)
+                .is_err()
+            {
+                for base in created {
+                    self.dealloc(base);
+                }
+                self.register_allocation(allocation.clone());
+                return Err(MemoryError::NoMemory);
+            }
+            created.push(cursor);
+            cursor = next;
+        }
+        Ok(())
+    }
+
+    /// Give a newly committed section page its view-specific protection everywhere it is mapped.
+    fn commit_section_range(
+        &mut self,
+        allocation: &Allocation,
+        address: u64,
+        size: u64,
+        requested: PageState,
+    ) -> Result<(), MemoryError> {
+        if allocation
+            .maximum_permission
+            .is_none_or(|maximum| !maximum.contains(requested.permission))
+        {
+            return Err(MemoryError::InvalidParameter);
+        }
+        let mem = self.get_mem_by_addr(address).ok_or(MemoryError::Unmapped)?;
+        let source = mem.shared_view().ok_or(MemoryError::InvalidParameter)?;
+        let start = source.offset as u64 + address - mem.get_base();
+        let end = start
+            .checked_add(size)
+            .ok_or(MemoryError::InvalidParameter)?;
+        let pages = self
+            .section_commitments
+            .get_mut(&source.storage)
+            .ok_or(MemoryError::InvalidParameter)?;
+        pages
+            .get_mut((start / PAGE_SIZE) as usize..(end / PAGE_SIZE) as usize)
+            .ok_or(MemoryError::InvalidParameter)?;
+
+        let views: Vec<_> = self
+            .mem_slab
+            .iter()
+            .filter_map(|(_, mem)| {
+                let view = mem.shared_view()?;
+                let offset = view.offset as u64;
+                let first = start.max(offset);
+                let last = end.min(offset + mem.size() as u64);
+                (view.storage == source.storage && first < last)
+                    .then(|| (mem.get_base() + (first - offset), last - first))
+            })
+            .collect();
+        for (at, len) in views {
+            let state = allocation.contains(at, len).then_some(requested);
+            self.apply_section_commit(at, len, state)?;
+        }
+        if let Some(pages) = self.section_commitments.get_mut(&source.storage) {
+            pages[(start / PAGE_SIZE) as usize..(end / PAGE_SIZE) as usize].fill(true);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn apply_section_commit(
+        &mut self,
+        at: u64,
+        len: u64,
+        state: Option<PageState>,
+    ) -> Result<(), MemoryError> {
+        let mut allocation = self.checked_allocation(at, len)?;
+        let state = state.unwrap_or(PageState::committed(
+            allocation.initial_protection,
+            allocation
+                .maximum_permission
+                .ok_or(MemoryError::InvalidParameter)?,
+        ));
+        for (base, size, old) in allocation.runs(at, len) {
+            if !old.committed {
+                self.set_page_state(&mut allocation, base, size, state, false)?;
+            }
+        }
+        self.register_allocation(allocation);
+        Ok(())
+    }
+
     pub fn commit_memory(
         &mut self,
         address: u64,
@@ -288,11 +432,19 @@ impl Maps {
         permission: Permission,
     ) -> Result<(), MemoryError> {
         let mut allocation = self.checked_allocation(address, size)?;
+        if allocation.kind == MemoryKind::Mapped {
+            return self.commit_section_range(
+                &allocation,
+                address,
+                size,
+                PageState::committed(protection, permission),
+            );
+        }
         if allocation.kind != MemoryKind::Private {
             return Err(MemoryError::InvalidParameter);
         }
         if !self.can_access_range(address, size as usize, Permission::NONE) {
-            return Err(MemoryError::Unmapped);
+            self.back_reserved_pages(&allocation, address, size)?;
         }
         for (at, len, state) in allocation.runs(address, size) {
             self.set_page_state(
@@ -312,7 +464,11 @@ impl Maps {
         if allocation.kind != MemoryKind::Private {
             return Err(MemoryError::InvalidParameter);
         }
-        self.set_page_state(&mut allocation, address, size, PageState::reserved(), true)?;
+        for (at, len, state) in allocation.runs(address, size) {
+            if state.committed {
+                self.set_page_state(&mut allocation, at, len, PageState::reserved(), true)?;
+            }
+        }
         self.register_allocation(allocation);
         Ok(())
     }

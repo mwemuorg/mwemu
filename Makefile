@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver windows-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity api-modules
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver windows-driver test_macos test_golang test_windows test_speed test_fuzz fmt msrv complexity api-modules
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -142,7 +142,7 @@ test_syscall: samples
 test_linux:
 	cargo run --release -- -f /bin/ls -A '-l' -6
 test_windows: samples
-	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v --banzai
+	cargo test --release --locked -p libmwemu $(CARGO_TARGET) windows_pe_long:: -- --ignored
 test_macos:
 	cargo run --release $(CARGO_TARGET) -- -f /bin/ls --aarch64 -v --args '-l'
 test_inception:

@@ -97,7 +97,7 @@ fn operation(emu: &mut Emu, library: &str, api: &str) {
             } else if api.starts_with("_h") && count > i32::MAX as u32 {
                 Err(ERROR_INVALID_PARAMETER)
             } else {
-                transfer(emu, handle, buffer, count as usize, write).map(|n| n as u64)
+                transfer(emu, handle, buffer, count as usize, write, None).map(|n| n as u64)
             }
         }
     };

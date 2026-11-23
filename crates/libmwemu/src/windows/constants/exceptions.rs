@@ -17,6 +17,14 @@ pub enum ExceptionDisposition {
 pub const CALL_FIRST: u32 = 1;
 pub const CALL_LAST: u32 = 0;
 
+pub const EXCEPTION_NONCONTINUABLE: u32 = 1;
+pub const EXCEPTION_UNWINDING: u32 = 2;
+pub const EXCEPTION_EXIT_UNWIND: u32 = 4;
+pub const EXCEPTION_STACK_INVALID: u32 = 8;
+pub const EXCEPTION_NESTED_CALL: u32 = 0x10;
+pub const EXCEPTION_TARGET_UNWIND: u32 = 0x20;
+pub const EXCEPTION_COLLIDED_UNWIND: u32 = 0x40;
+
 pub const EXCEPTION_READ_FAULT: u64 = 0;
 pub const EXCEPTION_WRITE_FAULT: u64 = 1;
 pub const EXCEPTION_EXECUTE_FAULT: u64 = 8;
@@ -43,6 +51,9 @@ pub const CONTEXT_SERVICE_ACTIVE: u32 = 0x1000_0000;
 pub const CONTEXT_UNWOUND_TO_CALL: u32 = 0x2000_0000;
 pub const CONTEXT_EXCEPTION_REQUEST: u32 = 0x4000_0000;
 pub const CONTEXT_EXCEPTION_REPORTING: u32 = 0x8000_0000;
+
+/// User-mode code selector of the Windows i386 compatibility environment.
+pub const WOW64_USER_CODE_SELECTOR: u16 = 0x23;
 
 pub const WOW64_CONTEXT_I386: u32 = 0x0001_0000;
 pub const WOW64_CONTEXT_I486: u32 = WOW64_CONTEXT_I386;

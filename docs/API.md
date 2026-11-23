@@ -39,7 +39,7 @@ An unreadable, overflowing, or unsupported argument layout is an emulator frame 
 
 Windows retains its context in `emu.api_policy.last_outcome`. Unix stores frame diagnostics in `emu.unix_api.fault` and checked memory diagnostics in `emu.unix_api.memory_fault`. Both retain the failing library, symbol, address, entry PC/SP, and thread. Nested Unix calls retain the inner failure context. `clear_outcome()` and `clear_fault()` clear their respective diagnostics. They do not repair the frame or arrange a safe restart.
 
-Native snapshots now write V11 and read V11 and released formats V1–V5. Intermediate formats V6–V10 are unsupported. V11 saves per-thread `LastError`, CRT state, guest handles, IPC, registry and environment state, and Unix API faults. Older formats without saved policy restore the strict Windows default.
+Native snapshots preserve the Windows and Unix API state represented by the current format, including timer registrations, FLS callbacks and cryptographic state. Snapshots that predate API policy restore the strict Windows default. See [native snapshot compatibility](serialization-roadmap.md#native-snapshot-compatibility).
 
 Existing Banzai settings are preserved. Platform API state is separate from the legacy `Config` layout. Serializing `Config` alone does not retain it.
 
@@ -139,6 +139,9 @@ The table summarizes selected models and their limits. Guest layouts still follo
 | Area | Behavior and limits |
 | --- | --- |
 | Windows files and objects | Supported Win32 and native operations share guest files, process and token handles, and waitable objects. Pipes and mailslots model local synchronous I/O. |
+| Windows exceptions | x86 walks the SEH registration chain. x64 searches caller frames using version 1 unwind metadata and registered function tables. A language handler can use `RtlUnwindEx` to run termination handlers and resume at a target frame. |
+| Windows timers | `SetTimer` and `KillTimer` manage thread and window timers on the guest clock. Message retrieval generates `WM_TIMER`. Dispatch checks live `TIMERPROC` registrations and invokes the guest callback. |
+| Windows fiber-local storage | Each modeled Windows thread has a default fiber. FLS slots can register guest cleanup callbacks. Freeing a slot invokes its callback for nonzero values across threads. |
 | Windows resources and paths | Resource and version queries use loaded images or guest files where supported. Version queries can read an en-US `.mui` sidecar. Known-folder queries use the guest profile. |
 | Windows time and environment | Date and time conversions use a fixed UTC environment. Process variables and the two CRT environments have separate storage. Direct guest writes to environment tables do not update those models. |
 | MSVCRT/UCRT | Startup uses guest arguments. Streams and descriptors use the configured file root. Each runtime tracks thread-local `errno` and random state. Snapshots exclude open host-backed streams. |

@@ -1,15 +1,19 @@
+use crate::api::windows::export_index::ModuleExportIndex;
+use crate::emu::loaders::guest_dll::GuestDll;
+use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use crate::api::unix::{ApiState, MemoryFault};
 use crate::api::windows::policy::ApiPolicy;
-use crate::emu::Emu;
 use crate::emu::object_handle::{HandleManagement, MemoryHandles, WindowsHandle};
+use crate::emu::{Emu, RuntimeFunctionTable};
 use crate::kernel::heap::KernelHeap;
 use crate::maps::heap_allocation::{O1Heap, O1HeapSnapshot};
 use crate::serialization::emu::SerializableEmu;
 use crate::threading::context::{SignalStack, WindowsThreadState};
 use crate::winapi::common::crt_environment::CrtEnvironment;
+use crate::winapi::common::crypto_state::CryptoStore;
 use crate::winapi::common::handles::ConsoleCursor;
 use crate::winapi::common::ipc::IpcState;
 use crate::winapi::common::process::Priorities;
@@ -19,7 +23,7 @@ use crate::winapi::libraries::kernel32::atoms::AtomTables;
 use crate::winapi::libraries::ole32::runtime::Apartment;
 use crate::winapi::profile_store::ProfileStore;
 use crate::winapi::registry_store::Registry;
-use crate::winapi::window_table::WindowTable;
+use crate::winapi::window_table::{TimerTable, WindowTable};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct NativeSnapshotV3 {
@@ -118,7 +122,7 @@ struct ThreadState {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct NativeSnapshot {
+pub(crate) struct NativeSnapshotUnstable {
     state: NativeSnapshotV5,
     threads: Vec<ThreadState>,
     windows_handles: Vec<(usize, WindowsHandle)>,
@@ -133,19 +137,28 @@ pub(crate) struct NativeSnapshot {
     environment: Option<Environment>,
     crt_environments: [CrtEnvironment; 2],
     process_error_mode: u32,
+    process_dep_flags: u32,
     ipc: IpcState,
     tls_slots: Vec<bool>,
-    fls_slots: Vec<bool>,
+    fls_slots: Vec<Option<u64>>,
     veh_registration_ids: Vec<u32>,
     last_veh_id: u32,
     priorities: Priorities,
     last_luid: u64,
     atom_tables: AtomTables,
     profiles: ProfileStore,
+    rng: ChaCha12Rng,
+    rng_seed: Option<u64>,
+    crypto: CryptoStore,
+    runtime_function_tables: Vec<RuntimeFunctionTable>,
+    section_commitments: BTreeMap<u64, Vec<bool>>,
+    guest_dlls: BTreeMap<u64, GuestDll>,
+    guest_exports: Vec<ModuleExportIndex>,
+    user_timers: TimerTable,
     console_cursor: ConsoleCursor,
 }
 
-impl From<&Emu> for NativeSnapshot {
+impl From<&Emu> for NativeSnapshotUnstable {
     fn from(emu: &Emu) -> Self {
         Self {
             state: NativeSnapshotV5::from(emu),
@@ -171,6 +184,7 @@ impl From<&Emu> for NativeSnapshot {
             environment: emu.environment.clone(),
             crt_environments: emu.crt_environments.clone(),
             process_error_mode: emu.process_error_mode,
+            process_dep_flags: emu.process_dep_flags,
             ipc: emu.ipc.clone(),
             tls_slots: emu.windows_tls_slots.clone(),
             fls_slots: emu.windows_fls_slots.clone(),
@@ -180,13 +194,25 @@ impl From<&Emu> for NativeSnapshot {
             last_luid: emu.last_luid,
             atom_tables: emu.atom_tables.clone(),
             profiles: emu.profiles.clone(),
+            rng: emu.rng.clone(),
+            rng_seed: emu.rng_seed,
+            crypto: emu.crypto.clone(),
+            runtime_function_tables: emu.runtime_function_tables.clone(),
+            guest_exports: emu
+                .guest_dlls
+                .keys()
+                .filter_map(|base| emu.export_indexes.get_by_base(*base).cloned())
+                .collect(),
+            section_commitments: emu.maps.section_commitments.clone(),
+            guest_dlls: emu.guest_dlls.clone(),
+            user_timers: emu.user_timers.clone(),
             console_cursor: emu.console_cursor,
         }
     }
 }
 
-impl From<NativeSnapshot> for Emu {
-    fn from(snapshot: NativeSnapshot) -> Self {
+impl From<NativeSnapshotUnstable> for Emu {
+    fn from(snapshot: NativeSnapshotUnstable) -> Self {
         let mut emu: Emu = snapshot.state.into();
         for (thread, saved) in emu.threads.iter_mut().zip(snapshot.threads) {
             thread.signal_stack = saved.signal_stack;
@@ -207,6 +233,7 @@ impl From<NativeSnapshot> for Emu {
         emu.environment = snapshot.environment;
         emu.crt_environments = snapshot.crt_environments;
         emu.process_error_mode = snapshot.process_error_mode;
+        emu.process_dep_flags = snapshot.process_dep_flags;
         emu.ipc = snapshot.ipc;
         emu.windows_tls_slots = snapshot.tls_slots;
         emu.windows_fls_slots = snapshot.fls_slots;
@@ -216,6 +243,16 @@ impl From<NativeSnapshot> for Emu {
         emu.last_luid = snapshot.last_luid;
         emu.atom_tables = snapshot.atom_tables;
         emu.profiles = snapshot.profiles;
+        emu.rng = snapshot.rng;
+        emu.rng_seed = snapshot.rng_seed;
+        emu.crypto = snapshot.crypto;
+        emu.runtime_function_tables = snapshot.runtime_function_tables;
+        emu.maps.section_commitments = snapshot.section_commitments;
+        emu.guest_dlls = snapshot.guest_dlls;
+        for module in snapshot.guest_exports {
+            emu.export_indexes.register(module);
+        }
+        emu.user_timers = snapshot.user_timers;
         emu.console_cursor = snapshot.console_cursor;
         emu
     }
