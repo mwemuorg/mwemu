@@ -1368,3 +1368,54 @@ fn gdiplus_allocation_routes_share_heap_ownership() {
         helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipFree", &[0]);
     }
 }
+
+#[test]
+fn kernel_heap_finds_interleaved_allocations_before_and_after_snapshot() {
+    use crate::kernel::heap::{KernelHeap, Region};
+
+    let mut heap = KernelHeap::new(0x10000, 0x10000, 0x30000, 0x10000);
+    let mut addresses = Vec::new();
+    for region in [Region::Vmalloc, Region::Slab, Region::Pages, Region::Slab] {
+        let chunk = heap
+            .record_alloc(region, 16, "test", "alloc", 0, 0)
+            .unwrap();
+        addresses.push((chunk.addr, chunk.size));
+    }
+    let freed = heap.index_of_base(addresses[1].0).unwrap();
+    heap.record_free(freed, "free", 0, 0);
+    let snapshot = bitcode::serialize(&heap).unwrap();
+    let restored: KernelHeap = bitcode::deserialize(&snapshot).unwrap();
+    for ledger in [&heap, &restored] {
+        for (index, &(base, size)) in addresses.iter().enumerate() {
+            assert_eq!(ledger.index_of_base(base), Some(index));
+            assert_eq!(ledger.index_of(base + size - 1), Some(index));
+            assert_eq!(ledger.index_of(base + size), None);
+            assert_eq!(ledger.get(index).is_freed(), index == freed);
+        }
+    }
+}
+
+#[test]
+fn kernel_heap_rejects_unrepresentable_sizes_without_consuming_space() {
+    use crate::kernel::heap::{KernelHeap, Region};
+    use crate::maps::virtual_memory::PAGE_SIZE;
+
+    let mut heap = KernelHeap::new(0x10000, 0x10000, 0x30000, 0x10000);
+    for region in [Region::Slab, Region::Vmalloc, Region::Pages] {
+        for size in [u64::MAX, u64::MAX - PAGE_SIZE + 1] {
+            assert!(
+                heap.record_alloc(region, size, "test", "alloc", 0, 0)
+                    .is_none()
+            );
+        }
+    }
+    assert!(heap.chunks().is_empty());
+    for (region, expected) in [(Region::Slab, 0x10000), (Region::Vmalloc, 0x30000)] {
+        assert_eq!(
+            heap.record_alloc(region, 1, "test", "alloc", 0, 0)
+                .unwrap()
+                .addr,
+            expected
+        );
+    }
+}

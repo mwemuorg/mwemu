@@ -1,9 +1,17 @@
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::api::windows::common::{process, threads};
 use crate::emu::Emu;
+use crate::maps::mem64::Permission;
 use crate::winapi::libraries::kernel32::file_time::nt_performance;
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
+use crate::windows::constants::process::{
+    NT_CURRENT_PROCESS, PROCESS_CONSOLE_HOST_PROCESS,
+    PROCESS_RAISE_UM_EXCEPTION_ON_INVALID_HANDLE_CLOSE, PROCESS_SCHEDULER_SHARED_DATA,
+    PROCESS_TLS_INFORMATION,
+};
 use crate::windows::constants::syscalls::*;
+use crate::windows::structures::TEB64;
 
 /// `NtQueryPerformanceCounter` — RCX = counter (PLARGE_INTEGER), RDX = frequency (PLARGE_INTEGER, optional).
 /// Matches the usual x64 syscall stub used from `kernelbase!QueryPerformanceCounter` → ntdll.
@@ -284,4 +292,145 @@ pub fn nt_create_profile_ex(emu: &mut Emu) {
 
 pub fn nt_query_information_process(emu: &mut Emu) {
     process::query_information_process(emu, WinSyscall);
+}
+
+pub(super) fn set_information_process(emu: &mut Emu) {
+    let call = WinSyscall;
+    let [process, class, buffer, size] = api_try!(emu, call.args(emu));
+    if class as u32 == PROCESS_CONSOLE_HOST_PROCESS as u32 {
+        return process::set_console_host_process(emu, call);
+    }
+    if class as u32 == PROCESS_RAISE_UM_EXCEPTION_ON_INVALID_HANDLE_CLOSE as u32 {
+        return process::set_invalid_close_policy(emu, call);
+    }
+    if class as u32 == PROCESS_TLS_INFORMATION
+        && process == NT_CURRENT_PROCESS
+        && let Some(status) = replace_process_tls(emu, buffer, size as u32)
+    {
+        log_orange!(
+            emu,
+            "NtSetInformationProcess ProcessTlsInformation => {status:#x}"
+        );
+        return call.set_return(emu, status);
+    }
+    if class as u32 != PROCESS_SCHEDULER_SHARED_DATA || process != NT_CURRENT_PROCESS {
+        return policy::unsupported_with_abi(
+            emu,
+            "ntdll",
+            "NtSetInformationProcess",
+            emu.pc(),
+            call,
+        );
+    }
+    // The loader can run without the optional shared scheduler page.
+    let status = if size as u32 != size_of::<u64>() as u32 {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else if emu.maps.read_qword(buffer).is_none() {
+        STATUS_ACCESS_VIOLATION
+    } else {
+        STATUS_NOT_SUPPORTED
+    };
+    log_orange!(
+        emu,
+        "NtSetInformationProcess ProcessSchedulerSharedData => {status:#x}"
+    );
+    call.set_return(emu, status);
+}
+
+// Win11 x64 passes a 16-byte header followed by 24-byte in/out thread records.
+// The DWORD at +12 is the index for ReplaceIndex and the old slot count for ReplaceVector.
+fn replace_process_tls(emu: &mut Emu, buffer: u64, size: u32) -> Option<u64> {
+    const HEADER: u32 = 16;
+    const THREAD_RECORD: u32 = 24;
+    const REPLACE_INDEX: u32 = 0;
+    const REPLACE_VECTOR: u32 = 1;
+    const THREAD_UPDATED: u32 = 2;
+
+    if size < HEADER {
+        return Some(STATUS_INFO_LENGTH_MISMATCH);
+    }
+    if !emu
+        .maps
+        .can_access_range(buffer, HEADER as usize, Permission::READ)
+    {
+        return Some(STATUS_ACCESS_VIOLATION);
+    }
+    let flags = emu.maps.read_dword(buffer)?;
+    let operation = emu.maps.read_dword(buffer + 4)?;
+    let count = emu.maps.read_dword(buffer + 8)?;
+    let index_or_count = emu.maps.read_dword(buffer + 12)? as u64;
+    if count
+        .checked_mul(THREAD_RECORD)
+        .and_then(|bytes| bytes.checked_add(HEADER))
+        != Some(size)
+    {
+        return Some(STATUS_INFO_LENGTH_MISMATCH);
+    }
+    // Startup operates on one live thread. Other thread enumeration contracts follow API policy.
+    if flags != 0
+        || !matches!(operation, REPLACE_INDEX | REPLACE_VECTOR)
+        || count != 1
+        || emu
+            .threads
+            .iter()
+            .filter(|thread| thread.exit_value.is_none())
+            .count()
+            != 1
+    {
+        return None;
+    }
+    if !emu
+        .maps
+        .can_access_range(buffer, size as usize, Permission::READ_WRITE)
+    {
+        return Some(STATUS_ACCESS_VIOLATION);
+    }
+    let entry = buffer + HEADER as u64;
+    let data = entry + 8;
+    let thread_id = entry + 16;
+    if emu.maps.read_dword(entry)? != 0 {
+        return None;
+    }
+    let Some(teb_slot) = emu
+        .windows_teb()
+        .and_then(|teb| teb.checked_add(TEB64::THREAD_LOCAL_STORAGE_POINTER_OFFSET))
+    else {
+        return Some(STATUS_ACCESS_VIOLATION);
+    };
+    let Some(vector) = emu.maps.read_qword(teb_slot) else {
+        return Some(STATUS_ACCESS_VIOLATION);
+    };
+    let replacement = emu.maps.read_qword(data)?;
+    let bytes = index_or_count * size_of::<u64>() as u64;
+    let slot = if operation == REPLACE_VECTOR {
+        teb_slot
+    } else if vector != 0
+        && let Some(slot) = vector.checked_add(bytes)
+    {
+        slot
+    } else {
+        return Some(STATUS_ACCESS_VIOLATION);
+    };
+    let Some(previous) = emu.maps.read_qword(slot) else {
+        return Some(STATUS_ACCESS_VIOLATION);
+    };
+    if !emu.maps.validate_write_range(slot, size_of::<u64>() as u64) {
+        return Some(STATUS_ACCESS_VIOLATION);
+    }
+    if operation == REPLACE_VECTOR
+        && (replacement == 0
+            || !emu
+                .maps
+                .validate_write_range(replacement, bytes.max(size_of::<u64>() as u64))
+            || (vector != 0
+                && bytes != 0
+                && !emu.maps.copy_range(replacement, vector, bytes as usize)))
+    {
+        return Some(STATUS_ACCESS_VIOLATION);
+    }
+    emu.maps.write_qword(slot, replacement);
+    emu.maps.write_qword(data, previous);
+    emu.maps.write_qword(thread_id, emu.current_thread().id);
+    emu.maps.write_dword(entry, THREAD_UPDATED);
+    Some(STATUS_SUCCESS)
 }

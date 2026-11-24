@@ -1,3 +1,4 @@
+#[cfg(feature = "asset-tests")]
 mod allocator64_test;
 mod call64;
 mod cpu_vector_tests;

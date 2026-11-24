@@ -13,6 +13,7 @@ use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
 use crate::winapi::winapi64;
+use crate::windows::peb::peb64::ensure_ntdll_loader_globals;
 
 use crate::windows::structures::{LdrDataTableEntry64, Peb64, PebLdrData64, UnicodeString64};
 
@@ -74,8 +75,7 @@ impl Emu {
             .maps
             .write_qword(ctx_addr + Context64::RIP_OFFSET, entry_point);
 
-        crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
-        crate::syscall::windows::syscall64::memory::patch_ntdll_load_reason_checks(self);
+        ensure_ntdll_loader_globals(self);
         let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
         self.check_api_stop()?;
         self.ldr_init_done = true;

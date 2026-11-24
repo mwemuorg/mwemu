@@ -4,6 +4,7 @@ use crate::emu::object_handle::ServiceObject;
 use crate::winapi::common::trace::input_string;
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::{self, api_try};
+use crate::winapi::registry::create_path;
 use crate::winapi::registry_store::{REG_EXPAND_SZ, Value, dword, join, sz};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::security::{GENERIC_ALL, GENERIC_WRITE, MAXIMUM_ALLOWED};
@@ -207,7 +208,7 @@ fn create_service(emu: &mut Emu, api: &str, wide: bool) {
             if emu.registry.key_exists(&path) {
                 return Err(ERROR_SERVICE_EXISTS);
             }
-            if emu.registry.create_key(&path) != Some(true) {
+            if create_path(emu, &path) != Some(true) {
                 return Err(ERROR_INVALID_PARAMETER);
             }
             for (key, value) in [

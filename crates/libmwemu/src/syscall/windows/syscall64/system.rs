@@ -1,4 +1,7 @@
+use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::emu::Emu;
+use crate::winapi::common::ntdll::read_unicode_string;
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::syscalls::*;
 use crate::windows::constants::system;
@@ -951,4 +954,24 @@ pub fn nt_query_debug_filter_state(emu: &mut Emu) {
         level
     );
     emu.regs_mut().rax = 0; // FALSE — debug output suppressed
+}
+
+pub(super) fn query_license_value(emu: &mut Emu) {
+    let call = WinSyscall;
+    let name = api_try!(emu, call.arg(emu, 0));
+    match read_unicode_string(emu, name) {
+        Ok(name)
+            if name.eq_ignore_ascii_case(
+                "TerminalServices-RemoteConnectionManager-AllowAppServerMode",
+            ) =>
+        {
+            log_orange!(
+                emu,
+                "NtQueryLicenseValue name={name:?} => STATUS_OBJECT_NAME_NOT_FOUND"
+            );
+            call.set_return(emu, STATUS_OBJECT_NAME_NOT_FOUND);
+        }
+        Ok(_) => policy::unsupported_with_abi(emu, "ntdll", "NtQueryLicenseValue", emu.pc(), call),
+        Err(status) => call.set_return(emu, status),
+    }
 }

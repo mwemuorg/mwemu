@@ -13,6 +13,7 @@ pub mod file_handle;
 pub mod heap_handle;
 mod hive_parser;
 pub(crate) mod internet;
+mod registry_watch;
 use internet::InternetHandle;
 pub mod mapping_handle;
 mod registry_handle;
@@ -53,6 +54,25 @@ pub(crate) enum NativeObject {
     CsrPort,
     KnownDllDirectory { wow64: bool, access: u32 },
     KnownDllPath { wow64: bool, access: u32 },
+    IoCompletion,
+    WaitCompletionPacket,
+    EtwRegistration,
+    ConsoleDevice { access: u32, attributes: u32 },
+    CsrClientPort { view_base: u64, storage: u64 },
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub(crate) struct HandleGrant {
+    access: u32,
+    attributes: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct RegistryHandle {
+    path: String,
+    access: Option<u32>,
+    tags: u16,
+    notifications: Vec<registry_watch::NameNotification>,
 }
 
 enum HandleType {
@@ -64,17 +84,16 @@ enum HandleType {
     HeapHandle(HeapHandle),
     SectionHandle(SectionHandle),
     Toolhelp(ToolhelpSnapshot),
-    Thread(u64),
-    RegistryKey(String),
+    Thread(u64, u32),
+    RegistryKey(RegistryHandle),
     FileSearch(VecDeque<FoundFile>),
     Process(u32),
     Ipc,
     ProcessToken(u32),
-    Waitable(u64),
-    ProcessAccess(u32, u32),
+    Waitable(u64, HandleGrant),
+    ProcessAccess(u32, HandleGrant),
     Console(u32, u32),
     DeviceContext(DeviceContext),
-    RegistryKeyAccess(String, u32),
     Service(ServiceObject),
     Internet(InternetHandle),
     UrlCacheGroup,
@@ -103,14 +122,14 @@ pub(crate) struct MemoryHandles {
 #[derive(Serialize, Deserialize)]
 pub(crate) enum WindowsHandle {
     Toolhelp(ToolhelpSnapshot),
-    Thread(u64),
+    Thread(u64, u32),
     RegistryKey(String),
     FileSearch(VecDeque<FoundFile>),
     Process(u32),
     Ipc,
     ProcessToken(u32),
-    Waitable(u64, WaitObject),
-    ProcessAccess(u32, u32),
+    Waitable(u64, WaitObject, HandleGrant),
+    ProcessAccess(u32, HandleGrant),
     Console(u32, u32),
     DeviceContext(DeviceContext),
     RegistryKeyAccess(String, u32),
@@ -120,6 +139,7 @@ pub(crate) enum WindowsHandle {
     EventLog { source: bool },
     Graphic(GraphicHandle),
     Native(NativeObject),
+    TaggedRegistryKey(RegistryHandle, Vec<(u64, WaitObject)>),
 }
 
 pub struct HandleManagement {
@@ -203,12 +223,12 @@ impl HandleManagement {
             .filter_map(|(key, handle)| {
                 let saved = match handle {
                     HandleType::Toolhelp(snapshot) => WindowsHandle::Toolhelp(snapshot.clone()),
-                    HandleType::Thread(id) => WindowsHandle::Thread(*id),
+                    HandleType::Thread(id, access) => WindowsHandle::Thread(*id, *access),
                     HandleType::Process(id) => WindowsHandle::Process(*id),
                     HandleType::ProcessAccess(id, mask) => WindowsHandle::ProcessAccess(*id, *mask),
                     HandleType::Ipc => WindowsHandle::Ipc,
-                    HandleType::Waitable(id) => {
-                        WindowsHandle::Waitable(*id, self.waitables.get(id)?.clone())
+                    HandleType::Waitable(id, grant) => {
+                        WindowsHandle::Waitable(*id, self.waitables.get(id)?.clone(), *grant)
                     }
                     HandleType::Console(selector, mode) => WindowsHandle::Console(*selector, *mode),
                     HandleType::UrlCacheGroup => WindowsHandle::UrlCacheGroup,
@@ -219,10 +239,18 @@ impl HandleManagement {
                     HandleType::Service(service) => WindowsHandle::Service(service.clone()),
                     HandleType::DeviceContext(dc) => WindowsHandle::DeviceContext(dc.clone()),
                     HandleType::ProcessToken(rights) => WindowsHandle::ProcessToken(*rights),
-                    HandleType::RegistryKeyAccess(path, access) => {
-                        WindowsHandle::RegistryKeyAccess(path.clone(), *access)
-                    }
-                    HandleType::RegistryKey(path) => WindowsHandle::RegistryKey(path.clone()),
+                    HandleType::RegistryKey(key) => WindowsHandle::TaggedRegistryKey(
+                        key.clone(),
+                        key.notifications
+                            .iter()
+                            .filter_map(|watch| {
+                                self.waitables
+                                    .get(&watch.event)
+                                    .cloned()
+                                    .map(|event| (watch.event, event))
+                            })
+                            .collect(),
+                    ),
                     HandleType::FileSearch(entries) => WindowsHandle::FileSearch(entries.clone()),
                     _ => return None,
                 };
@@ -238,13 +266,13 @@ impl HandleManagement {
                 *handle = match saved {
                     WindowsHandle::Toolhelp(snapshot) => HandleType::Toolhelp(snapshot),
                     WindowsHandle::FileSearch(entries) => HandleType::FileSearch(entries),
-                    WindowsHandle::Thread(id) => HandleType::Thread(id),
+                    WindowsHandle::Thread(id, access) => HandleType::Thread(id, access),
                     WindowsHandle::Process(id) => HandleType::Process(id),
                     WindowsHandle::ProcessAccess(id, mask) => HandleType::ProcessAccess(id, mask),
                     WindowsHandle::Ipc => HandleType::Ipc,
-                    WindowsHandle::Waitable(id, obj) => {
+                    WindowsHandle::Waitable(id, obj, grant) => {
                         self.waitables.entry(id).or_insert(obj);
-                        HandleType::Waitable(id)
+                        HandleType::Waitable(id, grant)
                     }
                     WindowsHandle::Console(selector, mode) => HandleType::Console(selector, mode),
                     WindowsHandle::UrlCacheGroup => HandleType::UrlCacheGroup,
@@ -256,42 +284,90 @@ impl HandleManagement {
                     WindowsHandle::DeviceContext(dc) => HandleType::DeviceContext(dc),
                     WindowsHandle::ProcessToken(rights) => HandleType::ProcessToken(rights),
                     WindowsHandle::RegistryKeyAccess(path, access) => {
-                        HandleType::RegistryKeyAccess(path, access)
+                        HandleType::RegistryKey(RegistryHandle {
+                            path,
+                            access: Some(access),
+                            tags: 0,
+                            notifications: Vec::new(),
+                        })
                     }
-                    WindowsHandle::RegistryKey(path) => HandleType::RegistryKey(path),
+                    WindowsHandle::RegistryKey(path) => HandleType::RegistryKey(RegistryHandle {
+                        path,
+                        access: None,
+                        tags: 0,
+                        notifications: Vec::new(),
+                    }),
+                    WindowsHandle::TaggedRegistryKey(key, events) => {
+                        for (id, event) in events {
+                            self.waitables.entry(id).or_insert(event);
+                        }
+                        HandleType::RegistryKey(key)
+                    }
                 };
                 self.number_of_handle += 1;
             }
         }
     }
 
-    pub(crate) fn open_registry_key(&mut self, path: String) -> u32 {
+    fn insert_registry_key(&mut self, path: String, access: Option<u32>) -> u32 {
+        // Guest advapi32 uses the low two bits of a local HKEY to tag other providers.
+        const OBJ_HANDLE_TAGBITS: usize = 0x3;
+        let mut skipped = Vec::new();
+        while self.handle_types.vacant_key() & OBJ_HANDLE_TAGBITS != 0 {
+            skipped.push(self.handle_types.insert(HandleType::Reserved));
+        }
+        let handle = self
+            .handle_types
+            .insert(HandleType::RegistryKey(RegistryHandle {
+                path,
+                access,
+                tags: 0,
+                notifications: Vec::new(),
+            })) as u32;
+        for slot in skipped.into_iter().rev() {
+            self.handle_types.remove(slot);
+        }
         self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::RegistryKey(path)) as u32
+        handle
+    }
+
+    pub(crate) fn open_registry_key(&mut self, path: String) -> u32 {
+        self.insert_registry_key(path, None)
     }
 
     pub(crate) fn open_registry_key_access(&mut self, path: String, access: u32) -> u32 {
-        self.number_of_handle += 1;
-        self.handle_types
-            .insert(HandleType::RegistryKeyAccess(path, access)) as u32
+        self.insert_registry_key(path, Some(access))
     }
 
     pub(crate) fn registry_can_query(&self, handle: u64) -> bool {
         use crate::windows::constants::security::{
             GENERIC_ALL, GENERIC_READ, KEY_QUERY_VALUE, MAXIMUM_ALLOWED,
         };
-        match self.handle_types.get(handle as usize) {
-            Some(HandleType::RegistryKeyAccess(_, mask)) => {
+        self.registry_handle(handle).is_some_and(|key| {
+            key.access.is_none_or(|mask| {
                 mask & (KEY_QUERY_VALUE | GENERIC_READ | GENERIC_ALL | MAXIMUM_ALLOWED) != 0
-            }
-            Some(HandleType::RegistryKey(_)) => true,
-            _ => false,
+            })
+        })
+    }
+
+    fn registry_handle(&self, handle: u64) -> Option<&RegistryHandle> {
+        match self.handle_types.get(usize::try_from(handle).ok()?)? {
+            HandleType::RegistryKey(key) => Some(key),
+            _ => None,
         }
     }
 
     pub(crate) fn registry_key(&self, handle: u64) -> Option<&str> {
-        match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::RegistryKey(path) | HandleType::RegistryKeyAccess(path, _) => Some(path),
+        self.registry_handle(handle).map(|key| key.path.as_str())
+    }
+
+    pub(crate) fn registry_tags(&self, handle: u64) -> Option<u16> {
+        self.registry_handle(handle).map(|key| key.tags)
+    }
+
+    pub(crate) fn registry_tags_mut(&mut self, handle: u64) -> Option<&mut u16> {
+        match self.handle_types.get_mut(usize::try_from(handle).ok()?)? {
+            HandleType::RegistryKey(key) => Some(&mut key.tags),
             _ => None,
         }
     }
@@ -300,23 +376,25 @@ impl HandleManagement {
         if self.registry_key(handle).is_none() {
             return false;
         }
-        self.handle_types.remove(handle as usize);
+        if let HandleType::RegistryKey(key) = self.handle_types.remove(handle as usize) {
+            self.finish_registry_notifications(key.notifications);
+        }
         self.number_of_handle -= 1;
         true
     }
 
     pub(crate) fn invalidate_registry_key(&mut self, path: &str, include_root: bool) {
+        let mut notifications = Vec::new();
         for (_, entry) in &mut self.handle_types {
-            if let HandleType::RegistryKey(key) | HandleType::RegistryKeyAccess(key, _) = entry
-                && ((include_root && key.eq_ignore_ascii_case(path))
-                    || key
-                        .get(..path.len())
-                        .is_some_and(|s| s.eq_ignore_ascii_case(path))
-                        && key.as_bytes().get(path.len()) == Some(&b'\\'))
+            if let HandleType::RegistryKey(key) = entry
+                && ((include_root && key.path.eq_ignore_ascii_case(path))
+                    || registry_watch::descendant(&key.path, path))
             {
-                key.clear();
+                key.path.clear();
+                notifications.append(&mut key.notifications);
             }
         }
+        self.finish_registry_notifications(notifications);
     }
 
     pub(crate) fn named_waitable(&self, name: &[u16]) -> Option<u64> {
@@ -336,14 +414,19 @@ impl HandleManagement {
         Some(id)
     }
 
-    pub(crate) fn open_waitable(&mut self, id: u64) -> u64 {
+    pub(crate) fn open_waitable(&mut self, id: u64, access: u32, attributes: u32) -> u64 {
         self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Waitable(id)) as u64
+        self.handle_types
+            .insert(HandleType::Waitable(id, HandleGrant { access, attributes })) as u64
     }
 
     pub(crate) fn waitable_id(&self, handle: u64) -> Option<u64> {
+        self.waitable_handle(handle).map(|(id, _)| id)
+    }
+
+    pub(crate) fn waitable_handle(&self, handle: u64) -> Option<(u64, u32)> {
         match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::Waitable(id) => Some(*id),
+            HandleType::Waitable(id, grant) => Some((*id, grant.access)),
             _ => None,
         }
     }
@@ -465,21 +548,31 @@ impl HandleManagement {
 
     pub(crate) fn insert_graphic(&mut self, graphic: GraphicHandle) -> u64 {
         self.number_of_handle += 1;
-        self.handle_types.insert(HandleType::Graphic(graphic)) as u64
+        let entry = self.handle_types.vacant_entry();
+        let handle = graphic.handle(entry.key());
+        entry.insert(HandleType::Graphic(graphic));
+        handle
     }
 
     pub(crate) fn graphic(&self, object: u64) -> Option<&GraphicHandle> {
-        match self.handle_types.get(usize::try_from(object).ok()?)? {
-            HandleType::Graphic(entry) => Some(entry),
+        let raw = usize::try_from(object).ok()?;
+        if let Some(HandleType::Graphic(entry)) = self.handle_types.get(raw) {
+            return Some(entry);
+        }
+        let slot = (object as u16) as usize;
+        match self.handle_types.get(slot)? {
+            HandleType::Graphic(entry) if entry.handle(slot) == object => Some(entry),
             _ => None,
         }
     }
 
     pub(crate) fn stock_graphic(&self, stock: i32) -> Option<u64> {
-        self.handle_types.iter().find_map(|(key, object)| {
-            matches!(object, HandleType::Graphic(entry) if entry.stock == Some(stock))
-                .then_some(key as u64)
-        })
+        self.handle_types
+            .iter()
+            .find_map(|(key, object)| match object {
+                HandleType::Graphic(entry) if entry.stock == Some(stock) => Some(entry.handle(key)),
+                _ => None,
+            })
     }
 
     pub(crate) fn graphic_in_other_dc(&self, object: u64, owner: u64) -> bool {
@@ -527,10 +620,19 @@ impl HandleManagement {
         self.handle_types.insert(HandleType::Ipc) as u32
     }
 
-    pub(crate) fn insert_process_handle(&mut self, id: u32, access: u32) -> u32 {
+    pub(crate) fn insert_process_handle(&mut self, id: u32, access: u32, attributes: u32) -> u32 {
         self.number_of_handle += 1;
-        self.handle_types
-            .insert(HandleType::ProcessAccess(id, access)) as u32
+        self.handle_types.insert(HandleType::ProcessAccess(
+            id,
+            HandleGrant { access, attributes },
+        )) as u32
+    }
+
+    pub(crate) fn is_console_device(&self, handle: u64) -> bool {
+        matches!(
+            self.native_object(handle),
+            Some(NativeObject::ConsoleDevice { .. })
+        )
     }
 
     pub(crate) fn native_type_name(&self, handle: u64) -> Option<&'static str> {
@@ -538,11 +640,14 @@ impl HandleManagement {
             HandleType::FileHandle(_) | HandleType::Console(..) | HandleType::Ipc => Some("File"),
             HandleType::SectionHandle(_) | HandleType::MappingHandle(_) => Some("Section"),
             HandleType::Process(_) | HandleType::ProcessAccess(..) => Some("Process"),
-            HandleType::Thread(_) => Some("Thread"),
+            HandleType::Thread(..) => Some("Thread"),
             HandleType::ProcessToken(_) => Some("Token"),
-            HandleType::RegistryKey(_) | HandleType::RegistryKeyAccess(..) => Some("Key"),
+            HandleType::RegistryKey(_) => Some("Key"),
             HandleType::Native(NativeObject::KnownDllDirectory { .. }) => Some("Directory"),
             HandleType::Native(NativeObject::KnownDllPath { .. }) => Some("SymbolicLink"),
+            HandleType::Native(NativeObject::ConsoleDevice { .. }) => Some("File"),
+            HandleType::Native(NativeObject::IoCompletion) => Some("IoCompletion"),
+            HandleType::Native(NativeObject::WaitCompletionPacket) => Some("WaitCompletionPacket"),
             _ => None,
         }
     }
@@ -558,25 +663,40 @@ impl HandleManagement {
         }
     }
 
+    pub(crate) fn handle_attributes(&self, handle: u64) -> Option<u32> {
+        match self.handle_types.get(usize::try_from(handle).ok()?)? {
+            HandleType::ProcessAccess(_, grant) | HandleType::Waitable(_, grant) => {
+                Some(grant.attributes)
+            }
+            HandleType::Native(NativeObject::ConsoleDevice { attributes, .. }) => Some(*attributes),
+            HandleType::Process(_) => Some(0),
+            _ => None,
+        }
+    }
+
     pub(crate) fn process_access(&self, handle: u64) -> Option<u32> {
         match self.handle_types.get(usize::try_from(handle).ok()?)? {
-            HandleType::ProcessAccess(_, access) => Some(*access),
+            HandleType::ProcessAccess(_, grant) => Some(grant.access),
             // Old snapshots recorded identity but no granted VM access.
             HandleType::Process(_) => Some(0),
             _ => None,
         }
     }
 
-    pub(crate) fn insert_thread_handle(&mut self, id: u64) -> u32 {
-        let key = self.handle_types.insert(HandleType::Thread(id));
+    pub(crate) fn insert_thread_handle(&mut self, id: u64, access: u32) -> u32 {
+        let key = self.handle_types.insert(HandleType::Thread(id, access));
         self.number_of_handle += 1;
         key as u32
     }
 
     pub(crate) fn thread_handle_id(&self, handle: u64) -> Option<u64> {
+        self.thread_handle(handle).map(|(id, _)| id)
+    }
+
+    pub(crate) fn thread_handle(&self, handle: u64) -> Option<(u64, u32)> {
         let key = usize::try_from(handle).ok()?;
         match self.handle_types.get(key) {
-            Some(HandleType::Thread(id)) => Some(*id),
+            Some(HandleType::Thread(id, access)) => Some((*id, *access)),
             _ => None,
         }
     }
@@ -873,28 +993,21 @@ impl HandleManagement {
                     | HandleType::MappingHandle(_)
                     | HandleType::SectionHandle(_)
                     | HandleType::Toolhelp(_)
-                    | HandleType::Thread(_)
+                    | HandleType::Thread(..)
                     | HandleType::Process(_)
                     | HandleType::ProcessAccess(_, _)
                     | HandleType::Ipc
                     | HandleType::Native(_)
                     | HandleType::Console(_, _)
                     | HandleType::ProcessToken(_)
-                    | HandleType::Waitable(_)
+                    | HandleType::Waitable(..)
             )
         ) {
             return false;
         }
         match self.handle_types.try_remove(key) {
             Some(HandleType::FileHandle(mut file)) => file.close(),
-            Some(HandleType::Waitable(id))
-                if !self
-                    .handle_types
-                    .iter()
-                    .any(|(_, h)| matches!(h, HandleType::Waitable(other) if *other==id)) =>
-            {
-                self.waitables.remove(&id);
-            }
+            Some(HandleType::Waitable(id, _)) => self.release_unreferenced_waitable(id),
             _ => {}
         }
         self.number_of_handle -= 1;

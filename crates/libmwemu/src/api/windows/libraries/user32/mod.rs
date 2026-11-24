@@ -63,10 +63,11 @@ mod timers;
 pub use timers::{DispatchMessageA, DispatchMessageW, KillTimer, SetTimer};
 
 mod messages;
+pub(crate) use messages::registered_message;
 pub use messages::{
     DefWindowProcA, DefWindowProcW, GetMessageA, GetMessageTime, GetMessageW, PeekMessageA,
-    PeekMessageW, PostMessageA, PostMessageW, PostQuitMessage, SendMessageA, SendMessageW,
-    TranslateMessage, WaitMessage,
+    PeekMessageW, PostMessageA, PostMessageW, PostQuitMessage, RegisterWindowMessageA,
+    RegisterWindowMessageW, SendMessageA, SendMessageW, TranslateMessage, WaitMessage,
 };
 
 mod window_state;

@@ -1,5 +1,7 @@
 use crate::api::windows::registry_store::HKEY_LOCAL_MACHINE;
+use crate::emu::Emu;
 use crate::maps::mem64::Permission;
+use crate::syscall::windows::syscall64;
 use crate::tests::helpers;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::security::*;
@@ -280,8 +282,6 @@ fn user_token_sid_key_path_and_current_key_agree() {
 
 #[test]
 fn native_registry_reads_the_guest_store_through_handles_and_syscalls() {
-    use crate::emu::Emu;
-    use crate::syscall::windows::syscall64;
     use crate::winapi::common::memory::{pointer_size, read_pointer, write_pointer};
     use crate::winapi::common::security::{process_user_sid, sid_string};
     use crate::winapi::registry_store::{HKEY_CURRENT_USER, REG_DWORD};
@@ -296,25 +296,6 @@ fn native_registry_reads_the_guest_store_through_handles_and_syscalls() {
         emu.maps.write_word(desc + 2, bytes);
         write_pointer(emu, desc + width, buf);
         emu.maps.write_wide_string(buf, text);
-    }
-    fn raw(emu: &mut Emu, nr: u64, args: &[u64]) -> u64 {
-        emu.syscall_number_map.insert(nr, nr);
-        let sp = emu.sp();
-        for (i, &arg) in args.iter().enumerate() {
-            match i {
-                0 => emu.regs_mut().rcx = arg,
-                1 => emu.regs_mut().rdx = arg,
-                2 => emu.regs_mut().r8 = arg,
-                3 => emu.regs_mut().r9 = arg,
-                _ => {
-                    assert!(emu.maps.write_qword(sp + (i as u64 + 1) * 8, arg));
-                }
-            }
-        }
-        emu.regs_mut().rax = nr;
-        syscall64::gateway(emu);
-        assert_eq!(emu.sp(), sp);
-        emu.regs().rax
     }
     for is64 in [false, true] {
         let (mut emu, data) = helpers::prepare_winapi(is64);
@@ -352,13 +333,46 @@ fn native_registry_reads_the_guest_store_through_handles_and_syscalls() {
         emu.maps.write_byte(out + width, 0xa5);
         let args = [out, KEY_READ as u64, attr, 0];
         let status = if is64 {
-            raw(&mut emu, WIN64_NTOPENKEYEX, &args)
+            syscall(&mut emu, WIN64_NTOPENKEYEX, &args)
         } else {
             call(&mut emu, "ntdll.dll", "ZwOpenKeyEx", &args)
         };
         assert_eq!(status, STATUS_SUCCESS);
         assert_eq!(emu.maps.read_byte(out + width), Some(0xa5));
         let handle = read_pointer(&emu, out).unwrap();
+        const KEY_HANDLE_TAGS_INFORMATION: u64 = 7;
+        const KEY_SET_HANDLE_TAGS_INFORMATION: u64 = 5;
+        emu.maps.write_dword(info, 0xabcd_1234);
+        for (capacity, expected) in [(8, STATUS_INFO_LENGTH_MISMATCH), (4, STATUS_SUCCESS)] {
+            let args = [handle, KEY_SET_HANDLE_TAGS_INFORMATION, info, capacity];
+            let status = if is64 {
+                syscall(&mut emu, WIN64_NTSETINFORMATIONKEY, &args)
+            } else {
+                call(&mut emu, "ntdll.dll", "NtSetInformationKey", &args)
+            };
+            assert_eq!(status, expected);
+        }
+        for (capacity, expected, tag) in [
+            (2, STATUS_BUFFER_TOO_SMALL, u32::MAX),
+            (4, STATUS_SUCCESS, 0x1234),
+        ] {
+            emu.maps.write_dword(info, u32::MAX);
+            let args = [
+                handle,
+                KEY_HANDLE_TAGS_INFORMATION,
+                info,
+                capacity,
+                required,
+            ];
+            let status = if is64 {
+                syscall(&mut emu, WIN64_NTQUERYKEY, &args)
+            } else {
+                call(&mut emu, "ntdll.dll", "ZwQueryKey", &args)
+            };
+            assert_eq!(status, expected);
+            assert_eq!(emu.maps.read_dword(required), Some(4));
+            assert_eq!(emu.maps.read_dword(info), Some(tag));
+        }
         string(&mut emu, value, "pRODUCTnAME");
         for (class, header, needed) in [
             (0, 12, 34),
@@ -375,7 +389,7 @@ fn native_registry_reads_the_guest_store_through_handles_and_syscalls() {
                 emu.maps.write_bytes(info, &[0xcc; 64]);
                 let args = [handle, value, class, info, capacity, required];
                 let status = if is64 {
-                    raw(&mut emu, WIN64_NTQUERYVALUEKEY, &args)
+                    syscall(&mut emu, WIN64_NTQUERYVALUEKEY, &args)
                 } else {
                     call(&mut emu, "ntdll.dll", "NtQueryValueKey", &args)
                 };
@@ -394,7 +408,7 @@ fn native_registry_reads_the_guest_store_through_handles_and_syscalls() {
         string(&mut emu, key, "Software");
         let request = [out, KEY_QUERY_VALUE as u64, attr];
         let status = if is64 {
-            raw(&mut emu, WIN64_NTOPENKEY, &request)
+            syscall(&mut emu, WIN64_NTOPENKEY, &request)
         } else {
             call(&mut emu, "ntdll.dll", "NtOpenKey", &request)
         };
@@ -777,4 +791,390 @@ fn subkey_value_operations_agree_with_ordinary_queries() {
             ERROR_SUCCESS
         );
     }
+}
+
+#[test]
+fn desktop_token_queries_report_session_and_security_flags_on_both_windows_abis() {
+    use crate::windows::structures::{Peb, Peb64};
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let peb = emu.maps.map("peb", 4096, Permission::READ_WRITE);
+        let session_offset = if is64 {
+            Peb64::SESSION_ID_OFFSET
+        } else {
+            Peb::SESSION_ID_OFFSET
+        };
+        emu.maps.write_dword(peb + session_offset, 3);
+        let returned = data + 16;
+        let token = CURRENT_PROCESS_TOKEN as i64 as u64;
+        for (class, expected) in [
+            (TOKEN_SESSION_ID, 3),
+            (TOKEN_ELEVATION, 0),
+            (TOKEN_UI_ACCESS, 0),
+            (TOKEN_IS_APP_CONTAINER, 0),
+            (TOKEN_PRIVATE_NAME_SPACE, 0),
+        ] {
+            emu.maps.write_qword(data, u64::MAX);
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "ntdll.dll",
+                    "NtQueryInformationToken",
+                    &[token, class as u64, data, 3, returned]
+                ),
+                if class == TOKEN_ELEVATION {
+                    STATUS_INFO_LENGTH_MISMATCH
+                } else {
+                    STATUS_BUFFER_TOO_SMALL
+                }
+            );
+            assert_eq!(emu.maps.read_qword(data), Some(u64::MAX));
+            assert_eq!(
+                call(
+                    &mut emu,
+                    "advapi32.dll",
+                    "GetTokenInformation",
+                    &[token, class as u64, data, 4, returned]
+                ),
+                1
+            );
+            assert_eq!(emu.maps.read_dword(data), Some(expected));
+            assert_eq!(emu.maps.read_dword(data + 4), Some(u32::MAX));
+            assert_eq!(emu.maps.read_dword(returned), Some(4));
+        }
+        assert_eq!(
+            call(
+                &mut emu,
+                "advapi32.dll",
+                "GetTokenInformation",
+                &[token, TOKEN_ELEVATION as u64, data, 8, returned]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_BAD_LENGTH);
+        emu.maps.write_dword(returned, u32::MAX);
+        assert_eq!(
+            call(
+                &mut emu,
+                "ntdll.dll",
+                "NtQueryInformationToken",
+                &[token, TOKEN_ELEVATION as u64, data + 1, 4, returned]
+            ),
+            STATUS_DATATYPE_MISALIGNMENT
+        );
+        assert_eq!(emu.maps.read_dword(returned), Some(u32::MAX));
+    }
+}
+
+#[test]
+fn native_membership_check_distinguishes_the_call_status_from_the_access_decision() {
+    use crate::winapi::common::memory::write_pointer;
+    use helpers::call_winapi_export as call;
+
+    for is64 in [false, true] {
+        let (mut emu, sd) = helpers::prepare_winapi(is64);
+        let width = if is64 { 8 } else { 4 };
+        let acl = sd + 64;
+        let ace = acl + 8;
+        let sid = ace + 8;
+        let mapping = sd + 160;
+        let privileges = sd + 192;
+        let length = sd + 240;
+        let mask = sd + 248;
+        let status = sd + 252;
+        emu.maps.write_byte(sd, SECURITY_DESCRIPTOR_REVISION);
+        emu.maps.write_word(sd + 2, SE_DACL_PRESENT);
+        write_pointer(&mut emu, sd + width, sid);
+        write_pointer(&mut emu, sd + 2 * width, sid);
+        write_pointer(&mut emu, sd + 4 * width, acl);
+        emu.maps.write_byte(acl, ACL_REVISION as u8);
+        emu.maps.write_word(acl + 2, 32);
+        emu.maps.write_word(acl + 4, 1);
+        emu.maps.write_byte(ace, ACCESS_ALLOWED_ACE_TYPE);
+        emu.maps.write_word(ace + 2, 24);
+        emu.maps.write_dword(ace + 4, 1);
+        emu.maps.write_bytes(sid, &[1, 2, 0, 0, 0, 0, 0, 5]);
+        emu.maps.write_dword(sid + 8, SECURITY_BUILTIN_DOMAIN_RID);
+        let args = [
+            sd,
+            CURRENT_PROCESS_TOKEN as i64 as u64,
+            1,
+            mapping,
+            privileges,
+            length,
+            mask,
+            status,
+        ];
+        for (rid, expected_access, expected_result) in [
+            (DOMAIN_ALIAS_RID_USERS, 1, STATUS_SUCCESS),
+            (DOMAIN_ALIAS_RID_DEFAULT_ACCOUNT, 0, STATUS_ACCESS_DENIED),
+        ] {
+            emu.maps.write_dword(sid + 12, rid);
+            emu.maps.write_dword(length, 8);
+            emu.maps.write_qword(mask, u64::MAX);
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "NtAccessCheck", &args),
+                STATUS_BUFFER_TOO_SMALL
+            );
+            assert_eq!(emu.maps.read_dword(length), Some(20));
+            assert_eq!(emu.maps.read_qword(mask), Some(u64::MAX));
+            emu.maps.write_qword(privileges, u64::MAX);
+            emu.maps.write_dword(privileges + 8, u32::MAX);
+            assert_eq!(
+                call(&mut emu, "ntdll.dll", "ZwAccessCheck", &args),
+                STATUS_SUCCESS
+            );
+            assert_eq!(emu.maps.read_qword(privileges), Some(0));
+            assert_eq!(emu.maps.read_dword(privileges + 8), Some(u32::MAX));
+            assert_eq!(emu.maps.read_dword(mask), Some(expected_access));
+            assert_eq!(emu.maps.read_dword(status), Some(expected_result as u32));
+        }
+    }
+}
+
+fn syscall(emu: &mut Emu, nr: u64, args: &[u64]) -> u64 {
+    emu.syscall_number_map.insert(nr, nr);
+    let sp = emu.sp();
+    for (i, &arg) in args.iter().enumerate() {
+        match i {
+            0 => emu.regs_mut().rcx = arg,
+            1 => emu.regs_mut().rdx = arg,
+            2 => emu.regs_mut().r8 = arg,
+            3 => emu.regs_mut().r9 = arg,
+            _ => {
+                assert!(emu.maps.write_qword(sp + (i as u64 + 1) * 8, arg));
+            }
+        }
+    }
+    emu.regs_mut().rax = nr;
+    syscall64::gateway(emu);
+    assert_eq!(emu.sp(), sp);
+    emu.regs().rax
+}
+
+#[test]
+fn typed_feature_notice_reports_the_guest_stamp_and_required_capacity() {
+    use crate::windows::constants::syscalls::WIN64_NTQUERYWNFSTATEDATA;
+    use crate::windows::constants::system::{
+        FEATURE_CONFIGURATION_CHANGE_STAMP, WNF_CMFC_FEATURE_CONFIGURATION_CHANGED,
+    };
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    let (type_id, stamp, output, size) = (data + 8, data + 32, data + 40, data + 56);
+    emu.maps
+        .write_qword(data, WNF_CMFC_FEATURE_CONFIGURATION_CHANGED);
+    emu.maps.write_bytes(
+        type_id,
+        &[
+            0x63, 0x64, 0xf9, 0x48, 0xd6, 0x52, 0x85, 0x4e, 0x9c, 0x02, 0xf2, 0xc1, 0x4e, 0x17,
+            0x26, 0x4e,
+        ],
+    );
+    let args = [data, type_id, 0, stamp, output, size];
+    emu.maps.write_qword(output, u64::MAX);
+    emu.maps.write_dword(size, 4);
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTQUERYWNFSTATEDATA, &args),
+        STATUS_BUFFER_TOO_SMALL
+    );
+    assert_eq!(emu.maps.read_dword(size), Some(8));
+    assert_eq!(emu.maps.read_dword(stamp), Some(1));
+    assert_eq!(emu.maps.read_qword(output), Some(u64::MAX));
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTQUERYWNFSTATEDATA, &args),
+        STATUS_SUCCESS
+    );
+    assert_eq!(
+        emu.maps.read_qword(output),
+        Some(FEATURE_CONFIGURATION_CHANGE_STAMP)
+    );
+    emu.maps.write_dword(stamp, u32::MAX);
+    emu.maps.write_dword(size, 16);
+    emu.maps.write_byte(type_id, 0);
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTQUERYWNFSTATEDATA, &args),
+        STATUS_INVALID_PARAMETER
+    );
+    assert_eq!(emu.maps.read_dword(stamp), Some(u32::MAX));
+    assert_eq!(emu.maps.read_dword(size), Some(16));
+}
+
+#[test]
+fn feature_notice_subscriptions_are_stable_until_the_guest_unsubscribes() {
+    use crate::windows::constants::syscalls::{
+        WIN64_NTSUBSCRIBEWNFSTATECHANGE, WIN64_NTUNSUBSCRIBEWNFSTATECHANGE,
+    };
+    use crate::windows::constants::system::{
+        WIN11_ETW_WNF_EVENT_MASK, WNF_CMFC_FEATURE_CONFIGURATION_CHANGED,
+    };
+    let (mut emu, state) = helpers::prepare_winapi(true);
+    let out = state + 8;
+    emu.maps
+        .write_qword(state, WNF_CMFC_FEATURE_CONFIGURATION_CHANGED);
+    let subscribe = [state, 1, WIN11_ETW_WNF_EVENT_MASK as u64, out];
+    let unsubscribe = [state];
+
+    let mut invalid_output = subscribe;
+    invalid_output[3] = u64::MAX;
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTSUBSCRIBEWNFSTATECHANGE, &invalid_output),
+        STATUS_ACCESS_VIOLATION
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTUNSUBSCRIBEWNFSTATECHANGE, &unsubscribe),
+        STATUS_OBJECT_NAME_NOT_FOUND
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTSUBSCRIBEWNFSTATECHANGE, &subscribe),
+        STATUS_SUCCESS
+    );
+    let first = emu.maps.read_qword(out).unwrap();
+    assert_ne!(first, 0);
+    emu.maps.write_qword(out, 0);
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTSUBSCRIBEWNFSTATECHANGE, &subscribe),
+        STATUS_SUCCESS
+    );
+    assert_eq!(emu.maps.read_qword(out), Some(first));
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTUNSUBSCRIBEWNFSTATECHANGE, &unsubscribe),
+        STATUS_SUCCESS
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTUNSUBSCRIBEWNFSTATECHANGE, &unsubscribe),
+        STATUS_OBJECT_NAME_NOT_FOUND
+    );
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTSUBSCRIBEWNFSTATECHANGE, &subscribe),
+        STATUS_SUCCESS
+    );
+    assert_ne!(emu.maps.read_qword(out), Some(first));
+}
+
+#[test]
+fn local_registry_handles_leave_provider_tags_free_across_snapshot_and_reuse() {
+    use crate::emu::object_handle::HandleManagement;
+    use crate::windows::constants::security::KEY_QUERY_VALUE;
+
+    let mut handles = HandleManagement::new();
+    let other = handles.insert_ipc_handle() as u64;
+    let first = handles.open_registry_key("first".into()) as u64;
+    let second = handles.open_registry_key_access("second".into(), KEY_QUERY_VALUE) as u64;
+    assert_ne!(first, second);
+    *handles.registry_tags_mut(second).unwrap() = 0x100;
+    let mut restored = HandleManagement::from_memory_snapshot(handles.memory_snapshot());
+    restored.restore_windows_snapshot(handles.windows_snapshot());
+    for keys in [&mut handles, &mut restored] {
+        assert_eq!(keys.native_type_name(other), Some("File"));
+        assert_eq!(keys.registry_key(other), None);
+        for (handle, path) in [(first, "first"), (second, "second")] {
+            assert_ne!(handle, 0);
+            assert_eq!(handle & 3, 0);
+            assert_eq!(keys.registry_key(handle), Some(path));
+            assert_eq!(keys.registry_key(handle | 1), None);
+        }
+        assert!(keys.close_registry_key(first));
+        assert_eq!(keys.registry_key(first), None);
+        let next = keys.open_registry_key("next".into()) as u64;
+        assert_eq!(next, first);
+        assert_eq!(keys.registry_key(next), Some("next"));
+        assert_eq!(keys.registry_tags(next), Some(0));
+        assert_eq!(keys.registry_tags(second), Some(0x100));
+        assert_eq!(keys.registry_key(second), Some("second"));
+        let file = keys.insert_ipc_handle() as u64;
+        assert!(file < second);
+        assert_ne!(file, other);
+        assert_eq!(keys.registry_key(file), None);
+        assert_eq!(keys.native_type_name(file), Some("File"));
+    }
+}
+
+#[test]
+fn registry_name_notifications_signal_once_on_change_or_close() {
+    use crate::winapi::registry_store::{REG_NOTIFY_CHANGE_NAME, REG_NOTIFY_THREAD_AGNOSTIC};
+    use crate::windows::constants::syscalls::{
+        WIN64_NTCLOSE, WIN64_NTCREATEEVENT, WIN64_NTNOTIFYCHANGEKEY, WIN64_NTRESETEVENT,
+        WIN64_NTWAITFORSINGLEOBJECT,
+    };
+
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    let (name, output, timeout, iosb) = (data, data + 0x100, data + 0x110, data + 0x120);
+    let access = SYNCHRONIZE | EVENT_MODIFY_STATE;
+    assert_eq!(
+        syscall(
+            &mut emu,
+            WIN64_NTCREATEEVENT,
+            &[output, access as u64, 0, 0, 1]
+        ),
+        STATUS_SUCCESS
+    );
+    let event = emu.maps.read_qword(output).unwrap();
+    let root = "HKEY_CURRENT_USER\\Software";
+    let denied = emu
+        .handle_management
+        .open_registry_key_access(root.to_owned(), KEY_QUERY_VALUE) as u64;
+    let watched = emu
+        .handle_management
+        .open_registry_key_access(root.to_owned(), KEY_NOTIFY) as u64;
+    let notify = |emu: &mut Emu, key: u64, subtree: bool| {
+        syscall(
+            emu,
+            WIN64_NTNOTIFYCHANGEKEY,
+            &[
+                key,
+                event,
+                0,
+                0,
+                iosb,
+                (REG_NOTIFY_THREAD_AGNOSTIC | REG_NOTIFY_CHANGE_NAME) as u64,
+                subtree as u64,
+                0,
+                0,
+                1,
+            ],
+        )
+    };
+    let wait = |emu: &mut Emu| syscall(emu, WIN64_NTWAITFORSINGLEOBJECT, &[event, 0, timeout]);
+    let create = |emu: &mut Emu, subkey: &str| {
+        emu.maps.write_wide_string(name, subkey);
+        assert_eq!(
+            helpers::call_winapi_export(
+                emu,
+                "advapi32.dll",
+                "RegCreateKeyW",
+                &[watched, name, output]
+            ),
+            ERROR_SUCCESS
+        );
+    };
+    emu.maps.write_qword(iosb, u64::MAX);
+    emu.maps.write_qword(iosb + 8, u64::MAX);
+
+    assert_eq!(notify(&mut emu, denied, true), STATUS_ACCESS_DENIED);
+    assert_eq!(wait(&mut emu), STATUS_SUCCESS);
+    assert_eq!(notify(&mut emu, watched, false), STATUS_PENDING);
+    assert_eq!(wait(&mut emu), STATUS_TIMEOUT);
+    create(&mut emu, "Microsoft\\UnwatchedGrandchild");
+    assert_eq!(wait(&mut emu), STATUS_TIMEOUT);
+    create(&mut emu, "NewParent\\NewChild");
+    assert_eq!(wait(&mut emu), STATUS_SUCCESS);
+
+    assert_eq!(notify(&mut emu, watched, true), STATUS_PENDING);
+    create(&mut emu, "NewParent\\NewChild");
+    assert_eq!(wait(&mut emu), STATUS_TIMEOUT);
+    create(&mut emu, "NewParent\\OtherChild");
+    assert_eq!(wait(&mut emu), STATUS_SUCCESS);
+    assert_eq!(
+        syscall(&mut emu, WIN64_NTRESETEVENT, &[event, 0]),
+        STATUS_SUCCESS
+    );
+    create(&mut emu, "AfterDelivery");
+    assert_eq!(wait(&mut emu), STATUS_TIMEOUT);
+
+    assert_eq!(notify(&mut emu, watched, true), STATUS_PENDING);
+    assert_eq!(syscall(&mut emu, WIN64_NTCLOSE, &[watched]), STATUS_SUCCESS);
+    assert_eq!(wait(&mut emu), STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_qword(iosb), Some(u64::MAX));
+    assert_eq!(emu.maps.read_qword(iosb + 8), Some(u64::MAX));
 }

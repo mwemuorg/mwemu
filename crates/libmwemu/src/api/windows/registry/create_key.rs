@@ -7,6 +7,7 @@ use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::memory::{writable_pointer, write_pointer};
 use crate::winapi::policy::api_try;
+use crate::winapi::registry::create_path;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
@@ -38,7 +39,7 @@ pub(super) fn create_key(emu: &mut emu::Emu, api: &str, wide: bool, ex: bool) {
     {
         return finish(emu, slots, api, &path, ERROR_INVALID_PARAMETER);
     }
-    let Some(created) = emu.registry.create_key(&path) else {
+    let Some(created) = create_path(emu, &path) else {
         return finish(emu, slots, api, &path, ERROR_ACCESS_DENIED);
     };
     let handle = emu.handle_management.open_registry_key(path.clone());

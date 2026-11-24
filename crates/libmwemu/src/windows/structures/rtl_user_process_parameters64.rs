@@ -41,9 +41,9 @@ impl RtlUserProcessParameters64 {
     const FLAGS_OFFSET: u64 = 0x08;
     const DEBUG_FLAGS_OFFSET: u64 = 0x0c;
     const RESERVED2_OFFSET: u64 = 0x10;
-    const DLL_PATH_OFFSET: u64 = 0x50;
-    const IMAGE_PATH_NAME_OFFSET: u64 = 0x60;
-    const COMMAND_LINE_OFFSET: u64 = 0x70;
+    pub(crate) const DLL_PATH_OFFSET: u64 = 0x50;
+    pub(crate) const IMAGE_PATH_NAME_OFFSET: u64 = 0x60;
+    pub(crate) const COMMAND_LINE_OFFSET: u64 = 0x70;
 
     pub fn new() -> Self {
         Self {

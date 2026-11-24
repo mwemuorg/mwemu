@@ -15,6 +15,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         return true;
     }
     dispatch_api!(api, {
+        "NtManageHotPatch" => ntdll::manage_hot_patch(emu, WinApi(Stdcall)),
         "RtlCreateAcl" => advapi32::RtlCreateAcl(emu),
         "RtlQueryInformationAcl" => advapi32::RtlQueryInformationAcl(emu),
         "RtlGetAce" => advapi32::RtlGetAce(emu),
@@ -30,7 +31,6 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlExitUserProcess" => threads::exit_process(emu, api),
         "RtlSetUnhandledExceptionFilter" => ntdll::set_exception_filter(emu),
         "NtTerminateThread" => threads::nt_terminate_thread(emu),
-        "NtSetInformationThread" => policy::unsupported(emu, "ntdll", api, emu.pc()),
         // kernel32!RestoreLastError forwards to ntdll!RtlRestoreLastWin32Error:
         // just stores rcx into the last-error slot, no return value.
         "RtlRestoreLastWin32Error" | "RestoreLastError" => ntdll::restore_last_error(emu),

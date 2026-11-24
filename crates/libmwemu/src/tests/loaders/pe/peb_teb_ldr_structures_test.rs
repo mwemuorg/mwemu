@@ -1,7 +1,9 @@
 use crate::maps::mem64::Permission;
+#[cfg(feature = "asset-tests")]
+use crate::tests::helpers;
 use crate::windows::peb::{peb32, peb64};
 use crate::windows::structures;
-use crate::{tests::helpers, *};
+use crate::*;
 
 #[test]
 fn peb_round_trip_preserves_guest_layout_on_both_architectures() {
@@ -116,6 +118,7 @@ fn loader_entries_preserve_guest_image_and_dll_paths() {
     }
 }
 
+#[cfg(feature = "asset-tests")]
 #[test]
 // peb/teb/ldr basic tests
 pub fn peb_teb_ldr_structures_test() {
@@ -127,7 +130,7 @@ pub fn peb_teb_ldr_structures_test() {
     assert_eq!(structures::TEB64::map_size(), 0x2000);
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = win_maps!(32);
+    emu.cfg.maps_folder = helpers::fixture_maps32();
     emu.load_code(&sample!("exe32win_minecraft.bin"));
 
     let peb = emu.maps.get_mem("peb");
@@ -332,7 +335,7 @@ pub fn peb_teb_ldr_structures_test() {
     // 64BITS //
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
     emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     let peb = emu.maps.get_mem("peb");

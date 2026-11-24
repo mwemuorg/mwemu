@@ -1591,6 +1591,151 @@ fn loaded_service_numbers_resolve_even_when_the_windows_build_renumbers_a_call()
 }
 
 #[test]
+fn win32u_service_numbers_use_the_loaded_gui_table() {
+    use crate::tests::helpers::call_winapi64;
+    use crate::winapi::libraries::gdi32;
+    use crate::windows::structures::{Peb64, TEB64};
+
+    // Renumber the GUI stub so its low bits coincide with an existing ntdll service.
+    const GUI_SERVICE: u32 = 0x1000 | WIN64_NTCLOSE as u32;
+    const DC_BRUSH: u64 = 18;
+    const STOCK_TABLE_X64: u64 = 0x1800b0;
+    let mut emu = emulator(true, "win32u", "NtGdiInit2");
+    emu.set_api_mode(ApiMode::Strict);
+    let teb = DATA + 0x400;
+    let peb = DATA;
+    emu.current_thread_mut().windows.teb = teb;
+    emu.maps
+        .write_qword(teb + TEB64::PROCESS_ENVIRONMENT_BLOCK_OFFSET, peb);
+    let entry = MODULE64 + 0x100;
+    emu.maps.write_bytes(entry, &[0x4c, 0x8b, 0xd1, 0xb8]);
+    emu.maps.write_dword(entry + 4, GUI_SERVICE);
+    let init = |emu: &mut Emu| {
+        emu.regs_mut().rax = GUI_SERVICE as u64;
+        syscall64::gateway(emu);
+        emu.regs().rax
+    };
+    let cookie = init(&mut emu);
+    assert_ne!(cookie, 0);
+    assert_eq!(init(&mut emu), cookie);
+    let table = emu
+        .maps
+        .read_qword(peb + Peb64::GDI_SHARED_HANDLE_TABLE_OFFSET)
+        .unwrap();
+    assert_ne!(table, 0);
+    assert!(!emu.maps.validate_write_range(table, 1));
+    let brush = call_winapi64(&mut emu, gdi32::GetStockObject, &[DC_BRUSH]);
+    assert_ne!(brush, 0);
+    assert_eq!(
+        emu.maps.read_qword(table + STOCK_TABLE_X64 + DC_BRUSH * 8),
+        Some(brush)
+    );
+    assert_eq!(call_winapi64(&mut emu, gdi32::GetObjectType, &[brush]), 2);
+
+    emu.regs_mut().rax = GUI_SERVICE as u64 + 1;
+    syscall64::gateway(&mut emu);
+    let stopped = emu.api_policy.last_outcome.unwrap();
+    assert_eq!(stopped.call.library, "win32u");
+    assert_eq!(stopped.call.address, GUI_SERVICE as u64 + 1);
+}
+
+#[test]
+fn registered_window_messages_use_the_same_user_atoms_at_both_entry_points() {
+    use crate::tests::helpers::{call_winapi_export, prepare_winapi};
+    use crate::windows::constants::errors::{ERROR_INVALID_PARAMETER, ERROR_MORE_DATA};
+    use crate::windows::structures::UnicodeString64;
+
+    const GUI_SERVICE: u32 = 0x1032;
+    for is64 in [false, true] {
+        let (mut emu, data) = if is64 {
+            (
+                emulator(true, "win32u", "NtUserRegisterWindowMessage"),
+                DATA,
+            )
+        } else {
+            prepare_winapi(false)
+        };
+        emu.set_api_mode(ApiMode::Strict);
+        let text = data + 64;
+        emu.maps.write_string(text, "MwEmu.Message");
+        let id = call_winapi_export(&mut emu, "user32.dll", "RegisterWindowMessageA", &[text]);
+        assert!((0xc000..=0xffff).contains(&id));
+        emu.maps.write_wide_string(text, "mwemu.message");
+        assert_eq!(
+            call_winapi_export(&mut emu, "user32.dll", "RegisterWindowMessageW", &[text]),
+            id
+        );
+        assert_eq!(
+            call_winapi_export(&mut emu, "kernel32.dll", "GlobalFindAtomW", &[text]),
+            0
+        );
+        if is64 {
+            emu.maps
+                .write_bytes(MODULE64 + 0x100, &[0x4c, 0x8b, 0xd1, 0xb8]);
+            emu.maps.write_dword(MODULE64 + 0x104, GUI_SERVICE);
+            let native = |emu: &mut Emu| {
+                emu.regs_mut().rax = GUI_SERVICE as u64;
+                emu.regs_mut().rcx = DATA;
+                syscall64::gateway(emu);
+                emu.regs().rax
+            };
+            UnicodeString64 {
+                length: 2,
+                maximum_length: 2,
+                buffer: text,
+                ..Default::default()
+            }
+            .save(DATA, &mut emu.maps);
+            assert_eq!(native(&mut emu), id);
+            emu.maps.write_word(DATA, 3);
+            assert_eq!(native(&mut emu), 0);
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_PARAMETER);
+        }
+        for (name, expected) in [("#4097", 4097), ("", 0)] {
+            emu.maps.write_wide_string(text, name);
+            emu.set_last_error(17);
+            assert_eq!(
+                call_winapi_export(&mut emu, "user32.dll", "RegisterWindowMessageW", &[text]),
+                expected
+            );
+            assert_eq!(emu.get_last_error(), 17);
+        }
+        emu.maps.write_wide_string(text, &"A".repeat(256));
+        assert_eq!(
+            call_winapi_export(&mut emu, "user32.dll", "RegisterWindowMessageW", &[text]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_MORE_DATA);
+    }
+}
+
+#[test]
+fn gui_thread_initialization_publishes_a_thread_local_token() {
+    use crate::windows::structures::TEB64;
+
+    const GUI_SERVICE: u32 = 0x1001;
+    const THREADSTATE_GETTHREADINFO: u64 = 14;
+    let mut emu = emulator(true, "win32u", "NtUserGetThreadState");
+    let teb = DATA;
+    emu.current_thread_mut().windows.teb = teb;
+    let entry = MODULE64 + 0x100;
+    emu.maps.write_bytes(entry, &[0x4c, 0x8b, 0xd1, 0xb8]);
+    emu.maps.write_dword(entry + 4, GUI_SERVICE);
+    let query = |emu: &mut Emu| {
+        emu.regs_mut().rax = GUI_SERVICE as u64;
+        emu.regs_mut().rcx = THREADSTATE_GETTHREADINFO;
+        syscall64::gateway(emu);
+        assert_eq!(emu.regs().rax, 1);
+        emu.maps
+            .read_qword(teb + TEB64::WIN32_THREAD_INFO_OFFSET)
+            .unwrap()
+    };
+    let token = query(&mut emu);
+    assert_ne!(token, 0);
+    assert_eq!(query(&mut emu), token);
+}
+
+#[test]
 fn service_names_come_from_guest_exports() {
     for is64 in [false, true] {
         let mut emu = emulator(is64, "ntdll", "NtQueryInformationAtom");

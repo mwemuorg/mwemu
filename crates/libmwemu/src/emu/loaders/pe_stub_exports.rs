@@ -494,6 +494,7 @@ pub fn get_stub_exports(dll_name: &str, arch: Arch) -> Option<Cow<'static, [&'st
         "bcryptprimitives" => Some(bcryptprimitives_exports()),
         "winmm" => Some(winmm_exports()),
         "mscoree" => Some(mscoree_exports()),
+        "comctl32" => Some(&["InitCommonControls", "InitCommonControlsEx"][..]),
         "gdi32" => Some(gdi32_exports()),
         "msvcrt" => Some(msvcrt_exports()),
         "vcruntime140" => Some(&["memcpy", "memmove", "memset", "strrchr"][..]),

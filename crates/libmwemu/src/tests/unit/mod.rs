@@ -1,11 +1,13 @@
 mod api_fallback;
 mod banzai_mode_tests;
+#[cfg(feature = "asset-tests")]
 mod breakpoint_functionality;
 mod buffer_memory;
 mod call_abi;
 mod config_management;
 mod config_tests;
 mod console_control_tests;
+#[cfg(feature = "asset-tests")]
 mod emulation_perf;
 mod emulator_initialization;
 mod error_conditions;
@@ -32,6 +34,7 @@ mod section_memory;
 mod seh32_arguments;
 mod serialization_tests;
 mod shared_memory;
+#[cfg(feature = "asset-tests")]
 mod should_serialize;
 mod string_memory_hooks;
 mod test_unified_step_and_run_methods;

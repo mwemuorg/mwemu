@@ -1,15 +1,18 @@
+#[cfg(feature = "asset-tests")]
 mod exe32win_minecraft;
-// Release-only: 5M instructions in a debug build take ~25s and are the single
-// biggest serial chunk of the suite, which tips slow CI runners (macOS/Windows)
-// over the job timeout. Emulation is ~15-30x faster in release, so we only build
-// and run it there; the debug pass skips it.
-#[cfg(not(debug_assertions))]
-mod exe64win_enigma;
+#[cfg(feature = "asset-tests")]
 mod exe64win_msgbox;
+mod hello_world;
+#[cfg(feature = "asset-tests")]
 mod mingw_tests;
 mod module_loading_tests;
+#[cfg(feature = "asset-tests")]
+mod packed;
+#[cfg(feature = "asset-tests")]
 mod pe64_loader_tests;
 mod peb_teb_ldr_structures_test;
+#[cfg(feature = "asset-tests")]
+mod ssdt;
+#[cfg(feature = "asset-tests")]
 mod tls_callbacks_tests;
 mod tls_fls_tests;
-mod windows_pe_long;

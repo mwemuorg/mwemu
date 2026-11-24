@@ -5,7 +5,7 @@ use crate::exception::{handlers, raise};
 use crate::winapi::common::memory::{
     pointer_size, read_guest_bytes, read_pointer, writable_pointer, write_pointer,
 };
-use crate::winapi::common::{modules, nt_api, threads, trace};
+use crate::winapi::common::{handles, modules, nt_api, threads, trace};
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
@@ -109,6 +109,9 @@ fn query_process(
     returned: u64,
 ) -> u64 {
     let width = pointer_size(emu) as usize;
+    if class == PROCESS_RAISE_UM_EXCEPTION_ON_INVALID_HANDLE_CLOSE {
+        return invalid_close_information(emu, handle, buffer, length, Some(returned));
+    }
     let basic_size = BASIC_INFORMATION_SLOTS * width;
     let extended_size = EXTENDED_INFORMATION_SLOTS * width;
     let size = match class {
@@ -118,7 +121,8 @@ fn query_process(
         PROCESS_INFORMATION_CLASS_PROCESS_BASIC_INFORMATION => basic_size,
         PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_PORT
         | PROCESS_INFORMATION_CLASS_PROCESS_WOW64_INFORMATION
-        | PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_OBJECT_HANDLE => width,
+        | PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_OBJECT_HANDLE
+        | PROCESS_CONSOLE_HOST_PROCESS => width,
         PROCESS_INFORMATION_CLASS_PROCESS_BREAK_ON_TERMINATION
         | PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_FLAGS
         | PROCESS_INFORMATION_CLASS_PROCESS_COOKIE => size_of::<u32>(),
@@ -181,6 +185,9 @@ fn query_process(
         PROCESS_INFORMATION_CLASS_PROCESS_COOKIE => {
             output.copy_from_slice(&PROCESS_COOKIE.to_le_bytes())
         }
+        PROCESS_CONSOLE_HOST_PROCESS => {
+            output.copy_from_slice(&emu.console_host_process.to_le_bytes()[..width])
+        }
         PROCESS_INFORMATION_CLASS_PROCESS_DEBUG_OBJECT_HANDLE => status = STATUS_PORT_NOT_SET,
         _ => {}
     }
@@ -192,9 +199,107 @@ fn query_process(
     status
 }
 
+/// A query probes its optional ReturnLength pointer but does not update it for this class.
+fn invalid_close_information(
+    emu: &mut Emu,
+    handle: u64,
+    buffer: u64,
+    length: u32,
+    query_return_length: Option<u64>,
+) -> u64 {
+    if length != 0 && !buffer.is_multiple_of(align_of::<u32>() as u64) {
+        return STATUS_DATATYPE_MISALIGNMENT;
+    }
+    if query_return_length
+        .is_some_and(|out| out != 0 && !emu.maps.validate_write_range(out, size_of::<u32>() as u64))
+    {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    if length as usize != size_of::<u32>() {
+        return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    let query = query_return_length.is_some();
+    let value = if query {
+        if !emu.maps.validate_write_range(buffer, length as u64) {
+            return STATUS_ACCESS_VIOLATION;
+        }
+        0
+    } else if let Some(value) = emu.maps.read_dword(buffer) {
+        value
+    } else {
+        return STATUS_ACCESS_VIOLATION;
+    };
+    if !query_current_process(emu, handle) {
+        return if handles::type_name(emu, handle).is_some()
+            || emu.handle_management.contains_handle(handle)
+        {
+            STATUS_OBJECT_TYPE_MISMATCH
+        } else {
+            STATUS_INVALID_HANDLE
+        };
+    }
+    let access = if query {
+        PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION | GENERIC_READ
+    } else {
+        PROCESS_SET_INFORMATION | GENERIC_WRITE
+    };
+    if emu
+        .handle_management
+        .process_access(handle)
+        .is_some_and(|rights| rights & (access | GENERIC_ALL | MAXIMUM_ALLOWED) == 0)
+    {
+        return STATUS_ACCESS_DENIED;
+    }
+    if query {
+        emu.maps
+            .write_dword(buffer, u32::from(emu.raise_on_invalid_handle_close));
+    } else if value <= 1 {
+        emu.raise_on_invalid_handle_close = value != 0;
+    }
+    STATUS_SUCCESS
+}
+
+pub(crate) fn set_invalid_close_policy(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, _, buffer, length] = api_try!(emu, call.args(emu));
+    let status = invalid_close_information(emu, handle, buffer, length as u32, None);
+    log_red!(
+        emu,
+        "ntdll!NtSetInformationProcess ProcessRaiseUMExceptionOnInvalidHandleClose process={handle:#x} => {status:#x}"
+    );
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 4);
+}
+
+pub(crate) fn set_console_host_process(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, _, buffer, length] = api_try!(emu, call.args(emu));
+    let status = if length as u32 != pointer_size(emu) as u32 {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else if let Err(status) = require_memory_access(emu, handle, PROCESS_SET_INFORMATION) {
+        status
+    } else if let Some(value) = read_pointer(emu, buffer) {
+        emu.console_host_process = value;
+        STATUS_SUCCESS
+    } else {
+        STATUS_ACCESS_VIOLATION
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 4);
+}
+
 pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     match nt_api::normalize(api).as_ref() {
         "NtQueryInformationProcess" => query_information_process(emu, call),
+        "NtSetInformationProcess"
+            if call.arg_u32(emu, 1) == Ok(PROCESS_CONSOLE_HOST_PROCESS as u32) =>
+        {
+            set_console_host_process(emu, call)
+        }
+        "NtSetInformationProcess"
+            if call.arg_u32(emu, 1)
+                == Ok(PROCESS_RAISE_UM_EXCEPTION_ON_INVALID_HANDLE_CLOSE as u32) =>
+        {
+            set_invalid_close_policy(emu, call)
+        }
         "NtQueryInformationThread" => query_information_thread(emu, call),
         _ => return false,
     }
@@ -267,10 +372,16 @@ pub(crate) fn native_open_process(emu: &mut Emu, call: WindowsAbi) {
             return Some(STATUS_INVALID_PARAMETER);
         }
         let slot = width as usize;
-        if attr[slot..3 * slot + size_of::<u32>()]
-            .iter()
-            .chain(&attr[4 * slot..])
-            .any(|b| *b != 0)
+        let flags = u32::from_le_bytes(
+            attr[3 * slot..3 * slot + size_of::<u32>()]
+                .try_into()
+                .ok()?,
+        );
+        if flags & !OBJ_INHERIT != 0
+            || attr[slot..3 * slot]
+                .iter()
+                .chain(&attr[4 * slot..])
+                .any(|b| *b != 0)
             || cid[slot..].iter().any(|b| *b != 0)
         {
             return None;
@@ -279,9 +390,9 @@ pub(crate) fn native_open_process(emu: &mut Emu, call: WindowsAbi) {
         if pid != current_process_id(emu) {
             return Some(STATUS_INVALID_CID);
         }
-        let handle = emu
-            .handle_management
-            .insert_process_handle(pid as u32, desired_access as u32);
+        let handle =
+            emu.handle_management
+                .insert_process_handle(pid as u32, desired_access as u32, flags);
         write_pointer(emu, output, u64::from(handle));
         Some(STATUS_SUCCESS)
     })();
@@ -296,10 +407,14 @@ pub(crate) fn native_open_process(emu: &mut Emu, call: WindowsAbi) {
 pub fn OpenProcess(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let access = api_try!(emu, call.arg_u32(emu, 0));
-    let _inherit = api_try!(emu, call.arg_u32(emu, 1));
+    let inherit = api_try!(emu, call.arg_u32(emu, 1));
     let pid = api_try!(emu, call.arg_u32(emu, 2));
     let handle = if pid != 0 && u64::from(pid) == current_process_id(emu) {
-        emu.handle_management.insert_process_handle(pid, access)
+        emu.handle_management.insert_process_handle(
+            pid,
+            access,
+            if inherit != 0 { OBJ_INHERIT } else { 0 },
+        )
     } else {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
         0
@@ -514,11 +629,7 @@ fn query_thread(
     let thread = &emu.threads[index];
     let mut data = vec![0u8; size];
     if class == THREAD_INFORMATION_CLASS_THREAD_BASIC_INFORMATION {
-        let teb = if index == emu.current_thread_id {
-            emu.windows_teb().unwrap_or(0)
-        } else {
-            thread.windows.teb
-        };
+        let teb = emu.windows_thread_teb(index).unwrap_or(0);
         data[..4]
             .copy_from_slice(&(thread.exit_value.unwrap_or(STATUS_PENDING) as u32).to_le_bytes());
         for (slot, value) in data[width..5 * width].chunks_exact_mut(width).zip([

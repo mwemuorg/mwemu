@@ -232,7 +232,12 @@ fn object_type_queries_size_and_write_the_guest_string() {
         let returned = data + 192;
         emu.maps.write_dword(data, MARKER);
         assert_eq!(
-            call(&mut emu, dll, "NtQueryObject", &[handle, 2, 0, 0, returned]),
+            call(
+                &mut emu,
+                dll,
+                "NtQueryObject",
+                &[handle, OBJECT_TYPE_INFORMATION as u64, 0, 0, returned]
+            ),
             STATUS_INFO_LENGTH_MISMATCH
         );
         assert_eq!(emu.maps.read_dword(returned), Some(required as u32));
@@ -241,7 +246,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[handle, 2, data, required - 1, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required - 1,
+                    returned
+                ]
             ),
             STATUS_INFO_LENGTH_MISMATCH
         );
@@ -251,7 +262,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "ZwQueryObject",
-                &[handle, 2, data, required, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required,
+                    returned
+                ]
             ),
             STATUS_SUCCESS
         );
@@ -269,7 +286,13 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[handle, 2, data, required, returned]
+                &[
+                    handle,
+                    OBJECT_TYPE_INFORMATION as u64,
+                    data,
+                    required,
+                    returned
+                ]
             ),
             STATUS_INVALID_HANDLE
         );
@@ -286,7 +309,7 @@ fn object_type_queries_size_and_write_the_guest_string() {
                 &mut emu,
                 dll,
                 "NtQueryObject",
-                &[section, 2, data, required, 0]
+                &[section, OBJECT_TYPE_INFORMATION as u64, data, required, 0]
             ),
             STATUS_SUCCESS
         );
@@ -1094,7 +1117,7 @@ fn file_changes_are_visible_through_both_libraries() {
         let drive = file_system_root().join("c");
         fs::create_dir_all(&drive).unwrap();
         let name = format!(
-            "file-changes-{}-{library}-{is64}-{wide}",
+            "File-Changes-{}-{library}-{is64}-{wide}",
             std::process::id()
         );
         let temp = tempfile::Builder::new()
@@ -1122,11 +1145,13 @@ fn file_changes_are_visible_through_both_libraries() {
         }
         let mut invoke =
             |name: &str, args: &[u64]| call(&mut emu, library, &format!("{name}{suffix}"), args);
-        fs::write(temp.path().join("source"), b"content").unwrap();
+        fs::write(temp.path().join("Source"), b"content").unwrap();
         assert_eq!(invoke("CreateDirectory", &[data, 0]), 1);
         assert_eq!(invoke("CreateDirectory", &[data, 0]), 0);
         assert_eq!(invoke("CopyFile", &[src, dst, 1]), 1);
         assert_eq!(invoke("CopyFile", &[src, dst, 1]), 0);
+        assert_eq!(invoke("DeleteFile", &[src]), 1);
+        assert!(!temp.path().join("Source").exists());
         assert_eq!(invoke("MoveFile", &[dst, moved]), 1);
         assert_eq!(fs::read(temp.path().join("sub/moved")).unwrap(), b"content");
         assert_eq!(invoke("RemoveDirectory", &[data]), 0);

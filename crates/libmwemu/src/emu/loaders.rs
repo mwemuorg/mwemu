@@ -26,6 +26,7 @@ mod pe;
 mod pe_process;
 mod shellcode;
 mod sys;
+pub(crate) use pe::image_regions;
 pub use pe::{MappedPe64, PeLoadInfo};
 mod pe_stub;
 pub(crate) mod pe_stub_exports;

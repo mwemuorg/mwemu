@@ -12,13 +12,14 @@ use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::threading::context::{ArchThreadState, ThreadContext};
 use crate::winapi::common::trace;
-use crate::winapi::common::{fls, memory, process};
+use crate::winapi::common::{fls, handles, memory, process};
 use crate::winapi::helper;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::exceptions::*;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
+use crate::windows::constants::security::{GENERIC_ALL, GENERIC_WRITE, MAXIMUM_ALLOWED};
 use crate::windows::structures::{TEB, TEB64};
 
 const FIRST_THREAD_ID: u64 = 0x1000;
@@ -80,9 +81,14 @@ fn create_teb(emu: &mut Emu, id: u64, stack_base: u64, stack_size: u64) -> Resul
     let template = source
         .and_then(|base| emu.maps.get_mem_by_addr(base))
         .map(|map| map.get_mem());
+    let minimum = if emu.cfg.arch.is_64bits() {
+        TEB64::map_size()
+    } else {
+        TEB::map_size()
+    };
     let size = template
         .as_ref()
-        .map_or(PAGE_SIZE, |bytes| (bytes.len() as u64).max(PAGE_SIZE));
+        .map_or(minimum, |bytes| bytes.len().max(minimum)) as u64;
     let (base, _) = memory::allocate(emu, 0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE)
         .map_err(|_| ERROR_NOT_ENOUGH_MEMORY)?;
     if let Some(bytes) = template
@@ -91,6 +97,11 @@ fn create_teb(emu: &mut Emu, id: u64, stack_base: u64, stack_size: u64) -> Resul
         let _ = emu.maps.release_memory(base);
         return Err(ERROR_NOACCESS);
     }
+    let (slots, expansion) = tls_offsets(emu);
+    let width = memory::pointer_size(emu);
+    emu.maps
+        .memset(base + slots, 0, TLS_MINIMUM_AVAILABLE * width as usize);
+    memory::write_pointer(emu, base + expansion, 0);
     let pid = process::current_process_id(emu);
     let peb = emu
         .maps
@@ -177,7 +188,9 @@ pub(crate) fn create(
         let _ = emu.maps.release_memory(thread.windows.teb);
         return Err(ERROR_NOACCESS);
     }
-    let handle = emu.handle_management.insert_thread_handle(id) as u64;
+    let handle = emu
+        .handle_management
+        .insert_thread_handle(id, THREAD_ALL_ACCESS) as u64;
     thread.handle = handle;
     emu.threads.push(thread);
     Ok(handle)
@@ -262,7 +275,7 @@ pub fn OpenThread(emu: &mut Emu) {
         .iter()
         .any(|thread| thread.id == id && thread.exit_value.is_none())
     {
-        Ok(emu.handle_management.insert_thread_handle(id) as u64)
+        Ok(emu.handle_management.insert_thread_handle(id, access) as u64)
     } else {
         Err(ERROR_INVALID_PARAMETER)
     };
@@ -548,6 +561,104 @@ pub(crate) fn capture_context(emu: &mut Emu) {
     call.cleanup_args(emu, 1);
 }
 
+fn tls_offsets(emu: &Emu) -> (u64, u64) {
+    if emu.cfg.arch.is_64bits() {
+        (TEB64::TLS_SLOTS_OFFSET, TEB64::TLS_EXPANSION_SLOTS_OFFSET)
+    } else {
+        (TEB::TLS_SLOTS_OFFSET, TEB::TLS_EXPANSION_SLOTS_OFFSET)
+    }
+}
+
+fn clear_tls_cell(emu: &mut Emu, slot: usize) {
+    if slot >= TLS_MAXIMUM_AVAILABLE {
+        return;
+    }
+    let (slots, expansion) = tls_offsets(emu);
+    let width = memory::pointer_size(emu);
+    for thread_index in 0..emu.threads.len() {
+        let thread = &mut emu.threads[thread_index];
+        if thread.exit_value.is_some() {
+            continue;
+        }
+        if let ArchThreadState::X86 { tls32, tls64, .. } = &mut thread.arch {
+            if width == 8 {
+                if let Some(value) = tls64.get_mut(slot) {
+                    *value = 0;
+                }
+            } else if let Some(value) = tls32.get_mut(slot) {
+                *value = 0;
+            }
+        }
+        let Some(teb) = emu.windows_thread_teb(thread_index) else {
+            continue;
+        };
+        let address = if slot < TLS_MINIMUM_AVAILABLE {
+            teb.checked_add(slots + slot as u64 * width)
+        } else {
+            teb.checked_add(expansion)
+                .and_then(|field| memory::read_pointer(emu, field))
+                .filter(|table| *table != 0)
+                .and_then(|table| table.checked_add((slot - TLS_MINIMUM_AVAILABLE) as u64 * width))
+        };
+        if let Some(address) = address {
+            memory::write_pointer(emu, address, 0);
+        }
+    }
+}
+
+pub(super) fn set_thread_information(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, class, buffer, length] = api_try!(emu, call.args(emu));
+    log_red!(
+        emu,
+        "ntdll!NtSetInformationThread thread={handle:#x} class={} buffer={buffer:#x} length={}",
+        class as u32,
+        length as u32
+    );
+    if class as u32 != THREAD_ZERO_TLS_CELL {
+        policy::unsupported_with_abi(emu, "ntdll", "NtSetInformationThread", emu.pc(), call);
+        return;
+    }
+    let status = zero_thread_tls_cell(emu, handle, buffer, length as u32);
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 4);
+}
+
+fn zero_thread_tls_cell(emu: &mut Emu, handle: u64, buffer: u64, length: u32) -> u64 {
+    if length as usize != size_of::<u32>() {
+        return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    if !buffer.is_multiple_of(align_of::<u32>() as u64) {
+        return STATUS_DATATYPE_MISALIGNMENT;
+    }
+    let Some(slot) = emu.maps.read_dword(buffer) else {
+        return STATUS_ACCESS_VIOLATION;
+    };
+    let pseudo = if emu.cfg.arch.is_64bits() {
+        NT_CURRENT_THREAD
+    } else {
+        NT_CURRENT_THREAD as u32 as u64
+    };
+    if handle != pseudo {
+        let Some((id, access)) = emu.handle_management.thread_handle(handle) else {
+            return if handles::type_name(emu, handle).is_some()
+                || emu.handle_management.contains_handle(handle)
+            {
+                STATUS_OBJECT_TYPE_MISMATCH
+            } else {
+                STATUS_INVALID_HANDLE
+            };
+        };
+        if access & (THREAD_SET_INFORMATION | GENERIC_WRITE | GENERIC_ALL | MAXIMUM_ALLOWED) == 0 {
+            return STATUS_ACCESS_DENIED;
+        }
+        if id != emu.current_thread().id {
+            return STATUS_INVALID_PARAMETER;
+        }
+    }
+    clear_tls_cell(emu, slot as usize);
+    STATUS_SUCCESS
+}
+
 pub(crate) fn tls(emu: &mut Emu, api: &str) {
     let call = WinApi(Stdcall);
     let name = api.strip_prefix("Rtl").unwrap_or(api);
@@ -601,16 +712,7 @@ pub(crate) fn tls(emu: &mut Emu, api: &str) {
         1
     } else if name == "TlsFree" {
         emu.windows_tls_slots[index] = false;
-        for thread in &mut emu.threads {
-            if let ArchThreadState::X86 { tls32, tls64, .. } = &mut thread.arch {
-                if let Some(v) = tls32.get_mut(index) {
-                    *v = 0;
-                }
-                if let Some(v) = tls64.get_mut(index) {
-                    *v = 0;
-                }
-            }
-        }
+        clear_tls_cell(emu, index);
         1
     } else {
         if name != "TlsGetValue2" {

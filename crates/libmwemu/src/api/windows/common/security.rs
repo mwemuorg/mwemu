@@ -1,7 +1,7 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::buffers::BufferKind;
-use crate::winapi::common::security_descriptor::descriptor;
+use crate::winapi::common::security_descriptor::{descriptor, membership_sid};
 use crate::winapi::common::trace;
 use crate::winapi::common::{buffers, heap, memory, process};
 use crate::winapi::environment_store::Encoding;
@@ -12,11 +12,12 @@ use crate::windows::constants::process::{
     PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use crate::windows::constants::security::*;
+use crate::windows::structures::{Peb, Peb64};
 use std::fmt::Write;
 
 const SID_REVISION: u8 = 1;
 const SID_MAX_SUB_AUTHORITIES: u8 = 15;
-const SID_HEADER_SIZE: usize = 8;
+pub(super) const SID_HEADER_SIZE: usize = 8;
 const PROCESS_USER_SUBAUTHORITIES: [u32; 5] = [21, 1234567890, 1234567890, 1234567890, 1001];
 const NT_AUTHORITY: u8 = 5;
 
@@ -176,11 +177,11 @@ fn open_process_token(emu: &mut Emu, call: WindowsAbi, native: bool) {
 
 fn token_rights(emu: &Emu, handle: u64) -> Option<u32> {
     let pseudo = if memory::pointer_size(emu) == 8 {
-        CURRENT_PROCESS_TOKEN as i64 as u64
+        handle as i64
     } else {
-        u64::from(CURRENT_PROCESS_TOKEN as u32)
+        handle as u32 as i32 as i64
     };
-    if handle == pseudo {
+    if pseudo == CURRENT_PROCESS_TOKEN as i64 || pseudo == CURRENT_THREAD_EFFECTIVE_TOKEN as i64 {
         Some(TOKEN_QUERY)
     } else {
         emu.handle_management.process_token_rights(handle)
@@ -250,6 +251,19 @@ fn empty_previous_privileges(emu: &mut Emu, previous: u64, length: u32, returned
     ERROR_SUCCESS
 }
 
+fn supported_token_information(class: u32) -> bool {
+    matches!(
+        class,
+        TOKEN_USER
+            | TOKEN_STATISTICS
+            | TOKEN_SESSION_ID
+            | TOKEN_ELEVATION
+            | TOKEN_UI_ACCESS
+            | TOKEN_IS_APP_CONTAINER
+            | TOKEN_PRIVATE_NAME_SPACE
+    )
+}
+
 pub fn GetTokenInformation(emu: &mut Emu) {
     let call = WinApi(Stdcall);
     let handle = api_try!(emu, call.arg(emu, 0));
@@ -257,48 +271,215 @@ pub fn GetTokenInformation(emu: &mut Emu) {
     let output = api_try!(emu, call.arg(emu, 2));
     let size = api_try!(emu, call.arg_u32(emu, 3));
     let returned = api_try!(emu, call.arg(emu, 4));
-    if class != TOKEN_USER {
+    if !supported_token_information(class) {
         policy::unsupported(emu, "advapi32", "GetTokenInformation", emu.pc());
         return;
     }
-    let width = memory::pointer_size(emu);
-    let sid = process_user_sid();
-    let header = 2 * width;
-    let required = (header + sid.len() as u64) as u32;
-    let rights = token_rights(emu, handle);
-    let error = match rights {
-        None => ERROR_INVALID_HANDLE,
-        Some(mask) if mask & (TOKEN_QUERY | GENERIC_READ | GENERIC_ALL | MAXIMUM_ALLOWED) == 0 => {
-            ERROR_ACCESS_DENIED
-        }
-        Some(_) if !emu.maps.write_dword(returned, required) => ERROR_NOACCESS,
-        Some(_) if size < required => ERROR_INSUFFICIENT_BUFFER,
-        Some(_) if !emu.maps.validate_write_range(output, u64::from(required)) || output == 0 => {
-            ERROR_NOACCESS
-        }
-        Some(_) => {
-            let mut bytes = vec![0; required as usize];
-            bytes[..width as usize]
-                .copy_from_slice(&(output + header).to_le_bytes()[..width as usize]);
-            bytes[header as usize..].copy_from_slice(&sid);
-            if emu.maps.write_bytes(output, &bytes) {
-                ERROR_SUCCESS
+    let status = query_token(emu, handle, class, output, size, returned);
+    log_red!(emu, "GetTokenInformation token={handle:#x} class={class}");
+    if status != STATUS_SUCCESS {
+        let error = match status {
+            STATUS_INVALID_HANDLE => ERROR_INVALID_HANDLE,
+            STATUS_ACCESS_DENIED => ERROR_ACCESS_DENIED,
+            STATUS_INFO_LENGTH_MISMATCH => ERROR_BAD_LENGTH,
+            STATUS_BUFFER_TOO_SMALL => ERROR_INSUFFICIENT_BUFFER,
+            _ => ERROR_NOACCESS,
+        };
+        emu.set_last_error(error);
+    }
+    call.set_return(emu, u64::from(status == STATUS_SUCCESS));
+    call.cleanup_args(emu, 5);
+}
+
+pub(crate) fn native_query_token(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, class, output, size, returned] = api_try!(emu, call.args(emu));
+    if !supported_token_information(class as u32) {
+        return policy::unsupported_with_abi(
+            emu,
+            "ntdll",
+            "NtQueryInformationToken",
+            emu.pc(),
+            call,
+        );
+    }
+    let status = query_token(emu, handle, class as u32, output, size as u32, returned);
+    log_red!(
+        emu,
+        "NtQueryInformationToken token={handle:#x} class={} => {status:#x}",
+        class as u32
+    );
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 5);
+}
+
+fn query_token(
+    emu: &mut Emu,
+    handle: u64,
+    class: u32,
+    output: u64,
+    size: u32,
+    returned: u64,
+) -> u64 {
+    if size != 0 && !output.is_multiple_of(align_of::<u32>() as u64) {
+        return STATUS_DATATYPE_MISALIGNMENT;
+    }
+    if !emu.maps.validate_write_range(output, size as u64)
+        || !emu
+            .maps
+            .validate_write_range(returned, size_of::<u32>() as u64)
+    {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    let Some(mask) = token_rights(emu, handle) else {
+        return STATUS_INVALID_HANDLE;
+    };
+    if mask & (TOKEN_QUERY | GENERIC_READ | GENERIC_ALL | MAXIMUM_ALLOWED) == 0 {
+        return STATUS_ACCESS_DENIED;
+    }
+    let width = memory::pointer_size(emu) as usize;
+    // All handles refer to the same primary token in this model.
+    const MODEL_TOKEN_ID: u64 = 0x1000;
+    const MODEL_LOGON_ID: u64 = 0x1001;
+    const PRIMARY_TOKEN: u32 = 1;
+    let mut bytes = if class == TOKEN_SESSION_ID {
+        let offset = if width == 8 {
+            Peb64::SESSION_ID_OFFSET
+        } else {
+            Peb::SESSION_ID_OFFSET
+        };
+        let Some(session) = emu
+            .maps
+            .get_map_by_name("peb")
+            .and_then(|peb| emu.maps.read_dword(peb.get_base() + offset))
+        else {
+            return STATUS_ACCESS_VIOLATION;
+        };
+        session.to_le_bytes().to_vec()
+    } else if matches!(
+        class,
+        TOKEN_ELEVATION | TOKEN_UI_ACCESS | TOKEN_IS_APP_CONTAINER | TOKEN_PRIVATE_NAME_SPACE
+    ) {
+        // A standard desktop user's token has none of these flags.
+        0u32.to_le_bytes().to_vec()
+    } else if class == TOKEN_STATISTICS {
+        let mut stats = vec![0; 56];
+        stats[..8].copy_from_slice(&MODEL_TOKEN_ID.to_le_bytes());
+        stats[8..16].copy_from_slice(&MODEL_LOGON_ID.to_le_bytes());
+        stats[16..24].copy_from_slice(&i64::MAX.to_le_bytes());
+        stats[24..28].copy_from_slice(&PRIMARY_TOKEN.to_le_bytes());
+        stats[48..56].copy_from_slice(&MODEL_TOKEN_ID.to_le_bytes());
+        stats
+    } else {
+        let mut user = vec![0; 2 * width];
+        user.extend(process_user_sid());
+        user
+    };
+    let required = bytes.len() as u32;
+    if !emu.maps.write_dword(returned, required) {
+        return STATUS_ACCESS_VIOLATION;
+    }
+    if class == TOKEN_ELEVATION && size != required {
+        return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    if size < required {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+    if class == TOKEN_USER {
+        bytes[..width].copy_from_slice(&(output + 2 * width as u64).to_le_bytes()[..width]);
+    }
+    if emu.maps.write_bytes(output, &bytes) {
+        STATUS_SUCCESS
+    } else {
+        STATUS_ACCESS_VIOLATION
+    }
+}
+
+fn desktop_token_membership(sid: &[u8]) -> Option<bool> {
+    if sid == process_user_sid()
+        || [WIN_WORLD_SID, WIN_LOCAL_SID]
+            .into_iter()
+            .filter_map(well_known_sid)
+            .any(|group| group == sid)
+    {
+        return Some(true);
+    }
+    // The modeled desktop user belongs to BUILTIN\Users. Other domains may require token groups we do not model.
+    let builtin = well_known_sid(WIN_BUILTIN_DOMAIN_SID)?;
+    // The subauthority count differs between a domain SID and a member SID.
+    let authority_and_domain = &builtin[2..];
+    sid.get(2..)
+        .is_some_and(|suffix| suffix.starts_with(authority_and_domain))
+        .then(|| well_known_sid(WIN_BUILTIN_USERS_SID).is_some_and(|group| group == sid))
+}
+
+pub(crate) fn native_access_check(emu: &mut Emu, call: WindowsAbi) {
+    const MEMBERSHIP_ACCESS: u32 = 1;
+    const PRIVILEGE_SET_SIZE: u32 = 20; // sizeof(PRIVILEGE_SET), including one LUID_AND_ATTRIBUTES.
+    let [sd, token, desired, mapping] = api_try!(emu, call.args(emu));
+    let pseudo = if memory::pointer_size(emu) == 8 {
+        token as i64
+    } else {
+        token as u32 as i32 as i64
+    };
+    if ![
+        CURRENT_PROCESS_TOKEN as i64,
+        CURRENT_THREAD_EFFECTIVE_TOKEN as i64,
+    ]
+    .contains(&pseudo)
+        || desired as u32 != MEMBERSHIP_ACCESS
+    {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtAccessCheck", emu.pc(), call);
+    }
+    let [_, _, _, _, privileges, length, granted, access_status] = api_try!(emu, call.args(emu));
+    let status = match membership_sid(emu, sd, MEMBERSHIP_ACCESS)
+        .map(|sid| sid.and_then(|sid| desktop_token_membership(&sid)))
+    {
+        Ok(Some(member)) => {
+            let Some(capacity) = emu.maps.read_dword(length) else {
+                call.set_return(emu, STATUS_ACCESS_VIOLATION);
+                call.cleanup_args(emu, 8);
+                return;
+            };
+            if memory::read_array::<16>(emu, mapping).is_none()
+                || !emu.maps.validate_write_range(length, 4)
+                || !emu.maps.validate_write_range(granted, 4)
+                || !emu.maps.validate_write_range(access_status, 4)
+            {
+                STATUS_ACCESS_VIOLATION
+            } else if capacity < PRIVILEGE_SET_SIZE {
+                emu.maps.write_dword(length, PRIVILEGE_SET_SIZE);
+                STATUS_BUFFER_TOO_SMALL
+            } else if !emu
+                .maps
+                .validate_write_range(privileges, PRIVILEGE_SET_SIZE as u64)
+            {
+                STATUS_ACCESS_VIOLATION
             } else {
-                ERROR_NOACCESS
+                emu.maps.write_qword(privileges, 0); // No privileges were used.
+                emu.maps
+                    .write_dword(granted, if member { MEMBERSHIP_ACCESS } else { 0 });
+                emu.maps.write_dword(
+                    access_status,
+                    if member {
+                        STATUS_SUCCESS
+                    } else {
+                        STATUS_ACCESS_DENIED
+                    } as u32,
+                );
+                STATUS_SUCCESS
             }
         }
+        Ok(None) => {
+            return policy::unsupported_with_abi(emu, "ntdll", "NtAccessCheck", emu.pc(), call);
+        }
+        Err(status) => status,
     };
     log_red!(
         emu,
-        "GetTokenInformation token=0x{:x} class={}",
-        handle,
-        class
+        "ntdll!NtAccessCheck token={token:#x} descriptor={sd:#x} desired_access={desired:#x} => {status:#x}"
     );
-    if error != ERROR_SUCCESS {
-        emu.set_last_error(error);
-    }
-    call.set_return(emu, u64::from(error == ERROR_SUCCESS));
-    call.cleanup_args(emu, 5);
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 8);
 }
 
 fn sid_size(count: u8) -> usize {
@@ -446,10 +627,19 @@ fn well_known_sid(kind: u32) -> Option<Vec<u8>> {
         WIN_LOCAL_SYSTEM_SID => (NT_AUTHORITY, &[18]),
         WIN_LOCAL_SERVICE_SID => (NT_AUTHORITY, &[19]),
         WIN_NETWORK_SERVICE_SID => (NT_AUTHORITY, &[20]),
-        WIN_BUILTIN_DOMAIN_SID => (NT_AUTHORITY, &[32]),
-        WIN_BUILTIN_ADMINISTRATORS_SID => (NT_AUTHORITY, &[32, 544]),
-        WIN_BUILTIN_USERS_SID => (NT_AUTHORITY, &[32, 545]),
-        WIN_BUILTIN_GUESTS_SID => (NT_AUTHORITY, &[32, 546]),
+        WIN_BUILTIN_DOMAIN_SID => (NT_AUTHORITY, &[SECURITY_BUILTIN_DOMAIN_RID]),
+        WIN_BUILTIN_ADMINISTRATORS_SID => (
+            NT_AUTHORITY,
+            &[SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS],
+        ),
+        WIN_BUILTIN_USERS_SID => (
+            NT_AUTHORITY,
+            &[SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS],
+        ),
+        WIN_BUILTIN_GUESTS_SID => (
+            NT_AUTHORITY,
+            &[SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_GUESTS],
+        ),
         _ => return None,
     };
     let mut bytes = vec![SID_REVISION, subs.len() as u8, 0, 0, 0, 0, 0, authority];

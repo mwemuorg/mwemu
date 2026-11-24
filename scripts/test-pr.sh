@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <PR_NUMBER> [cargo test extra args...]"
+    echo "Usage: $0 <PR_NUMBER> [cargo nextest arguments...]"
     exit 1
 fi
 
@@ -39,6 +39,36 @@ cat > .config/nextest.toml <<'TOML'
 [profile.default]
 slow-timeout = { period = "60s", terminate-after = 1 }
 TOML
+# Older PRs predate the asset-tests feature. Respect explicit feature and package selections.
+auto_features=true
+auto_release=true
+for arg in "$@"; do
+    case "$arg" in
+        --) break ;;
+        -F*|--features|--features=*|--no-default-features|--all-features|-p*|--package|--package=*|--exclude|--exclude=*) auto_features=false ;;
+        --release|--cargo-profile|--cargo-profile=*) auto_release=false ;;
+    esac
+done
+if [[ "$auto_features" == true ]]; then
+    if [[ -n "${PYTHON:-}" ]]; then
+        python_cmd=$PYTHON
+    elif command -v python3 >/dev/null; then
+        python_cmd=python3
+    else
+        python_cmd=python
+    fi
+    feature=$(cargo metadata --format-version 1 --no-deps | "$python_cmd" -c '
+import json, sys
+sys.stdout.write(next(("libmwemu/asset-tests" for p in json.load(sys.stdin)["packages"]
+            if p["name"] == "libmwemu" and "asset-tests" in p["features"]), ""))
+')
+    if [[ -n "$feature" ]]; then
+        set -- --features "$feature" "$@"
+        if [[ "$auto_release" == true ]]; then
+            set -- --release "$@"
+        fi
+    fi
+fi
 cargo nextest run "$@"
 EXIT=$?
 

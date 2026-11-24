@@ -1,9 +1,9 @@
 use std::cell::Cell;
 use std::error::Error;
+use std::fs;
 use std::rc::Rc;
 
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
-use crate::emu::object_handle::file_handle::init_guest_file_system;
 use crate::emu64;
 use crate::tests::helpers;
 use crate::winapi::policy::ApiMode;
@@ -12,7 +12,6 @@ use crate::windows::constants::controls::WS_VISIBLE;
 const SAMPLE: &str = "exe64win_enigma.bin";
 
 #[test]
-#[ignore = "long Windows PE regression, run with make test_windows"]
 fn enigma_shows_window_and_polls_messages() -> Result<(), Box<dyn Error>> {
     const INSTRUCTION_LIMIT: u64 = 450_000_000;
     const REQUIRED_POLLS: usize = 3;
@@ -24,9 +23,13 @@ fn enigma_shows_window_and_polls_messages() -> Result<(), Box<dyn Error>> {
     emu.maps.set_banzai(true);
     emu.set_api_mode(ApiMode::SimulateSuccess);
     emu.set_seed(0);
-    emu.set_maps_from_winver_in("win11", &helpers::repo_root())?;
-    emu.load_code(&helpers::test_data_path(SAMPLE))?;
-    init_guest_file_system(&emu)?;
+    emu.cfg.winver = None;
+    emu.set_maps_folder(&helpers::system_dlls64());
+    let sample = sample!(SAMPLE);
+    emu.load_code(&sample)?;
+    let drive = helpers::file_system_root().join("c");
+    fs::create_dir_all(&drive)?;
+    fs::copy(sample, drive.join(&emu.cfg.exe_name))?;
 
     let shown_window = Rc::new(Cell::new(0));
     let polls = Rc::new(Cell::new(0));
@@ -71,4 +74,19 @@ fn enigma_shows_window_and_polls_messages() -> Result<(), Box<dyn Error>> {
     );
     outcome?;
     Ok(())
+}
+
+#[test]
+fn enigma_reaches_startup_budget() {
+    const STARTUP_INSTRUCTIONS: u64 = 5_000_000;
+
+    helpers::setup();
+    let sample = sample!(SAMPLE);
+    let mut emu = emu64();
+    emu.cfg.winver = None;
+    emu.cfg.maps_folder = helpers::system_dlls64();
+    emu.load_code(&sample).expect("load Enigma");
+    emu.run_to(STARTUP_INSTRUCTIONS)
+        .expect("run Enigma startup");
+    assert!(emu.pos >= STARTUP_INSTRUCTIONS, "stopped at {}", emu.pos);
 }

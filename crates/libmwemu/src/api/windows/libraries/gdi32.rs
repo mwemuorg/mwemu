@@ -9,7 +9,6 @@ pub use context::{
     GetStretchBltMode, GetWorldTransform, IntersectClipRect, SelectClipRgn, SetDCBrushColor,
     SetDCPenColor, SetStretchBltMode, SetWorldTransform,
 };
-pub(crate) use objects::GraphicHandle;
 pub use objects::{
     CreateBrushIndirect, CreateCompatibleBitmap, CreateFontA, CreateFontIndirectA,
     CreateFontIndirectW, CreateFontW, CreateHatchBrush, CreatePatternBrush, CreatePen,
@@ -17,6 +16,7 @@ pub use objects::{
     GetCurrentObject, GetObjectA, GetObjectType, GetObjectW, GetStockObject, GetTextFaceA,
     GetTextFaceW, SelectObject,
 };
+pub(crate) use objects::{GraphicHandle, stock_objects};
 pub use text::{
     GetCharABCWidthsA, GetCharABCWidthsW, GetCharWidth32A, GetCharWidth32W, GetTextExtentPoint32A,
     GetTextExtentPoint32W, GetTextMetricsA, GetTextMetricsW,

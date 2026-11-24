@@ -4,7 +4,6 @@ mod linux_io_tests;
 mod linux_libc_tests;
 mod macos_libsystem_tests;
 mod macos_process_tests;
-mod ssdt_win64_tests;
 mod syscall64_ssdt_tests;
 mod threading_operations_tests;
 mod unix_api_helpers;

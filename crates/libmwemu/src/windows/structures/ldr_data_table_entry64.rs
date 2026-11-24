@@ -25,8 +25,6 @@ impl Default for LdrDataTableEntry64 {
 }
 
 impl LdrDataTableEntry64 {
-    pub(crate) const BOOTSTRAP_LOAD_REASON: u32 = 9;
-
     pub(crate) const IN_MEMORY_ORDER_LINKS_OFFSET: u64 = 0x10;
     pub(crate) const IN_INITIALIZATION_ORDER_LINKS_OFFSET: u64 = 0x20;
     pub(crate) const DLL_BASE_OFFSET: u64 = 0x30;
@@ -35,7 +33,6 @@ impl LdrDataTableEntry64 {
     pub(crate) const HASH_LINKS_OFFSET: u64 = 0x70;
     pub(crate) const DDAG_NODE_OFFSET: u64 = 0x98;
     pub(crate) const BASE_ADDRESS_INDEX_NODE_OFFSET: u64 = 0xc8;
-    pub(crate) const LOAD_REASON_OFFSET: u64 = 0x10c;
 
     const ENTRY_POINT_OFFSET: u64 = 0x38;
     const SIZE_OF_IMAGE_OFFSET: u64 = 0x40;

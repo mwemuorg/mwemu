@@ -71,6 +71,40 @@ pub(crate) struct GraphicHandle {
     pub(crate) stock: Option<i32>,
 }
 
+const GDI_STOCK_OBJECT: u16 = 0x80;
+const GDI_BRUSH_TYPE: u16 = 0x10;
+const GDI_PEN_TYPE: u16 = 0x30;
+const GDI_FONT_TYPE: u16 = 0x0a;
+const GDI_PALETTE_TYPE: u16 = 0x08;
+
+impl GraphicHandle {
+    pub(crate) fn handle(&self, slot: usize) -> u64 {
+        let Some(stock) = self.stock else {
+            return slot as u64;
+        };
+        if stock < 0 || slot > u16::MAX as usize {
+            return slot as u64;
+        }
+        let kind = match self.object {
+            GraphicObject::Brush { .. } => GDI_BRUSH_TYPE,
+            GraphicObject::Pen { .. } => GDI_PEN_TYPE,
+            GraphicObject::Font { .. } => GDI_FONT_TYPE,
+            GraphicObject::Palette => GDI_PALETTE_TYPE,
+            _ => return slot as u64,
+        };
+        ((GDI_STOCK_OBJECT | kind) as u64) << u16::BITS | slot as u64
+    }
+}
+
+pub(crate) fn stock_objects(emu: &mut Emu) -> Vec<(u64, u64)> {
+    (WHITE_BRUSH..=DC_PEN)
+        .filter_map(|index| {
+            let handle = stock_object(emu, index);
+            (handle != 0).then_some((index as u64, handle))
+        })
+        .collect()
+}
+
 impl GraphicObject {
     fn kind(&self) -> u32 {
         match self {

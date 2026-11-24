@@ -1,5 +1,6 @@
 use crate::api::windows::export_index::ModuleExportIndex;
 use crate::emu::loaders::guest_dll::GuestDll;
+use crate::syscall::windows::syscall64::wnf::WnfSubscriptions;
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -137,6 +138,8 @@ pub(crate) struct NativeSnapshotUnstable {
     environment: Option<Environment>,
     crt_environments: [CrtEnvironment; 2],
     process_error_mode: u32,
+    console_host_process: u64,
+    raise_on_invalid_handle_close: bool,
     process_dep_flags: u32,
     ipc: IpcState,
     tls_slots: Vec<bool>,
@@ -152,9 +155,12 @@ pub(crate) struct NativeSnapshotUnstable {
     crypto: CryptoStore,
     runtime_function_tables: Vec<RuntimeFunctionTable>,
     section_commitments: BTreeMap<u64, Vec<bool>>,
+    locked_views: Vec<u64>,
     guest_dlls: BTreeMap<u64, GuestDll>,
     guest_exports: Vec<ModuleExportIndex>,
     user_timers: TimerTable,
+    wnf_subscriptions: WnfSubscriptions,
+    gdi_cookie: u64,
     console_cursor: ConsoleCursor,
 }
 
@@ -184,6 +190,8 @@ impl From<&Emu> for NativeSnapshotUnstable {
             environment: emu.environment.clone(),
             crt_environments: emu.crt_environments.clone(),
             process_error_mode: emu.process_error_mode,
+            console_host_process: emu.console_host_process,
+            raise_on_invalid_handle_close: emu.raise_on_invalid_handle_close,
             process_dep_flags: emu.process_dep_flags,
             ipc: emu.ipc.clone(),
             tls_slots: emu.windows_tls_slots.clone(),
@@ -204,8 +212,17 @@ impl From<&Emu> for NativeSnapshotUnstable {
                 .filter_map(|base| emu.export_indexes.get_by_base(*base).cloned())
                 .collect(),
             section_commitments: emu.maps.section_commitments.clone(),
+            locked_views: emu
+                .maps
+                .allocations
+                .values()
+                .filter(|a| a.protection_locked)
+                .map(|a| a.base)
+                .collect(),
             guest_dlls: emu.guest_dlls.clone(),
             user_timers: emu.user_timers.clone(),
+            wnf_subscriptions: emu.wnf_subscriptions.clone(),
+            gdi_cookie: emu.gdi_cookie,
             console_cursor: emu.console_cursor,
         }
     }
@@ -233,6 +250,8 @@ impl From<NativeSnapshotUnstable> for Emu {
         emu.environment = snapshot.environment;
         emu.crt_environments = snapshot.crt_environments;
         emu.process_error_mode = snapshot.process_error_mode;
+        emu.console_host_process = snapshot.console_host_process;
+        emu.raise_on_invalid_handle_close = snapshot.raise_on_invalid_handle_close;
         emu.process_dep_flags = snapshot.process_dep_flags;
         emu.ipc = snapshot.ipc;
         emu.windows_tls_slots = snapshot.tls_slots;
@@ -248,11 +267,18 @@ impl From<NativeSnapshotUnstable> for Emu {
         emu.crypto = snapshot.crypto;
         emu.runtime_function_tables = snapshot.runtime_function_tables;
         emu.maps.section_commitments = snapshot.section_commitments;
+        for base in snapshot.locked_views {
+            if let Some(allocation) = emu.maps.allocations.get_mut(&base) {
+                allocation.protection_locked = true;
+            }
+        }
         emu.guest_dlls = snapshot.guest_dlls;
         for module in snapshot.guest_exports {
             emu.export_indexes.register(module);
         }
         emu.user_timers = snapshot.user_timers;
+        emu.wnf_subscriptions = snapshot.wnf_subscriptions;
+        emu.gdi_cookie = snapshot.gdi_cookie;
         emu.console_cursor = snapshot.console_cursor;
         emu
     }

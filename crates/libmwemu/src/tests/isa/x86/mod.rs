@@ -1,8 +1,10 @@
+#[cfg(feature = "asset-tests")]
 mod allocator32_test;
 mod basic_test_code_bytes_shld_shrd;
 mod bit_manipulation_tests;
 mod call32;
 mod cmpxchg_tests;
+#[cfg(feature = "asset-tests")]
 mod exception_handler32;
 mod flag_calculations;
 mod fpu_conversions;

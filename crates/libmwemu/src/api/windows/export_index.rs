@@ -14,6 +14,9 @@
 //!    form with rebased addresses, ordered iteration, and lookup helpers.
 
 use crate::api::windows::common::modules;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
 use ahash::AHashMap;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 use serde::{Deserialize, Serialize};
@@ -77,6 +80,8 @@ pub struct ModuleExportIndex {
     /// reverse-address map can be rebuilt without re-parsing the raw PE.
     /// `by_name` only keeps the lowercased key.
     display_names: Vec<(u32, String)>,
+    #[serde(skip)]
+    pub(crate) service_names: OnceLock<HashMap<u64, String>>,
 }
 
 impl ModuleExportIndex {
@@ -156,6 +161,7 @@ impl ModuleExportIndex {
             by_ordinal,
             by_address,
             display_names,
+            service_names: OnceLock::new(),
         }
     }
 
@@ -166,6 +172,7 @@ impl ModuleExportIndex {
         if self.base == new_base {
             return;
         }
+        self.service_names.take();
         self.by_address.clear();
         let delta = new_base.wrapping_sub(self.base);
         for slot in &mut self.by_ordinal {

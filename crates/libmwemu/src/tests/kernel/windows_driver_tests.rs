@@ -1,7 +1,10 @@
 //! Windows driver loading, API routing, and IRP delivery.
 //!
 //! Synthetic regressions run offline. The tests using `windows_uaf_driver.sys`
-//! require `make windows-driver` and skip when that fixture is absent.
+//! require `make windows-driver` with the `host-tests` feature.
+
+#[cfg(feature = "host-tests")]
+mod lifecycle;
 
 use std::fs;
 
@@ -20,10 +23,10 @@ use crate::api::windows::policy::{ApiDisposition, ApiMode, ApiRoute, ApiStopReas
 use crate::emu::Emu;
 use crate::emu64;
 use crate::kernel::KernelOs;
+#[cfg(feature = "host-tests")]
 use crate::kernel::guard::FindingKind;
 use crate::kernel::windows::structs::{
-    DEVICE_OBJECT_SIZE, DEVOBJ_STACK_SIZE, DRVOBJ_MAJOR_FUNCTION, IRP_MJ_CLOSE, IRP_MJ_CREATE,
-    IRP_MJ_DEVICE_CONTROL,
+    DEVICE_OBJECT_SIZE, DEVOBJ_STACK_SIZE, DRVOBJ_MAJOR_FUNCTION, IRP_MJ_DEVICE_CONTROL,
 };
 use crate::kernel::windows::{
     self, STATUS_NOT_IMPLEMENTED, STATUS_SUCCESS, STATUS_UNSUCCESSFUL, alloc_user_buffer,
@@ -58,14 +61,14 @@ fn write_req(id: u32, data: &[u8]) -> Vec<u8> {
     v
 }
 
-/// Load the driver and run DriverEntry, or skip when the artefact is missing.
-fn boot_driver() -> Option<Emu> {
+/// Load the driver and run DriverEntry.
+fn boot_driver() -> Emu {
     helpers::setup();
     let path = helpers::test_data_path("windows_uaf_driver.sys");
-    if !std::path::Path::new(&path).exists() {
-        eprintln!("[skip] windows_uaf_driver.sys not built (run `make windows-driver`)");
-        return None;
-    }
+    assert!(
+        std::path::Path::new(&path).is_file(),
+        "missing {path}; run make windows-driver"
+    );
     let mut emu = emu64();
     emu.cfg.verbose = 1;
     emu.load_kernel_module(&path)
@@ -74,7 +77,7 @@ fn boot_driver() -> Option<Emu> {
         .run_module_init()
         .expect("DriverEntry should run to completion");
     assert_eq!(ret, 0, "DriverEntry returned 0x{:x}", ret);
-    Some(emu)
+    emu
 }
 
 fn create_channel(emu: &mut Emu, name: &str, buf_len: u32) -> u32 {
@@ -86,92 +89,10 @@ fn create_channel(emu: &mut Emu, name: &str, buf_len: u32) -> u32 {
     u32::from_le_bytes([r.output[32], r.output[33], r.output[34], r.output[35]])
 }
 
-#[test]
-fn driver_loads_and_driver_entry_installs_dispatch() {
-    let Some(emu) = boot_driver() else { return };
-
-    let kernel = emu.kernel.as_ref().expect("kernel env");
-    assert_eq!(kernel.module.name, "windows_uaf_driver");
-    assert!(
-        kernel.module.unresolved.is_empty(),
-        "unresolved kernel imports: {:?}",
-        kernel.module.unresolved
-    );
-    assert!(kernel.module.exit.is_some(), "DriverUnload not captured");
-
-    let devices = emu.kernel_devices();
-    assert_eq!(devices.len(), 1, "one device expected, got {:?}", devices);
-    assert_eq!(devices[0].name, "\\Device\\TlmWin");
-    assert_eq!(
-        emu.kernel_symlinks(),
-        vec![(
-            "\\DosDevices\\TlmWin".to_string(),
-            "\\Device\\TlmWin".to_string()
-        )]
-    );
-
-    let table = emu.kernel_dispatch_table();
-    let majors: Vec<u8> = table.iter().map(|(m, _, _)| *m).collect();
-    assert_eq!(
-        majors,
-        vec![IRP_MJ_CREATE, IRP_MJ_CLOSE, IRP_MJ_DEVICE_CONTROL]
-    );
-    assert!(
-        emu.module_symbol("IRP_MJ_DEVICE_CONTROL").is_some(),
-        "the dispatch routine should be reachable by name"
-    );
-
-    // The data import NtBuildNumber resolved to storage the driver could read.
-    assert!(
-        kernel
-            .log
-            .iter()
-            .any(|l| l.contains("telemetry driver loaded, build 19045")),
-        "expected the driver's own log line, got {:?}",
-        kernel.log
-    );
-    assert!(
-        emu.kernel_findings().is_empty(),
-        "a clean load must not report anything"
-    );
-    assert!(
-        emu.kernel_privops().is_empty(),
-        "DriverEntry performs no privileged operation"
-    );
-}
-
-#[test]
-fn create_and_write_channel_is_clean() {
-    let Some(mut emu) = boot_driver() else { return };
-    emu.kernel_create(0).expect("IRP_MJ_CREATE");
-
-    let id = create_channel(&mut emu, "sensor0", 256);
-    assert_eq!(id, 1);
-    let r = emu
-        .kernel_ioctl(0, TLM_IOC_WRITE, &write_req(id, b"telemetry-sample"), 0)
-        .expect("write ioctl");
-    assert_eq!(r.status, 0);
-    assert_eq!(r.information, 16, "the write should report the byte count");
-
-    // An unknown control code takes the driver's default branch.
-    let r = emu
-        .kernel_ioctl(0, 0x80002ffc, &[], 0)
-        .expect("unknown ioctl");
-    assert_eq!(
-        r.status, 0xC0000010,
-        "STATUS_INVALID_DEVICE_REQUEST expected"
-    );
-
-    assert!(
-        emu.kernel_findings().is_empty(),
-        "legitimate use must stay silent: {:?}",
-        emu.kernel_findings()
-    );
-}
-
+#[cfg(feature = "host-tests")]
 #[test]
 fn stale_hot_channel_cache_is_a_use_after_free() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
     let id = create_channel(&mut emu, "sensor0", 256);
 
     // Populate the hot-channel cache.
@@ -217,9 +138,10 @@ fn stale_hot_channel_cache_is_a_use_after_free() {
     }
 }
 
+#[cfg(feature = "host-tests")]
 #[test]
 fn double_free_is_reported() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
     let id = create_channel(&mut emu, "sensor0", 64);
     emu.kernel_ioctl(0, TLM_IOC_DESTROY, &id.to_le_bytes(), 0)
         .expect("destroy ioctl");
@@ -243,9 +165,10 @@ fn double_free_is_reported() {
     );
 }
 
+#[cfg(feature = "host-tests")]
 #[test]
 fn physical_memory_and_msr_primitives_are_logged() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
 
     // struct tlm_phys_req { u32 magic; u32 size; u64 phys; u64 value_out; }
     let mut req = Vec::new();
@@ -317,9 +240,10 @@ fn physical_memory_and_msr_primitives_are_logged() {
     );
 }
 
+#[cfg(feature = "host-tests")]
 #[test]
 fn ioctl_scan_finds_the_primitives() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
 
     let codes = emu.kernel_ioctl_candidates();
     for c in [
@@ -367,29 +291,6 @@ fn ioctl_scan_finds_the_primitives() {
     }
 }
 
-#[test]
-fn driver_unload_releases_everything() {
-    let Some(mut emu) = boot_driver() else { return };
-    create_channel(&mut emu, "a", 64);
-    create_channel(&mut emu, "b", 64);
-    emu.run_module_exit().expect("DriverUnload");
-    assert!(
-        emu.kernel_devices().is_empty(),
-        "IoDeleteDevice should have removed the device"
-    );
-    emu.kernel_check_leaks();
-    let leaks: Vec<_> = emu
-        .kernel_findings()
-        .iter()
-        .filter(|f| f.kind == FindingKind::Leak)
-        .collect();
-    assert!(
-        leaks.is_empty(),
-        "unload should free every channel: {:?}",
-        leaks
-    );
-}
-
 /// A kernel stub is only intercepted when control *branches* into it, as a
 /// driver's `call [__imp_X]` does; setting PC on it directly would run its
 /// `ret`. This builds `mov rax, stub; jmp rax` in an executable page: the
@@ -413,50 +314,6 @@ fn call_through(emu: &mut Emu, api: &str) -> u64 {
     code.extend_from_slice(&[0xff, 0xe0]);
     emu.maps.write_bytes(page, &code);
     page
-}
-
-/// A bugcheck, a fast-fail or a raised status ends the call with an error,
-/// not with whatever was in rax, and the driver can be driven again
-/// afterwards: a fuzzer must not mistake a crash for a successful request.
-#[test]
-fn bugcheck_is_an_error_and_the_driver_stays_usable() {
-    let Some(mut emu) = boot_driver() else { return };
-    let bugcheck = call_through(&mut emu, "KeBugCheckEx");
-    let err = emu
-        .kernel_call(bugcheck, &[0x7e, 1, 2, 3, 4])
-        .expect_err("a bugcheck must not look like a return value");
-    assert!(err.message.contains("KeBugCheckEx"), "{}", err.message);
-    assert!(
-        emu.kernel
-            .as_ref()
-            .expect("kernel env")
-            .log
-            .iter()
-            .any(|l| l.starts_with("ABORT:")),
-        "the abort is in the kernel log"
-    );
-
-    let id = create_channel(&mut emu, "after-crash", 64);
-    assert_eq!(id, 1, "requests keep working after an aborted call");
-}
-
-/// `MmGetSystemRoutineAddress` returns NULL for a name the kernel does not
-/// export, so a driver probing for an optional API takes its fallback path.
-#[test]
-fn system_routine_lookup_is_null_for_unknown_names() {
-    let Some(mut emu) = boot_driver() else { return };
-    let us = alloc_user_buffer(&mut emu, 0x100, "name");
-    let buf = us + 0x20;
-    emu.maps.write_wide_string(buf, "ExAllocatePool2");
-    write_unicode_header(&mut emu, us, buf, 15 * 2, 0x40);
-    let lookup = call_through(&mut emu, "MmGetSystemRoutineAddress");
-    let known = emu.kernel_call(lookup, &[us]).expect("lookup");
-    assert_ne!(known, 0, "a modelled export resolves");
-
-    emu.maps.write_wide_string(buf, "ZwNoSuchRoutine");
-    write_unicode_header(&mut emu, us, buf, 15 * 2, 0x40);
-    let unknown = emu.kernel_call(lookup, &[us]).expect("lookup");
-    assert_eq!(unknown, 0, "an unknown name is NULL");
 }
 
 const POLICY_CODE: u64 = 0x400000;

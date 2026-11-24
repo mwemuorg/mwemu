@@ -278,25 +278,6 @@ impl Emu {
                         teb_struct.thread_id as u64
                     }
                 }
-                0x58 => {
-                    // Get or create static TLS array (for __declspec(thread) variables)
-
-                    match self.maps.get_mem2("static_tls_array") {
-                        Some(mem) => mem.get_base(),
-                        None => {
-                            // This should be sized based on the number of modules with .tls sections
-                            // For now, allocate space for a few module entries
-                            let size = if self.cfg.is_x64() { 16 * 8 } else { 16 * 4 };
-                            let tls_array =
-                                self.alloc("static_tls_array", size, Permission::READ_WRITE);
-
-                            // Initialize to null pointers
-                            self.maps.write_bytes(tls_array, &vec![0; size as usize]);
-
-                            tls_array
-                        }
-                    }
-                }
                 _ => {
                     // Fall back to reading from actual TEB memory so that real ntdll code
                     // can access arbitrary TEB fields without explicit special-casing.

@@ -1,16 +1,19 @@
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::PAGE_SIZE;
+#[cfg(feature = "asset-tests")]
+use crate::tests::helpers;
 use crate::windows::constants::memory::PAGE_GUARD;
 use crate::windows::structures::TEB;
-use crate::{tests::helpers, *};
+use crate::*;
 
+#[cfg(feature = "asset-tests")]
 #[test]
 // stack32 tests
 pub fn stack32_test() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = win_maps!(32);
+    emu.cfg.maps_folder = helpers::fixture_maps32();
     emu.init_win32(false, false).unwrap();
 
     let stack_check = emu.maps.get_map_by_name("stack");

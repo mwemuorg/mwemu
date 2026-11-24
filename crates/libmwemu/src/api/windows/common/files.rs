@@ -9,7 +9,7 @@ mod volume;
 pub(crate) use information::native_query_file;
 pub(crate) use volume::drive_number_type;
 
-use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::winapi::common::guest_files::{self, GuestFileRead};
 use crate::winapi::common::memory::read_pointer;
 use crate::winapi::common::memory::{pointer_size, read_array, read_guest_bytes, write_pointer};
@@ -779,7 +779,9 @@ fn get_file_type(emu: &mut Emu, api: &str) {
         || uri.starts_with("named_pipe://")
     {
         FILE_TYPE_PIPE
-    } else if uri.starts_with("stdio://")
+    } else if emu.handle_management.is_console_device(handle)
+        || emu.handle_management.console(handle).is_some()
+        || uri.starts_with("stdio://")
         || uri.starts_with("console://")
         || (handle == u64::from(handle as u32) || handle == handle as i32 as i64 as u64)
             && matches!(
@@ -967,7 +969,7 @@ pub(crate) fn device_io_control(emu: &mut Emu, library: &str) {
         output_size as u32
     );
     let valid = emu.handle_management.console(device).is_some()
-        || emu.console_handles.contains(&device)
+        || emu.handle_management.is_console_device(device)
         || emu.file_handles.contains_key(&device)
         || u32::try_from(device)
             .ok()
@@ -1038,6 +1040,40 @@ pub(crate) fn nt_transfer_file(emu: &mut Emu, write: bool) {
     };
     call.set_return(emu, status);
     call.cleanup_args(emu, 9);
+}
+
+pub(crate) fn query_volume_information(emu: &mut Emu, call: WindowsAbi) {
+    let [handle, io, output, length, class] = api_try!(emu, call.args(emu));
+    if class as u32 != FILE_FS_DEVICE_INFORMATION
+        || !(emu.handle_management.is_console_device(handle)
+            || emu.handle_management.console(handle).is_some())
+    {
+        return policy::unsupported_with_abi(
+            emu,
+            "ntdll",
+            "NtQueryVolumeInformationFile",
+            emu.pc(),
+            call,
+        );
+    }
+    let width = pointer_size(emu);
+    let size = size_of::<[u32; 2]>() as u64;
+    let status = if (length as u32) < size as u32 {
+        STATUS_INFO_LENGTH_MISMATCH
+    } else if !emu.maps.validate_write_range(output, size)
+        || !emu.maps.validate_write_range(io, 2 * width)
+    {
+        STATUS_ACCESS_VIOLATION
+    } else {
+        emu.maps.write_dword(output, FILE_DEVICE_CONSOLE);
+        emu.maps
+            .write_dword(output + 4, FILE_DEVICE_ALLOW_APPCONTAINER_TRAVERSAL);
+        write_pointer(emu, io, STATUS_SUCCESS);
+        write_pointer(emu, io + width, size);
+        STATUS_SUCCESS
+    };
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn native_path(emu: &mut Emu) {

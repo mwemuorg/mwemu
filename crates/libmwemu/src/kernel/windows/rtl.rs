@@ -14,6 +14,7 @@ use crate::api::windows::policy::api_try;
 use crate::exception::types::ExceptionType;
 use crate::kernel::{HandlerRegistry, kernel_handlers, return_one, return_zero};
 use crate::windows::constants::errors::{STATUS_INVALID_IMAGE_FORMAT, STATUS_SUCCESS};
+use crate::windows::constants::system::FEATURE_CONFIGURATION_CHANGE_STAMP;
 use goblin::pe::header::DOS_MAGIC;
 use goblin::pe::optional_header::MAGIC_64;
 
@@ -1381,10 +1382,10 @@ fn feature_configuration_stub(emu: &mut Emu, symbol: &str) {
     let call = WinApi(Stdcall);
     call.set_return(
         emu,
-        if symbol == "RtlQueryFeatureConfiguration" {
-            STATUS_NOT_FOUND
-        } else {
-            0
+        match symbol {
+            "RtlQueryFeatureConfiguration" => STATUS_NOT_FOUND,
+            "RtlQueryFeatureConfigurationChangeStamp" => FEATURE_CONFIGURATION_CHANGE_STAMP,
+            _ => 0,
         },
     );
 }

@@ -1,10 +1,7 @@
 /// Full end-to-end emulation of the host's real `/bin/ls` in `--libc` mode
 /// (execute the genuine ld.so + libc, intercepting only at `syscall`).
 ///
-/// This only makes sense on an x86_64 Linux host, where `/bin/ls` and the
-/// system interpreter/libc actually exist. On any other host (macOS, Windows,
-/// aarch64 Linux, or a box without `/bin/ls`) the test no-ops so the suite
-/// stays green everywhere.
+/// Requires the host x86-64 ELF and its matching system libraries.
 #[test]
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[ignore = "environment-dependent: emulates the host's real /bin/ls over its real glibc, so \
@@ -16,21 +13,15 @@ fn elf64lin_real_ls_full_emulation() {
     helpers::setup();
 
     let ls = "/bin/ls";
-    if !std::path::Path::new(ls).exists() {
-        eprintln!("skipping: {} not present on host", ls);
-        return;
-    }
+
     // Make sure the on-disk binary is a 64-bit x86 ELF (ELF magic + EI_CLASS=2
-    // + e_machine=EM_X86_64); skip if the host ships something else.
-    let head = std::fs::read(ls).unwrap_or_default();
+    // + e_machine=EM_X86_64).
+    let head = std::fs::read(ls).expect("read the host /bin/ls");
     let is_elf64_x64 = head.len() > 18
         && &head[0..4] == b"\x7fELF"
         && head[4] == 2 // ELFCLASS64
         && head[18] == 0x3e; // EM_X86_64
-    if !is_elf64_x64 {
-        eprintln!("skipping: {} is not an x86_64 ELF on this host", ls);
-        return;
-    }
+    assert!(is_elf64_x64, "the host /bin/ls must be an x86-64 ELF");
 
     let mut emu = emu64();
     // Run the genuine libc/ld.so and intercept only at `syscall` (the Linux

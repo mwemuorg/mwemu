@@ -4,11 +4,11 @@
 //! We omit `-c` / console so the run does not block on stdin and timings stay stable.
 //!
 //! **Run the check** (threshold only enforced in optimized builds):
-//! `cargo test -p libmwemu sc32win_donut_emulation_throughput --release -- --nocapture`
+//! `cargo test --release -p libmwemu --features asset-tests sc32win_donut_emulation_throughput -- --nocapture`
 //!
 //! **Tune** after measuring on a reference machine (printed on failure):
-//! - `MWEMU_PERF_INSTRUCTION_BUDGET` — default `3_000_000`
-//! - `MWEMU_PERF_MIN_IPS` — minimum emulated instructions per second (wall clock); default `150_000.0`
+//! - `MWEMU_PERF_INSTRUCTION_BUDGET` — default `10_000_000`
+//! - `MWEMU_PERF_MIN_IPS` — minimum emulated instructions per second (wall clock); default `800_000.0`
 
 use crate::tests::helpers;
 use crate::*;
@@ -16,22 +16,15 @@ use crate::*;
 use std::time::{Duration, Instant};
 
 /// Default work units: large enough to average out noise, small enough for CI (~seconds on a fast box).
-const DEFAULT_INSTRUCTION_BUDGET: u64 = 3_000_000;
+const DEFAULT_INSTRUCTION_BUDGET: u64 = 10_000_000;
 
 /// Conservative floor (ins/s). Raise after profiling on your slowest CI runner so noise does not fail builds.
-const DEFAULT_MIN_IPS: f64 = 150_000.0;
+const DEFAULT_MIN_IPS: f64 = 800_000.0;
 
+#[cfg(not(debug_assertions))]
 #[test]
 fn sc32win_donut_emulation_throughput_regression_guard() {
     helpers::setup();
-
-    if cfg!(debug_assertions) {
-        eprintln!(
-            "sc32win_donut_emulation_throughput_regression_guard: skipped in debug builds \
-             (run `cargo test -p libmwemu sc32win_donut_emulation_throughput --release`)"
-        );
-        return;
-    }
 
     let budget: u64 = std::env::var("MWEMU_PERF_INSTRUCTION_BUDGET")
         .ok()
@@ -44,10 +37,10 @@ fn sc32win_donut_emulation_throughput_regression_guard() {
         .unwrap_or(DEFAULT_MIN_IPS);
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = helpers::fixture_maps32();
 
     let sample = sample!("sc32win_donut.bin");
-    emu.load_code(&sample);
+    emu.load_code(&sample).expect("load performance fixture");
 
     // `-vv` → verbose level 2 (assembly tracing; same cost profile as CLI)
     emu.set_verbose(2);
@@ -62,12 +55,16 @@ fn sc32win_donut_emulation_throughput_regression_guard() {
         emu.pos
     );
 
-    let ips = budget as f64 / elapsed;
+    assert_eq!(
+        emu.pos, budget,
+        "guest stopped before the throughput measurement"
+    );
+    let ips = emu.pos as f64 / elapsed;
     assert!(
         ips >= min_ips,
         "emulation throughput regression: {:.0} ins/s < {:.0} ins/s (budget={} in {:.3}s). \
-         Raise MWEMU_PERF_MIN_IPS if CI is legitimately slower, or fix the performance regression. \
-         Calibrate with: cargo test -p libmwemu sc32win_donut_emulation_throughput --release -- --nocapture",
+         Check the host load or investigate a performance regression. \
+         Calibrate with: cargo test --release -p libmwemu --features asset-tests sc32win_donut_emulation_throughput -- --nocapture",
         ips,
         min_ips,
         budget,
@@ -80,69 +77,6 @@ fn sc32win_donut_emulation_throughput_regression_guard() {
     );
 }
 
-/// Wall-clock benchmark guard, meant to catch large slowdowns.
-///
-/// Mirrors roughly: `time echo q | cargo run -- -f test/sc32win_donut.bin -vv -c 10000001`
-/// (we don't spawn the interactive console in unit tests; we run to the same position).
-#[test]
-fn benchmark32win_donut() {
-    helpers::setup();
-
-    // The 25s budget is intended for optimized runs; debug builds are too slow/noisy.
-    if cfg!(debug_assertions) {
-        eprintln!("benchmark: skipped in debug builds (run with --release)");
-        return;
-    }
-
-    let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
-
-    // Avoid any interactive console path from blocking the test runner.
-    emu.cfg.console = false;
-    emu.cfg.console_enabled = false;
-    emu.disable_ctrlc();
-
-    let sample = sample!("sc32win_donut.bin");
-    assert!(
-        std::path::Path::new(&sample).is_file(),
-        "missing {}",
-        sample
-    );
-    emu.load_code(&sample);
-
-    // `-vv` → verbose level 2 (assembly tracing).
-    emu.set_verbose(2);
-
-    // In unit tests the logger defaults to `error`, so `-vv` won't actually print instructions.
-    // To keep this benchmark meaningful, we run a larger instruction budget (tunable via env var).
-    let target_pos: u64 = std::env::var("MWEMU_BENCH_DONUT_TARGET_POS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(20_000_001);
-    let budget = Duration::from_secs(25);
-    let t0 = Instant::now();
-    emu.run_to(target_pos).unwrap_or_else(|e| {
-        panic!(
-            "benchmark run_to({}) failed: {} (pos={} rip=0x{:x})",
-            target_pos,
-            e,
-            emu.pos,
-            emu.regs().rip
-        );
-    });
-    let elapsed = t0.elapsed();
-
-    assert!(
-        elapsed <= budget,
-        "benchmark regression: run_to({}) took {:?} (> {:?}) (pos={} rip=0x{:x})",
-        target_pos,
-        elapsed,
-        budget,
-        emu.pos,
-        emu.regs().rip
-    );
-}
-
 /// Wall-clock benchmark guard for the 64-bit Enigma sample.
 ///
 /// Similar spirit to timing the CLI on `test/exe64win_enigma.bin`, but executed directly in Rust.
@@ -151,7 +85,7 @@ fn benchmark64with_enigma() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     emu.cfg.console = false;
     emu.cfg.console_enabled = false;
@@ -163,7 +97,7 @@ fn benchmark64with_enigma() {
         "missing {}",
         sample
     );
-    emu.load_code(&sample);
+    emu.load_code(&sample).expect("load performance fixture");
 
     // Keep the cost profile comparable to `-vv`.
     emu.set_verbose(2);

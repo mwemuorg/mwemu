@@ -2,17 +2,18 @@
 //! and check that the deliberate use-after-free in `drivers/linux/tlm` is
 //! reported.
 //!
-//! The driver is built from source by `make driver`; when the artefact is not
-//! present these tests skip, like every other sample-dependent test here.
+//! The release bundle includes the Linux module. Rebuild it with `make linux-driver`.
 
 use crate::emu::Emu;
 use crate::emu64;
+#[cfg(feature = "host-tests")]
 use crate::kernel::guard::FindingKind;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 
 const TLM_IOC_CREATE: u64 = 0x1001;
 const TLM_IOC_WRITE: u64 = 0x1002;
+#[cfg(feature = "host-tests")]
 const TLM_IOC_DESTROY: u64 = 0x1003;
 
 /// Scratch page standing in for the caller's user-space buffer.
@@ -39,14 +40,10 @@ fn write_write_req(emu: &mut Emu, at: u64, id: u32, len: u32, data: u64) {
     emu.maps.write_qword(at + 8, data);
 }
 
-/// Load the driver and run its init, or skip when the artefact is missing.
-fn boot_driver() -> Option<Emu> {
+/// Load the driver and run its init.
+fn boot_driver() -> Emu {
     helpers::setup();
-    let path = helpers::test_data_path("linux_uaf_driver.ko");
-    if !std::path::Path::new(&path).exists() {
-        eprintln!("[skip] linux_uaf_driver.ko not built (run `make driver`)");
-        return None;
-    }
+    let path = helpers::required_sample("linux_uaf_driver.ko");
 
     let mut emu = emu64();
     emu.cfg.verbose = 1;
@@ -56,12 +53,12 @@ fn boot_driver() -> Option<Emu> {
         .run_module_init()
         .expect("module init should run to completion");
     assert_eq!(ret, 0, "module init returned an error");
-    Some(emu)
+    emu
 }
 
 #[test]
 fn kernel_module_links_and_initializes() {
-    let Some(emu) = boot_driver() else { return };
+    let emu = boot_driver();
 
     let kernel = emu.kernel.as_ref().expect("kernel env");
     assert_eq!(kernel.module.name, "tlm");
@@ -99,7 +96,7 @@ fn kernel_module_links_and_initializes() {
 
 #[test]
 fn create_and_write_channel_is_clean() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
     let page = user_page(&mut emu);
 
     write_create_req(&mut emu, page, "sensor0", 256, 0);
@@ -126,9 +123,10 @@ fn create_and_write_channel_is_clean() {
     );
 }
 
+#[cfg(feature = "host-tests")]
 #[test]
 fn stale_hot_channel_cache_is_a_use_after_free() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
     let page = user_page(&mut emu);
 
     // 1. create a channel
@@ -190,9 +188,10 @@ fn stale_hot_channel_cache_is_a_use_after_free() {
     }
 }
 
+#[cfg(feature = "host-tests")]
 #[test]
 fn double_free_is_reported() {
-    let Some(mut emu) = boot_driver() else { return };
+    let mut emu = boot_driver();
     let page = user_page(&mut emu);
 
     write_create_req(&mut emu, page, "sensor0", 64, 0);
@@ -237,7 +236,7 @@ fn double_free_is_reported() {
 /// loader bug that silently breaks driver emulation.
 #[test]
 fn kernel_module_layout_and_symbols_are_consistent() {
-    let Some(emu) = boot_driver() else { return };
+    let emu = boot_driver();
     let m = &emu.kernel.as_ref().expect("kernel env").module;
 
     assert!(m.size > 0, "module image has zero size");
@@ -279,55 +278,4 @@ fn kernel_module_layout_and_symbols_are_consistent() {
         ioctl,
         range
     );
-}
-
-#[test]
-fn kernel_heap_finds_interleaved_allocations_before_and_after_snapshot() {
-    use crate::kernel::heap::{KernelHeap, Region};
-
-    let mut heap = KernelHeap::new(0x10000, 0x10000, 0x30000, 0x10000);
-    let mut addresses = Vec::new();
-    for region in [Region::Vmalloc, Region::Slab, Region::Pages, Region::Slab] {
-        let chunk = heap
-            .record_alloc(region, 16, "test", "alloc", 0, 0)
-            .unwrap();
-        addresses.push((chunk.addr, chunk.size));
-    }
-    let freed = heap.index_of_base(addresses[1].0).unwrap();
-    heap.record_free(freed, "free", 0, 0);
-    let snapshot = bitcode::serialize(&heap).unwrap();
-    let restored: KernelHeap = bitcode::deserialize(&snapshot).unwrap();
-    for ledger in [&heap, &restored] {
-        for (index, &(base, size)) in addresses.iter().enumerate() {
-            assert_eq!(ledger.index_of_base(base), Some(index));
-            assert_eq!(ledger.index_of(base + size - 1), Some(index));
-            assert_eq!(ledger.index_of(base + size), None);
-            assert_eq!(ledger.get(index).is_freed(), index == freed);
-        }
-    }
-}
-
-#[test]
-fn kernel_heap_rejects_unrepresentable_sizes_without_consuming_space() {
-    use crate::kernel::heap::{KernelHeap, Region};
-    use crate::maps::virtual_memory::PAGE_SIZE;
-
-    let mut heap = KernelHeap::new(0x10000, 0x10000, 0x30000, 0x10000);
-    for region in [Region::Slab, Region::Vmalloc, Region::Pages] {
-        for size in [u64::MAX, u64::MAX - PAGE_SIZE + 1] {
-            assert!(
-                heap.record_alloc(region, size, "test", "alloc", 0, 0)
-                    .is_none()
-            );
-        }
-    }
-    assert!(heap.chunks().is_empty());
-    for (region, expected) in [(Region::Slab, 0x10000), (Region::Vmalloc, 0x30000)] {
-        assert_eq!(
-            heap.record_alloc(region, 1, "test", "alloc", 0, 0)
-                .unwrap()
-                .addr,
-            expected
-        );
-    }
 }

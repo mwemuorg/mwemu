@@ -42,6 +42,18 @@ pub use remote::{
 use set_value::set_value;
 pub use set_value::{RegSetKeyValueA, RegSetKeyValueW, RegSetValueA, RegSetValueW};
 
+pub(crate) fn create_path(emu: &mut emu::Emu, path: &str) -> Option<bool> {
+    let mut parent = path;
+    while !emu.registry.key_exists(parent) {
+        parent = parent.rsplit_once('\\')?.0;
+    }
+    let created = emu.registry.create_key(path)?;
+    if created {
+        emu.handle_management.registry_names_changed(parent);
+    }
+    Some(created)
+}
+
 const REG_CREATED_NEW_KEY: u32 = 1;
 const REG_OPENED_EXISTING_KEY: u32 = 2;
 

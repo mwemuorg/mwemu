@@ -1,6 +1,8 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Once, OnceLock};
+#[cfg(feature = "asset-tests")]
+use std::{fs::File, io::Read};
 
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 use tempfile::TempDir;
@@ -97,13 +99,33 @@ pub(super) fn repo_root() -> PathBuf {
 }
 
 /// `rel` is a filename inside the repo top-level `test/` directory (e.g. `exe64win_msgbox.bin`).
-/// Resolves relative to the workspace root so tests work regardless of the CWD.
+/// Resolve relative fixture directories against the workspace, including MWEMU_TEST_DIR.
 pub fn test_data_path(rel: &str) -> String {
+    let dir = std::env::var_os("MWEMU_TEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("test"));
     repo_root()
-        .join("test")
+        .join(dir)
         .join(rel)
         .to_string_lossy()
         .into_owned()
+}
+
+#[cfg(feature = "asset-tests")]
+fn require_asset(path: &Path, group: &str) {
+    if let Err(error) = File::open(path).and_then(|mut file| file.read_exact(&mut [0])) {
+        panic!(
+            "cannot read {}: {error}. Run python scripts/sync_assets.py {group}",
+            path.display()
+        );
+    }
+}
+
+#[cfg(feature = "asset-tests")]
+pub fn required_sample(name: &str) -> String {
+    let path = test_data_path(name);
+    require_asset(Path::new(&path), "test-fixtures");
+    path
 }
 
 /// Maps folder for 32-bit Windows samples (`maps/windows/x86/`).
@@ -118,96 +140,18 @@ pub fn win32_maps_folder() -> String {
     s
 }
 
-/// Populate `emu`'s maps folder with a genuine Windows system32 fetched from
-/// Microsoft's symbol server (the `--winver` mechanism), so the deep `--ssdt`
-/// loader tests run on Linux/macOS without a Windows VM or an ISO.
-///
-/// Returns `false` when the maps can't be obtained — no network, or the non-PE
-/// NLS code-page tables (which aren't on the symbol server) couldn't be seeded
-/// from an existing `--iso` cache. Callers should treat `false` as "skip" so
-/// the suite stays green on offline machines rather than failing spuriously.
-pub fn set_winver_maps(emu: &mut Emu, version: &str) -> bool {
-    if let Err(e) = emu.set_maps_from_winver(version) {
-        eprintln!("skipping: --winver {} unavailable ({})", version, e);
-        return false;
-    }
-    // The loader needs the NLS tables; --winver seeds them from an iso cache if
-    // present. Without them DLL-name lookups produce zeros and the load fails,
-    // so skip rather than report a misleading failure.
-    let nls = std::path::Path::new(&emu.cfg.maps_folder).join("locale.nls");
-    if !nls.is_file() {
-        eprintln!(
-            "skipping: --winver {} has no NLS tables (seed them once from --iso)",
-            version
-        );
-        return false;
-    }
-    true
-}
-
-/// DLLs the 64-bit Windows tests load, fetched by `make symbols`.
-pub const WIN64_TEST_DLLS: &[&str] = &[
-    "ntdll.dll",
-    "kernel32.dll",
-    "kernelbase.dll",
-    "advapi32.dll",
-    "combase.dll",
-    "gdi32.dll",
-    "msvcp_win.dll",
-    "msvcrt.dll",
-    "ole32.dll",
-    "oleaut32.dll",
-    "rpcrt4.dll",
-    "sechost.dll",
-    "shell32.dll",
-    "user32.dll",
-    "version.dll",
-    "win32u.dll",
-    "ws2_32.dll",
-];
-
-/// DLLs the 32-bit Windows tests load, fetched by `make symbols`.
-pub const WIN32_TEST_DLLS: &[&str] = &[
-    "ntdll.dll",
-    "kernel32.dll",
-    "kernelbase.dll",
-    "advapi32.dll",
-    "iphlpapi.dll",
-    "netapi32.dll",
-    "oleaut32.dll",
-    "shell32.dll",
-    "user32.dll",
-    "version.dll",
-    "winhttp.dll",
-    "wininet.dll",
-    "ws2_32.dll",
-];
-
-/// True when `folder` holds every DLL in `dlls`. A partial `make symbols`
-/// (e.g. the symbol server throttled us midway) counts as not ready.
-pub fn win_maps_ready(folder: &str, dlls: &[&str]) -> bool {
-    dlls.iter()
-        .all(|dll| std::path::Path::new(folder).join(dll).is_file())
-}
-
-/// Provision the Windows test DLLs from Microsoft's symbol server. Not a real
-/// test: `make symbols` runs it once so the suite itself stays offline.
-#[test]
-#[ignore = "network: provisions Windows DLLs, run via `make symbols`"]
-fn fetch_windows_test_dlls() {
-    use crate::emu::winver::{MACHINE_AMD64, MACHINE_I386, ensure_dll, resolve_build};
-    let build = resolve_build("win11");
-    let sets = [
-        (win64_maps_folder(), WIN64_TEST_DLLS, MACHINE_AMD64),
-        (win32_maps_folder(), WIN32_TEST_DLLS, MACHINE_I386),
-    ];
-    for (folder, dlls, machine) in sets {
-        for dll in dlls {
-            if let Err(e) = ensure_dll(std::path::Path::new(&folder), &build, dll, machine) {
-                panic!("cannot fetch {} into {}: {}", dll, folder, e);
-            }
-        }
-    }
+/// Use the pinned DLLs and NLS tables required by the Winver regressions.
+#[cfg(feature = "asset-tests")]
+pub fn set_winver_maps(emu: &mut Emu, version: &str) {
+    emu.set_maps_from_winver(version)
+        .expect("prepare the requested Windows version");
+    assert!(
+        std::path::Path::new(&emu.cfg.maps_folder)
+            .join("locale.nls")
+            .is_file(),
+        "missing locale.nls in {}; seed the matching Windows NLS tables",
+        emu.cfg.maps_folder
+    );
 }
 
 /// Maps folder for 64-bit Windows samples (`maps/windows/x86_64/`).
@@ -479,4 +423,31 @@ pub fn call_winapi_export(emu: &mut Emu, library: &str, name: &str, args: &[u64]
         emu.api_policy.last_outcome
     );
     result
+}
+
+#[cfg(feature = "asset-tests")]
+fn fixture_maps(folder: String) -> String {
+    require_asset(&Path::new(&folder).join("ntdll.dll"), "maps");
+    folder
+}
+
+#[cfg(feature = "asset-tests")]
+pub fn system_dlls64() -> String {
+    let folder = std::env::var_os("MWEMU_TEST_SYSTEM32").map(PathBuf::from);
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    let folder = folder.or_else(|| {
+        std::env::var_os("SystemRoot").map(|root| PathBuf::from(root).join("System32"))
+    });
+    let folder = folder.unwrap_or_else(|| PathBuf::from(win64_maps_folder()));
+    fixture_maps(folder.to_string_lossy().into_owned())
+}
+
+#[cfg(feature = "asset-tests")]
+pub fn fixture_maps32() -> String {
+    fixture_maps(win32_maps_folder())
+}
+
+#[cfg(feature = "asset-tests")]
+pub fn fixture_maps64() -> String {
+    fixture_maps(win64_maps_folder())
 }

@@ -7,7 +7,7 @@ Also implement some Windows system simulation, EPB+TEB+LDR, --syscall-mode, and 
 Kernel-mode too: `.ko` drivers are linked against an emulated kernel (stubs for
 every import, a modelled slab allocator) so lifetime bugs — use-after-free,
 double free, slab overflow, leaks — are reported instead of silently working.
-See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
+See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make linux-driver`).
 
 ## Golden Rules
 
@@ -35,7 +35,7 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 12. avoid unwrap, expect, panic, etc
 
-13. if you are on macos Mx don't use "--target x86_64-apple-darwin" unless it have a reason.
+13. Follow the [Apple Silicon test instructions](TEST.md#apple-silicon) when choosing a macOS target.
 
 
 ## Skills
@@ -44,17 +44,17 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 ## Testing
 
-`cargo test` (if there is no test folder `make tests` will download it)
+Run `cargo test --locked` for offline tests. Use `python scripts/sync_assets.py` before the guest fixture suite. See [TEST.md](TEST.md) for group selection.
 
 The kernel-mode tests need the driver artefact, which is built from source
 against the running kernel's headers:
 
 ```bash
-make driver                                    # -> test/linux_uaf_driver.ko
-cargo test -p libmwemu tests::kernel -- --nocapture
+make linux-driver                              # -> test/linux_uaf_driver.ko
+cargo test -p libmwemu --features asset-tests tests::kernel::linux_uaf_tests -- --nocapture
 ```
 
-They skip themselves when it is absent, so CI stays green without kernel headers.
+Selected tests require their fixture. The portable suite uses the Linux module from the release bundle.
 
 Testing in release mode could mask errors.
 
@@ -87,42 +87,6 @@ for non-syscall mode:
 3. -vv --> also assembly
 4. -vvv --> also rep iterations
 
-
-## Building & Testing on Apple Silicon
-
-**This is critical.** On Apple Silicon (arm64) hosts, always build and test targeting `x86_64-apple-darwin`:
-
-```bash
-cargo check --target x86_64-apple-darwin
-cargo test --target x86_64-apple-darwin
-cargo build --target x86_64-apple-darwin
-```
-
-The test suite used to produce worse results when the aarch64 host natively
-compiled and ran the x86_64 emulation code. Root cause (found 2026-10-28): the
-SSE/AVX float handlers fed the raw operands to the *host* FPU, and hosts
-disagree on the NaN they generate for an invalid operation (x86 returns the
-negative "real indefinite" `0xffc00000`, AArch64 the positive default NaN
-`0x7fc00000`). Those handlers now implement the x86 NaN rules themselves
-(`engine/instructions/fp.rs`) and the full suite passes natively on Apple
-Silicon. Keep the `--target x86_64-apple-darwin` habit anyway: it is what the
-Makefile and CI assume, and any float path that still goes through the host
-FPU (FMA, `cvt*`, `round*`, x87) is only guaranteed to match the silicon
-under Rosetta. If a test passes under Rosetta and fails natively, that is the
-first place to look.
-
-**Never run bare `cargo test` or `cargo check` on an Apple Silicon host** without the `--target x86_64-apple-darwin` flag.
-
-`pymwemu` additionally needs Python >= 3.10 at build time (`pyo3-stub-gen`),
-and macOS ships 3.9 as `python3`. Its build script stops with a message naming
-the interpreter pyo3 found; fix it with `PYO3_PYTHON=$(brew --prefix)/bin/python3.14`
-or `make -C crates/pymwemu setup-env`, which picks the newest `python3.x` on
-PATH for the venv.
-
-Ensure the target is installed:
-```bash
-rustup target add x86_64-apple-darwin
-```
 
 ## Project Structure
 

@@ -74,3 +74,5 @@ scripts/rosetta-difftest/__pycache__/
 
 # maturin develop drops the extension next to the package
 crates/pymwemu/python/pymwemu/*.so
+crates/pymwemu/python/pymwemu/*.pyd
+crates/pymwemu/python/pymwemu/*.pdb

@@ -2,12 +2,20 @@ use crate::api::abi::windows::{
     ArgumentError, CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi,
 };
 use crate::emu::Emu;
+use crate::emu::object_handle::NativeObject;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::{memory, nt_api, process, threads};
 use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::process::*;
+use crate::windows::constants::security::{
+    GENERIC_ALL, GENERIC_EXECUTE, GENERIC_WRITE, MAXIMUM_ALLOWED, SYNCHRONIZE,
+};
+use crate::windows::constants::system::{
+    TIMER_MODIFY_STATE, TIMER2_ATTRIBUTE_IR_TIMER, TIMER2_ATTRIBUTE_KNOWN_MASK,
+    TIMER2_ATTRIBUTE_NOTIFICATION,
+};
 use serde::{Deserialize, Serialize};
 
 const MAXIMUM_WAIT_OBJECTS: usize = 64;
@@ -24,24 +32,47 @@ pub(crate) struct WaitObject {
 
 #[derive(Clone, Serialize, Deserialize)]
 enum State {
-    Event {
-        manual: bool,
-        signaled: bool,
-    },
-    Mutex {
-        owner: Option<u64>,
-        depth: u32,
-    },
-    Semaphore {
-        count: i32,
-        limit: i32,
-    },
-    Timer {
-        manual: bool,
-        signaled: bool,
-        deadline: Option<u64>,
-        period: u32,
-    },
+    Event { manual: bool, signaled: bool },
+    Mutex { owner: Option<u64>, depth: u32 },
+    Semaphore { count: i32, limit: i32 },
+    Timer(Timer),
+    Timer2(Timer),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct Timer {
+    manual: bool,
+    signaled: bool,
+    deadline: Option<u64>,
+    period: u32,
+}
+
+impl Timer {
+    fn new(manual: bool) -> Self {
+        Self {
+            manual,
+            signaled: false,
+            deadline: None,
+            period: 0,
+        }
+    }
+
+    fn arm_relative(&mut self, now: u64, due: i64, period: u32) {
+        self.deadline = Some(now.saturating_add(due.unsigned_abs().div_ceil(HUNDRED_NS_PER_MS)));
+        self.period = period;
+        self.signaled = false;
+    }
+}
+
+impl WaitObject {
+    pub(crate) fn set_event(&mut self, value: bool) -> bool {
+        if let State::Event { signaled, .. } = &mut self.state {
+            *signaled = value;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl State {
@@ -50,24 +81,19 @@ impl State {
             Self::Event { signaled, .. } => *signaled,
             Self::Mutex { owner, .. } => owner.is_none_or(|id| id == tid),
             Self::Semaphore { count, .. } => *count > 0,
-            Self::Timer {
-                signaled,
-                deadline,
-                period,
-                ..
-            } => {
-                if let Some(due) = *deadline
+            Self::Timer(timer) | Self::Timer2(timer) => {
+                if let Some(due) = timer.deadline
                     && due <= now
                 {
-                    *signaled = true;
-                    *deadline = if *period == 0 {
+                    timer.signaled = true;
+                    timer.deadline = if timer.period == 0 {
                         None
                     } else {
-                        let step = u64::from(*period);
+                        let step = timer.period as u64;
                         now.checked_add(step - (now - due) % step)
                     };
                 }
-                *signaled
+                timer.signaled
             }
         }
     }
@@ -77,12 +103,8 @@ impl State {
             Self::Event {
                 manual: false,
                 signaled,
-            }
-            | Self::Timer {
-                manual: false,
-                signaled,
-                ..
             } => *signaled = false,
+            Self::Timer(timer) | Self::Timer2(timer) if !timer.manual => timer.signaled = false,
             Self::Mutex { owner, depth } => {
                 *owner = Some(tid);
                 *depth = depth.saturating_add(1);
@@ -99,6 +121,7 @@ enum Kind {
     Mutex,
     Semaphore,
     Timer,
+    Timer2,
 }
 impl State {
     fn kind(&self) -> Kind {
@@ -106,7 +129,8 @@ impl State {
             Self::Event { .. } => Kind::Event,
             Self::Mutex { .. } => Kind::Mutex,
             Self::Semaphore { .. } => Kind::Semaphore,
-            Self::Timer { .. } => Kind::Timer,
+            Self::Timer(_) => Kind::Timer,
+            Self::Timer2(_) => Kind::Timer2,
         }
     }
 }
@@ -129,6 +153,8 @@ fn object(
     name: Option<Vec<u16>>,
     kind: Kind,
     initial: Option<State>,
+    access: u32,
+    attributes: u32,
 ) -> Result<(u64, bool), u64> {
     let existing = name
         .as_ref()
@@ -148,7 +174,10 @@ fn object(
             .create_waitable(WaitObject { name, state })
             .ok_or(ERROR_NOT_ENOUGH_MEMORY)?
     };
-    Ok((emu.handle_management.open_waitable(id), existing.is_some()))
+    Ok((
+        emu.handle_management.open_waitable(id, access, attributes),
+        existing.is_some(),
+    ))
 }
 
 fn open_or_create(emu: &mut Emu, api: &str, kind: Kind, create: bool, ex: bool) {
@@ -157,17 +186,34 @@ fn open_or_create(emu: &mut Emu, api: &str, kind: Kind, create: bool, ex: bool) 
         (2, 3)
     } else {
         match kind {
-            Kind::Event | Kind::Mutex | Kind::Timer if ex => (1, 4),
+            Kind::Event | Kind::Mutex | Kind::Timer | Kind::Timer2 if ex => (1, 4),
             Kind::Event => (3, 4),
-            Kind::Mutex | Kind::Timer => (2, 3),
+            Kind::Mutex | Kind::Timer | Kind::Timer2 => (2, 3),
             Kind::Semaphore => (3, if ex { 6 } else { 4 }),
         }
     };
     let args = api_try!(emu, arguments(call, emu, slots));
-    if create && args[0] != 0 {
-        policy::unsupported(emu, "kernel32", api, emu.pc());
-        return;
-    }
+    let inherit = if !create {
+        args[1] as u32 != 0
+    } else if args[0] == 0 {
+        false
+    } else {
+        let sa = args[0];
+        let width = memory::pointer_size(emu);
+        if !emu
+            .maps
+            .can_access_range(sa, (3 * width) as usize, Permission::READ)
+        {
+            return return_win(emu, slots, Err(ERROR_NOACCESS), 0);
+        }
+        if emu.maps.read_dword(sa) != Some((3 * width) as u32) {
+            return return_win(emu, slots, Err(ERROR_INVALID_PARAMETER), 0);
+        }
+        if memory::read_pointer(emu, sa + width) != Some(0) {
+            return policy::unsupported(emu, "kernel32", api, emu.pc());
+        }
+        emu.maps.read_dword(sa + 2 * width) != Some(0)
+    };
     let name = if args[name_index] == 0 {
         None
     } else {
@@ -217,26 +263,30 @@ fn open_or_create(emu: &mut Emu, api: &str, kind: Kind, create: bool, ex: bool) 
                 }
                 State::Semaphore { count, limit }
             }
-            Kind::Timer => {
+            Kind::Timer | Kind::Timer2 => {
                 if ex && flags & !MANUAL_RESET != 0 {
                     policy::unsupported(emu, "kernel32", api, emu.pc());
                     return;
                 }
-                State::Timer {
-                    manual: if ex {
-                        flags & MANUAL_RESET != 0
-                    } else {
-                        args[1] as u32 != 0
-                    },
-                    deadline: None,
-                    period: 0,
-                    signaled: false,
-                }
+                let manual = if ex {
+                    flags & MANUAL_RESET != 0
+                } else {
+                    args[1] as u32 != 0
+                };
+                State::Timer(Timer::new(manual))
             }
         };
         Some(state)
     };
-    let result = object(emu, name, kind, initial).map(|(h, exists)| {
+    let access = if !create {
+        args[0] as u32
+    } else if ex {
+        args[slots - 1] as u32
+    } else {
+        u32::MAX
+    };
+    let attributes = if inherit { OBJ_INHERIT } else { 0 };
+    let result = object(emu, name, kind, initial, access, attributes).map(|(h, exists)| {
         if create {
             emu.set_last_error(if exists {
                 ERROR_ALREADY_EXISTS
@@ -261,11 +311,24 @@ fn mutable_state(emu: &mut Emu, handle: u64) -> Result<&mut State, u64> {
         .state)
 }
 
+fn can_modify_timer(access: u32) -> bool {
+    access & (TIMER_MODIFY_STATE | GENERIC_WRITE | GENERIC_ALL | MAXIMUM_ALLOWED) != 0
+}
+
+fn lacks_timer_access(emu: &Emu, handle: u64) -> bool {
+    emu.handle_management
+        .waitable_handle(handle)
+        .is_some_and(|(_, access)| !can_modify_timer(access))
+}
+
 fn change(emu: &mut Emu, api: &str, handle: u64, amount: i32, previous: u64) -> Result<(), u64> {
     if previous != 0 && !emu.maps.validate_write_range(previous, 4) {
         return Err(ERROR_NOACCESS);
     }
     let tid = emu.current_thread().id;
+    if api == "CancelWaitableTimer" && lacks_timer_access(emu, handle) {
+        return Err(ERROR_ACCESS_DENIED);
+    }
     let old = match (api, mutable_state(emu, handle)?) {
         ("SetEvent" | "ResetEvent", State::Event { signaled, .. }) => {
             let old = i32::from(*signaled);
@@ -294,8 +357,8 @@ fn change(emu: &mut Emu, api: &str, handle: u64, amount: i32, previous: u64) -> 
                 .ok_or(ERROR_TOO_MANY_POSTS)?;
             old
         }
-        ("CancelWaitableTimer", State::Timer { deadline, .. }) => {
-            *deadline = None;
+        ("CancelWaitableTimer", State::Timer(timer) | State::Timer2(timer)) => {
+            timer.deadline = None;
             0
         }
         _ => return Err(ERROR_INVALID_HANDLE),
@@ -320,17 +383,13 @@ fn set_timer(emu: &mut Emu, api: &str, extended: bool) {
         policy::unsupported(emu, "kernel32", api, emu.pc());
         return;
     }
-    let time = (emu.tick as u64).saturating_add(due.unsigned_abs().div_ceil(HUNDRED_NS_PER_MS));
+    if lacks_timer_access(emu, args[0]) {
+        return return_win(emu, slots, Err(ERROR_ACCESS_DENIED), 0);
+    }
+    let now = emu.tick as u64;
     let result = match mutable_state(emu, args[0]) {
-        Ok(State::Timer {
-            deadline,
-            period: interval,
-            signaled,
-            ..
-        }) => {
-            *deadline = Some(time);
-            *interval = period as u32;
-            *signaled = false;
+        Ok(State::Timer(timer) | State::Timer2(timer)) => {
+            timer.arm_relative(now, due, period as u32);
             Ok(1)
         }
         _ => Err(ERROR_INVALID_HANDLE),
@@ -352,7 +411,10 @@ fn wait(emu: &mut Emu, handles: &[u64], all: bool, timeout: Option<u64>) -> Resu
     let tid = emu.current_thread().id;
     let mut targets = Vec::with_capacity(handles.len());
     for &handle in handles {
-        let target = if let Some(id) = emu.handle_management.waitable_id(handle) {
+        let target = if let Some((id, access)) = emu.handle_management.waitable_handle(handle) {
+            if access & (SYNCHRONIZE | GENERIC_EXECUTE | GENERIC_ALL | MAXIMUM_ALLOWED) == 0 {
+                return Err(WaitError::Win(ERROR_ACCESS_DENIED));
+            }
             Target::Object(id)
         } else if let Some(index) = threads::thread_index(emu, handle) {
             Target::Thread(index)
@@ -390,12 +452,10 @@ fn wait(emu: &mut Emu, handles: &[u64], all: bool, timeout: Option<u64>) -> Resu
                         .state;
                     let ready = state.ready(tid, now);
                     if !ready
-                        && let State::Timer {
-                            deadline: Some(due),
-                            ..
-                        } = state
+                        && let State::Timer(timer) | State::Timer2(timer) = state
+                        && let Some(due) = timer.deadline
                     {
-                        next = Some(next.map_or(*due, |v| v.min(*due)));
+                        next = Some(next.map_or(due, |v| v.min(due)));
                     }
                     ready
                 }
@@ -505,7 +565,7 @@ pub fn WSACreateEvent(emu: &mut Emu) {
         manual: true,
         signaled: false,
     };
-    let value = object(emu, None, Kind::Event, Some(state)).map(|(handle, _)| handle);
+    let value = object(emu, None, Kind::Event, Some(state), u32::MAX, 0).map(|(handle, _)| handle);
     log_red!(emu, "ws2_32!WSACreateEvent");
     return_win(emu, 0, value, 0);
 }
@@ -595,10 +655,28 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     true
 }
 
+fn timer2_manual_reset(timer_id: u64, flags: u32) -> Result<bool, u64> {
+    if flags & !TIMER2_ATTRIBUTE_KNOWN_MASK != 0 {
+        return Err(STATUS_INVALID_PARAMETER_4);
+    }
+    if flags & TIMER2_ATTRIBUTE_IR_TIMER != 0 {
+        return Err(if timer_id == 0 {
+            STATUS_INVALID_PARAMETER
+        } else {
+            STATUS_NOT_IMPLEMENTED
+        });
+    }
+    if timer_id != 0 {
+        return Err(STATUS_INVALID_PARAMETER_2);
+    }
+    Ok(flags & TIMER2_ATTRIBUTE_NOTIFICATION != 0)
+}
+
 fn nt_object(emu: &mut Emu, api: &str, kind: Kind, create: bool, call: WindowsAbi) {
+    let timer2 = kind == Kind::Timer2;
     let slots = if !create {
         3
-    } else if matches!(kind, Kind::Event | Kind::Semaphore) {
+    } else if timer2 || matches!(kind, Kind::Event | Kind::Semaphore) {
         5
     } else {
         4
@@ -672,17 +750,17 @@ fn nt_object(emu: &mut Emu, api: &str, kind: Kind, create: bool, call: WindowsAb
             None
         } else {
             Some(match kind {
-                Kind::Event | Kind::Timer if args[3] > 1 => return Err(STATUS_INVALID_PARAMETER),
+                Kind::Event | Kind::Timer if !timer2 && args[3] as u32 > 1 => {
+                    return Err(STATUS_INVALID_PARAMETER);
+                }
                 Kind::Event => State::Event {
                     manual: args[3] == 0,
                     signaled: args[4] as u8 != 0,
                 },
-                Kind::Timer => State::Timer {
-                    manual: args[3] == 0,
-                    signaled: false,
-                    deadline: None,
-                    period: 0,
-                },
+                Kind::Timer => State::Timer(Timer::new(args[3] as u32 == 0)),
+                Kind::Timer2 => {
+                    State::Timer2(Timer::new(timer2_manual_reset(args[1], args[3] as u32)?))
+                }
                 Kind::Mutex => {
                     let owned = args[3] as u8 != 0;
                     State::Mutex {
@@ -702,22 +780,30 @@ fn nt_object(emu: &mut Emu, api: &str, kind: Kind, create: bool, call: WindowsAb
         let existed = name
             .as_ref()
             .is_some_and(|n| emu.handle_management.named_waitable(n).is_some());
-        const OBJ_OPENIF: u32 = 0x80;
-        if create
-            && existed
-            && attrs != 0
-            && emu
-                .maps
+        let attributes = if attrs == 0 {
+            0
+        } else {
+            emu.maps
                 .read_dword(attrs + 3 * width)
-                .is_some_and(|flags| flags & OBJ_OPENIF == 0)
-        {
+                .ok_or(STATUS_ACCESS_VIOLATION)?
+        };
+        if attributes & !(OBJ_INHERIT | OBJ_OPENIF | OBJ_CASE_INSENSITIVE) != 0 {
+            return Err(STATUS_NOT_IMPLEMENTED);
+        }
+        if create && existed && attrs != 0 && attributes & OBJ_OPENIF == 0 {
             return Err(STATUS_OBJECT_NAME_COLLISION);
         }
-        let (handle, already) = object(emu, name, kind, initial).map_err(|e| match e {
-            ERROR_FILE_NOT_FOUND => STATUS_OBJECT_NAME_NOT_FOUND,
-            ERROR_INVALID_HANDLE => STATUS_OBJECT_TYPE_MISMATCH,
-            _ => STATUS_NO_MEMORY,
-        })?;
+        let access = if timer2 {
+            args[4] as u32
+        } else {
+            args[1] as u32
+        };
+        let (handle, already) = object(emu, name, kind, initial, access, attributes & OBJ_INHERIT)
+            .map_err(|e| match e {
+                ERROR_FILE_NOT_FOUND => STATUS_OBJECT_NAME_NOT_FOUND,
+                ERROR_INVALID_HANDLE => STATUS_OBJECT_TYPE_MISMATCH,
+                _ => STATUS_NO_MEMORY,
+            })?;
         memory::write_pointer(emu, output, handle);
         Ok(if create && already {
             STATUS_OBJECT_NAME_EXISTS
@@ -732,6 +818,78 @@ fn nt_object(emu: &mut Emu, api: &str, kind: Kind, create: bool, call: WindowsAb
     }
     call.set_return(emu, status);
     call.cleanup_args(emu, slots);
+}
+
+fn set_timer2(emu: &mut Emu, api: &str, call: WindowsAbi) {
+    let [handle, due_time, period, parameters] = api_try!(emu, call.args(emu));
+    let result = (|| {
+        if due_time == 0 {
+            return Err(STATUS_INVALID_PARAMETER_2);
+        }
+        let due = emu
+            .maps
+            .read_qword(due_time)
+            .ok_or(STATUS_ACCESS_VIOLATION)? as i64;
+        if parameters != 0 {
+            // T2_SET_PARAMETERS_V0 contains Version, Reserved, and signed NoWakeTolerance.
+            if !emu.maps.can_access_range(parameters, 16, Permission::READ) {
+                return Err(STATUS_ACCESS_VIOLATION);
+            }
+            let version = emu
+                .maps
+                .read_dword(parameters)
+                .ok_or(STATUS_ACCESS_VIOLATION)?;
+            let tolerance = emu
+                .maps
+                .read_qword(parameters + 8)
+                .ok_or(STATUS_ACCESS_VIOLATION)? as i64;
+            if version != 0 || tolerance < -1 {
+                return Err(STATUS_INVALID_PARAMETER_3);
+            }
+        }
+        let interval = if period == 0 {
+            0
+        } else {
+            emu.maps.read_qword(period).ok_or(STATUS_ACCESS_VIOLATION)?
+        };
+        if due > 0 || interval != 0 {
+            return Err(STATUS_NOT_IMPLEMENTED);
+        }
+        let (id, access) = emu
+            .handle_management
+            .waitable_handle(handle)
+            .ok_or_else(|| {
+                if emu.handle_management.contains_handle(handle) {
+                    STATUS_OBJECT_TYPE_MISMATCH
+                } else {
+                    STATUS_INVALID_HANDLE
+                }
+            })?;
+        let now = emu.tick as u64;
+        let Some(WaitObject {
+            state: State::Timer2(timer),
+            ..
+        }) = emu.handle_management.waitable(id)
+        else {
+            return Err(STATUS_OBJECT_TYPE_MISMATCH);
+        };
+        if !can_modify_timer(access) {
+            return Err(STATUS_ACCESS_DENIED);
+        }
+        // Guest time advances while the CPU is awake, so the earliest permitted expiry is valid.
+        timer.arm_relative(now, due, 0);
+        Ok(())
+    })();
+    if result == Err(STATUS_NOT_IMPLEMENTED) {
+        return policy::unsupported_with_abi(emu, "ntdll", api, emu.pc(), call);
+    }
+    let status = result.err().unwrap_or(STATUS_SUCCESS);
+    log_red!(
+        emu,
+        "ntdll!{api} timer={handle:#x} due_time={due_time:#x} period={period:#x} parameters={parameters:#x} => {status:#x}"
+    );
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 4);
 }
 
 fn nt_operation(emu: &mut Emu, api: &str, op: &str, call: WindowsAbi) {
@@ -796,6 +954,7 @@ fn nt_operation(emu: &mut Emu, api: &str, op: &str, call: WindowsAbi) {
             return;
         }
         Err(WaitError::Win(error)) => match error {
+            ERROR_ACCESS_DENIED => STATUS_ACCESS_DENIED,
             ERROR_NOACCESS => STATUS_ACCESS_VIOLATION,
             ERROR_NOT_OWNER => STATUS_MUTANT_NOT_OWNED,
             ERROR_TOO_MANY_POSTS => STATUS_SEMAPHORE_LIMIT_EXCEEDED,
@@ -807,18 +966,112 @@ fn nt_operation(emu: &mut Emu, api: &str, op: &str, call: WindowsAbi) {
     call.cleanup_args(emu, slots);
 }
 
+fn create_completion_stub(
+    emu: &mut Emu,
+    call: WindowsAbi,
+    api: &str,
+    object: NativeObject,
+    slots: usize,
+) {
+    let output = api_try!(emu, call.arg(emu, 0));
+    let attributes = api_try!(emu, call.arg(emu, 2));
+    if attributes != 0 {
+        return policy::unsupported_with_abi(emu, "ntdll", api, emu.pc(), call);
+    }
+    let status = if memory::writable_pointer(emu, output) {
+        let handle = emu.handle_management.insert_native_object(object);
+        memory::write_pointer(emu, output, handle);
+        STATUS_SUCCESS
+    } else {
+        STATUS_ACCESS_VIOLATION
+    };
+    log_red!(emu, "ntdll!{api} (stub) output={output:#x} => {status:#x}");
+    call.set_return(emu, status);
+    call.cleanup_args(emu, slots);
+}
+
+// Bootstrap creates these associations without consuming completion records.
+fn associate_wait_completion_stub(emu: &mut Emu, call: WindowsAbi, api: &str) {
+    let [
+        packet,
+        port,
+        target,
+        _key,
+        _context,
+        _io_status,
+        _information,
+        already_signaled,
+    ] = api_try!(emu, call.args(emu));
+    let tid = emu.current_thread().id;
+    let now = emu.tick as u64;
+    let status = if emu.handle_management.native_object(packet)
+        != Some(NativeObject::WaitCompletionPacket)
+        || emu.handle_management.native_object(port) != Some(NativeObject::IoCompletion)
+    {
+        STATUS_INVALID_HANDLE
+    } else if already_signaled != 0 && !emu.maps.validate_write_range(already_signaled, 1) {
+        STATUS_ACCESS_VIOLATION
+    } else {
+        match mutable_state(emu, target) {
+            Ok(state) => {
+                let ready = state.ready(tid, now);
+                if already_signaled != 0 {
+                    emu.maps.write_byte(already_signaled, ready as u8);
+                }
+                STATUS_SUCCESS
+            }
+            Err(_) => STATUS_INVALID_HANDLE,
+        }
+    };
+    log_red!(
+        emu,
+        "ntdll!{api} (stub) packet={packet:#x} port={port:#x} target={target:#x} => {status:#x}"
+    );
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 8);
+}
+
+pub(crate) fn is_notification_event(emu: &mut Emu, handle: u64) -> bool {
+    matches!(mutable_state(emu, handle), Ok(State::Event { .. }))
+}
+
+fn register_wnf_event_stub(emu: &mut Emu, call: WindowsAbi, api: &str) {
+    let event = api_try!(emu, call.arg(emu, 0));
+    let status = match mutable_state(emu, event) {
+        Ok(State::Event { .. }) => STATUS_SUCCESS,
+        Ok(_) => STATUS_OBJECT_TYPE_MISMATCH,
+        Err(_) => STATUS_INVALID_HANDLE,
+    };
+    log_red!(emu, "ntdll!{api} (stub) event={event:#x} => {status:#x}");
+    call.set_return(emu, status);
+    call.cleanup_args(emu, 1);
+}
+
 pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     let normalized = nt_api::normalize(api);
     let name = normalized.as_ref();
-    if name == "NtCreateTimer2" {
-        policy::unsupported_with_abi(emu, "ntdll", api, emu.pc(), call);
-        return true;
+    match name {
+        "NtCreateIoCompletion" => {
+            create_completion_stub(emu, call, api, NativeObject::IoCompletion, 4)
+        }
+        "NtCreateWaitCompletionPacket" => {
+            create_completion_stub(emu, call, api, NativeObject::WaitCompletionPacket, 3)
+        }
+        "NtSetTimer2" => set_timer2(emu, api, call),
+        "NtAssociateWaitCompletionPacket" => associate_wait_completion_stub(emu, call, api),
+        "NtSetWnfProcessNotificationEvent" => register_wnf_event_stub(emu, call, api),
+        _ => return dispatch_wait(emu, call, api, name),
     }
+    true
+}
+
+fn dispatch_wait(emu: &mut Emu, call: WindowsAbi, api: &str, name: &str) -> bool {
     let native = match name {
         "NtCreateEvent" | "NtOpenEvent" => Some(Kind::Event),
         "NtCreateMutant" | "NtOpenMutant" => Some(Kind::Mutex),
         "NtCreateSemaphore" | "NtOpenSemaphore" => Some(Kind::Semaphore),
         "NtCreateTimer" | "NtOpenTimer" => Some(Kind::Timer),
+        "NtCreateTimer2" => Some(Kind::Timer2),
         _ => None,
     };
     if let Some(kind) = native {

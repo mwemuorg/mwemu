@@ -9,7 +9,7 @@ pub fn exe64win_msgbox() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = win_maps!(64);
+    emu.cfg.maps_folder = helpers::fixture_maps64();
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

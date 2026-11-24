@@ -383,7 +383,14 @@ impl Emu {
             .map_err(|error| {
                 MwemuError::new(&format!("cannot map PE64 image '{filename}': {error}"))
             })?;
-        image.apply_relocations(&raw, self, base);
+        // LdrInitializeThunk applies the EXE's relocation directory when it starts the process.
+        let guest_relocates = role == ImageRole::Main
+            && !image.is_dll()
+            && self.cfg.emulate_winapi
+            && self.resolve_ntdll_export("LdrInitializeThunk") != 0;
+        if !guest_relocates {
+            image.apply_relocations(&raw, self, base);
+        }
         self.register_pe_exports(
             &map_name,
             base,
