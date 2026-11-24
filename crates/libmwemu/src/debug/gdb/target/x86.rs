@@ -9,6 +9,8 @@ use gdbstub::target::ext::base::singlethread::{
 };
 use gdbstub::target::ext::exec_file::{ExecFile, ExecFileOps};
 use gdbstub::target::ext::libraries::{Libraries, LibrariesOps};
+use gdbstub::target::ext::memory_map::{MemoryMap, MemoryMapOps};
+use gdbstub::target::ext::monitor_cmd::{ConsoleOutput, MonitorCmd, MonitorCmdOps};
 use gdbstub::target::ext::target_description_xml_override::{
     TargetDescriptionXmlOverride, TargetDescriptionXmlOverrideOps,
 };
@@ -22,7 +24,10 @@ use crate::emu::Emu;
 use crate::debug::gdb::target_xml;
 
 use super::MwemuGdbError;
-use super::shared::{copy_range, generate_library_list_xml, read_memory, write_memory};
+use super::shared::{
+    copy_range, generate_library_list_xml, generate_memory_map_xml, monitor_command, read_memory,
+    write_memory,
+};
 
 /// GDB target wrapper for 32-bit emulation
 pub struct MwemuTarget32<'a> {
@@ -59,6 +64,14 @@ impl Target for MwemuTarget32<'_> {
     fn support_target_description_xml_override(
         &mut self,
     ) -> Option<TargetDescriptionXmlOverrideOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_monitor_cmd(&mut self) -> Option<MonitorCmdOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_memory_map(&mut self) -> Option<MemoryMapOps<'_, Self>> {
         Some(self)
     }
 
@@ -120,7 +133,6 @@ impl SingleThreadResume for MwemuTarget32<'_> {
 impl SingleThreadSingleStep for MwemuTarget32<'_> {
     fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         self.single_step = true;
-        self.emu.step();
         Ok(())
     }
 }
@@ -232,5 +244,28 @@ impl ExecFile for MwemuTarget32<'_> {
             length,
             buf,
         ))
+    }
+}
+
+impl MemoryMap for MwemuTarget32<'_> {
+    fn memory_map_xml(
+        &self,
+        offset: u64,
+        length: usize,
+        buf: &mut [u8],
+    ) -> TargetResult<usize, Self> {
+        let xml = generate_memory_map_xml(&self.emu.maps);
+        Ok(copy_range(xml.as_bytes(), offset, length, buf))
+    }
+}
+
+impl MonitorCmd for MwemuTarget32<'_> {
+    fn handle_monitor_cmd(
+        &mut self,
+        cmd: &[u8],
+        out: ConsoleOutput<'_>,
+    ) -> Result<(), Self::Error> {
+        monitor_command(self.emu, cmd, out);
+        Ok(())
     }
 }

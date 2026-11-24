@@ -10,7 +10,7 @@ mod target_xml;
 #[cfg(test)]
 mod tests;
 
-use std::io::{self, Read as IoRead, Write as IoWrite};
+use std::io;
 use std::marker::PhantomData;
 use std::net::{TcpListener, TcpStream};
 
@@ -91,11 +91,9 @@ impl GdbServer {
 }
 
 fn run_64bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
-    let conn: Box<dyn ConnectionExt<Error = io::Error>> = Box::new(GdbConnection::new(stream));
-
     let mut target = MwemuTarget64::new(emu);
 
-    let gdb = GdbStub::new(conn);
+    let gdb = GdbStub::new(stream);
 
     match gdb.run_blocking::<MwemuEventLoop64<'_>>(&mut target) {
         Ok(disconnect_reason) => {
@@ -120,11 +118,9 @@ fn run_64bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
 }
 
 fn run_aarch64(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
-    let conn: Box<dyn ConnectionExt<Error = io::Error>> = Box::new(GdbConnection::new(stream));
-
     let mut target = MwemuTargetAarch64::new(emu);
 
-    let gdb = GdbStub::new(conn);
+    let gdb = GdbStub::new(stream);
 
     match gdb.run_blocking::<MwemuEventLoopAarch64<'_>>(&mut target) {
         Ok(disconnect_reason) => {
@@ -149,11 +145,9 @@ fn run_aarch64(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
 }
 
 fn run_32bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
-    let conn: Box<dyn ConnectionExt<Error = io::Error>> = Box::new(GdbConnection::new(stream));
-
     let mut target = MwemuTarget32::new(emu);
 
-    let gdb = GdbStub::new(conn);
+    let gdb = GdbStub::new(stream);
 
     match gdb.run_blocking::<MwemuEventLoop32<'_>>(&mut target) {
         Ok(disconnect_reason) => {
@@ -177,81 +171,14 @@ fn run_32bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
     }
 }
 
-/// Wrapper around TcpStream that implements ConnectionExt
-struct GdbConnection {
-    stream: TcpStream,
-    peeked_byte: Option<u8>,
-}
-
-impl GdbConnection {
-    fn new(stream: TcpStream) -> Self {
-        Self {
-            stream,
-            peeked_byte: None,
-        }
-    }
-}
-
-impl gdbstub::conn::Connection for GdbConnection {
-    type Error = io::Error;
-
-    fn write(&mut self, byte: u8) -> Result<(), Self::Error> {
-        IoWrite::write_all(&mut self.stream, &[byte])
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
-        IoWrite::write_all(&mut self.stream, buf)
-    }
-
-    fn flush(&mut self) -> Result<(), Self::Error> {
-        IoWrite::flush(&mut self.stream)
-    }
-
-    fn on_session_start(&mut self) -> Result<(), Self::Error> {
-        // Set to blocking mode for session
-        self.stream.set_nonblocking(false)?;
-        Ok(())
-    }
-}
-
-impl ConnectionExt for GdbConnection {
-    fn read(&mut self) -> Result<u8, Self::Error> {
-        if let Some(byte) = self.peeked_byte.take() {
-            return Ok(byte);
-        }
-        let mut buf = [0u8; 1];
-        IoRead::read_exact(&mut self.stream, &mut buf)?;
-        Ok(buf[0])
-    }
-
-    fn peek(&mut self) -> Result<Option<u8>, Self::Error> {
-        if self.peeked_byte.is_some() {
-            return Ok(self.peeked_byte);
-        }
-
-        // Try non-blocking read
-        self.stream.set_nonblocking(true)?;
-        let mut buf = [0u8; 1];
-        let result: io::Result<usize> = IoRead::read(&mut self.stream, &mut buf);
-        match result {
-            Ok(1) => {
-                self.peeked_byte = Some(buf[0]);
-                self.stream.set_nonblocking(false)?;
-                Ok(Some(buf[0]))
-            }
-            Ok(_) => {
-                self.stream.set_nonblocking(false)?;
-                Ok(None)
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.stream.set_nonblocking(false)?;
-                Ok(None)
-            }
-            Err(e) => {
-                let _ = self.stream.set_nonblocking(false);
-                Err(e)
-            }
-        }
+fn poll_incoming(conn: &mut TcpStream) -> io::Result<Option<u8>> {
+    let pending = ConnectionExt::peek(conn);
+    // gdbstub's TCP peek leaves the stream nonblocking, including for stop replies.
+    conn.set_nonblocking(false)?;
+    if pending?.is_some() {
+        conn.read().map(Some)
+    } else {
+        Ok(None)
     }
 }
 
@@ -260,7 +187,7 @@ struct MwemuEventLoop64<'a>(PhantomData<&'a mut Emu>);
 
 impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
     type Target = MwemuTarget64<'a>;
-    type Connection = Box<dyn ConnectionExt<Error = io::Error>>;
+    type Connection = TcpStream;
     type StopReason = SingleThreadStopReason<u64>;
 
     fn wait_for_stop_reason(
@@ -274,20 +201,8 @@ impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
         >,
     > {
         loop {
-            // Check for interrupt from GDB (Ctrl+C)
-            match conn.peek() {
-                Ok(Some(0x03)) => {
-                    // Consume the byte
-                    let _ = conn.read();
-                    return Ok(Event::TargetStopped(SingleThreadStopReason::Signal(
-                        Signal::SIGINT,
-                    )));
-                }
-                Ok(Some(byte)) => {
-                    return Ok(Event::IncomingData(byte));
-                }
-                Ok(None) => {}
-                Err(e) => return Err(WaitForStopReasonError::Connection(e)),
+            if let Some(byte) = poll_incoming(conn).map_err(WaitForStopReasonError::Connection)? {
+                return Ok(Event::IncomingData(byte));
             }
 
             // Check if we hit a breakpoint before executing
@@ -296,13 +211,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 // Emulation ended
@@ -333,6 +242,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
                         addr: mem_op.address,
                     }));
                 }
+            }
+
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
             }
 
             // Check for breakpoint after step
@@ -355,7 +268,7 @@ struct MwemuEventLoopAarch64<'a>(PhantomData<&'a mut Emu>);
 
 impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
     type Target = MwemuTargetAarch64<'a>;
-    type Connection = Box<dyn ConnectionExt<Error = io::Error>>;
+    type Connection = TcpStream;
     type StopReason = SingleThreadStopReason<u64>;
 
     fn wait_for_stop_reason(
@@ -369,19 +282,8 @@ impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
         >,
     > {
         loop {
-            // Check for interrupt from GDB (Ctrl+C)
-            match conn.peek() {
-                Ok(Some(0x03)) => {
-                    let _ = conn.read();
-                    return Ok(Event::TargetStopped(SingleThreadStopReason::Signal(
-                        Signal::SIGINT,
-                    )));
-                }
-                Ok(Some(byte)) => {
-                    return Ok(Event::IncomingData(byte));
-                }
-                Ok(None) => {}
-                Err(e) => return Err(WaitForStopReasonError::Connection(e)),
+            if let Some(byte) = poll_incoming(conn).map_err(WaitForStopReasonError::Connection)? {
+                return Ok(Event::IncomingData(byte));
             }
 
             // Check if we hit a breakpoint before executing
@@ -390,13 +292,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::Terminated(
@@ -428,6 +324,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
                 }
             }
 
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
+            }
+
             // Check for breakpoint after step
             let pc = target.emu.regs_aarch64().pc;
             if target.emu.bp.is_bp(pc) {
@@ -448,7 +348,7 @@ struct MwemuEventLoop32<'a>(PhantomData<&'a mut Emu>);
 
 impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
     type Target = MwemuTarget32<'a>;
-    type Connection = Box<dyn ConnectionExt<Error = io::Error>>;
+    type Connection = TcpStream;
     type StopReason = SingleThreadStopReason<u32>;
 
     fn wait_for_stop_reason(
@@ -462,20 +362,8 @@ impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
         >,
     > {
         loop {
-            // Check for interrupt from GDB (Ctrl+C)
-            match conn.peek() {
-                Ok(Some(0x03)) => {
-                    // Consume the byte
-                    let _ = conn.read();
-                    return Ok(Event::TargetStopped(SingleThreadStopReason::Signal(
-                        Signal::SIGINT,
-                    )));
-                }
-                Ok(Some(byte)) => {
-                    return Ok(Event::IncomingData(byte));
-                }
-                Ok(None) => {}
-                Err(e) => return Err(WaitForStopReasonError::Connection(e)),
+            if let Some(byte) = poll_incoming(conn).map_err(WaitForStopReasonError::Connection)? {
+                return Ok(Event::IncomingData(byte));
             }
 
             // Check if we hit a breakpoint before executing
@@ -484,13 +372,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 // Emulation ended
@@ -521,6 +403,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
                         addr: mem_op.address as u32,
                     }));
                 }
+            }
+
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
             }
 
             // Check for breakpoint after step

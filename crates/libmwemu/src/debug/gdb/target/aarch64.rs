@@ -9,6 +9,8 @@ use gdbstub::target::ext::base::singlethread::{
 };
 use gdbstub::target::ext::exec_file::{ExecFile, ExecFileOps};
 use gdbstub::target::ext::libraries::{Libraries, LibrariesOps};
+use gdbstub::target::ext::memory_map::{MemoryMap, MemoryMapOps};
+use gdbstub::target::ext::monitor_cmd::{ConsoleOutput, MonitorCmd, MonitorCmdOps};
 use gdbstub::target::{Target, TargetError, TargetResult};
 use gdbstub_arch::aarch64::reg::AArch64CoreRegs;
 use gdbstub_arch::aarch64::reg::id::AArch64RegId;
@@ -17,7 +19,10 @@ use crate::debug::gdb::registers::{read_regs_aarch64, write_regs_aarch64};
 use crate::emu::Emu;
 
 use super::MwemuGdbError;
-use super::shared::{copy_range, generate_library_list_xml, read_memory, write_memory};
+use super::shared::{
+    copy_range, generate_library_list_xml, generate_memory_map_xml, monitor_command, read_memory,
+    write_memory,
+};
 
 /// GDB target wrapper for AArch64 emulation
 pub struct MwemuTargetAarch64<'a> {
@@ -47,6 +52,14 @@ impl Target for MwemuTargetAarch64<'_> {
     fn support_breakpoints(
         &mut self,
     ) -> Option<gdbstub::target::ext::breakpoints::BreakpointsOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_monitor_cmd(&mut self) -> Option<MonitorCmdOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_memory_map(&mut self) -> Option<MemoryMapOps<'_, Self>> {
         Some(self)
     }
 
@@ -106,7 +119,6 @@ impl SingleThreadResume for MwemuTargetAarch64<'_> {
 impl SingleThreadSingleStep for MwemuTargetAarch64<'_> {
     fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         self.single_step = true;
-        self.emu.step();
         Ok(())
     }
 }
@@ -223,5 +235,28 @@ impl ExecFile for MwemuTargetAarch64<'_> {
             length,
             buf,
         ))
+    }
+}
+
+impl MemoryMap for MwemuTargetAarch64<'_> {
+    fn memory_map_xml(
+        &self,
+        offset: u64,
+        length: usize,
+        buf: &mut [u8],
+    ) -> TargetResult<usize, Self> {
+        let xml = generate_memory_map_xml(&self.emu.maps);
+        Ok(copy_range(xml.as_bytes(), offset, length, buf))
+    }
+}
+
+impl MonitorCmd for MwemuTargetAarch64<'_> {
+    fn handle_monitor_cmd(
+        &mut self,
+        cmd: &[u8],
+        out: ConsoleOutput<'_>,
+    ) -> Result<(), Self::Error> {
+        monitor_command(self.emu, cmd, out);
+        Ok(())
     }
 }

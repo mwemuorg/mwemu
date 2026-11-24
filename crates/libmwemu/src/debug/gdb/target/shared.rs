@@ -1,6 +1,10 @@
+use crate::emu::Emu;
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
+use crate::threading::context::ArchThreadState;
+use crate::threading::scheduler::ThreadScheduler;
 use gdbstub::target::TargetError;
+use gdbstub::target::ext::monitor_cmd::ConsoleOutput;
 
 use super::MwemuGdbError;
 
@@ -12,17 +16,17 @@ pub(super) fn read_memory(
     address
         .checked_add(data.len() as u64)
         .ok_or(TargetError::NonFatal)?;
-    let length = maps
+    if maps
         .first_inaccessible_address(address, data.len(), Permission::READ)
-        .map_or(data.len(), |end| (end - address) as usize);
-    if length == 0 && !data.is_empty() {
+        .is_some()
+    {
         return Err(TargetError::NonFatal);
     }
     let bytes = maps
-        .try_read_bytes(address, length)
+        .try_read_bytes(address, data.len())
         .ok_or(TargetError::NonFatal)?;
-    data[..length].copy_from_slice(&bytes);
-    Ok(length)
+    data.copy_from_slice(&bytes);
+    Ok(data.len())
 }
 
 pub(super) fn write_memory(
@@ -37,9 +41,10 @@ pub(super) fn write_memory(
     }
 }
 
-// Validate the entire range before writing, and retain code-cache invalidation.
 pub(crate) fn copy_range(source: &[u8], offset: u64, length: usize, buf: &mut [u8]) -> usize {
-    let offset = offset as usize;
+    let Ok(offset) = usize::try_from(offset) else {
+        return 0;
+    };
 
     if offset >= source.len() {
         return 0;
@@ -74,6 +79,86 @@ pub(crate) fn generate_library_list_xml(maps: &Maps) -> String {
 
     xml.push_str("</library-list>\n");
     xml
+}
+
+pub(super) fn generate_memory_map_xml(maps: &Maps) -> String {
+    let mut xml = String::from("<memory-map>\n");
+    for (_, mem) in maps.mem_slab.iter() {
+        if mem.size() == 0 || !mem.can_read() {
+            continue;
+        }
+        let kind = if mem.can_write() { "ram" } else { "rom" };
+        xml.push_str(&format!(
+            "  <memory type=\"{kind}\" start=\"0x{:x}\" length=\"0x{:x}\"/>\n",
+            mem.get_base(),
+            mem.size()
+        ));
+    }
+    xml.push_str("</memory-map>\n");
+    xml
+}
+
+pub(super) fn monitor_command(emu: &mut Emu, cmd: &[u8], mut out: ConsoleOutput<'_>) {
+    match cmd.trim_ascii() {
+        b"maps" => {
+            for (_, mem) in emu.maps.mem_slab.iter() {
+                let (read, write, execute) = mem.permission().to_flags();
+                gdbstub::outputln!(
+                    out,
+                    "{:#x}-{:#x} {}{}{} {}",
+                    mem.get_base(),
+                    mem.get_bottom(),
+                    if read { 'r' } else { '-' },
+                    if write { 'w' } else { '-' },
+                    if execute { 'x' } else { '-' },
+                    mem.get_name()
+                );
+                out.flush();
+            }
+        }
+        b"threads" => {
+            for (index, thread) in emu.threads.iter().enumerate() {
+                let pc = match &thread.arch {
+                    ArchThreadState::X86 { regs, .. } => regs.rip,
+                    ArchThreadState::AArch64 { regs, .. } => regs.pc,
+                };
+                gdbstub::outputln!(
+                    out,
+                    "{} {:#x} pc={:#x} {}",
+                    if index == emu.current_thread_id {
+                        '*'
+                    } else {
+                        ' '
+                    },
+                    thread.id,
+                    pc,
+                    ThreadScheduler::get_thread_status_string(emu, index)
+                );
+                out.flush();
+            }
+        }
+        b"api log" => {
+            for entry in &emu.api_call_log {
+                gdbstub::outputln!(
+                    out,
+                    "{} {:#x} -> {:#x} {}",
+                    entry.pos,
+                    entry.from,
+                    entry.to,
+                    entry.name
+                );
+                out.flush();
+            }
+            gdbstub::outputln!(
+                out,
+                "API logging: {}",
+                if emu.cfg.trace_calls { "on" } else { "off" }
+            );
+        }
+        b"api log on" => emu.cfg.trace_calls = true,
+        b"api log off" => emu.cfg.trace_calls = false,
+        _ => gdbstub::outputln!(out, "Commands: maps, threads, api log [on|off], help"),
+    }
 }
 
 fn escape_xml(s: &str) -> String {
