@@ -44,7 +44,7 @@ byteorder = "1.5.0"
 thiserror = "2.0.12"
 tempfile = "3.23.0"
 tempdir = "0.3.7"
-gdbstub = "0.7.10"
+gdbstub = { version = "0.7.10", features = ["paranoid_unsafe"] }
 gdbstub_arch = "0.3.3"
 serial_test = "3.4.0"
 dunce = "1.0.5"
