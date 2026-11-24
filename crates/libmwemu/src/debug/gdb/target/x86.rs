@@ -120,7 +120,6 @@ impl SingleThreadResume for MwemuTarget32<'_> {
 impl SingleThreadSingleStep for MwemuTarget32<'_> {
     fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         self.single_step = true;
-        self.emu.step();
         Ok(())
     }
 }

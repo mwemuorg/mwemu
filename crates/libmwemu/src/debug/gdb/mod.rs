@@ -211,13 +211,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 // Emulation ended
@@ -248,6 +242,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoop64<'a> {
                         addr: mem_op.address,
                     }));
                 }
+            }
+
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
             }
 
             // Check for breakpoint after step
@@ -294,13 +292,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::Terminated(
@@ -330,6 +322,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoopAarch64<'a> {
                         addr: mem_op.address,
                     }));
                 }
+            }
+
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
             }
 
             // Check for breakpoint after step
@@ -376,13 +372,7 @@ impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
                 return Ok(Event::TargetStopped(SingleThreadStopReason::SwBreak(())));
             }
 
-            // Single step mode - return after one instruction
-            if target.single_step {
-                target.single_step = false;
-                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
-            }
-
-            // Execute one instruction
+            let single_step = std::mem::take(&mut target.single_step);
             let result = target.emu.step();
             if !result {
                 // Emulation ended
@@ -413,6 +403,10 @@ impl<'a> BlockingEventLoop for MwemuEventLoop32<'a> {
                         addr: mem_op.address as u32,
                     }));
                 }
+            }
+
+            if single_step {
+                return Ok(Event::TargetStopped(SingleThreadStopReason::DoneStep));
             }
 
             // Check for breakpoint after step
