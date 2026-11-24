@@ -9,11 +9,8 @@ use std::io::{BufRead, Write};
 use std::num::ParseIntError;
 use std::sync::atomic;
 
-// if the user types "r2 0x123" will execute radare2
 use crate::maps::mem64::Permission;
-use std::fs;
 use std::io;
-use std::process::{Command, Stdio};
 
 pub struct Console {}
 
@@ -148,7 +145,8 @@ impl Console {
         log::trace!("mdd .................... memory dump to disk");
         log::trace!("mdda ................... memory dump all allocations to disk");
         log::trace!("mt ..................... memory test");
-        log::trace!("r2 [addr] .............. spawn radare2 console if it's isntalled");
+        log::trace!("r2 [addr] .............. open radare2 on live memory (default: pc)");
+        log::trace!("gdb [port] ............. serve live memory/registers (default: 9001)");
         log::trace!("ss ..................... search string in a specific map");
         log::trace!("sb ..................... search bytes in a specific map");
         log::trace!("sba .................... search bytes in all the maps");
@@ -172,89 +170,8 @@ impl Console {
     }
 
     pub fn spawn_radare2(addr: u64, emu: &mut Emu) {
-        let mem = match emu.maps.get_mem_by_addr(addr) {
-            Some(m) => m,
-            None => {
-                log::trace!("address not found on any map");
-                return;
-            }
-        };
-
-        let tmpfile = format!("/tmp/{}.r2", mem.get_name());
-        mem.save_all(&tmpfile);
-
-        let base = format!("0x{:x}", mem.get_base());
-        let seek = format!("0x{:x}", addr);
-        let arch_str;
-        let bits;
-        let precmd: String;
-        if emu.cfg.arch.is_aarch64() {
-            arch_str = "arm";
-            bits = "64";
-            let regs = emu.regs_aarch64();
-            let mut cmd = String::new();
-            for i in 0..31 {
-                cmd.push_str(&format!("dr x{}={}; ", i, regs.x[i]));
-            }
-            cmd.push_str(&format!("dr sp={}; dr pc={};", regs.sp, regs.pc));
-            precmd = cmd;
-        } else if emu.cfg.is_x64() {
-            arch_str = "x86";
-            bits = "64";
-            precmd = format!(
-                "dr rax={}; dr rbx={}; dr rcx={}; dr rdx={}; dr rsi={};
-                                  dr rdi={}; dr rbp={}; dr rsp={}; dr rip={}; dr r8={}
-                                  dr r9={}; dr r10={}; dr r11={}; dr r12={}; dr r13={};
-                                  dr r14={}; dr r15={}; decai -e model=qwen3-coder:30b; r2ai -e r2ai.model=qwen3-coder:30b;",
-                                  emu.regs().rax, emu.regs().rbx, emu.regs().rcx, emu.regs().rdx,
-                                  emu.regs().rsi, emu.regs().rdi, emu.regs().rbp, emu.regs().rsp,
-                                  emu.regs().rip, emu.regs().r8, emu.regs().r9, emu.regs().r10,
-                                  emu.regs().r11, emu.regs().r12, emu.regs().r13, emu.regs().r14,
-                                  emu.regs().r15);
-        } else {
-            arch_str = "x86";
-            bits = "32";
-            precmd = format!(
-                "dr eax={}; dr ebx={}; dr ecx={}; dr edx={}; dr esi={}; \
-                dr edi={}; dr ebp={}; dr esp={}; dr eip={}; \
-                decai -e model=qwen3-coder:30b; r2ai -e r2ai.model=qwen3-coder:30b;",
-                emu.regs().get_eax(),
-                emu.regs().get_ebx(),
-                emu.regs().get_ecx(),
-                emu.regs().get_edx(),
-                emu.regs().get_esi(),
-                emu.regs().get_edi(),
-                emu.regs().get_ebp(),
-                emu.regs().get_esp(),
-                emu.regs().get_eip()
-            );
-        }
-        let r2args = vec![
-            "-n", "-a", arch_str, "-b", &bits, "-m", &base, "-s", &seek, "-c", &precmd, &tmpfile,
-        ];
-
-        log::trace!("spawning radare2 software.");
-
-        match Command::new("radare2")
-            .args(&r2args)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-        {
-            Ok(mut child) => {
-                let _ = child.wait();
-            }
-            Err(e) => {
-                log::error!("Install radare first! {}", e);
-                return;
-            }
-        }
-
-        if let Err(e) = fs::remove_file(&tmpfile)
-            && e.kind() != io::ErrorKind::NotFound
-        {
-            log::error!("temporal file not found");
+        if let Err(error) = crate::debug::radare2::spawn(emu, addr) {
+            log::error!("radare2: {error}");
         }
     }
 
@@ -1159,18 +1076,35 @@ impl Console {
                         if parts.len() >= 2 {
                             emu.maps.print_maps_keyword(parts[1]);
                         }
-                    } else if cmd.starts_with("r2 ") {
+                    } else if cmd == "r2" || cmd.starts_with("r2 ") {
                         let parts: Vec<&str> = cmd.split_whitespace().collect();
-                        if parts.len() >= 2 {
-                            if let Ok(addr) =
-                                u64::from_str_radix(parts[1].trim_start_matches("0x"), 16)
-                            {
-                                Console::spawn_radare2(addr, emu);
-                            } else {
-                                println!("wrong hexa parameter");
+                        let address = match parts.as_slice() {
+                            ["r2"] => Some(emu.pc()),
+                            ["r2", address] => {
+                                u64::from_str_radix(Self::hex_digits(address), 16).ok()
                             }
-                        } else {
-                            log::trace!("r2 command needs 1 parameter, the an hex address");
+                            _ => None,
+                        };
+                        match address {
+                            Some(address) => Console::spawn_radare2(address, emu),
+                            None => log::error!("usage: r2 [hex-address]"),
+                        }
+                    } else if cmd == "gdb" || cmd.starts_with("gdb ") {
+                        let parts: Vec<&str> = cmd.split_whitespace().collect();
+                        let port = match parts.as_slice() {
+                            ["gdb"] => Some(9001),
+                            ["gdb", port] => port.parse::<u16>().ok(),
+                            _ => None,
+                        };
+                        match port {
+                            Some(port) => {
+                                let mut server =
+                                    crate::debug::gdb::GdbServer::new(port, emu.cfg.arch);
+                                if let Err(error) = server.run(emu) {
+                                    log::error!("GDB server: {error}");
+                                }
+                            }
+                            None => log::error!("usage: gdb [port] (0-65535)"),
                         }
                     } else {
                         log::trace!("command not found, type h");

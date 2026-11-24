@@ -75,6 +75,9 @@ impl GdbServer {
         self.serve_connection(emu, stream)
     }
 
+    /// Serve an already connected client. Emulation stays stopped until the
+    /// client explicitly steps or continues it. Console settings are restored
+    /// when the session ends, including on protocol errors.
     pub fn serve_connection(&self, emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
         let console_enabled = std::mem::replace(&mut emu.cfg.console_enabled, false);
         let result = match self.arch {

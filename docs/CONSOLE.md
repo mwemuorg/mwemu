@@ -155,6 +155,44 @@ There is a tool to walk the elements of a linked list which is command `ll`
 
 To dissasemble from specific addres use command `d`
 
+## Live radare2 and external debugging
+
+Use `r2` to open the installed radare2 at the current program counter, or
+`r2 0x140001000` to start at another hexadecimal address. Mwemu connects radare2
+to its GDB remote server over an ephemeral localhost port. No memory dump is
+written to disk, and all mapped guest memory is available through the connection.
+
+Reads and writes operate on the live emulator. For example, inside radare2:
+
+```text
+px 32 @ 0x140001000
+wx 9090 @ 0x140001000
+dr
+dr rax=0x1234
+```
+
+Memory operations respect guest mapping permissions. Writes to unmapped or
+non-writable memory fail; each GDB write request is validated before changing
+any bytes in that request. Memory patches invalidate mwemu's instruction cache. Registers are read
+and written through the debugger protocol for x86, x86-64, and AArch64.
+
+Emulation stays paused while inspecting memory unless you explicitly step or
+continue from the debugger. Quit radare2 to return to mwemu's console, with your
+memory and register changes retained. Mwemu does not configure AI plugins or
+select a model.
+
+To connect an existing debugger from another terminal, run `gdb` or `gdb 9001`
+in mwemu's console, then connect with:
+
+```sh
+radare2 -d gdb://127.0.0.1:9001
+```
+
+GDB can use `target remote 127.0.0.1:9001`. The server accepts one session and
+returns to the console after the client detaches. It listens only on localhost.
+For a session that starts immediately after loading a binary, the CLI also
+supports `--gdb --gdb-port 9001`.
+
 ## SEH and VEH pointers 
 
 The command `seh` allow to see the stack pointer where is the SEH pointers.
