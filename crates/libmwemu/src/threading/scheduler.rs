@@ -132,12 +132,20 @@ impl ThreadScheduler {
     pub(crate) fn get_thread_status_string(emu: &Emu, thread_idx: usize) -> String {
         let thread = &emu.threads[thread_idx];
 
-        if thread.suspended {
+        if thread.exit_value.is_some() {
+            "EXITED".to_string()
+        } else if thread.suspended {
             "SUSPENDED".to_string()
         } else if thread.wake_tick > emu.tick {
             format!("SLEEPING(wake={})", thread.wake_tick)
         } else if thread.blocked_on_cs.is_some() {
             "BLOCKED_CS".to_string()
+        } else if thread.joining.is_some() {
+            "JOINING".to_string()
+        } else if thread.blocked_on_lock.is_some() {
+            "BLOCKED_LOCK".to_string()
+        } else if thread.cond_wait.is_some() {
+            "WAITING_COND".to_string()
         } else {
             "RUNNABLE".to_string()
         }
