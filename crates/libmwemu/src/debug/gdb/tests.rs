@@ -51,19 +51,35 @@ fn request(stream: &mut TcpStream, payload: &str) -> io::Result<String> {
     assert_eq!(byte[0], b'+');
     stream.read_exact(&mut byte)?;
     assert_eq!(byte[0], b'$');
-    let mut response = Vec::new();
+    let mut raw = Vec::new();
     loop {
         stream.read_exact(&mut byte)?;
         if byte[0] == b'#' {
             break;
         }
-        response.push(byte[0]);
+        raw.push(byte[0]);
     }
     let mut checksum = [0; 2];
     stream.read_exact(&mut checksum)?;
-    let expected = response.iter().copied().fold(0u8, u8::wrapping_add);
+    let expected = raw.iter().copied().fold(0u8, u8::wrapping_add);
     assert_eq!(checksum.as_slice(), format!("{expected:02x}").as_bytes());
     stream.write_all(b"+")?;
+    // Decode GDB run-length encoding: `*X` repeats the previous byte (X - 29) times.
+    let mut response = Vec::with_capacity(raw.len());
+    let mut i = 0;
+    while i < raw.len() {
+        if raw[i] == b'*' && i > 0 && i + 1 < raw.len() {
+            let count = raw[i + 1].wrapping_sub(29);
+            let prev = *response.last().unwrap_or(&b'0');
+            for _ in 0..count {
+                response.push(prev);
+            }
+            i += 2;
+        } else {
+            response.push(raw[i]);
+            i += 1;
+        }
+    }
     String::from_utf8(response).map_err(io::Error::other)
 }
 

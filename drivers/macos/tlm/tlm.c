@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * tlm — the macOS counterpart of drivers/linux/tlm, a deliberately vulnerable
  * telemetry-channel kext used as the reference target for mwemu's kext

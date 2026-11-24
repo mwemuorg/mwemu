@@ -30,7 +30,6 @@ pub(super) fn write_memory(
     address: u64,
     data: &[u8],
 ) -> Result<(), TargetError<MwemuGdbError>> {
-    // Validate the entire range before writing, and retain code-cache invalidation.
     if maps.write_bytes(address, data) {
         Ok(())
     } else {
@@ -38,6 +37,7 @@ pub(super) fn write_memory(
     }
 }
 
+// Validate the entire range before writing, and retain code-cache invalidation.
 pub(crate) fn copy_range(source: &[u8], offset: u64, length: usize, buf: &mut [u8]) -> usize {
     let offset = offset as usize;
 
