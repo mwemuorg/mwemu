@@ -77,6 +77,23 @@ pub(crate) fn generate_library_list_xml(maps: &Maps) -> String {
     xml
 }
 
+pub(super) fn generate_memory_map_xml(maps: &Maps) -> String {
+    let mut xml = String::from("<memory-map>\n");
+    for (_, mem) in maps.mem_slab.iter() {
+        if mem.size() == 0 || !mem.can_read() {
+            continue;
+        }
+        let kind = if mem.can_write() { "ram" } else { "rom" };
+        xml.push_str(&format!(
+            "  <memory type=\"{kind}\" start=\"0x{:x}\" length=\"0x{:x}\"/>\n",
+            mem.get_base(),
+            mem.size()
+        ));
+    }
+    xml.push_str("</memory-map>\n");
+    xml
+}
+
 fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")

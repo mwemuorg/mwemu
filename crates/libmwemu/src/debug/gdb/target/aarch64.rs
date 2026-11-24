@@ -9,6 +9,7 @@ use gdbstub::target::ext::base::singlethread::{
 };
 use gdbstub::target::ext::exec_file::{ExecFile, ExecFileOps};
 use gdbstub::target::ext::libraries::{Libraries, LibrariesOps};
+use gdbstub::target::ext::memory_map::{MemoryMap, MemoryMapOps};
 use gdbstub::target::{Target, TargetError, TargetResult};
 use gdbstub_arch::aarch64::reg::AArch64CoreRegs;
 use gdbstub_arch::aarch64::reg::id::AArch64RegId;
@@ -17,7 +18,9 @@ use crate::debug::gdb::registers::{read_regs_aarch64, write_regs_aarch64};
 use crate::emu::Emu;
 
 use super::MwemuGdbError;
-use super::shared::{copy_range, generate_library_list_xml, read_memory, write_memory};
+use super::shared::{
+    copy_range, generate_library_list_xml, generate_memory_map_xml, read_memory, write_memory,
+};
 
 /// GDB target wrapper for AArch64 emulation
 pub struct MwemuTargetAarch64<'a> {
@@ -47,6 +50,10 @@ impl Target for MwemuTargetAarch64<'_> {
     fn support_breakpoints(
         &mut self,
     ) -> Option<gdbstub::target::ext::breakpoints::BreakpointsOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_memory_map(&mut self) -> Option<MemoryMapOps<'_, Self>> {
         Some(self)
     }
 
@@ -222,5 +229,17 @@ impl ExecFile for MwemuTargetAarch64<'_> {
             length,
             buf,
         ))
+    }
+}
+
+impl MemoryMap for MwemuTargetAarch64<'_> {
+    fn memory_map_xml(
+        &self,
+        offset: u64,
+        length: usize,
+        buf: &mut [u8],
+    ) -> TargetResult<usize, Self> {
+        let xml = generate_memory_map_xml(&self.emu.maps);
+        Ok(copy_range(xml.as_bytes(), offset, length, buf))
     }
 }
