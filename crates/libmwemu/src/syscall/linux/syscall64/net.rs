@@ -1,7 +1,7 @@
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
 
-use crate::winapi::helper;
+use crate::syscall::linux::files::external_descriptor;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
@@ -13,7 +13,7 @@ pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
 }
 
 pub(super) fn handle_syscall64_socket(emu: &mut emu::Emu) {
-    let sock = helper::socket_create();
+    let sock = external_descriptor(emu, None);
     let fam = emu.regs().rdi;
     let typ = emu.regs().rsi;
     let proto = emu.regs().rdx;

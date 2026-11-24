@@ -219,3 +219,48 @@ fn aarch64_shellcode_sum_loop_run_to() {
     );
     assert_eq!(emu.regs_aarch64().x[1], 0, "x1 should be 0 after loop");
 }
+
+#[test]
+fn high_linux_mmap_branch_executes_guest_instructions() {
+    use super::{emu_with, step_ok};
+    use crate::arch::OperatingSystem;
+    use crate::maps::mem64::Permission;
+
+    let mut emu = emu_with(&[0xd61f_0000]); // br x0
+    let address = 0x7ff0_0000_0000;
+    emu.os = OperatingSystem::Linux;
+    emu.maps
+        .create_map("mmap_high", address, 4096, Permission::READ_WRITE_EXECUTE)
+        .expect("guest code");
+    emu.maps.write_dword(address, 0xd280_0541); // mov x1, #42
+    emu.regs_aarch64_mut().x[0] = address;
+    step_ok(&mut emu);
+    assert_eq!(emu.pc(), address);
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[1], 42);
+}
+
+#[test]
+fn thread_pointer_survives_system_register_roundtrip() {
+    use super::{emu_with, step_ok};
+
+    let mut emu = emu_with(&[0xd51b_d053, 0xd53b_d044]); // msr tpidr_el0, x19; mrs x4, tpidr_el0
+    emu.regs_aarch64_mut().x[19] = 0x1234_5000;
+    step_ok(&mut emu);
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[4], 0x1234_5000);
+}
+
+#[test]
+fn cache_maintenance_observes_mapped_lines() {
+    use super::{data_map, emu_with, step_ok};
+
+    let mut emu = emu_with(&[0xd53b_0021, 0xd50b_7b20, 0xd50b_7520, 0xd50b_7520]);
+    emu.regs_aarch64_mut().x[0] = data_map(&mut emu) + 7;
+    step_ok(&mut emu); // mrs x1, ctr_el0
+    assert_eq!(emu.regs_aarch64().x[1], 0x0004_0004);
+    step_ok(&mut emu); // dc cvau, x0
+    step_ok(&mut emu); // ic ivau, x0
+    emu.regs_aarch64_mut().x[0] = 0;
+    assert!(!emu.step());
+}

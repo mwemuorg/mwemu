@@ -1,5 +1,6 @@
 use crate::emu::Emu;
 use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::engine::aarch64::decode_instruction;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
 // about 10 mb should be on l3 cache
 // 8192 cache lines,
@@ -328,7 +329,6 @@ impl InstructionCache<DecodedInstruction> {
         let idx = self.get_index_of(lpf, 0);
         let slot = self.next_instruction_slot;
         let mut count: usize = 0;
-        let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();
         let mut offset: usize = 0;
         while offset + 4 <= block.len() {
             if slot + count >= INSTRUCTION_ARRAY_SIZE {
@@ -336,8 +336,7 @@ impl InstructionCache<DecodedInstruction> {
                 return;
             }
             let chunk = &block[offset..offset + 4];
-            let mut reader = yaxpeax_arch::U8Reader::new(chunk);
-            let native = match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
+            let native = match decode_instruction(chunk) {
                 Ok(ins) => ins,
                 Err(_) => break,
             };
@@ -459,15 +458,13 @@ impl Emu {
         };
         let block = code.read_from(addr).to_vec();
 
-        let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();
         let mut pc = addr;
         let mut count: u32 = 0;
         let mut offset: usize = 0;
 
         while offset + 4 <= block.len() && count < amount {
             let chunk = &block[offset..offset + 4];
-            let mut reader = yaxpeax_arch::U8Reader::new(chunk);
-            match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
+            match decode_instruction(chunk) {
                 Ok(ins) => {
                     out.push_str(&format!("0x{:x}: {}\n", pc, ins));
                 }

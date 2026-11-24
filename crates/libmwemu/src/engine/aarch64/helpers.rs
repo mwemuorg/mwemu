@@ -173,6 +173,11 @@ pub fn resolve_mem_addr(emu: &Emu, op: &Operand) -> (u64, Option<(usize, u64)>) 
             };
             (addr, wb)
         }
+        Operand::RegPostIndexReg(reg, index) => {
+            let base = regs.get_x_or_sp(*reg as usize);
+            let next = base.wrapping_add(regs.get_x(*index as usize));
+            (base, Some((*reg as usize, next)))
+        }
         Operand::RegPostIndex(reg, offset) => {
             let base = regs.get_x_or_sp(*reg as usize);
             let new_base = base.wrapping_add(*offset as i64 as u64);

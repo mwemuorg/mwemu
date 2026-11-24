@@ -1822,7 +1822,7 @@ fn linux_unknown_and_trace_only_syscalls_return_enosys() {
                 ("chdir", 12),
                 ("lseek", 19),
                 ("mount", 21),
-                ("mprotect", 125),
+                ("mremap", 163),
             ],
             Arch::X86_64 => &[
                 ("unknown", UNKNOWN_SYSCALL),
@@ -1831,7 +1831,6 @@ fn linux_unknown_and_trace_only_syscalls_return_enosys() {
                 ("mremap", 25),
                 ("dup", 32),
                 ("dup2", 33),
-                ("fork", 57),
                 ("kill", 62),
                 ("restart_syscall", 219),
             ],

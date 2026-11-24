@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::syscall::linux::tls32::Tls32;
 use crate::{
     arch::Arch, eflags::Eflags, flags::Flags, fpu::FPU, regs_aarch64::RegsAarch64, regs64::Regs64,
 };
@@ -167,6 +168,7 @@ pub struct ThreadContext {
     pub blocked_on_cs: Option<u64>, // Pointer to critical section (or futex word) if blocked
     pub clear_child_tid: u64,       // Linux: word zeroed + futex-woken when the thread exits
     pub signal_stack: SignalStack,
+    pub(crate) linux_tls32: Tls32,
     pub handle: u64,
     pub arch: ArchThreadState,
     pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
@@ -220,6 +222,7 @@ impl ThreadContext {
             blocked_on_cs: None,
             clear_child_tid: 0,
             signal_stack: SignalStack::default(),
+            linux_tls32: Tls32::default(),
             handle: 0,
             arch: arch_state,
             exit_value: None,

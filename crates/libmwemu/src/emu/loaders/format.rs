@@ -25,6 +25,21 @@ pub(crate) trait FormatLoader {
     fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError>;
 }
 
+/// A static PIE relocates its image in guest startup code. A shared library
+/// without an interpreter instead needs its loader to apply the relocations.
+pub(super) fn self_relocating_pie(elf: &goblin::elf::Elf<'_>) -> bool {
+    use goblin::elf::{dynamic::DF_1_PIE, header::ET_DYN};
+    elf.header.e_type == ET_DYN
+        && elf.entry != 0
+        && elf.interpreter.is_none()
+        && elf.libraries.is_empty()
+        && (elf.soname.is_none()
+            || elf
+                .dynamic
+                .as_ref()
+                .is_some_and(|d| d.info.flags_1 & DF_1_PIE != 0))
+}
+
 /// Apply the `--entry-point` override: start at the address the operator
 /// asked for instead of the image's own entry point.
 pub(crate) fn apply_entry_point_override(emu: &mut Emu) {

@@ -8,6 +8,7 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::linux::constants::errors::{EAGAIN, EBADF, EFAULT, EINVAL, ENOSYS, EPIPE};
 use crate::syscall::linux::constants::io::*;
+use crate::syscall::linux::files::external_descriptor;
 
 // Bound host work and buffering per call; callers can retry a short write.
 const WRITE_CHUNK_BYTES: usize = 64 * 1024;
@@ -42,6 +43,10 @@ impl Descriptor {
             Self::Event { .. } => O_RDWR,
         }
     }
+}
+
+pub(super) fn is_modeled_descriptor(fd: u32) -> bool {
+    descriptor(fd as u64).is_some()
 }
 
 fn descriptor(fd: u64) -> Option<Descriptor> {
@@ -88,8 +93,10 @@ pub(super) fn eventfd(emu: &mut Emu, arch: Arch, has_flags: bool) {
     let result = if flags & !(EFD_SEMAPHORE | EFD_NONBLOCK | EFD_CLOEXEC) != 0 {
         EINVAL
     } else {
-        let fd = helper::handler_create(&format!("{EVENT_PREFIX}{flags}"));
-        helper::handler_put_bytes(fd, &u64::from(initial as u32).to_le_bytes());
+        let fd = external_descriptor(emu, Some(&format!("{EVENT_PREFIX}{flags}")));
+        if fd <= u32::MAX as u64 {
+            helper::handler_put_bytes(fd, &u64::from(initial as u32).to_le_bytes());
+        }
         fd
     };
     log::trace!(
@@ -108,16 +115,26 @@ pub(super) fn pipe(emu: &mut Emu, arch: Arch, has_flags: bool) {
     } else if !writable(emu, arch, output, 2 * size_of::<u32>()) {
         EFAULT
     } else {
-        let reader = helper::handler_create(&format!("{PIPE_READ_PREFIX}{flags}"));
-        let writer = helper::handler_create(&format!("{PIPE_WRITE_PREFIX}{reader}:{flags}"));
+        let reader = external_descriptor(emu, Some(&format!("{PIPE_READ_PREFIX}{flags}")));
+        if (reader as i64) < 0 {
+            call.set_return(emu, reader);
+            return;
+        }
+        let writer =
+            external_descriptor(emu, Some(&format!("{PIPE_WRITE_PREFIX}{reader}:{flags}")));
+        if (writer as i64) < 0 {
+            close_external(emu, reader);
+            call.set_return(emu, writer);
+            return;
+        }
         let mut bytes = [0; 2 * size_of::<u32>()];
         bytes[..size_of::<u32>()].copy_from_slice(&(reader as u32).to_le_bytes());
         bytes[size_of::<u32>()..].copy_from_slice(&(writer as u32).to_le_bytes());
         if emu.maps.write_bytes(output, &bytes) {
             0
         } else {
-            helper::handler_close(reader);
-            helper::handler_close(writer);
+            close_external(emu, reader);
+            close_external(emu, writer);
             EFAULT
         }
     };
@@ -126,6 +143,14 @@ pub(super) fn pipe(emu: &mut Emu, arch: Arch, has_flags: bool) {
         result as i64
     );
     call.set_return(emu, result);
+}
+
+fn close_external(emu: &mut Emu, fd: u64) {
+    if let Some(files) = &mut emu.linux_files {
+        files.close_external(fd as u32);
+    } else {
+        helper::handler_close(fd);
+    }
 }
 
 pub(super) fn close(emu: &mut Emu, arch: Arch) {
@@ -269,7 +294,7 @@ fn writable(emu: &Emu, arch: Arch, address: u64, size: usize) -> bool {
     accessible(emu, arch, address, size, Permission::WRITE)
 }
 
-fn emit(emu: &mut Emu, fd: u32, bytes: &[u8]) {
+pub(super) fn emit(emu: &mut Emu, fd: u32, bytes: &[u8]) {
     if cfg!(test) && fd == STDOUT_FILENO {
         // Capture the sink in tests without writing to the host terminal.
         emu.emulated_stdout.extend_from_slice(bytes);
@@ -285,7 +310,12 @@ fn emit(emu: &mut Emu, fd: u32, bytes: &[u8]) {
     }
 }
 
-fn read_bytes(emu: &Emu, arch: Arch, address: u64, size: usize) -> Result<Cow<'_, [u8]>, u64> {
+pub(super) fn read_bytes(
+    emu: &Emu,
+    arch: Arch,
+    address: u64,
+    size: usize,
+) -> Result<Cow<'_, [u8]>, u64> {
     if size == 0 {
         return Ok(Cow::Borrowed(&[]));
     }
@@ -429,7 +459,12 @@ pub(super) fn write(emu: &mut Emu, arch: Arch) {
     call.set_return(emu, result);
 }
 
-fn read_iovecs(emu: &Emu, arch: Arch, address: u64, count: u64) -> Result<Vec<(u64, u64)>, u64> {
+pub(super) fn read_iovecs(
+    emu: &Emu,
+    arch: Arch,
+    address: u64,
+    count: u64,
+) -> Result<Vec<(u64, u64)>, u64> {
     if count > UIO_MAXIOV as u64 {
         return Err(EINVAL);
     }

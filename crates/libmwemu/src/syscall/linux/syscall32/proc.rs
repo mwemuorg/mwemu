@@ -1,7 +1,8 @@
-use super::trace_syscall32;
 use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::process;
+use crate::syscall::linux::tls32;
 use crate::syscall::linux::{self, unsupported};
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
@@ -15,20 +16,18 @@ pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
         NR32_GETPID => linux::getpid(emu),
         NR32_GETPPID => linux::getppid(emu),
         NR32_GETTID => linux::gettid(emu),
+        NR32_SET_THREAD_AREA => tls32::thread_area(emu, false),
+        NR32_GET_THREAD_AREA => tls32::thread_area(emu, true),
         NR32_SET_TID_ADDRESS => linux::set_tid_address(emu, Arch::X86),
-        0 => unsupported(emu, "restart_syscall"),
-        1 => handle_syscall32_exit(emu),
-        2 => unsupported(emu, "fork"),
-        7 => unsupported(emu, "waitpid"),
-        11 => unsupported(emu, "execve"),
-        13 => unsupported(emu, "time"),
+        NR32_RESTART_SYSCALL => unsupported(emu, "restart_syscall"),
+        NR32_EXIT | NR32_EXIT_GROUP => process::exit(emu),
+        NR32_FORK => process::fork(emu, Arch::X86),
+        NR32_NANOSLEEP => process::nanosleep(emu),
+        NR32_WAITPID => process::wait_child(emu, Arch::X86),
+        NR32_EXECVE => unsupported(emu, "execve"),
+        NR32_TIME => unsupported(emu, "time"),
         _ => return false,
     }
 
     true
-}
-
-fn handle_syscall32_exit(emu: &mut emu::Emu) {
-    trace_syscall32(emu, "exit");
-    emu.stop();
 }

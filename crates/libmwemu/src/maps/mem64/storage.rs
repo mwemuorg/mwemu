@@ -56,7 +56,7 @@ impl Mem64 {
         if let (Some(view), Some(shared)) = (self.view, &self.shared) {
             shared.bytes.borrow_mut()[view.offset + offset..view.offset + offset + bytes.len()]
                 .copy_from_slice(bytes);
-            shared.dirty.set(true);
+            shared.mark_written();
         } else {
             self.mem[offset..offset + bytes.len()].copy_from_slice(bytes);
         }

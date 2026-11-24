@@ -4,9 +4,9 @@ use crate::arch::Arch;
 
 use super::misc::trace_syscall64_args;
 use super::thread::yield_current;
-use crate::api::windows::helper;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::files::external_descriptor;
 use crate::syscall::linux::io;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
@@ -24,7 +24,7 @@ pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
 }
 
 fn new_fd(emu: &mut emu::Emu, uri: &str, name: &str) {
-    let fd = helper::handler_create(uri);
+    let fd = external_descriptor(emu, Some(uri));
     emu.regs_mut().rax = fd;
     trace_syscall64_args(emu, name, &[("fd", fd.to_string())]);
 }

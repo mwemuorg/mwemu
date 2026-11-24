@@ -1,7 +1,7 @@
 use crate::arch::Arch;
 use crate::windows::constants::exceptions::WOW64_USER_CODE_SELECTOR;
 use crate::windows::constants::nls::*;
-use iced_x86::{Instruction, OpKind, Register};
+use iced_x86::{Instruction, Mnemonic, OpKind, Register};
 
 use crate::maps::mem64::Permission;
 use crate::utils::helpers::{OP_KIND_BIT_WIDTH, unlikely};
@@ -16,6 +16,13 @@ use crate::{
 };
 
 impl Emu {
+    fn linux_i386_tls_segment(&self, segment: Register) -> bool {
+        matches!(segment, Register::GS | Register::FS)
+            && self.cfg.arch == Arch::X86
+            && self.os.is_linux()
+            && self.kernel.is_none()
+    }
+
     pub(crate) fn windows_i386_user_cs(&self) -> Option<u16> {
         (self.cfg.arch == Arch::X86 && self.os.is_windows() && !self.kernel_driver_active())
             .then_some(WOW64_USER_CODE_SELECTOR)
@@ -49,11 +56,8 @@ impl Emu {
         let mem_seg = ins.memory_segment();
         let fs = mem_seg == Register::FS;
         let gs = mem_seg == Register::GS;
-        let derref = if mem_seg == Register::FS || mem_seg == Register::GS {
-            false
-        } else {
-            do_derref
-        };
+        let linux_tls = self.linux_i386_tls_segment(mem_seg);
+        let derref = do_derref && (linux_tls || !(fs || gs));
         let mem_base = ins.memory_base();
         let mem_index = ins.memory_index();
 
@@ -111,7 +115,21 @@ impl Emu {
             displace_result,
         );
 
-        if unlikely(fs) {
+        let mem_addr = if unlikely(linux_tls) {
+            if !do_derref && ins.mnemonic() == Mnemonic::Lea {
+                return Some(mem_addr);
+            }
+            self.current_thread().linux_tls32.address(
+                mem_seg,
+                mem_addr as u32,
+                ins.memory_size().size(),
+                false,
+            )?
+        } else {
+            mem_addr
+        };
+
+        if unlikely(fs && !linux_tls) {
             if self.os.is_linux() {
                 // Real TLS: once ld.so/libc install a thread pointer via
                 // arch_prctl(ARCH_SET_FS), `fs:[disp]` addresses real memory at
@@ -222,7 +240,7 @@ impl Emu {
             return Some(value.unwrap_or(0));
         }
 
-        if unlikely(gs) {
+        if unlikely(gs && !linux_tls) {
             let value1: u64 = match mem_addr {
                 0x0 => {
                     // NtTib.ExceptionList — NULL in normal user threads (`cmp` / probes often use gs:[0]).
@@ -498,6 +516,9 @@ impl Emu {
 
         if op_kind == OpKind::Register {
             let reg = ins.op_register(noperand);
+            if unlikely(self.linux_i386_tls_segment(reg)) {
+                return Some(self.current_thread().linux_tls32.selector(reg) as u64);
+            }
             if reg == Register::CS
                 && let Some(cs) = self.windows_i386_user_cs()
             {
@@ -558,6 +579,13 @@ impl Emu {
 
         match ins.op_kind(noperand) {
             OpKind::Register => {
+                let reg = ins.op_register(noperand);
+                if unlikely(self.linux_i386_tls_segment(reg)) {
+                    return self
+                        .current_thread_mut()
+                        .linux_tls32
+                        .select(reg, value as u16);
+                }
                 if unlikely(self.regs().is_fpu(ins.op_register(noperand))) {
                     self.fpu_mut()
                         .set_streg(ins.op_register(noperand), value as f64);
@@ -596,6 +624,7 @@ impl Emu {
                 };
 
                 let mem_seg = ins.memory_segment();
+                let linux_tls = self.linux_i386_tls_segment(mem_seg);
 
                 // Compute full effective address for segment-relative writes,
                 // matching the read path: displacement + base register.
@@ -650,7 +679,7 @@ impl Emu {
                         _ => false,
                     };
                 }
-                if unlikely(mem_seg == Register::FS || mem_base == Register::GS) {
+                if unlikely((mem_seg == Register::FS || mem_base == Register::GS) && !linux_tls) {
                     if self.os.is_linux() {
                         // Real TLS active: write through to memory at fs_base+offset.
                         // The offset must include any base register (e.g.
@@ -729,6 +758,20 @@ impl Emu {
                     temp_displace,
                     displace_result,
                 );
+
+                let mem_addr = if unlikely(linux_tls) {
+                    let Some(address) = self.current_thread().linux_tls32.address(
+                        mem_seg,
+                        mem_addr as u32,
+                        ins.memory_size().size(),
+                        true,
+                    ) else {
+                        return false;
+                    };
+                    address
+                } else {
+                    mem_addr
+                };
 
                 let sz = (ins.memory_size().size() * 8) as u32;
                 if unlikely(self.kernel_guard) {
@@ -1008,6 +1051,21 @@ impl Emu {
         true
     }
 
+    fn vector_memory_address(&self, ins: &Instruction, operand: u32, write: bool) -> Option<u64> {
+        let offset = ins.virtual_address(operand, 0, |reg, _, _| Some(self.regs().get_reg(reg)))?;
+        let segment = ins.memory_segment();
+        if self.linux_i386_tls_segment(segment) {
+            self.current_thread().linux_tls32.address(
+                segment,
+                offset as u32,
+                ins.memory_size().size(),
+                write,
+            )
+        } else {
+            Some(offset)
+        }
+    }
+
     /// Get a 128bits operand ie for xmm instructions.
     pub fn get_operand_xmm_value_128(
         &mut self,
@@ -1030,9 +1088,7 @@ impl Emu {
             OpKind::Immediate8to16 => ins.immediate8to16() as u16 as u128,
 
             OpKind::Memory => {
-                let mem_addr = match ins
-                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
-                {
+                let mem_addr = match self.vector_memory_address(ins, noperand, false) {
                     Some(addr) => addr,
                     None => {
                         log::trace!("/!\\ xmm exception reading operand");
@@ -1074,9 +1130,7 @@ impl Emu {
                 .set_xmm_reg(ins.op_register(noperand), value);
             return true;
         }
-        let Some(addr) =
-            ins.virtual_address(noperand, 0, |reg, _, _| Some(self.regs().get_reg(reg)))
-        else {
+        let Some(addr) = self.vector_memory_address(ins, noperand, true) else {
             self.exception(ExceptionType::SettingXmmOperand);
             return false;
         };
@@ -1109,9 +1163,7 @@ impl Emu {
             OpKind::Register => self.regs().get_ymm_reg(ins.op_register(noperand)),
             // the last one have to be memory
             _ => {
-                let mem_addr = match ins
-                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
-                {
+                let mem_addr = match self.vector_memory_address(ins, noperand, false) {
                     Some(addr) => addr,
                     None => {
                         log::trace!("/!\\ xmm exception reading operand");
@@ -1148,9 +1200,7 @@ impl Emu {
                 .set_ymm_reg(ins.op_register(noperand), value);
             return true;
         }
-        let Some(addr) =
-            ins.virtual_address(noperand, 0, |reg, _, _| Some(self.regs().get_reg(reg)))
-        else {
+        let Some(addr) = self.vector_memory_address(ins, noperand, true) else {
             self.exception(ExceptionType::SettingXmmOperand);
             return false;
         };

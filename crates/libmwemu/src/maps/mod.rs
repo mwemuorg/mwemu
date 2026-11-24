@@ -129,7 +129,8 @@ impl Maps {
     /// instruction cache. Cheap: checked once per emulated instruction.
     #[inline(always)]
     pub fn has_code_writes(&self) -> bool {
-        !self.code_writes.borrow().is_empty() || self.shared_stores.values().any(|s| s.dirty.get())
+        !self.code_writes.borrow().is_empty()
+            || self.shared_stores.values().any(|s| s.code_dirty.get())
     }
 
     /// Move the pending executable-memory writes into `out` (cleared first).
@@ -139,7 +140,7 @@ impl Maps {
         out.append(&mut self.code_writes.borrow_mut());
         let mut shared_dirty = false;
         for storage in self.shared_stores.values() {
-            shared_dirty |= storage.dirty.replace(false);
+            shared_dirty |= storage.code_dirty.replace(false);
         }
         if shared_dirty {
             out.clear();

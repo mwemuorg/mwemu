@@ -378,6 +378,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             force_break,
             api_policy: ApiPolicy::default(),
             unix_api: ApiState::default(),
+            linux_files: None,
             crt_io: CrtIoState::default(),
             sockets: SocketState::default(),
             oem_file_names: false,

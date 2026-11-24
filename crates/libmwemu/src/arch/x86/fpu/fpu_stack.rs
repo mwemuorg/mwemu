@@ -159,6 +159,43 @@ impl FPUStack {
         &self.regs[self.top as usize]
     }*/
 
+    pub(crate) fn abridged_tag(&self) -> u8 {
+        let mut tag = 0;
+        for logical in 0..self.depth as usize {
+            let physical = self.physical_index(logical);
+            if !self.is_invalid(physical) {
+                tag |= 1 << physical;
+            }
+        }
+        tag
+    }
+
+    pub(crate) fn restore_image(&mut self, top: u8, occupied: u8, values: [u128; 8]) -> u16 {
+        self.top = top;
+        self.invalid_flag = !occupied;
+        self.depth = 0;
+        let mut tags = 0;
+        for (logical, bits) in values.into_iter().enumerate() {
+            let index = self.physical_index(logical);
+            let reg = &mut self.regs[index];
+            reg.set(bits);
+            let tag = if occupied & (1 << index) == 0 {
+                3
+            } else {
+                self.depth = logical as u8 + 1;
+                if reg.is_zero() {
+                    1
+                } else if matches!(reg.get_exponent(), 0 | 0x7fff) || reg.get_integer_bit() == 0 {
+                    2
+                } else {
+                    0
+                }
+            };
+            tags |= tag << (2 * index);
+        }
+        tags
+    }
+
     pub fn get_depth(&self) -> u8 {
         self.depth
     }

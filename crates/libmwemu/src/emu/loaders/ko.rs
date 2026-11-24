@@ -184,7 +184,7 @@ impl Emu {
             .module = module;
 
         self.base = obj.base;
-        self.elf64 = Some(elf);
+        self.elf64 = Some(elf.into());
         Ok(base)
     }
 

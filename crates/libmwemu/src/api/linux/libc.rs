@@ -7,7 +7,7 @@ use crate::emu::Emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
 use crate::syscall::linux::constants::errors::{EFAULT, ENAMETOOLONG, ENOENT, ENOSYS};
-use crate::syscall::linux::{current_tid, io};
+use crate::syscall::linux::{current_tid, files, io, mappings, syscall_aarch64, syscall64};
 
 use crate::syscall::linux::GUEST_ID;
 
@@ -58,6 +58,9 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "signal" => api_signal(emu),
         "time" => api_time(emu),
         "getopt" | "getopt_long" => api_getopt(emu),
+        "syscall" => api_syscall(emu),
+        "perror" => api_perror(emu),
+        "mprotect" => api_mprotect(emu),
         "mmap" | "mmap64" => api_mmap(emu),
         "munmap" => api_munmap(emu),
     },
@@ -412,16 +415,18 @@ fn api_write(emu: &mut Emu) {
     let fd = api_try!(emu, call.arg_u32(emu, 0));
     let buffer = api_try!(emu, call.arg(emu, 1));
     let count = api_try!(emu, call.arg(emu, 2));
-    let result = io::write_buffers(
-        emu,
-        emu.cfg.arch,
-        fd,
-        &[(buffer, count)],
-        |emu, _, bytes| {
-            emu.emulated_stdout.extend_from_slice(bytes);
-        },
-    )
-    .unwrap_or_else(|error| error);
+    let result = files::write(emu, fd, buffer, count).unwrap_or_else(|| {
+        io::write_buffers(
+            emu,
+            emu.cfg.arch,
+            fd,
+            &[(buffer, count)],
+            |emu, _, bytes| {
+                emu.emulated_stdout.extend_from_slice(bytes);
+            },
+        )
+        .unwrap_or_else(|error| error)
+    });
     trace(
         emu,
         &format!(
@@ -437,7 +442,8 @@ fn api_read(emu: &mut Emu) {
     let fd = api_try!(emu, call.arg_u32(emu, 0));
     let buffer = api_try!(emu, call.arg(emu, 1));
     let count = api_try!(emu, call.arg(emu, 2));
-    let result = io::read_fd(emu, emu.cfg.arch, fd, buffer, count);
+    let result = files::read(emu, fd, buffer, count)
+        .unwrap_or_else(|| io::read_fd(emu, emu.cfg.arch, fd, buffer, count));
     trace(
         emu,
         &format!(
@@ -453,6 +459,17 @@ fn api_open(emu: &mut Emu) {
     let call = UnixApi;
     let path = api_try!(emu, call.arg(emu, 0));
     let flags = api_try!(emu, call.arg_u32(emu, 1));
+    if emu.linux_files.is_some() {
+        let mode = if files::open_needs_mode(flags) {
+            api_try!(emu, call.arg_u32(emu, 2))
+        } else {
+            0
+        };
+        if let Some(result) = files::open(emu, path, flags, mode) {
+            set_io_result(emu, result);
+            return;
+        }
+    }
     let error = match memory::length(emu, path, PATH_MAX) {
         Err(_) => EFAULT,
         Ok(0) => ENOENT,
@@ -469,7 +486,7 @@ fn api_open(emu: &mut Emu) {
 fn api_close(emu: &mut Emu) {
     let call = UnixApi;
     let fd = api_try!(emu, call.arg_u32(emu, 0));
-    let result = io::close_fd(fd);
+    let result = files::close(emu, fd).unwrap_or_else(|| io::close_fd(fd));
     trace(emu, &format!("close(fd={fd}) = {}", result as i64));
     set_io_result(emu, result);
 }
@@ -505,7 +522,13 @@ fn api_strdup(emu: &mut Emu) {
 fn api_strerror(emu: &mut Emu) {
     let call = UnixApi;
     let errnum = api_try!(emu, call.arg_i32(emu, 0));
-    let msg = match errnum {
+    let msg = errno_message(errnum);
+    let r = alloc_cstring(emu, msg);
+    call.set_return(emu, r);
+}
+
+fn errno_message(errnum: i32) -> &'static str {
+    match errnum {
         0 => "Success",
         1 => "Operation not permitted",
         2 => "No such file or directory",
@@ -513,10 +536,9 @@ fn api_strerror(emu: &mut Emu) {
         12 => "Cannot allocate memory",
         13 => "Permission denied",
         22 => "Invalid argument",
+        38 => "Function not implemented",
         _ => "Unknown error",
-    };
-    let r = alloc_cstring(emu, msg);
-    call.set_return(emu, r);
+    }
 }
 
 fn api_getenv(emu: &mut Emu) {
@@ -597,55 +619,76 @@ fn api_getopt(emu: &mut Emu) {
     call.set_return(emu, -1i64 as u64);
 }
 
-fn prot_to_permission(prot: u64) -> Permission {
-    match (prot & 1 != 0, prot & 2 != 0, prot & 4 != 0) {
-        (_, true, true) => Permission::READ_WRITE_EXECUTE,
-        (_, false, true) => Permission::READ_EXECUTE,
-        _ => Permission::READ_WRITE,
-    }
-}
-
 fn api_mmap(emu: &mut Emu) {
     let call = UnixApi;
+    let mut args = [0; 6];
+    for (i, arg) in args.iter_mut().enumerate() {
+        *arg = api_try!(emu, call.arg(emu, i));
+    }
+    let result = mappings::map(emu, emu.cfg.arch, args).unwrap_or_else(|errno| errno);
+    set_io_result(emu, result);
+}
+
+fn api_mprotect(emu: &mut Emu) {
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
     let len = api_try!(emu, call.arg(emu, 1));
     let prot = api_try!(emu, call.arg(emu, 2));
-    trace(emu, &format!("mmap(len=0x{:x}, prot=0x{:x})", len, prot));
-    if len == 0 {
-        call.set_return(emu, u64::MAX);
-        return;
+    let value = mappings::protect(emu, addr, len, prot).unwrap_or_else(|errno| errno);
+    set_io_result(emu, value);
+}
+
+fn api_syscall(emu: &mut Emu) {
+    let call = UnixApi;
+    let number = api_try!(emu, call.arg(emu, 0));
+    let mut args = [0; 6];
+    for (i, arg) in args.iter_mut().enumerate() {
+        *arg = api_try!(emu, call.arg(emu, i + 1));
     }
-    let Some(base) = emu.maps.alloc(len) else {
-        call.set_return(emu, u64::MAX);
-        return;
+    // The libc shim passes the System V arguments to the arch-specific kernel ABI.
+    let result = if emu.cfg.arch.is_aarch64() {
+        let regs = emu.regs_aarch64_mut();
+        regs.x[..6].copy_from_slice(&args);
+        regs.x[8] = number;
+        syscall_aarch64::gateway(emu);
+        emu.regs_aarch64().x[0]
+    } else if emu.cfg.is_x64() {
+        let regs = emu.regs_mut();
+        [regs.rdi, regs.rsi, regs.rdx, regs.r10, regs.r8, regs.r9] = args;
+        regs.rax = number;
+        syscall64::gateway(emu);
+        emu.regs().rax
+    } else {
+        ENOSYS
     };
-    if emu
-        .maps
-        .create_map(
-            &format!("mmap_{:x}", base),
-            base,
-            len,
-            prot_to_permission(prot),
-        )
-        .is_err()
-    {
-        call.set_return(emu, u64::MAX);
-        return;
+    set_io_result(emu, result);
+}
+
+fn api_perror(emu: &mut Emu) {
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    let label = if ptr == 0 {
+        String::new()
+    } else {
+        emu.maps.read_string(ptr)
+    };
+    let errno = unix::errno_address(emu)
+        .and_then(|addr| emu.maps.read_dword(addr))
+        .unwrap_or(0);
+    let message = errno_message(errno as i32);
+    if label.is_empty() {
+        eprintln!("{message}");
+    } else {
+        eprintln!("{label}: {message}");
     }
-    log::info!("  -> 0x{:x}", base);
-    call.set_return(emu, base);
 }
 
 fn api_munmap(emu: &mut Emu) {
     let call = UnixApi;
     let addr = api_try!(emu, call.arg(emu, 0));
-    trace(emu, &format!("munmap(0x{:x})", addr));
-    if let Some(mem) = emu.maps.get_mem_by_addr(addr)
-        && mem.get_base() == addr
-        && mem.get_name().starts_with("mmap_")
-    {
-        emu.maps.dealloc(addr);
-    }
-    call.set_return(emu, 0);
+    let len = api_try!(emu, call.arg(emu, 1));
+    let value = mappings::unmap(emu, addr, len).unwrap_or_else(|errno| errno);
+    set_io_result(emu, value);
 }
 
 fn unsupported(emu: &mut Emu, symbol: &str) {

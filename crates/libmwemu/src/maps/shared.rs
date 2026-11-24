@@ -9,14 +9,16 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct SharedStorage {
     pub(crate) bytes: Rc<RefCell<Vec<u8>>>,
-    pub(crate) dirty: Rc<Cell<bool>>,
+    pub(crate) code_dirty: Rc<Cell<bool>>,
+    pub(crate) file_dirty: Rc<Cell<bool>>,
 }
 
 impl SharedStorage {
     pub fn new(bytes: Vec<u8>) -> Self {
         Self {
             bytes: Rc::new(RefCell::new(bytes)),
-            dirty: Rc::new(Cell::new(false)),
+            code_dirty: Rc::new(Cell::new(false)),
+            file_dirty: Rc::new(Cell::new(false)),
         }
     }
 
@@ -28,9 +30,15 @@ impl SharedStorage {
         self.len() == 0
     }
 
+    pub(crate) fn mark_written(&self) {
+        self.code_dirty.set(true);
+        self.file_dirty.set(true);
+    }
+
     pub fn deep_clone(&self) -> Self {
         let clone = Self::new(self.bytes.borrow().clone());
-        clone.dirty.set(self.dirty.get());
+        clone.code_dirty.set(self.code_dirty.get());
+        clone.file_dirty.set(self.file_dirty.get());
         clone
     }
 }

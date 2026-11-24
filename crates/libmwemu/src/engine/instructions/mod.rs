@@ -850,3 +850,4 @@ pub mod xlat;
 pub mod xor;
 pub mod xorpd;
 pub mod xorps;
+pub mod xsave;

@@ -4,11 +4,15 @@ use crate::emu::Emu;
 use crate::syscall::linux::constants::errors::{EFAULT, EINVAL, ENOSYS};
 
 pub mod constants;
+pub mod files;
 pub(crate) mod io;
+pub(crate) mod mappings;
+pub(crate) mod process;
 pub mod syscall32;
 pub mod syscall64;
 pub mod syscall_aarch64;
 mod time;
+pub(crate) mod tls32;
 
 pub(super) fn unsupported(emu: &mut Emu, name: &str) {
     let call = LinuxSyscall;

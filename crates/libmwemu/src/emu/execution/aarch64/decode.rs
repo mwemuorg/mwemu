@@ -91,9 +91,7 @@ pub(crate) fn decode_and_execute_aarch64(emu: &mut Emu) -> (usize, bool) {
         return (0, false);
     }
 
-    let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();
-    let mut reader = yaxpeax_arch::U8Reader::new(&block);
-    let ins = match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
+    let ins = match engine::aarch64::decode_instruction(&block) {
         Ok(ins) => ins,
         Err(e) => {
             log::warn!("aarch64: decode error at 0x{:x}: {:?}", pc, e);

@@ -38,6 +38,29 @@ pub fn socket_reset() {
     sockets.clear();
 }
 
+/// Allocate a Linux pipe, event, or socket alongside the process's virtual files.
+pub(crate) fn linux_descriptor(
+    limit: u32,
+    occupied: impl Fn(u32) -> bool,
+    uri: Option<&str>,
+) -> Option<u64> {
+    let mut handles = HANDLERS.lock().ok()?;
+    let mut sockets = SOCKETS.lock().ok()?;
+    let fd = (3..limit).find(|&fd| {
+        !occupied(fd)
+            && !handles.iter().any(|h| h.id == fd as u64)
+            && !sockets.contains(&(fd as u64))
+    })? as u64;
+    if let Some(uri) = uri {
+        let index = handles.partition_point(|h| h.id < fd);
+        handles.insert(index, Handler::new(fd, uri));
+    } else {
+        let index = sockets.partition_point(|&id| id < fd);
+        sockets.insert(index, fd);
+    }
+    Some(fd)
+}
+
 pub fn handler_create(uri: &str) -> u64 {
     let mut handles = HANDLERS.lock().unwrap();
 

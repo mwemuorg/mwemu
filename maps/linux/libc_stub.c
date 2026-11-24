@@ -60,6 +60,18 @@ void *malloc(unsigned long size) {
     return 0;
 }
 
+void *calloc(unsigned long count, unsigned long size) {
+    (void)count;
+    (void)size;
+    return 0;
+}
+
+void *realloc(void *ptr, unsigned long size) {
+    (void)ptr;
+    (void)size;
+    return 0;
+}
+
 void free(void *ptr) {
     (void)ptr;
 }
@@ -75,3 +87,11 @@ void *memset(void *dst, int value, unsigned long len) {
     (void)len;
     return dst;
 }
+
+
+// The emulator dispatches these exported addresses to its Linux libc handlers.
+void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long offset) { return (void *)-1; }
+int mprotect(void *addr, unsigned long len, int prot) { return -1; }
+long syscall(long number, ...) { return -1; }
+long sysconf(int name) { return -1; }
+void perror(const char *label) { (void)label; }

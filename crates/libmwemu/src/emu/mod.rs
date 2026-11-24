@@ -51,6 +51,7 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::object_handle::HandleManagement;
 use crate::maps::heap_allocation::O1Heap;
+use crate::syscall::linux::files::LinuxFiles;
 use crate::winapi::common::crt_environment::CrtEnvironment;
 use crate::winapi::common::crt_stdio::CrtIoState;
 use crate::winapi::common::ipc::IpcState;
@@ -185,6 +186,7 @@ pub struct Emu {
     pub(crate) force_break: bool, // set by breakpoints, memory violations, etc. to stop execution
     pub api_policy: ApiPolicy,
     pub unix_api: ApiState,
+    pub linux_files: Option<LinuxFiles>,
     pub(crate) crt_io: CrtIoState,
     pub(crate) sockets: SocketState,
     pub(crate) oem_file_names: bool,
@@ -234,8 +236,8 @@ pub struct Emu {
     pub(crate) pe64_raw: Option<Vec<u8>>,
     pub(crate) pe32_raw: Option<Vec<u8>>,
     pub(crate) pe32_flat_loaded: bool, // true when PE32 was flat-loaded for a reflective loader
-    pub(crate) elf64: Option<Elf64>,   // parsed ELF64 (Linux x86_64 / AArch64)
-    pub(crate) elf32: Option<Elf32>,   // parsed ELF32 (Linux x86)
+    pub(crate) elf64: Option<Arc<Elf64>>, // parsed ELF64 (Linux x86_64 / AArch64)
+    pub(crate) elf32: Option<Arc<Elf32>>, // parsed ELF32 (Linux x86)
     pub(crate) macho64: Option<Macho64>, // parsed Mach-O 64 (macOS AArch64), includes addr_to_symbol
     // --- Kernel-mode (driver) emulation ---
     /// Present once a driver is loaded: the emulated kernel's address-space
