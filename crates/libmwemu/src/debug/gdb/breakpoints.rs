@@ -27,13 +27,16 @@ impl Breakpoints for MwemuTarget64<'_> {
 impl SwBreakpoint for MwemuTarget64<'_> {
     fn add_sw_breakpoint(&mut self, addr: u64, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Adding software breakpoint at 0x{:x}", addr);
-        self.emu.bp.add_bp(addr);
+        if !self.emu.bp.is_bp(addr) {
+            self.emu.bp.add_bp(addr);
+        }
         Ok(true)
     }
 
     fn remove_sw_breakpoint(&mut self, addr: u64, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Removing software breakpoint at 0x{:x}", addr);
-        Ok(self.emu.bp.remove_bp_by_addr(addr))
+        self.emu.bp.remove_bp_by_addr(addr);
+        Ok(true)
     }
 }
 
@@ -105,13 +108,16 @@ impl Breakpoints for MwemuTargetAarch64<'_> {
 impl SwBreakpoint for MwemuTargetAarch64<'_> {
     fn add_sw_breakpoint(&mut self, addr: u64, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Adding software breakpoint at 0x{:x}", addr);
-        self.emu.bp.add_bp(addr);
+        if !self.emu.bp.is_bp(addr) {
+            self.emu.bp.add_bp(addr);
+        }
         Ok(true)
     }
 
     fn remove_sw_breakpoint(&mut self, addr: u64, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Removing software breakpoint at 0x{:x}", addr);
-        Ok(self.emu.bp.remove_bp_by_addr(addr))
+        self.emu.bp.remove_bp_by_addr(addr);
+        Ok(true)
     }
 }
 
@@ -183,13 +189,16 @@ impl Breakpoints for MwemuTarget32<'_> {
 impl SwBreakpoint for MwemuTarget32<'_> {
     fn add_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Adding software breakpoint at 0x{:x}", addr);
-        self.emu.bp.add_bp(addr as u64);
+        if !self.emu.bp.is_bp(addr as u64) {
+            self.emu.bp.add_bp(addr as u64);
+        }
         Ok(true)
     }
 
     fn remove_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
         log::debug!("GDB: Removing software breakpoint at 0x{:x}", addr);
-        Ok(self.emu.bp.remove_bp_by_addr(addr as u64))
+        self.emu.bp.remove_bp_by_addr(addr as u64);
+        Ok(true)
     }
 }
 
