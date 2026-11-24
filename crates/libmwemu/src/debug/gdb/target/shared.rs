@@ -12,17 +12,17 @@ pub(super) fn read_memory(
     address
         .checked_add(data.len() as u64)
         .ok_or(TargetError::NonFatal)?;
-    let length = maps
+    if maps
         .first_inaccessible_address(address, data.len(), Permission::READ)
-        .map_or(data.len(), |end| (end - address) as usize);
-    if length == 0 && !data.is_empty() {
+        .is_some()
+    {
         return Err(TargetError::NonFatal);
     }
     let bytes = maps
-        .try_read_bytes(address, length)
+        .try_read_bytes(address, data.len())
         .ok_or(TargetError::NonFatal)?;
-    data[..length].copy_from_slice(&bytes);
-    Ok(length)
+    data.copy_from_slice(&bytes);
+    Ok(data.len())
 }
 
 pub(super) fn write_memory(

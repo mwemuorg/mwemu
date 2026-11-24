@@ -99,7 +99,8 @@ fn remote_memory_and_registers_are_live_on_all_architectures()
             for command in ["M1006,4:ffffffff", "M3000,1:ff", "M4000,1:ff"] {
                 assert!(request(&mut client, command)?.starts_with('E'));
             }
-            assert_eq!(request(&mut client, "m1006,4")?, "0708");
+            assert!(request(&mut client, "m1006,4")?.starts_with('E'));
+            assert_eq!(request(&mut client, "m1006,2")?, "0708");
             assert!(request(&mut client, "m4000,1")?.starts_with('E'));
             let value = if arch == Arch::X86 {
                 "78563412"
