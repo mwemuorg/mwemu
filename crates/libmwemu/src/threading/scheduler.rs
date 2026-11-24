@@ -129,7 +129,7 @@ impl ThreadScheduler {
     }
 
     /// Get a human-readable status string for a thread
-    fn get_thread_status_string(emu: &Emu, thread_idx: usize) -> String {
+    pub(crate) fn get_thread_status_string(emu: &Emu, thread_idx: usize) -> String {
         let thread = &emu.threads[thread_idx];
 
         if thread.suspended {

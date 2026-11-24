@@ -10,6 +10,7 @@ use gdbstub::target::ext::base::singlethread::{
 use gdbstub::target::ext::exec_file::{ExecFile, ExecFileOps};
 use gdbstub::target::ext::libraries::{Libraries, LibrariesOps};
 use gdbstub::target::ext::memory_map::{MemoryMap, MemoryMapOps};
+use gdbstub::target::ext::monitor_cmd::{ConsoleOutput, MonitorCmd, MonitorCmdOps};
 use gdbstub::target::ext::target_description_xml_override::{
     TargetDescriptionXmlOverride, TargetDescriptionXmlOverrideOps,
 };
@@ -24,7 +25,8 @@ use crate::debug::gdb::target_xml;
 
 use super::MwemuGdbError;
 use super::shared::{
-    copy_range, generate_library_list_xml, generate_memory_map_xml, read_memory, write_memory,
+    copy_range, generate_library_list_xml, generate_memory_map_xml, monitor_command, read_memory,
+    write_memory,
 };
 
 /// GDB target wrapper for 64-bit emulation
@@ -62,6 +64,10 @@ impl Target for MwemuTarget64<'_> {
     fn support_target_description_xml_override(
         &mut self,
     ) -> Option<TargetDescriptionXmlOverrideOps<'_, Self>> {
+        Some(self)
+    }
+
+    fn support_monitor_cmd(&mut self) -> Option<MonitorCmdOps<'_, Self>> {
         Some(self)
     }
 
@@ -284,5 +290,16 @@ impl MemoryMap for MwemuTarget64<'_> {
     ) -> TargetResult<usize, Self> {
         let xml = generate_memory_map_xml(&self.emu.maps);
         Ok(copy_range(xml.as_bytes(), offset, length, buf))
+    }
+}
+
+impl MonitorCmd for MwemuTarget64<'_> {
+    fn handle_monitor_cmd(
+        &mut self,
+        cmd: &[u8],
+        out: ConsoleOutput<'_>,
+    ) -> Result<(), Self::Error> {
+        monitor_command(self.emu, cmd, out);
+        Ok(())
     }
 }
