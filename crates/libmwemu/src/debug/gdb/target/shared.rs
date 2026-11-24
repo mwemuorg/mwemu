@@ -37,9 +37,10 @@ pub(super) fn write_memory(
     }
 }
 
-// Validate the entire range before writing, and retain code-cache invalidation.
 pub(crate) fn copy_range(source: &[u8], offset: u64, length: usize, buf: &mut [u8]) -> usize {
-    let offset = offset as usize;
+    let Ok(offset) = usize::try_from(offset) else {
+        return 0;
+    };
 
     if offset >= source.len() {
         return 0;
