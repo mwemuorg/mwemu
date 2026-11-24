@@ -906,6 +906,43 @@ fn enter_restores_frame_registers_after_a_nested_frame_read_fault() {
 }
 
 #[test]
+fn standard_xsave_round_trip_restores_only_requested_components() {
+    use crate::arch::x86::{XSAVE_AVX, XSAVE_SSE, XSAVE_X87};
+    const XSAVE: &[u8] = &[0x0f, 0xae, 0x27]; // xsave [rdi]
+    const XRSTOR: &[u8] = &[0x0f, 0xae, 0x2f]; // xrstor [rdi]
+    let mut code = XSAVE.to_vec();
+    code.extend_from_slice(XRSTOR);
+    code.extend_from_slice(XRSTOR);
+    for is_x64 in [false, true] {
+        let mut emu = prepare(is_x64, &code);
+        let value = U256([1, 2, 3, 4]);
+        emu.regs_mut().set_ymm_reg(Register::YMM0, value);
+        emu.fpu_mut().st.push_f64(3.5);
+        emu.fpu_mut().mxcsr = 0x1f80;
+        emu.regs_mut().rax = XSAVE_X87 | XSAVE_SSE | XSAVE_AVX;
+        emu.regs_mut().rdx = 0;
+        assert!(emu.step());
+        assert_eq!(
+            emu.maps.read_qword(DATA + 512),
+            Some(XSAVE_X87 | XSAVE_SSE | XSAVE_AVX)
+        );
+        let replace = U256([5, 6, 7, 8]);
+        emu.regs_mut().set_ymm_reg(Register::YMM0, replace);
+        emu.fpu_mut().st.pop();
+        emu.regs_mut().rax = XSAVE_X87 | XSAVE_SSE;
+        assert!(emu.step());
+        assert_eq!(emu.regs().get_ymm_reg(Register::YMM0), U256([1, 2, 7, 8]));
+        assert_eq!(emu.fpu_mut().get_st(0), 3.5);
+
+        // Initial AVX state means zero YMM upper halves while preserving unrequested SSE.
+        emu.maps.write_qword(DATA + 512, XSAVE_X87 | XSAVE_SSE);
+        emu.regs_mut().rax = XSAVE_AVX;
+        assert!(emu.step());
+        assert_eq!(emu.regs().get_ymm_reg(Register::YMM0), U256([1, 2, 0, 0]));
+    }
+}
+
+#[test]
 fn modeled_fxsave_stores_apply_hooks_and_report_failure() {
     for (is_x64, writable) in iproduct!([false, true], [false, true]) {
         let mut emu = prepare(is_x64, &[0x0f, 0xae, 0x07]);

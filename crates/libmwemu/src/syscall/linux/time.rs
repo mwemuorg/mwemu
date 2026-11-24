@@ -19,17 +19,18 @@ pub(super) enum Timespec {
     Time64,
 }
 
-fn realtime() -> Result<Duration, u64> {
+fn realtime(emu: &Emu) -> Result<Duration, u64> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
+        .map(|t| t + emu.processes.clock_offset)
         .map_err(|_| EOVERFLOW)
 }
 
 fn stamp(emu: &Emu, id: u32) -> Result<Duration, u64> {
     match id {
-        CLOCK_REALTIME | CLOCK_REALTIME_COARSE => realtime(),
+        CLOCK_REALTIME | CLOCK_REALTIME_COARSE => realtime(emu),
         CLOCK_MONOTONIC | CLOCK_MONOTONIC_COARSE | CLOCK_MONOTONIC_RAW | CLOCK_BOOTTIME => {
-            Ok(emu.now.elapsed())
+            Ok(emu.now.elapsed() + emu.processes.clock_offset)
         }
         CLOCK_PROCESS_CPUTIME_ID | CLOCK_THREAD_CPUTIME_ID => Err(EOPNOTSUPP),
         _ => Err(EINVAL),
@@ -73,12 +74,12 @@ pub(super) fn clock_gettime(emu: &mut Emu, arch: Arch, layout: Timespec) {
     call.set_return(emu, result.err().unwrap_or(0));
 }
 
-pub(super) fn gettimeofday64(emu: &mut Emu) {
+pub(super) fn gettimeofday(emu: &mut Emu, arch: Arch, layout: Timespec) {
     let call = LinuxSyscall;
-    let [tv, tz, ..] = call.args(emu);
-    let value = realtime().and_then(|t| {
+    let [tv, tz, ..] = call.args_for(emu, arch);
+    let value = realtime(emu).and_then(|t| {
         if tv != 0 {
-            write_pair(emu, tv, t.as_secs(), t.subsec_micros(), Timespec::Time64)?;
+            write_pair(emu, tv, t.as_secs(), t.subsec_micros(), layout)?;
         }
         if tz != 0 && !(emu.maps.validate_write_range(tz, 8) && emu.maps.write_qword(tz, 0)) {
             return Err(EFAULT);

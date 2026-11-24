@@ -1,10 +1,10 @@
-use crate::elf::ElfError;
 use crate::elf::loader::{ElfLoader, Perm};
+use crate::elf::{ET_DYN, ElfError};
 
 // Load address / segment type previously sourced from
 // `libmwemu::windows::constants`. Kept here so the parser is self-contained.
 const PT_LOAD: u32 = 1;
-const ELF32_DYN_BASE: u64 = 0x56555000;
+const ELF32_DYN_BASE: u32 = 0x56555000;
 // ELF identification byte values per ELF ABI gabi4+ ch4.eheader.
 const ELFMAG0: u8 = 0x7f;
 const ELFMAG1: u8 = b'E';
@@ -40,7 +40,7 @@ macro_rules! read_u32_le {
     };
 }
 
-fn check_elf32_ident(bin: &[u8]) -> Result<(), ElfError> {
+fn check_elf32_ident(bin: &[u8], check_version: bool) -> Result<(), ElfError> {
     if bin.len() < 52 {
         return Err(ElfError::new(
             "elf32 image too small for its header (need 52 bytes)",
@@ -57,7 +57,7 @@ fn check_elf32_ident(bin: &[u8]) -> Result<(), ElfError> {
             "rs-header only parses ELFDATA2LSB images (e_ident EI_DATA != 1)",
         ));
     }
-    if bin[6] != EV_CURRENT {
+    if check_version && bin[6] != EV_CURRENT {
         return Err(ElfError::new("e_ident EI_VERSION is not EV_CURRENT"));
     }
     Ok(())
@@ -79,7 +79,16 @@ impl Elf32 {
     /// Parse an ELF32 image from its raw bytes. Program/section headers are
     /// walked later, in [`Elf32::load`].
     pub fn parse(raw: &[u8]) -> Result<Elf32, ElfError> {
-        check_elf32_ident(raw)?;
+        Self::parse_ident(raw, true)
+    }
+
+    /// Linux i386 accepts unused identification bytes containing stub code.
+    pub fn parse_linux(raw: &[u8]) -> Result<Self, ElfError> {
+        Self::parse_ident(raw, false)
+    }
+
+    fn parse_ident(raw: &[u8], check_version: bool) -> Result<Self, ElfError> {
+        check_elf32_ident(raw, check_version)?;
         let bin = raw.to_vec();
         let ehdr: Elf32Ehdr = Elf32Ehdr::parse(&bin);
         Ok(Elf32 {
@@ -103,6 +112,19 @@ impl Elf32 {
     }
 
     pub fn load<L: ElfLoader>(&mut self, loader: &mut L) {
+        let base = if self.elf_hdr.e_type == ET_DYN {
+            ELF32_DYN_BASE
+        } else {
+            0
+        };
+        self.load_at(loader, base, "elf32_seg");
+    }
+
+    /// Map an image with the selected load bias and a distinct family of segment names.
+    pub fn load_at<L: ElfLoader>(&mut self, loader: &mut L, base: u32, segment_prefix: &str) {
+        self.base = base as u64;
+        self.elf_phdr.clear();
+        self.elf_shdr.clear();
         // Program headers — bounded walk to avoid slice OOB panic on crafted
         // header values. The synthetic limits here mirror the ELF64 path.
         let phent_sz = self.elf_hdr.e_phentsize as usize;
@@ -152,51 +174,85 @@ impl Elf32 {
             }
         }
 
-        // Dynamic/PIE ELF32 binaries have segments starting at vaddr 0;
-        // rebase them to a sensible load address so we never write to 0x0.
-        let base: u64 = if self.is_dynamic() { ELF32_DYN_BASE } else { 0 };
-        self.base = base;
+        self.map_load_pages(loader, segment_prefix);
+    }
 
-        let mut seg_idx = 0u32;
-        for phdr in &self.elf_phdr {
-            if phdr.p_type == PT_LOAD {
-                let vaddr = (phdr.p_vaddr as u64) + base;
-
-                // Convert ELF p_flags (PF_X=1, PF_W=2, PF_R=4) to Permission
-                // (READ=1, WRITE=2, EXECUTE=4).
-                let elf_r = phdr.p_flags & 4 != 0;
-                let elf_w = phdr.p_flags & 2 != 0;
-                let elf_x = phdr.p_flags & 1 != 0;
-                let final_perm = Perm::from_flags(elf_r, elf_w, elf_x);
-
-                // The loader maps the segment (write_bytes bypasses the final
-                // permissions when populating it) and reports where it landed.
-                let seg_addr = match loader.map(
-                    &format!("elf32_seg{}", seg_idx),
-                    vaddr,
-                    phdr.p_memsz as u64,
-                    final_perm,
-                ) {
-                    Some(addr) => addr,
-                    None => {
-                        log::warn!("elf32: cannot map segment {} at 0x{:x}", seg_idx, vaddr);
-                        seg_idx += 1;
-                        continue;
-                    }
+    fn map_load_pages<L: ElfLoader>(&self, loader: &mut L, segment_prefix: &str) {
+        use std::collections::BTreeSet;
+        const PAGE_SIZE: u64 = 4096;
+        const PAGE_MASK: u64 = PAGE_SIZE - 1;
+        let mut events = Vec::new();
+        for (index, ph) in self.elf_phdr.iter().enumerate() {
+            if ph.p_type != PT_LOAD || ph.p_memsz == 0 {
+                continue;
+            }
+            let address = self.base + ph.p_vaddr as u64;
+            let file_bytes = (self.bin.len() as u64).saturating_sub(ph.p_offset as u64);
+            // A file mapping faults on whole pages beyond EOF. Keep the partial last page.
+            let accessible = if file_bytes < ph.p_filesz as u64 && ph.p_memsz == ph.p_filesz {
+                file_bytes
+            } else {
+                ph.p_memsz as u64
+            };
+            if accessible == 0 || address + accessible > 1u64 << 32 {
+                continue;
+            }
+            events.push((address & !PAGE_MASK, true, index));
+            events.push((
+                (address + accessible).next_multiple_of(PAGE_SIZE),
+                false,
+                index,
+            ));
+        }
+        events.sort_unstable();
+        let mut active = BTreeSet::<usize>::new();
+        let mut previous = 0;
+        for (address, start, index) in events {
+            if previous < address
+                && let Some(&owner) = active.last()
+            {
+                let ph = &self.elf_phdr[owner];
+                let vaddr = self.base + ph.p_vaddr as u64;
+                let size = address - previous;
+                let permission = Perm::from_flags(
+                    ph.p_flags & 4 != 0,
+                    ph.p_flags & 2 != 0,
+                    ph.p_flags & 1 != 0,
+                );
+                let name = if previous == vaddr & !PAGE_MASK {
+                    format!("{segment_prefix}{owner}")
+                } else {
+                    format!("{segment_prefix}{owner}_{previous:x}")
                 };
-                seg_idx += 1;
-
-                // `p_filesz <= p_memsz` per ELF ABI; in malformed inputs the
-                // extra BSS bytes are already zero-filled by the loader map.
-                // Clamp the file slice to `bin.len()` to avoid slice panics
-                // on truncated/malicious inputs.
-                let off = phdr.p_offset as usize;
-                let filesz = phdr.p_filesz as usize;
-                let end = off.saturating_add(filesz).min(self.bin.len());
-                if off < self.bin.len() && end > off {
-                    loader.write_bytes(seg_addr, &self.bin[off..end]);
+                if let Some(mapped) = loader.map(&name, previous, size, permission) {
+                    let congruent = (ph.p_offset as u64 & PAGE_MASK) == (vaddr & PAGE_MASK);
+                    let prefix = if congruent { vaddr & PAGE_MASK } else { 0 };
+                    let first = previous.max(vaddr - prefix);
+                    let data_end = vaddr + ph.p_filesz as u64;
+                    let last = if congruent && ph.p_filesz == ph.p_memsz {
+                        data_end.next_multiple_of(PAGE_SIZE)
+                    } else {
+                        data_end
+                    };
+                    let last = address.min(last);
+                    if last > first {
+                        let offset = ph.p_offset as u64 - prefix + (first - (vaddr - prefix));
+                        let end = (offset + last - first).min(self.bin.len() as u64);
+                        if end > offset {
+                            loader.write_bytes(
+                                mapped + first - previous,
+                                &self.bin[offset as usize..end as usize],
+                            );
+                        }
+                    }
                 }
             }
+            if start {
+                active.insert(index);
+            } else {
+                active.remove(&index);
+            }
+            previous = address;
         }
     }
 

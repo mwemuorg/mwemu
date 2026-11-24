@@ -153,6 +153,320 @@ fn mmap_page_semantics_reservations_and_fixed_remap() {
     );
 }
 
+#[test]
+fn i386_mmap_abis_and_mprotect_preserve_adjacent_pages() {
+    use crate::maps::virtual_memory::PAGE_SIZE;
+    use crate::syscall::linux::syscall32;
+
+    const ARGS: u64 = 0x70000;
+    const PRIVATE_ANON: u64 = 0x22;
+    let mut emu = emu32();
+    emu.maps
+        .create_map("arguments", ARGS, PAGE_SIZE, Permission::READ_WRITE)
+        .unwrap();
+
+    // old_mmap receives a pointer to six words. mmap2 receives six registers.
+    let arguments = [
+        0,
+        2 * PAGE_SIZE,
+        Permission::READ_WRITE.bits() as u64,
+        PRIVATE_ANON,
+        u32::MAX as u64,
+        0,
+    ];
+    for (i, value) in arguments.into_iter().enumerate() {
+        emu.maps.write_dword(ARGS + 4 * i as u64, value as u32);
+    }
+    emu.regs_mut().rax = NR32_OLD_MMAP;
+    emu.regs_mut().rbx = ARGS;
+    syscall32::gateway(&mut emu);
+    let base = emu.regs().get_eax();
+    assert!(base.is_multiple_of(PAGE_SIZE));
+    assert!(emu.maps.write_byte(base + PAGE_SIZE, 0xab));
+
+    let regs = emu.regs_mut();
+    regs.rax = NR32_MPROTECT;
+    [regs.rbx, regs.rcx, regs.rdx] = [base, PAGE_SIZE, Permission::READ_EXECUTE.bits() as u64];
+    syscall32::gateway(&mut emu);
+    assert_eq!(emu.regs().get_eax(), 0);
+    assert!(emu.maps.can_access_range(base, 1, Permission::EXECUTE));
+    assert!(!emu.maps.can_access_range(base, 1, Permission::WRITE));
+    assert!(
+        emu.maps
+            .can_access_range(base + PAGE_SIZE, 1, Permission::WRITE)
+    );
+
+    let regs = emu.regs_mut();
+    regs.rax = NR32_MMAP2;
+    [regs.rbx, regs.rcx, regs.rdx, regs.rsi, regs.rdi, regs.rbp] = [
+        base,
+        1,
+        Permission::READ.bits() as u64,
+        PRIVATE_ANON | 0x10,
+        u32::MAX as u64,
+        0,
+    ];
+    syscall32::gateway(&mut emu);
+    assert_eq!(emu.regs().get_eax(), base);
+    assert_eq!(emu.maps.read_byte(base), Some(0));
+    assert_eq!(emu.maps.read_byte(base + PAGE_SIZE), Some(0xab));
+
+    let regs = emu.regs_mut();
+    regs.rax = NR32_MUNMAP;
+    [regs.rbx, regs.rcx] = [base, 1];
+    syscall32::gateway(&mut emu);
+    assert_eq!(emu.regs().get_eax(), 0);
+    assert!(!emu.maps.is_mapped(base));
+    assert_eq!(emu.maps.read_byte(base + PAGE_SIZE), Some(0xab));
+}
+
+#[test]
+fn i386_mmap2_reads_a_guest_descriptor_at_a_page_offset() {
+    use crate::maps::virtual_memory::PAGE_SIZE;
+    use crate::syscall::linux::syscall32;
+
+    let mut emu = emu32();
+    let mut file = vec![0x55; PAGE_SIZE as usize];
+    file.extend_from_slice(b"page two");
+    emu.set_linux_files(Vec::new(), file);
+    let regs = emu.regs_mut();
+    regs.rax = NR32_MMAP2;
+    [regs.rbx, regs.rcx, regs.rdx, regs.rsi, regs.rdi, regs.rbp] =
+        [0, PAGE_SIZE, Permission::READ.bits() as u64, 2, 0, 1];
+    syscall32::gateway(&mut emu);
+    let addr = emu.regs().get_eax();
+    assert_eq!(emu.maps.read_string(addr), "page two");
+    assert!(!emu.maps.can_access_range(addr, 1, Permission::WRITE));
+}
+
+#[test]
+fn i386_gettimeofday_writes_two_guest_words() {
+    use crate::syscall::linux::syscall32;
+
+    const TIMEVAL: u64 = 0x70000;
+    const CANARY: u32 = 0x01234567;
+    let mut emu = emu32();
+    emu.maps
+        .create_map("timeval", TIMEVAL, 12, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_dword(TIMEVAL + 8, CANARY);
+    let regs = emu.regs_mut();
+    regs.rax = NR32_GETTIMEOFDAY;
+    regs.rbx = TIMEVAL;
+    regs.rcx = 0;
+    syscall32::gateway(&mut emu);
+    assert_eq!(emu.regs().get_eax(), 0);
+    assert!(emu.maps.read_dword(TIMEVAL).unwrap() > 0);
+    assert!(emu.maps.read_dword(TIMEVAL + 4).unwrap() < 1_000_000);
+    assert_eq!(emu.maps.read_dword(TIMEVAL + 8), Some(CANARY));
+}
+
+#[test]
+fn linux_shared_file_views_follow_descriptor_io_and_private_copies() {
+    use crate::maps::virtual_memory::PAGE_SIZE;
+
+    const BUF: u64 = 0x60000;
+    const MAP_SHARED: u64 = 1;
+    const MAP_PRIVATE: u64 = 2;
+    const MAP_FIXED: u64 = 0x10;
+    const MS_SYNC: u64 = 4;
+    let mut emu = emu64();
+    emu.set_linux_files(Vec::new(), Vec::new());
+    emu.maps
+        .create_map("syscall_buf", BUF, PAGE_SIZE, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_bytes(BUF, b"test\0");
+    let fd = syscall(&mut emu, NR64_MEMFD_CREATE, &[BUF, 0]);
+    assert_eq!(syscall(&mut emu, NR64_FTRUNCATE, &[fd, PAGE_SIZE + 1]), 0);
+    let read = Permission::READ.bits() as u64;
+    let rw = Permission::READ_WRITE.bits() as u64;
+    let writer = syscall(
+        &mut emu,
+        NR64_MMAP,
+        &[0, PAGE_SIZE, rw, MAP_SHARED, fd, PAGE_SIZE],
+    );
+    let alias = syscall(
+        &mut emu,
+        NR64_MMAP,
+        &[0, PAGE_SIZE, read, MAP_SHARED, fd, PAGE_SIZE],
+    );
+    let private = syscall(
+        &mut emu,
+        NR64_MMAP,
+        &[0, PAGE_SIZE, read, MAP_PRIVATE, fd, PAGE_SIZE],
+    );
+    assert!(emu.maps.write_byte(writer, b'x'));
+    assert_eq!(emu.maps.read_byte(alias), Some(b'x'));
+    assert_eq!(emu.maps.read_byte(private), Some(0));
+    // The CPU drains pending instruction-cache invalidations on its next step.
+    emu.maps.drain_code_writes(&mut Vec::new());
+    let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
+    assert_eq!(
+        syscall(&mut restored, NR64_PREAD64, &[fd, BUF, 1, PAGE_SIZE]),
+        1
+    );
+    assert_eq!(restored.maps.read_byte(BUF), Some(b'x'));
+    assert_eq!(
+        syscall(&mut emu, NR64_MSYNC, &[writer, PAGE_SIZE, MS_SYNC]),
+        0
+    );
+    assert_eq!(syscall(&mut emu, NR64_PREAD64, &[fd, BUF, 4, PAGE_SIZE]), 1);
+    assert_eq!(emu.maps.read_byte(BUF), Some(b'x'));
+    assert_eq!(
+        syscall(&mut emu, NR64_LSEEK, &[fd, PAGE_SIZE, 0]),
+        PAGE_SIZE
+    );
+    emu.maps.write_byte(BUF, b'y');
+    assert_eq!(syscall(&mut emu, NR64_WRITE, &[fd, BUF, 1]), 1);
+    assert_eq!(emu.maps.read_byte(alias), Some(b'y'));
+    let rx = Permission::READ_EXECUTE.bits() as u64;
+    assert_eq!(
+        syscall(
+            &mut emu,
+            NR64_MMAP,
+            &[alias, PAGE_SIZE, rx, MAP_FIXED | MAP_SHARED, fd, PAGE_SIZE]
+        ),
+        alias
+    );
+    assert!(
+        emu.maps
+            .get_mem_by_addr(alias)
+            .is_some_and(|view| view.read_code(alias, 1).as_ref() == b"y")
+    );
+    emu.maps.write_string(BUF, "/proc/self/maps");
+    let map_fd = syscall(&mut emu, NR64_OPEN, &[BUF, 0, 0]);
+    let len = syscall(&mut emu, NR64_READ, &[map_fd, BUF, PAGE_SIZE]);
+    assert!(len < PAGE_SIZE);
+    let listing = String::from_utf8(emu.maps.read_buffer(BUF, len as usize)).unwrap();
+    for (address, permissions) in [(writer, "rw-s"), (alias, "r-xs")] {
+        let prefix = format!(
+            "{address:08x}-{:08x} {permissions} {PAGE_SIZE:08x}",
+            address + PAGE_SIZE
+        );
+        assert!(
+            listing
+                .lines()
+                .any(|line| line.starts_with(&prefix) && line.ends_with("memfd:test")),
+            "{listing}"
+        );
+    }
+    assert_eq!(syscall(&mut emu, NR64_CLOSE, &[map_fd]), 0);
+    assert_eq!(syscall(&mut emu, NR64_CLOSE, &[fd]), 0);
+    assert!(emu.maps.write_byte(writer, b'z'));
+    assert_eq!(emu.maps.read_byte(alias), Some(b'z'));
+    assert_eq!(syscall(&mut emu, NR64_MUNMAP, &[writer, PAGE_SIZE]), 0);
+    assert_eq!(emu.maps.read_byte(alias), Some(b'z'));
+}
+
+#[test]
+fn linux_memfd_survives_instruction_cache_flush_and_last_view_unmap() {
+    use crate::maps::virtual_memory::PAGE_SIZE;
+    const MAP_SHARED: u64 = 1;
+    const MAP_PRIVATE: u64 = 2;
+    const MEMORY: u64 = 0x60000;
+    let mut emu = emu64();
+    emu.set_linux_files(Vec::new(), Vec::new());
+    emu.maps
+        .create_map("scratch", MEMORY, PAGE_SIZE, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_string(MEMORY, "dynamic code");
+    let fd = syscall(&mut emu, NR64_MEMFD_CREATE, &[MEMORY, 0]);
+    assert_eq!(syscall(&mut emu, NR64_FTRUNCATE, &[fd, 1]), 0);
+    let writer = syscall(
+        &mut emu,
+        NR64_MMAP,
+        &[
+            0,
+            PAGE_SIZE,
+            Permission::READ_WRITE.bits() as u64,
+            MAP_SHARED,
+            fd,
+            0,
+        ],
+    );
+    assert!(emu.maps.write_bytes(writer, &[0xc3, 0xcc])); // ret, then a byte in the last page past EOF
+    emu.maps.drain_code_writes(&mut Vec::new());
+    const MS_SYNC: u64 = 4;
+    assert_eq!(
+        syscall(&mut emu, NR64_MSYNC, &[writer, PAGE_SIZE, MS_SYNC]),
+        0
+    );
+    assert_eq!(syscall(&mut emu, NR64_PREAD64, &[fd, MEMORY, 2, 0]), 1);
+    assert_eq!(syscall(&mut emu, NR64_MUNMAP, &[writer, PAGE_SIZE]), 0);
+    let code = syscall(
+        &mut emu,
+        NR64_MMAP,
+        &[
+            writer,
+            PAGE_SIZE,
+            Permission::READ_EXECUTE.bits() as u64,
+            MAP_PRIVATE,
+            fd,
+            0,
+        ],
+    );
+    assert_eq!(code, writer);
+    assert!(
+        emu.maps
+            .get_mem_by_addr(code)
+            .is_some_and(|map| map.read_code(code, 2).as_ref() == [0xc3, 0xcc])
+    );
+}
+
+#[test]
+fn program_break_backs_the_requested_pages_and_preserves_the_old_break_on_failure() {
+    use crate::maps::mem64::Permission;
+    use crate::maps::virtual_memory::PAGE_SIZE;
+    use crate::syscall::linux::{syscall_aarch64, syscall32};
+
+    fn brk(emu: &mut emu::Emu, address: u64) -> u64 {
+        if emu.cfg.arch.is_aarch64() {
+            let regs = emu.regs_aarch64_mut();
+            regs.x[8] = NRA64_BRK;
+            regs.x[0] = address;
+            syscall_aarch64::gateway(emu);
+            emu.regs_aarch64().x[0]
+        } else if emu.cfg.is_x64() {
+            let regs = emu.regs_mut();
+            regs.rax = NR64_BRK;
+            regs.rdi = address;
+            syscall64::gateway(emu);
+            emu.regs().rax
+        } else {
+            let regs = emu.regs_mut();
+            regs.rax = NR32_BRK;
+            regs.rbx = address;
+            syscall32::gateway(emu);
+            emu.regs().get_eax()
+        }
+    }
+    let mut interpreter = emu64();
+    interpreter.cfg.linux_real_libc = false;
+    interpreter.ld_bootstrap = true;
+    for mut emu in [emu32(), interpreter, emu_aarch64()] {
+        let base = brk(&mut emu, 0);
+        assert_ne!(base, 0);
+        assert!(base.is_multiple_of(PAGE_SIZE));
+        let top = base + PAGE_SIZE + 1;
+        assert_eq!(brk(&mut emu, top), top);
+        assert!(emu.maps.write_byte(top - 1, 1));
+        let occupied = base + 2 * PAGE_SIZE;
+        assert!(
+            emu.maps
+                .create_map("occupied", occupied, PAGE_SIZE, Permission::READ_WRITE)
+                .is_ok()
+        );
+        assert_eq!(brk(&mut emu, occupied + 1), top);
+        assert_eq!(brk(&mut emu, 0), top);
+        assert_eq!(emu.maps.read_byte(top - 1), Some(1));
+        assert_eq!(brk(&mut emu, base + 1), base + 1);
+        assert!(emu.maps.is_mapped(base));
+        assert!(!emu.maps.is_mapped(base + PAGE_SIZE));
+        assert!(emu.maps.is_mapped(occupied));
+        assert_eq!(brk(&mut emu, base - 1), base + 1);
+    }
+}
+
 const CLONE_FUTEX: &[u8] = // bits 64
     // ; stack for the child
     // mov eax, 9
@@ -308,7 +622,7 @@ const VFORK_EXEC: &[u8] = // bits 64
     // xor edx, edx
     // mov eax, 59                        ; execve("/bin/true", ["/bin/true", "-x"], NULL)
     // syscall
-    // mov eax, 60                        ; not reached: the child is retired at execve
+    // mov eax, 231                       ; exit_group(7) if execve returns an error
     // mov edi, 7
     // syscall
     // path: db "/bin/true", 0
@@ -325,7 +639,7 @@ const VFORK_EXEC: &[u8] = // bits 64
         0x00, 0x00, 0x00, 0x48, 0x89, 0x05, 0x43, 0x00, 0x00, 0x00, 0x48, 0x8d, 0x05, 0x34, 0x00,
         0x00, 0x00, 0x48, 0x89, 0x05, 0x3d, 0x00, 0x00, 0x00, 0x48, 0x8d, 0x3d, 0x1c, 0x00, 0x00,
         0x00, 0x48, 0x8d, 0x35, 0x27, 0x00, 0x00, 0x00, 0x31, 0xd2, 0xb8, 0x3b, 0x00, 0x00, 0x00,
-        0x0f, 0x05, 0xb8, 0x3c, 0x00, 0x00, 0x00, 0xbf, 0x07, 0x00, 0x00, 0x00, 0x0f, 0x05, 0x2f,
+        0x0f, 0x05, 0xb8, 0xe7, 0x00, 0x00, 0x00, 0xbf, 0x07, 0x00, 0x00, 0x00, 0x0f, 0x05, 0x2f,
         0x62, 0x69, 0x6e, 0x2f, 0x74, 0x72, 0x75, 0x65, 0x00, 0x2d, 0x78, 0x00, 0x90, 0x90, 0x90,
         0x90, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -367,6 +681,70 @@ fn vfork_execve_is_logged_child_retired_parent_waits() {
         "the child was retired at execve, not at its exit(7)"
     );
     assert_eq!(emu.regs().rdi, 0, "parent's exit_group(0)");
+}
+
+#[test]
+fn vfork_guest_exec_preserves_parent_and_reports_the_child_status() {
+    use goblin::elf::Elf;
+    use goblin::elf::program_header::{PT_INTERP, PT_LOAD, PT_NULL};
+
+    const EXECUTED: u8 = 23;
+    const EXEC_FAILED: u8 = 7; // VFORK_EXEC exits with this status if execve returns.
+    let template = include_bytes!("../fixtures/elf64_x86_64_linux_hello.bin");
+    let elf = Elf::parse(template).unwrap();
+    let mut image = template.to_vec();
+    let interp_index = elf
+        .program_headers
+        .iter()
+        .position(|p| p.p_type == PT_INTERP)
+        .unwrap();
+    let interp_offset =
+        elf.header.e_phoff as usize + interp_index * elf.header.e_phentsize as usize;
+    image[interp_offset..interp_offset + 4].copy_from_slice(&PT_NULL.to_le_bytes());
+    let code = elf
+        .program_headers
+        .iter()
+        .find(|p| p.p_type == PT_LOAD && (p.p_vaddr..p.p_vaddr + p.p_filesz).contains(&elf.entry))
+        .unwrap();
+    let offset = (code.p_offset + elf.entry - code.p_vaddr) as usize;
+    // mov edi, EXECUTED; mov eax, SYS_exit_group; syscall.
+    let exit = [
+        0xbf,
+        EXECUTED,
+        0,
+        0,
+        0,
+        0xb8,
+        NR64_EXIT_GROUP as u8,
+        0,
+        0,
+        0,
+        0x0f,
+        0x05,
+    ];
+    image[offset..offset + exit.len()].copy_from_slice(&exit);
+
+    for (has_executable, expected) in [(true, EXECUTED), (false, EXEC_FAILED)] {
+        let mut emu = emu64();
+        emu.os = OperatingSystem::Linux;
+        emu.cfg.exe_name = "/parent".into();
+        emu.set_linux_files(Vec::new(), Vec::new());
+        if has_executable {
+            emu.linux_files
+                .as_mut()
+                .unwrap()
+                .mount_executable("/bin/true", &image)
+                .unwrap();
+        }
+        emu.max_pos = Some(1000);
+        emu.load_code_bytes(VFORK_EXEC);
+        emu.run(None).unwrap();
+        assert_eq!(emu.processes.exit_status, Some(0));
+        assert_eq!(emu.regs().r12, emu.regs().rbx, "wait4 returned child pid");
+        assert_eq!(emu.regs().r13, (expected as u64) << 8, "child wait status");
+        assert_eq!(emu.threads.len(), 2);
+        assert!(emu.threads[1].suspended);
+    }
 }
 
 const POLL_TIME: &[u8] = // bits 64
@@ -684,4 +1062,66 @@ fn sigaltstack_survives_thread_snapshot() {
     legacy.extend(bitcode::serialize(&NativeSnapshotV5::from(&emu)).unwrap());
     let restored = Serialization::deserialize(&legacy);
     assert_eq!(restored.current_thread().signal_stack.size, 0);
+}
+
+#[test]
+fn i386_thread_area_uses_the_selected_descriptor_for_sized_tls_access() {
+    use crate::arch::OperatingSystem;
+    use crate::emu32;
+    use crate::maps::mem64::Permission;
+    use crate::syscall::linux::constants::errors::{EFAULT, EINVAL, ESRCH};
+    use crate::syscall::linux::constants::syscalls::{NR32_GET_THREAD_AREA, NR32_SET_THREAD_AREA};
+    use crate::syscall::linux::syscall32;
+    use iced_x86::{Decoder, DecoderOptions};
+
+    const DATA: u64 = 0x80000;
+    const TLS: u64 = DATA + 0x100;
+    let mut emu = emu32();
+    emu.os = OperatingSystem::Linux;
+    emu.maps
+        .create_map("thread descriptor", DATA, 0x1000, Permission::READ_WRITE)
+        .unwrap();
+    let invoke = |emu: &mut crate::emu::Emu, nr, address| {
+        emu.regs_mut().rax = nr;
+        emu.regs_mut().rbx = address;
+        syscall32::gateway(emu);
+        emu.regs().get_eax() as u32
+    };
+    let instruction = |bytes: &[u8]| Decoder::new(32, bytes, DecoderOptions::NONE).decode();
+    assert_eq!(invoke(&mut emu, NR32_SET_THREAD_AREA, 0), EFAULT as u32);
+    emu.maps.write_dword(DATA, u32::MAX);
+    emu.maps.write_dword(DATA + 4, TLS as u32);
+    emu.maps.write_dword(DATA + 8, 0xfffff);
+    emu.maps.write_dword(DATA + 12, 0x51);
+    assert_eq!(invoke(&mut emu, NR32_SET_THREAD_AREA, DATA), 0);
+    let entry = emu.maps.read_dword(DATA).unwrap();
+    let selector = ((entry << 3) | 3) as u64;
+    let load_gs = instruction(&[0x8e, 0xe8]); // mov gs, ax
+    let store = instruction(&[0x65, 0x88, 0x43, 2]); // mov gs:[ebx+2], al
+    let load = instruction(&[0x65, 0x0f, 0xb6, 0x43, 2]); // movzx eax, byte ptr gs:[ebx+2]
+    assert!(emu.set_operand_value(&load_gs, 0, selector));
+    emu.regs_mut().rbx = 3;
+    emu.maps.write_dword(TLS + 5, 0xaabb_ccdd);
+    assert!(emu.set_operand_value(&store, 0, 0x11));
+    assert_eq!(emu.get_operand_value(&load, 1, true), Some(0x11));
+    assert_eq!(emu.maps.read_dword(TLS + 5), Some(0xaabb_cc11));
+    assert_eq!(emu.get_operand_value(&load, 1, false), Some(TLS + 5));
+    let lea = instruction(&[0x65, 0x8d, 0x43, 2]); // lea eax, gs:[ebx+2]
+    assert_eq!(emu.get_operand_value(&lea, 1, false), Some(5));
+    let xmm = instruction(&[0x65, 0xf3, 0x0f, 0x6f, 0x43, 2]); // movdqu xmm0, gs:[ebx+2]
+    assert_eq!(
+        emu.get_operand_xmm_value_128(&xmm, 1, true),
+        Some(0xaabb_cc11)
+    );
+    for _ in 0..2 {
+        emu.maps.write_dword(DATA, u32::MAX);
+        assert_eq!(invoke(&mut emu, NR32_SET_THREAD_AREA, DATA), 0);
+    }
+    emu.maps.write_dword(DATA, u32::MAX);
+    assert_eq!(invoke(&mut emu, NR32_SET_THREAD_AREA, DATA), ESRCH as u32);
+    assert_eq!(invoke(&mut emu, NR32_GET_THREAD_AREA, DATA), EINVAL as u32);
+    emu.maps.write_dword(DATA, entry);
+    emu.maps.write_dword(DATA + 4, 0);
+    assert_eq!(invoke(&mut emu, NR32_GET_THREAD_AREA, DATA), 0);
+    assert_eq!(emu.maps.read_dword(DATA + 4), Some(TLS as u32));
 }

@@ -1,3 +1,6 @@
+mod guest_exec;
+pub(super) use guest_exec::{MAX_EXEC_BYTES, exec_layout};
+
 use crate::syscall::linux::constants::elf::*;
 use crate::windows::constants::memory::*;
 use std::collections::HashMap;
@@ -10,7 +13,7 @@ use crate::err::MwemuError;
 use rs_header::elf::ElfError;
 use rs_header::elf::elf64::Elf64;
 
-use super::format::{FormatLoader, LoadInput, apply_entry_point_override};
+use super::format::{FormatLoader, LoadInput, apply_entry_point_override, self_relocating_pie};
 
 /// Read an ELF64 off disk and parse it through rs-header. Plain I/O here; all
 /// byte interpretation lives in rs-header.
@@ -21,16 +24,20 @@ fn parse_elf64_file(path: &str) -> Result<Elf64, ElfError> {
 }
 
 impl Emu {
+    /// Base chosen by the active ELF loader. Shared-object dynamic pointers use this base.
+    pub fn elf_image_base(&self) -> Option<u64> {
+        if self.cfg.arch == Arch::X86 {
+            self.elf32.as_ref().map(|image| image.base())
+        } else {
+            self.elf64.as_ref().map(|image| image.base)
+        }
+    }
+
     /// Loads an ELF64 parsing sections etc, powered by elf64.rs
     /// This is called from load_code() if the sample is ELF64
-    pub fn load_elf64(&mut self, filename: &str) {
-        let mut elf64 = match parse_elf64_file(filename) {
-            Ok(e) => e,
-            Err(err) => {
-                log::error!("elf64 parse failed for {filename}: {err}");
-                return;
-            }
-        };
+    pub fn load_elf64(&mut self, filename: &str) -> Result<(), MwemuError> {
+        let mut elf64 = parse_elf64_file(filename)
+            .map_err(|err| MwemuError::new(&format!("cannot load ELF64 '{filename}': {err}")))?;
         let dyn_link = !elf64.get_dynamic().is_empty();
 
         if dyn_link {
@@ -75,42 +82,23 @@ impl Emu {
         if ld_bootstrap {
             let interp_str = interp.unwrap_or_default();
             self.setup_ld_so_bootstrap(&mut elf64, &interp_str);
-            self.elf64 = Some(elf64);
-            return;
+            self.elf64 = Some(elf64.into());
+            return Ok(());
         }
 
         // --- Dynamic linking: load stub libs and apply relocations ---
-        if dyn_link {
+        if !elf64.is_static()
+            && !goblin::elf::Elf::parse(&elf64.bin).is_ok_and(|elf| self_relocating_pie(&elf))
+        {
             self.load_elf64_dynamic_libs(&mut elf64);
         }
 
-        let mut text_addr: u64 = 0;
-        for i in 0..elf64.elf_shdr.len() {
-            let sname = elf64.get_section_name(elf64.elf_shdr[i].sh_name as usize);
-            if sname == ".text" {
-                text_addr = elf64.elf_shdr[i].sh_addr;
-                break;
-            }
+        if !self.maps.mem_slab.iter().any(|(_, map)| {
+            let name = map.get_name();
+            (name == "code" || name.starts_with("elf64.")) && map.size() > 0
+        }) {
+            return Err(MwemuError::new("ELF64 loader did not map the main image"));
         }
-
-        // Tiny / hand-crafted ELFs may have no section headers at all (or no
-        // `.text` section). Fall back to the first executable PT_LOAD segment.
-        if text_addr == 0 {
-            for phdr in &elf64.elf_phdr {
-                if phdr.p_type == PT_LOAD && (phdr.p_flags & 1) != 0 {
-                    text_addr = elf64.rebase_vaddr(phdr.p_vaddr);
-                    break;
-                }
-            }
-        }
-
-        if text_addr == 0 {
-            {
-                log::warn!(".text not found on this elf64");
-                return;
-            }
-        }
-
         // entry point logic:
         if self.cfg.entry_point != CFG_DEFAULT_BASE {
             log::trace!("forcing entry point to 0x{:x}", self.cfg.entry_point);
@@ -128,7 +116,18 @@ impl Emu {
         }
         // Write the Linux initial stack layout (argc, argv, envp, auxv)
         // so _start can read argc/argv and __libc_start_main gets proper args.
-        let phdr_addr = elf64.base + elf64.elf_hdr.e_phoff;
+        let phoff = elf64.elf_hdr.e_phoff;
+        let phdr_addr = elf64
+            .elf_phdr
+            .iter()
+            .find_map(|ph| {
+                let delta = phoff.checked_sub(ph.p_offset)?;
+                if ph.p_type != PT_LOAD || delta >= ph.p_filesz {
+                    return None;
+                }
+                Some(elf64.rebase_vaddr(ph.p_vaddr.checked_add(delta)?))
+            })
+            .unwrap_or(0);
         self.write_linux_stack_layout(
             self.pc(),
             phdr_addr,
@@ -136,7 +135,8 @@ impl Emu {
             elf64.elf_hdr.e_phnum,
         );
 
-        self.elf64 = Some(elf64);
+        self.elf64 = Some(elf64.into());
+        Ok(())
     }
 
     /// Load dynamic libraries for an ELF64 binary.
@@ -184,10 +184,6 @@ impl Emu {
                 ifunc_resolvers.extend(elflib.ifunc_resolver_addrs());
                 loaded_libs.push((map_name.to_string(), elflib));
             }
-        }
-
-        if export_map.is_empty() {
-            return;
         }
 
         if self.cfg.arch.is_aarch64() {
@@ -391,25 +387,6 @@ impl Emu {
         }
 
         // --- structured area at rsp ---
-        const AT_NULL: u64 = 0;
-        const AT_PHDR: u64 = 3;
-        const AT_PHENT: u64 = 4;
-        const AT_PHNUM: u64 = 5;
-        const AT_PAGESZ: u64 = 6;
-        const AT_BASE: u64 = 7;
-        const AT_FLAGS: u64 = 8;
-        const AT_ENTRY: u64 = 9;
-        const AT_UID: u64 = 11;
-        const AT_EUID: u64 = 12;
-        const AT_GID: u64 = 13;
-        const AT_EGID: u64 = 14;
-        const AT_HWCAP: u64 = 16;
-        const AT_CLKTCK: u64 = 17;
-        const AT_PLATFORM: u64 = 15;
-        const AT_SECURE: u64 = 23;
-        const AT_RANDOM: u64 = 25;
-        const AT_EXECFN: u64 = 31;
-
         let auxv: &[(u64, u64)] = &[
             (AT_PHDR, prog_phdr),
             (AT_PHENT, phent as u64),
@@ -448,9 +425,18 @@ impl Emu {
             push(self, atype);
             push(self, aval);
         }
+        let auxv_bytes = size_of_val(auxv);
+        self.save_linux_auxv(off - auxv_bytes as u64, auxv_bytes);
     }
 
     fn resolve_linux_stub_path(&self, lib_name: &str) -> Option<String> {
+        // The guest names a library inside the configured symbol directories.
+        if lib_name.is_empty()
+            || lib_name.contains(['/', '\\', ':'])
+            || matches!(lib_name, "." | "..")
+        {
+            return None;
+        }
         let mut candidates = Vec::new();
 
         // Real-libc mode: prefer the genuine system libraries so the real
@@ -479,6 +465,13 @@ impl Emu {
             candidates.push(format!("../../maps/linux/x86_64/{}", lib_name));
         }
 
+        // The map exports modeled libc entry points for the active architecture.
+        if !self.cfg.linux_real_libc
+            && lib_name.starts_with("libc.musl-")
+            && lib_name.ends_with(".so.1")
+        {
+            candidates.extend(self.resolve_linux_stub_path("libc.so.6"));
+        }
         candidates
             .into_iter()
             .find(|candidate| Path::new(candidate).exists())
@@ -495,7 +488,7 @@ impl FormatLoader for Elf64X64 {
         emu.maps.clear();
 
         log::trace!("elf64 x86_64 detected.");
-        emu.load_elf64(input.path);
+        emu.load_elf64(input.path)?;
 
         apply_entry_point_override(emu);
         Ok(())
@@ -515,7 +508,7 @@ impl FormatLoader for Elf64Aarch64 {
         log::trace!("elf64 aarch64 detected.");
         // load_elf64 handles thread conversion (via init_linux64_aarch64)
         // and sets PC via set_pc()
-        emu.load_elf64(input.path);
+        emu.load_elf64(input.path)?;
 
         apply_entry_point_override(emu);
         Ok(())

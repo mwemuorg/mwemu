@@ -1,10 +1,12 @@
 use super::thread::yield_current;
+use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
-use crate::syscall::linux::unsupported;
+use crate::syscall::linux::{mappings, unsupported};
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
+        NR64_BRK if emu.ld_bootstrap => mappings::brk64(emu, Arch::X86_64),
         NR64_BRK => handle_syscall64_brk(emu),
         NR64_NANOSLEEP => handle_syscall64_nanosleep(emu),
         NR64_MREMAP => unsupported(emu, "mremap"),

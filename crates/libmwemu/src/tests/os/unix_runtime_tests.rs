@@ -4,6 +4,7 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
 use crate::syscall::linux::constants::errors::ENOSYS;
+use crate::syscall::linux::constants::syscalls::{i386_syscall_name, x86_64_syscall_name};
 use crate::syscall::linux::{syscall_aarch64, syscall32, syscall64};
 use crate::tests::helpers;
 use crate::threading::context::ThreadContext;
@@ -341,6 +342,34 @@ fn libc_page_queries_and_unknown_names_use_the_guest_profile() {
     }
 }
 
+#[test]
+fn x86_syscall_names_follow_the_sparse_abi_tables() {
+    for (number, name) in [
+        (221, Some("fcntl64")),
+        (222, None),
+        (223, None),
+        (224, Some("gettid")),
+        (386, Some("rseq")),
+        (392, None),
+        (393, Some("semget")),
+        (448, Some("process_mrelease")),
+        (u32::MAX as u64, None),
+    ] {
+        assert_eq!(i386_syscall_name(number), name, "i386 syscall {number}");
+    }
+
+    for (number, name) in [
+        (334, Some("rseq")),
+        (400, None),
+        (423, None),
+        (424, Some("pidfd_send_signal")),
+        (448, Some("process_mrelease")),
+        (u64::MAX, None),
+    ] {
+        assert_eq!(x86_64_syscall_name(number), name, "x86_64 syscall {number}");
+    }
+}
+
 fn raw_linux_syscall(emu: &mut Emu, number: u64, args: [u64; 3]) -> u64 {
     let [a, b, c] = args;
     match emu.cfg.arch {
@@ -364,6 +393,237 @@ fn raw_linux_syscall(emu: &mut Emu, number: u64, args: [u64; 3]) -> u64 {
             emu.regs_aarch64().x[0]
         }
     }
+}
+
+#[test]
+fn amd64_fork_resumes_the_parent_and_reaps_the_child_once() {
+    use crate::syscall::linux::constants::errors::{ECHILD, EFAULT};
+    use crate::syscall::linux::constants::syscalls::{NR64_EXIT_GROUP, NR64_FORK, NR64_WAIT4};
+
+    const CODE: u64 = 0x400000;
+    const DATA: u64 = 0x500000;
+    const STATUS: u64 = DATA + 4;
+    const CHILD_STATUS: u64 = 7;
+    const PREFIXED_SYSCALL: &[u8] = &[0x48, 0x0f, 0x05];
+
+    helpers::setup();
+    let mut emu = emu64();
+    emu.os = OperatingSystem::Linux;
+    emu.maps
+        .create_map("syscall", CODE, 16, Permission::READ_WRITE_EXECUTE)
+        .unwrap();
+    emu.maps
+        .create_map("data", DATA, 16, Permission::READ_WRITE)
+        .unwrap();
+    assert!(emu.maps.write_bytes(CODE, PREFIXED_SYSCALL));
+    emu.set_pc(CODE);
+    let parent = emu.processes.pid;
+    assert_eq!(raw_linux_syscall(&mut emu, NR64_FORK, [0; 3]), 0);
+    let child = emu.processes.pid;
+    assert_eq!(emu.processes.ppid, parent);
+    assert!(emu.maps.write_dword(DATA, 1));
+
+    raw_linux_syscall(&mut emu, NR64_EXIT_GROUP, [CHILD_STATUS, 0, 0]);
+    assert_eq!(emu.processes.pid, parent);
+    assert_eq!(emu.pc(), CODE + PREFIXED_SYSCALL.len() as u64);
+    assert_eq!(emu.regs().rax, child);
+    assert_eq!(emu.maps.read_dword(DATA), Some(0));
+
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR64_WAIT4, [child, u64::MAX, 0]),
+        EFAULT
+    );
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR64_WAIT4, [child, STATUS, 0]),
+        child
+    );
+    assert_eq!(
+        emu.maps.read_dword(STATUS),
+        Some((CHILD_STATUS << 8) as u32)
+    );
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR64_WAIT4, [child, STATUS, 0]),
+        ECHILD
+    );
+}
+
+#[test]
+fn i386_parent_reaps_child_that_execs_an_amd64_image() {
+    use crate::syscall::linux::constants::syscalls::{
+        NR32_EXECVE, NR32_EXIT, NR32_FORK, NR32_WAITPID, NR64_EXIT,
+    };
+    use crate::threading::process::exit_status;
+    use byteorder::{LittleEndian as LE, WriteBytesExt};
+    use goblin::elf::{
+        header::{ELFCLASS64, ELFDATA2LSB, ELFMAG, EM_X86_64, ET_EXEC},
+        program_header::{PF_R, PF_X, PT_LOAD},
+    };
+
+    const CHILD_STATUS: u8 = 37;
+    const CHILD_PATH: &str = "/bin/child64";
+    const CHILD_BASE: u64 = 0x0040_0000;
+    const EHDR: u16 = 64;
+    const PHDR: u16 = 56;
+    const PARENT_BASE: u64 = 0x0804_8000;
+    const PATH: u64 = 0x0805_0000;
+    const STATUS: u64 = PATH + 64;
+
+    #[rustfmt::skip]
+    const CHILD_CODE: &[u8] = &[
+        0x41, 0xb8, CHILD_STATUS, 0, 0, 0,   // mov r8d, CHILD_STATUS
+        0xb8, NR64_EXIT as u8, 0, 0, 0,      // mov eax, SYS_exit
+        0x44, 0x89, 0xc7,                    // mov edi, r8d
+        0x0f, 0x05,                          // syscall
+    ];
+    let entry_offset = (EHDR + PHDR) as u64;
+    let size = entry_offset + CHILD_CODE.len() as u64;
+    let mut image = ELFMAG.to_vec();
+    image.extend_from_slice(&[ELFCLASS64, ELFDATA2LSB, 1]);
+    image.resize(16, 0);
+    image.write_u16::<LE>(ET_EXEC).unwrap();
+    image.write_u16::<LE>(EM_X86_64).unwrap();
+    image.write_u32::<LE>(1).unwrap();
+    for value in [CHILD_BASE + entry_offset, EHDR as u64, 0] {
+        image.write_u64::<LE>(value).unwrap();
+    }
+    image.write_u32::<LE>(0).unwrap();
+    for value in [EHDR, PHDR, 1, 0, 0, 0] {
+        image.write_u16::<LE>(value).unwrap();
+    }
+    image.write_u32::<LE>(PT_LOAD).unwrap();
+    image.write_u32::<LE>(PF_R | PF_X).unwrap();
+    for value in [0, CHILD_BASE, CHILD_BASE, size, size, 4096] {
+        image.write_u64::<LE>(value).unwrap();
+    }
+    image.extend_from_slice(CHILD_CODE);
+
+    #[rustfmt::skip]
+    const PARENT_CODE: &[u8] = &[
+        0xb8, NR32_FORK as u8, 0, 0, 0,      // mov eax, SYS_fork
+        0xcd, 0x80,                          // int 80h
+        0x85, 0xc0,                          // test eax, eax
+        0x75, 6,                             // jnz parent
+        0xb0, NR32_EXECVE as u8,             // child: mov al, SYS_execve
+        0xcd, 0x80,                          // execve(ebx=PATH, NULL, NULL)
+        0x0f, 0x0b,                          // ud2: execve returned
+        0x89, 0xc3,                          // parent: mov ebx, eax (child pid)
+        0x89, 0xf1,                          // mov ecx, esi (status address)
+        0xb8, NR32_WAITPID as u8, 0, 0, 0,   // mov eax, SYS_waitpid
+        0xcd, 0x80,                          // waitpid(child, STATUS, 0)
+        0x8b, 0x19,                          // mov ebx, [ecx]
+        0xc1, 0xeb, 8,                       // shr ebx, 8 (child exit code)
+        0xb8, NR32_EXIT as u8, 0, 0, 0,      // mov eax, SYS_exit
+        0xcd, 0x80,                          // exit(child exit code)
+    ];
+    let mut emu = emu32();
+    emu.os = OperatingSystem::Linux;
+    emu.cfg.max_instructions = Some(100);
+    emu.set_linux_files(Vec::new(), Vec::new());
+    emu.linux_files
+        .as_mut()
+        .unwrap()
+        .mount_executable(CHILD_PATH, &image)
+        .unwrap();
+    emu.maps
+        .create_map(
+            "code",
+            PARENT_BASE,
+            PARENT_CODE.len() as u64,
+            Permission::READ_EXECUTE,
+        )
+        .unwrap()
+        .force_write_bytes(PARENT_BASE, PARENT_CODE);
+    emu.maps
+        .create_map("data", PATH, 4096, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_string(PATH, CHILD_PATH);
+    let regs = emu.regs_mut();
+    [regs.rbx, regs.rcx, regs.rdx, regs.rsi] = [PATH, 0, 0, STATUS];
+    emu.set_pc(PARENT_BASE);
+    let parent = emu.processes.pid;
+
+    emu.run(None).unwrap();
+
+    assert_eq!(emu.fault_count, 0);
+    assert_eq!(emu.cfg.arch, Arch::X86);
+    assert_eq!(emu.processes.pid, parent);
+    assert_eq!(
+        emu.maps.read_dword(STATUS),
+        Some((CHILD_STATUS as u32) << 8)
+    );
+    assert_eq!(
+        emu.processes.exit_status,
+        Some(exit_status(CHILD_STATUS as u64))
+    );
+}
+
+#[test]
+fn i386_waitpid_resumes_a_sleeping_child_before_reaping_it() {
+    use crate::syscall::linux::constants::errors::{ECHILD, EFAULT, EINVAL};
+    use crate::syscall::linux::constants::syscalls::{
+        NR32_EXIT, NR32_FORK, NR32_NANOSLEEP, NR32_WAITPID,
+    };
+
+    const CODE: u64 = 0x400000;
+    const REQUEST: u64 = 0x500000;
+    const STATUS: u64 = REQUEST + 8;
+    const WNOHANG: u64 = 1;
+    const CHILD_STATUS: u64 = 7;
+
+    helpers::setup();
+    let mut emu = emu32();
+    emu.os = OperatingSystem::Linux;
+    emu.maps
+        .create_map("syscalls", CODE, 4, Permission::READ_WRITE_EXECUTE)
+        .unwrap();
+    assert!(emu.maps.write_bytes(CODE, &[0xcd, 0x80, 0xcd, 0x80]));
+    emu.maps
+        .create_map("timespec", REQUEST, 12, Permission::READ_WRITE)
+        .unwrap();
+    emu.set_pc(CODE);
+    let parent = emu.processes.pid;
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR32_NANOSLEEP, [0, 0, 0]),
+        EFAULT
+    );
+    assert!(emu.maps.write_qword(REQUEST, u32::MAX as u64));
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR32_NANOSLEEP, [REQUEST, 0, 0]),
+        EINVAL
+    );
+    assert!(emu.maps.write_qword(REQUEST, 60));
+
+    assert_eq!(raw_linux_syscall(&mut emu, NR32_FORK, [0; 3]), 0);
+    let child = emu.processes.pid;
+    assert_ne!(parent, child);
+    emu.set_pc(CODE + 2);
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR32_NANOSLEEP, [REQUEST, 0, 0]),
+        child
+    );
+    assert_eq!((emu.processes.pid, emu.pc()), (parent, CODE + 2));
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR32_WAITPID, [child, STATUS, WNOHANG]),
+        0
+    );
+    assert_eq!(emu.maps.read_dword(STATUS), Some(0));
+
+    raw_linux_syscall(&mut emu, NR32_WAITPID, [child, STATUS, 0]);
+    assert_eq!((emu.processes.pid, emu.pc()), (child, CODE + 4));
+    assert_eq!(emu.regs().get_eax(), 0);
+    raw_linux_syscall(&mut emu, NR32_EXIT, [CHILD_STATUS, 0, 0]);
+    assert_eq!((emu.processes.pid, emu.pc()), (parent, CODE + 2));
+    assert_eq!(emu.regs().get_eax(), NR32_WAITPID);
+    syscall32::gateway(&mut emu);
+    assert_eq!(emu.regs().get_eax(), child);
+    assert_eq!(
+        emu.maps.read_dword(STATUS),
+        Some((CHILD_STATUS << 8) as u32)
+    );
+    assert_eq!(
+        raw_linux_syscall(&mut emu, NR32_WAITPID, [child, STATUS, 0]),
+        ECHILD
+    );
 }
 
 #[test]

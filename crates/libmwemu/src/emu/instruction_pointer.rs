@@ -14,6 +14,10 @@ use crate::{
     winapi::winapi64,
 };
 
+fn is_linux_guest_mapping(name: &str) -> bool {
+    name == "code" || name.starts_with("mmap_") || name.starts_with("elf64.")
+}
+
 impl Emu {
     fn resolve_unix_x64_symbol(&self, addr: u64) -> String {
         let symbol = if self.os.is_macos() {
@@ -198,7 +202,11 @@ impl Emu {
                 !caller_name.starts_with("ntdll")
             };
 
-        if (addr < LIBS64_MIN && !is_ntdll_cross_call) || self.is_guest_dll_address(addr) {
+        let linux_guest_code = self.os.is_linux() && is_linux_guest_mapping(name);
+        if (addr < LIBS64_MIN && !is_ntdll_cross_call)
+            || self.is_guest_dll_address(addr)
+            || linux_guest_code
+        {
             // This is the normal case, no linux syscall or winapi to handle
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
@@ -210,7 +218,7 @@ impl Emu {
 
             self.regs_mut().rip = addr;
             true
-        } else if self.os.is_linux() && self.cfg.linux_real_libc {
+        } else if self.os.is_linux() && (self.ld_bootstrap || self.cfg.linux_real_libc) {
             // Real-libc mode: execute the actual mapped libc/ld machine code.
             // Only `__libc_start_main` is still bootstrapped in Rust so we can
             // drive `main` without running glibc's full CSU init; everything
@@ -368,9 +376,12 @@ impl Emu {
             return true;
         }
 
-        // Execution is entering a library — intercept
         let name = match self.maps.get_addr_name(addr) {
-            Some(n) => n.to_string(),
+            Some(name) if self.os.is_linux() && is_linux_guest_mapping(name) => {
+                self.regs_aarch64_mut().pc = addr;
+                return true;
+            }
+            Some(name) => name.to_string(),
             None => {
                 log::error!("set_pc_aarch64: addr 0x{:x} not in any mapped region", addr);
                 self.regs_aarch64_mut().pc = addr;
@@ -460,6 +471,14 @@ impl Emu {
             return false;
         }
         self.force_reload = true;
+
+        if self.os.is_linux() {
+            if self.maps.get_mem_by_addr(addr).is_none() {
+                return false;
+            }
+            self.regs_mut().set_eip(addr);
+            return true;
+        }
 
         if addr == RETURN_THREAD as u64 {
             let code = self.regs().get_eax() as u32;

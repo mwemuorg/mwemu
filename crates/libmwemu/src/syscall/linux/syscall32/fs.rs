@@ -6,19 +6,19 @@ use crate::syscall::linux::unsupported;
 use crate::winapi::helper;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
-    match emu.regs().get_eax() as u32 {
-        3 => io::read(emu, Arch::X86),
-        4 => io::write(emu, Arch::X86),
-        5 if !emu.cfg.is_x64() => handle_syscall32_open(emu),
-        6 => io::close(emu, Arch::X86),
-        8 => unsupported(emu, "creat"),
-        9 => unsupported(emu, "link"),
-        10 => unsupported(emu, "unlink"),
-        12 => unsupported(emu, "chdir"),
-        14 => unsupported(emu, "mknod"),
-        15 => unsupported(emu, "chmod"),
-        16 => unsupported(emu, "lchown"),
-        18 => unsupported(emu, "oldstat"),
+    match emu.regs().get_eax() {
+        NR32_READ => io::read(emu, Arch::X86),
+        NR32_WRITE => io::write(emu, Arch::X86),
+        NR32_OPEN if !emu.cfg.is_x64() => handle_syscall32_open(emu),
+        NR32_CLOSE => io::close(emu, Arch::X86),
+        NR32_CREAT => unsupported(emu, "creat"),
+        NR32_LINK => unsupported(emu, "link"),
+        NR32_UNLINK => unsupported(emu, "unlink"),
+        NR32_CHDIR => unsupported(emu, "chdir"),
+        NR32_MKNOD => unsupported(emu, "mknod"),
+        NR32_CHMOD => unsupported(emu, "chmod"),
+        NR32_LCHOWN => unsupported(emu, "lchown"),
+        NR32_OLDSTAT => unsupported(emu, "oldstat"),
         NR32_FCNTL | NR32_FCNTL64 => io::fcntl(emu, Arch::X86),
         NR32_WRITEV => io::writev(emu, Arch::X86),
         NR32_PIPE => io::pipe(emu, Arch::X86, false),

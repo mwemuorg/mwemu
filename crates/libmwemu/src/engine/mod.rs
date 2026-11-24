@@ -1153,6 +1153,9 @@ fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, rep_step: bo
         Mnemonic::Pcmpgtd => instructions::pcmpgtd::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Pmaddwd => instructions::pmaddwd::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Tzcnt => instructions::tzcnt::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Xsave | Mnemonic::Xsave64 | Mnemonic::Xrstor | Mnemonic::Xrstor64 => {
+            instructions::xsave::execute(emu, ins)
+        }
         Mnemonic::Xgetbv => instructions::xgetbv::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Arpl => instructions::arpl::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Pushf => instructions::pushf::execute(emu, ins, instruction_sz, rep_step),

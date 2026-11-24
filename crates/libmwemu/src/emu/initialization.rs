@@ -18,6 +18,8 @@ use crate::err::MwemuError;
 use crate::maps::heap_allocation::O1Heap;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
+use crate::syscall::linux::GUEST_ID;
+use crate::syscall::linux::constants::elf::*;
 use crate::syscall::windows::{index_syscall_names, syscall64};
 use crate::threading::context::ArchThreadState;
 use crate::threading::process::ProcessTable;
@@ -82,6 +84,7 @@ impl Emu {
             force_break: false,
             api_policy: ApiPolicy::default(),
             unix_api: ApiState::default(),
+            linux_files: None,
             crt_io: CrtIoState::default(),
             sockets: SocketState::default(),
             oem_file_names: false,
@@ -740,14 +743,7 @@ impl Emu {
         }
     }
 
-    /// Write the Linux initial stack layout that _start expects.
-    ///
-    /// The kernel places this on the stack before jumping to the ELF entry point:
-    ///   [SP+0]  argc
-    ///   [SP+8]  argv[0]  (pointer to program name)
-    ///   [SP+16] NULL     (argv terminator)
-    ///   [SP+24] NULL     (envp terminator)
-    ///   auxv[]: AT_PHDR, AT_PHENT, AT_PHNUM, AT_PAGESZ, AT_ENTRY, AT_NULL
+    /// Populate argc, argv, envp and the auxiliary vector in the guest's word size.
     pub fn write_linux_stack_layout(
         &mut self,
         entry: u64,
@@ -755,60 +751,113 @@ impl Emu {
         phentsize: u16,
         phnum: u16,
     ) {
-        let sp = if self.cfg.arch.is_aarch64() {
-            self.regs_aarch64().sp
+        let _ = self.write_linux_exec_stack(entry, phdr_addr, phentsize, phnum, 0, None);
+    }
+
+    pub(crate) fn write_linux_exec_stack(
+        &mut self,
+        entry: u64,
+        phdr_addr: u64,
+        phentsize: u16,
+        phnum: u16,
+        interpreter_base: u64,
+        exec_path: Option<&str>,
+    ) -> Option<()> {
+        let word_size = if self.cfg.arch == Arch::X86 { 4 } else { 8 };
+        let program = if self.cfg.exe_name.is_empty() && exec_path.is_none() {
+            "prog"
         } else {
-            self.regs().rsp
+            &self.cfg.exe_name
         };
-
-        // Write a program name string above the stack layout area
-        let prog_name_addr = sp + 0x100;
-        let prog_name = b"prog\0";
-        for (i, &b) in prog_name.iter().enumerate() {
-            self.maps.write_byte(prog_name_addr + i as u64, b);
+        let mut args = vec![program.to_owned()];
+        if let Some(files) = &self.linux_files {
+            args.extend_from_slice(&files.args);
+        } else {
+            args.extend(self.cfg.arguments.split_whitespace().map(str::to_owned));
         }
-
-        let mut off = sp;
-
-        // argc = 1
-        self.maps.write_qword(off, 1);
-        off += 8;
-
-        // argv[0] = pointer to program name
-        self.maps.write_qword(off, prog_name_addr);
-        off += 8;
-
-        // argv terminator
-        self.maps.write_qword(off, 0);
-        off += 8;
-
-        // envp terminator
-        self.maps.write_qword(off, 0);
-        off += 8;
-
-        // Auxiliary vector entries (each is 16 bytes: type + value)
-        const AT_PHDR: u64 = 3;
-        const AT_PHENT: u64 = 4;
-        const AT_PHNUM: u64 = 5;
-        const AT_PAGESZ: u64 = 6;
-        const AT_ENTRY: u64 = 9;
-        const AT_NULL: u64 = 0;
-
-        let auxv: &[(u64, u64)] = &[
-            (AT_PAGESZ, 4096),
-            (AT_PHDR, phdr_addr),
-            (AT_PHENT, phentsize as u64),
-            (AT_PHNUM, phnum as u64),
-            (AT_ENTRY, entry),
-            (AT_NULL, 0),
-        ];
-
-        for &(atype, aval) in auxv {
-            self.maps.write_qword(off, atype);
-            off += 8;
-            self.maps.write_qword(off, aval);
-            off += 8;
+        let mut cursor = self.sp();
+        let env = self
+            .linux_files
+            .as_ref()
+            .map(|fs| fs.env.as_slice())
+            .unwrap_or_default();
+        let mut push_string = |value: &str| -> Option<u64> {
+            cursor = cursor.checked_sub(value.len() as u64 + 1)?;
+            let written = self.maps.write_bytes(cursor, value.as_bytes())
+                && self.maps.write_byte(cursor + value.len() as u64, 0);
+            written.then_some(cursor)
+        };
+        let exec_name = match exec_path {
+            Some(path) => Some(push_string(path)?),
+            None => None,
+        };
+        let mut envp: Vec<_> = env
+            .iter()
+            .rev()
+            .map(|s| push_string(s))
+            .collect::<Option<_>>()?;
+        let mut argv: Vec<_> = args
+            .iter()
+            .rev()
+            .map(|s| push_string(s))
+            .collect::<Option<_>>()?;
+        envp.reverse();
+        argv.reverse();
+        let random = cursor.checked_sub(16)?;
+        for i in 0..2 {
+            let value = self.random_u64();
+            self.maps.write_qword(random + 8 * i, value);
         }
+        let name = exec_name.unwrap_or(argv[0]);
+        let mut words = vec![argv.len() as u64];
+        words.extend(argv);
+        words.push(0);
+        words.extend(envp);
+        words.push(0);
+        let auxv_index = words.len();
+        words.extend([
+            AT_PAGESZ,
+            4096,
+            AT_PHDR,
+            phdr_addr,
+            AT_PHENT,
+            phentsize as u64,
+            AT_PHNUM,
+            phnum as u64,
+            AT_BASE,
+            interpreter_base,
+            AT_ENTRY,
+            entry,
+            AT_RANDOM,
+            random,
+            AT_EXECFN,
+            name,
+        ]);
+        if exec_path.is_some() {
+            let id = GUEST_ID as u64;
+            words.extend([
+                AT_UID, id, AT_EUID, id, AT_GID, id, AT_EGID, id, AT_SECURE, 0, AT_CLKTCK, 100,
+            ]);
+        }
+        words.extend([AT_NULL, 0]);
+        let frame = random.checked_sub(word_size * words.len() as u64)?;
+        let sp = frame & !15;
+        if !self.maps.validate_write_range(sp, cursor - sp) {
+            return None;
+        }
+        let auxv_address = sp + word_size * auxv_index as u64;
+        let auxv_bytes = word_size as usize * (words.len() - auxv_index);
+        self.set_sp(sp);
+        for (index, word) in words.into_iter().enumerate() {
+            let dest = sp + word_size * index as u64;
+            if self.cfg.arch == Arch::X86 {
+                self.maps.write_dword(dest, word as u32);
+            } else {
+                self.maps.write_qword(dest, word);
+            }
+        }
+        self.save_linux_auxv(auxv_address, auxv_bytes);
+        Some(())
     }
 
     /// Set up macOS AArch64 calling convention for _main(argc, argv, envp, apple).

@@ -276,7 +276,7 @@ fn intercepted_memory_fault_reaches_run_step_and_threaded_execution() {
             emu.cfg.enable_threading = execution == "threaded";
             let mut elf = Elf64::parse(ELF64_HELLO).unwrap();
             elf.addr_to_symbol.insert(LIBS64_MIN, "memcpy".into());
-            emu.elf64 = Some(elf);
+            emu.elf64 = Some(elf.into());
             for (name, base) in [("code", ENTRY), ("libc.so.6.text", LIBS64_MIN)] {
                 emu.maps
                     .create_map(name, base, 0x100, Permission::READ_WRITE_EXECUTE)

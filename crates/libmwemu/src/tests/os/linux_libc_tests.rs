@@ -86,6 +86,12 @@ fn mmap_and_munmap() {
     assert_ne!(p, u64::MAX);
     assert!(emu.maps.write_qword(p + 0x1ff8, 5));
 
+    set_args(&mut emu, &[p, 0x1000, Permission::READ.bits() as u64]);
+    gateway("mprotect", &mut emu);
+    assert_eq!(ret(&emu), 0);
+    assert!(!emu.maps.validate_write_range(p, 1));
+    assert!(emu.maps.validate_write_range(p + 0x1000, 1));
+
     set_args(&mut emu, &[p, 0x2000]);
     gateway("munmap", &mut emu);
     assert_eq!(ret(&emu), 0);
@@ -163,7 +169,7 @@ fn invalid_vararg_stops_execution_without_printing_or_returning() {
             emu.cfg.enable_threading = execution == "threaded";
             let mut elf = Elf64::parse(ELF64_HELLO).unwrap();
             elf.addr_to_symbol.insert(LIBS64_MIN, "printf".into());
-            emu.elf64 = Some(elf);
+            emu.elf64 = Some(elf.into());
             for (name, base, size) in [
                 ("code", CODE, 0x100),
                 ("stack", STACK, QWORD_BYTES),
@@ -269,7 +275,7 @@ fn invalid_return_address_does_not_dispatch_the_unix_handler() {
         .unwrap();
     let mut elf = Elf64::parse(ELF64_HELLO).unwrap();
     elf.addr_to_symbol.insert(LIBS64_MIN, "getpid".into());
-    emu.elf64 = Some(elf);
+    emu.elf64 = Some(elf.into());
     assert!(emu.set_rip_with_check(LIBS64_MIN, true));
     assert_eq!(
         emu.unix_api.fault.as_ref().unwrap().reason,
@@ -295,4 +301,21 @@ fn nested_unix_argument_fault_keeps_the_inner_call_context() {
     unix::end_call(&mut emu, previous);
     assert_eq!(emu.unix_api.fault.as_ref().unwrap().call.name, "printf");
     assert!(emu.run(None).is_err());
+}
+
+#[test]
+fn libc_syscall_uses_kernel_return_and_sets_errno_on_failure() {
+    use crate::syscall::linux::constants::{errors::ENOSYS, syscalls::NRA64_GETPID};
+    let (mut emu, _) = aarch64_env();
+    set_args(&mut emu, &[NRA64_GETPID]);
+    gateway("syscall", &mut emu);
+    assert_eq!(ret(&emu), emu.process_table().pid);
+    set_args(&mut emu, &[u64::MAX]);
+    gateway("syscall", &mut emu);
+    assert_eq!(ret(&emu), u64::MAX);
+    gateway("__errno_location", &mut emu);
+    assert_eq!(
+        emu.maps.read_dword(ret(&emu)),
+        Some(ENOSYS.wrapping_neg() as u32)
+    );
 }

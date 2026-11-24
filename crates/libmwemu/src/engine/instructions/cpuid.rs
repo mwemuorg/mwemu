@@ -1,3 +1,4 @@
+use crate::arch::x86::{XCR0_ENABLED_MASK, XSAVE_AREA_BYTES, XSAVE_AVX_BYTES, XSAVE_AVX_OFFSET};
 use crate::color;
 use crate::emu::Emu;
 use iced_x86::Instruction;
@@ -67,47 +68,27 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rcx = 9;
             emu.regs_mut().rdx = 0;
         }
-        0x0d => match emu.regs().rcx {
-            1 => {
-                emu.regs_mut().rax = 0xf;
-                emu.regs_mut().rbx = 0x3c0;
-                emu.regs_mut().rcx = 0x100;
-                emu.regs_mut().rdx = 0;
-            }
-            0 => {
-                emu.regs_mut().rax = 0x1f;
-                emu.regs_mut().rbx = 0x440;
-                emu.regs_mut().rcx = 0x440;
-                emu.regs_mut().rdx = 0;
-            }
-            2 => {
-                emu.regs_mut().rax = 0x100;
-                emu.regs_mut().rbx = 0x240;
-                emu.regs_mut().rcx = 0;
-                emu.regs_mut().rdx = 0;
-            }
-            3 => {
-                emu.regs_mut().rax = 0x40;
-                emu.regs_mut().rbx = 0x3c0;
-                emu.regs_mut().rcx = 0;
-                emu.regs_mut().rdx = 0;
-            }
-            5..=7 => {
-                emu.regs_mut().rax = 0;
-                emu.regs_mut().rbx = 0;
-                emu.regs_mut().rcx = 0;
-                emu.regs_mut().rdx = 0;
-            }
-            _ => {
-                emu.regs_mut().rax = 0x1f;
-                emu.regs_mut().rbx = 0x440;
-                emu.regs_mut().rcx = 0x440;
-                emu.regs_mut().rdx = 0;
-            }
-        },
+        0x0d => {
+            let (features, size, offset) = match emu.regs().get_ecx() {
+                0 => (XCR0_ENABLED_MASK, XSAVE_AREA_BYTES, XSAVE_AREA_BYTES),
+                2 => (XSAVE_AVX_BYTES, XSAVE_AVX_OFFSET, 0),
+                _ => (0, 0, 0),
+            };
+            let regs = emu.regs_mut();
+            regs.rax = features;
+            regs.rbx = size;
+            regs.rcx = offset;
+            regs.rdx = 0;
+        }
         0x07..=0x6d => {
+            const MPX: u64 = 1 << 14;
+            let features = if emu.regs().rax == 7 {
+                0x29c67af & !MPX
+            } else {
+                0x29c67af
+            };
             emu.regs_mut().rax = 0;
-            emu.regs_mut().rbx = 0x29c67af;
+            emu.regs_mut().rbx = features;
             emu.regs_mut().rcx = 0x40000000;
             emu.regs_mut().rdx = 0xbc000600;
         }

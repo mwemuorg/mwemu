@@ -217,6 +217,66 @@ fn parse_and_load_elf32() {
 }
 
 #[test]
+fn elf32_load_bias_depends_on_image_type() {
+    const ET_EXEC: u16 = 2;
+    const ET_DYN: u16 = 3;
+    const PT_DYNAMIC: u32 = 2;
+    for (image_type, dynamic_segment) in [(ET_EXEC, true), (ET_DYN, false), (ET_DYN, true)] {
+        let mut raw = build_elf32();
+        put_u16(&mut raw, 16, image_type);
+        if dynamic_segment {
+            let next = raw.len();
+            raw.resize(next + 32, 0);
+            put_u16(&mut raw, 44, 2);
+            put_u32(&mut raw, next, PT_DYNAMIC);
+        }
+        let mut image = Elf32::parse(&raw).expect("parse ELF32");
+        let mut maps = Mock::default();
+        image.load(&mut maps);
+        assert_eq!(image.base() != 0, image_type == ET_DYN);
+        assert_eq!(maps.byte(image.base() + 0x8048000), 0x7f);
+    }
+}
+
+#[test]
+fn elf64_pie_uses_a_separate_load_range_with_or_without_dependencies() {
+    const DEFAULT_BASE: u64 = 0x3c0000;
+    const EXEC_BASE: u64 = 0x400000;
+    const EXPLICIT_BASE: u64 = 0x600000;
+    const ENTRY_OFFSET: u64 = 0x78;
+    const ET_DYN: u16 = 3;
+
+    let mut raw = build_elf64();
+    raw.push(0xc3); // ret at the entry point
+    put_u16(&mut raw, 16, ET_DYN);
+    put_u64(&mut raw, 24, ENTRY_OFFSET);
+    put_u64(&mut raw, 64 + 16, 0);
+    put_u64(&mut raw, 64 + 24, 0);
+    put_u64(&mut raw, 64 + 32, ENTRY_OFFSET + 1);
+
+    for (dependencies, requested_base) in [
+        (false, DEFAULT_BASE),
+        (true, DEFAULT_BASE),
+        (false, EXPLICIT_BASE),
+    ] {
+        let mut image = Elf64::parse(&raw).expect("parse ELF64");
+        let mut maps = Mock::default();
+        image.load(&mut maps, "main", false, dependencies, requested_base);
+
+        let (start, size) = maps.mapped("main.seg0").expect("PIE segment");
+        assert_eq!(start, image.base);
+        assert_eq!(size, 0x1000);
+        assert_ne!(start, 0);
+        assert!(!(start..start + size).contains(&EXEC_BASE));
+        assert_eq!(maps.byte(start), 0x7f);
+        assert_eq!(maps.byte(image.rebase_vaddr(image.elf_hdr.e_entry)), 0xc3);
+        if requested_base == EXPLICIT_BASE {
+            assert_eq!(start, EXPLICIT_BASE);
+        }
+    }
+}
+
+#[test]
 fn parse_rejects_invalid_elf_identity() {
     let mut elf64 = build_elf64();
     elf64[0] = 0;

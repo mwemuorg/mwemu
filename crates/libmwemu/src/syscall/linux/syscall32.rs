@@ -4,9 +4,10 @@ use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::errors::ENOSYS;
 use crate::syscall::linux::constants::syscalls::{
-    NR32_CLOCK_GETTIME, NR32_CLOCK_GETTIME64, NR32_GETRANDOM, NR32_UNAME,
+    NR32_CLOCK_GETTIME, NR32_CLOCK_GETTIME64, NR32_GETRANDOM, NR32_GETTIMEOFDAY, NR32_UNAME,
 };
-use crate::syscall::linux::time::{Timespec, clock_gettime};
+use crate::syscall::linux::files;
+use crate::syscall::linux::time::{Timespec, clock_gettime, gettimeofday};
 
 mod fs;
 mod memory;
@@ -28,7 +29,13 @@ fn trace_syscall32(emu: &mut emu::Emu, name: &str) {
 pub fn gateway(emu: &mut emu::Emu) {
     // INT 0x80 uses the i386 ABI even when the caller executes in long mode.
     let nr = emu.regs().get_eax();
+    if emu.resume_due_linux_process() {
+        return;
+    }
     if !emu.call_syscall_hook(nr) {
+        return;
+    }
+    if files::dispatch(emu, Arch::X86, nr) {
         return;
     }
     if fs::dispatch(emu)
@@ -43,6 +50,7 @@ pub fn gateway(emu: &mut emu::Emu) {
     match nr {
         NR32_UNAME => uname(emu, Arch::X86),
         NR32_GETRANDOM => getrandom(emu, Arch::X86),
+        NR32_GETTIMEOFDAY => gettimeofday(emu, Arch::X86, Timespec::Time32),
         NR32_CLOCK_GETTIME => clock_gettime(emu, Arch::X86, Timespec::Time32),
         NR32_CLOCK_GETTIME64 => clock_gettime(emu, Arch::X86, Timespec::Time64),
         _ if emu.cfg.is_x64() => {

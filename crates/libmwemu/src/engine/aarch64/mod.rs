@@ -2,21 +2,44 @@ use crate::emu::Emu;
 use instructions::atomic::RmwOp;
 use instructions::fp_arith::{self, FpBinary, FpFused, FpUnary};
 use instructions::fp_convert::{self, Rounding};
-use yaxpeax_arm::armv8::a64::{Instruction, Opcode};
+use yaxpeax_arch::{Decoder, U8Reader};
+use yaxpeax_arm::armv8::a64::{DecodeError, InstDecoder, Instruction, Opcode, Operand, SizeCode};
 
 pub mod helpers;
 pub mod instructions;
+
+pub(crate) fn decode_instruction(bytes: &[u8]) -> Result<Instruction, DecodeError> {
+    let mut ins = InstDecoder::default().decode(&mut U8Reader::new(bytes))?;
+    // yaxpeax-arm 0.4 drops Rt[4] for MSR (register).
+    if ins.opcode == Opcode::MSR && matches!(ins.operands[0], Operand::SystemReg(_)) {
+        ins.operands[1] = Operand::Register(SizeCode::X, (bytes[0] & 0x1f) as u16);
+    }
+    Ok(ins)
+}
 
 /// Emulate a single decoded AArch64 instruction. Returns true on success.
 pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
     match ins.opcode {
         // --- Data Processing (register/immediate) ---
+        Opcode::ADD | Opcode::SUB
+            if matches!(
+                ins.operands[0],
+                Operand::SIMDRegisterElements(..) | Operand::SIMDRegister(..)
+            ) =>
+        {
+            instructions::simd::execute(emu, ins)
+        }
         Opcode::ADD => instructions::add::execute(emu, ins, false),
         Opcode::ADDS => instructions::add::execute(emu, ins, true),
         Opcode::SUB => instructions::sub::execute(emu, ins, false),
         Opcode::SUBS => instructions::sub::execute(emu, ins, true),
-        Opcode::AND => instructions::and::execute(emu, ins, false),
         Opcode::ANDS => instructions::and::execute(emu, ins, true),
+        Opcode::AND | Opcode::EOR | Opcode::ORR | Opcode::BIC | Opcode::ORN
+            if matches!(ins.operands[0], Operand::SIMDRegisterElements(..)) =>
+        {
+            instructions::simd::execute(emu, ins)
+        }
+        Opcode::AND => instructions::and::execute(emu, ins, false),
         Opcode::ORR => instructions::orr::execute(emu, ins),
         Opcode::EOR => instructions::eor::execute(emu, ins),
         Opcode::ORN => instructions::orn::execute(emu, ins),
@@ -70,6 +93,14 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         Opcode::REV32 => instructions::rev32::execute(emu, ins),
 
         // --- Loads ---
+        Opcode::LD1
+        | Opcode::ST1
+        | Opcode::LD2
+        | Opcode::ST2
+        | Opcode::LD3
+        | Opcode::ST3
+        | Opcode::LD4
+        | Opcode::ST4 => instructions::simd::transfer_structure(emu, ins),
         Opcode::LDR => instructions::ldr::execute(emu, ins),
         Opcode::LDRB => instructions::ldrb::execute(emu, ins),
         Opcode::LDRH => instructions::ldrh::execute(emu, ins),
@@ -183,12 +214,41 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
 
         // --- System ---
         Opcode::SVC => instructions::svc::execute(emu, ins),
-        Opcode::MRS => instructions::mrs::execute(emu, ins),
-        Opcode::MSR => instructions::msr::execute(emu, ins),
+        Opcode::MRS => instructions::system::read(emu, ins),
+        Opcode::MSR => instructions::system::write(emu, ins),
+        Opcode::SYS(ops) => instructions::system::cache_maintenance(emu, ins, ops),
         // --- SIMD/NEON ---
-        Opcode::MOVI | Opcode::FMOV | Opcode::DUP | Opcode::UMOV | Opcode::INS | Opcode::NOT => {
-            instructions::simd::execute(emu, ins)
-        }
+        Opcode::MOVI
+        | Opcode::MVNI
+        | Opcode::CMEQ
+        | Opcode::CMHI
+        | Opcode::CMHS
+        | Opcode::UMAXP
+        | Opcode::EXT
+        | Opcode::BSL
+        | Opcode::BIT
+        | Opcode::BIF
+        | Opcode::FMOV
+        | Opcode::DUP
+        | Opcode::UMOV
+        | Opcode::INS
+        | Opcode::NOT
+        | Opcode::USHR
+        | Opcode::SHL
+        | Opcode::SHLL
+        | Opcode::SHLL2
+        | Opcode::SSHLL
+        | Opcode::SSHLL2
+        | Opcode::USHLL
+        | Opcode::USHLL2
+        | Opcode::ZIP1
+        | Opcode::ZIP2
+        | Opcode::ADDHN
+        | Opcode::ADDHN2
+        | Opcode::SHRN
+        | Opcode::SHRN2
+        | Opcode::XTN
+        | Opcode::XTN2 => instructions::simd::execute(emu, ins),
 
         // --- Scalar floating point ---
         Opcode::FADD => fp_arith::binary(emu, ins, FpBinary::Add),

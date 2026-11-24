@@ -1,5 +1,7 @@
 use crate::api::windows::export_index::ModuleExportIndex;
 use crate::emu::loaders::guest_dll::GuestDll;
+use crate::syscall::linux::files::LinuxFiles;
+use crate::syscall::linux::tls32::Tls32;
 use crate::syscall::windows::syscall64::wnf::WnfSubscriptions;
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -117,6 +119,7 @@ impl From<NativeSnapshotV5> for Emu {
 #[derive(Serialize, Deserialize)]
 struct ThreadState {
     signal_stack: SignalStack,
+    linux_tls32: Tls32,
     windows: WindowsThreadState,
     error_mode: u32,
     windows_start_address: Option<u64>,
@@ -124,6 +127,7 @@ struct ThreadState {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct NativeSnapshotUnstable {
+    linux_files: Option<LinuxFiles>,
     state: NativeSnapshotV5,
     threads: Vec<ThreadState>,
     windows_handles: Vec<(usize, WindowsHandle)>,
@@ -167,12 +171,14 @@ pub(crate) struct NativeSnapshotUnstable {
 impl From<&Emu> for NativeSnapshotUnstable {
     fn from(emu: &Emu) -> Self {
         Self {
+            linux_files: emu.linux_files.clone(),
             state: NativeSnapshotV5::from(emu),
             threads: emu
                 .threads
                 .iter()
                 .map(|thread| ThreadState {
                     signal_stack: thread.signal_stack,
+                    linux_tls32: thread.linux_tls32,
                     windows: thread.windows,
                     error_mode: thread.error_mode,
                     windows_start_address: thread.windows_start_address,
@@ -233,12 +239,17 @@ impl From<NativeSnapshotUnstable> for Emu {
         let mut emu: Emu = snapshot.state.into();
         for (thread, saved) in emu.threads.iter_mut().zip(snapshot.threads) {
             thread.signal_stack = saved.signal_stack;
+            thread.linux_tls32 = saved.linux_tls32;
             thread.windows = saved.windows;
             thread.error_mode = saved.error_mode;
             thread.windows_start_address = saved.windows_start_address;
         }
         emu.handle_management
             .restore_windows_snapshot(snapshot.windows_handles);
+        emu.linux_files = snapshot.linux_files;
+        if let Some(files) = &mut emu.linux_files {
+            files.restore_mappings(&emu.maps);
+        }
         emu.unix_api.memory_fault = snapshot.unix_memory_fault;
         emu.sockets = snapshot.sockets;
         emu.oem_file_names = snapshot.oem_file_names;

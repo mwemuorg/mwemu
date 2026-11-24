@@ -130,7 +130,6 @@ impl Emu {
     /// Panics if the configured architecture is AArch64.
     pub fn run_single_threaded_x86(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
         super::assert_x86_arch(self, "run_single_threaded_x86");
-        let is_x64 = self.cfg.is_x64();
 
         self.check_api_stop()?;
         if self.process_terminated {
@@ -167,7 +166,6 @@ impl Emu {
         // so the old hardcoded 0x180106fd0 never matched and the check was dead.
         let rtl_raise_status = self.resolve_ntdll_export("RtlRaiseStatus");
 
-        let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
         let mut block = Vec::with_capacity(BLOCK_LEN);
 
@@ -185,6 +183,8 @@ impl Emu {
                     return Ok(limit_pc);
                 }
 
+                // A Linux exec or a return to its parent can change x86 bitness.
+                let arch = if self.cfg.is_x64() { 64 } else { 32 };
                 if let Err(error) =
                     ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)
                 {

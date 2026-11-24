@@ -1,4 +1,6 @@
+use crate::arch::Arch;
 use crate::emu;
+use crate::syscall::linux::files;
 
 mod fs;
 mod memory;
@@ -9,6 +11,8 @@ mod proc;
 mod signal;
 mod thread;
 mod time;
+
+pub(super) use thread::vfork_parent;
 /*
  * /usr/include/asm/unistd_64.h
  *
@@ -29,7 +33,13 @@ fn trace_syscall64(emu: &mut emu::Emu, name: &str) {
 
 pub fn gateway(emu: &mut emu::Emu) {
     let nr = emu.regs().rax;
+    if emu.resume_due_linux_process() {
+        return;
+    }
     if !emu.call_syscall_hook(nr) {
+        return;
+    }
+    if files::dispatch(emu, Arch::X86_64, nr) {
         return;
     }
     if thread::dispatch(emu)

@@ -5,6 +5,9 @@
 //! concrete emulator, so any project can map and relocate an ELF into its own
 //! memory. See `design/ARCHITECTURE.md`.
 
+pub(crate) const ET_EXEC: u16 = 2;
+pub(crate) const ET_DYN: u16 = 3;
+
 pub mod elf32;
 pub mod elf64;
 pub mod loader;

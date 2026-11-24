@@ -142,6 +142,7 @@ impl From<SerializableThreadContext> for ThreadContext {
             blocked_on_cs: serialized.blocked_on_cs,
             clear_child_tid: serialized.clear_child_tid,
             signal_stack: Default::default(),
+            linux_tls32: Default::default(),
             windows: Default::default(),
             error_mode: 0,
             windows_start_address: None,

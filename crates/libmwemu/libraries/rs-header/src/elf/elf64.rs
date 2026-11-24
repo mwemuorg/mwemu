@@ -1,5 +1,5 @@
-use crate::elf::ElfError;
 use crate::elf::loader::{ElfLoader, Perm};
+use crate::elf::{ET_DYN, ET_EXEC, ElfError};
 use std::collections::HashMap;
 
 // Load addresses and segment type previously sourced from
@@ -713,7 +713,7 @@ impl Elf64 {
         loader: &mut L,
         export_map: &HashMap<String, u64>,
     ) {
-        let rela_sections: Vec<(u64, u64)> = self
+        let mut rela_sections: Vec<(u64, u64)> = self
             .elf_shdr
             .iter()
             .filter(|shdr| {
@@ -723,27 +723,43 @@ impl Elf64 {
             .map(|shdr| (shdr.sh_offset, shdr.sh_size))
             .collect();
 
-        let entsize = 24usize; // sizeof(Elf64_Rela)
+        if rela_sections.is_empty()
+            && let Some(info) = self.dynamic_info()
+        {
+            for (addr, size) in [
+                (info.rela_addr, info.rela_size),
+                (info.jmprel_addr, info.pltrelsz),
+            ] {
+                if addr != 0
+                    && size != 0
+                    && let Some(off) = self.vaddr_to_file_offset(addr)
+                {
+                    rela_sections.push((off as u64, size));
+                }
+            }
+        }
+        let entsize = Elf64Rela::size();
 
         for (sh_offset, sh_size) in rela_sections {
             let mut off = sh_offset as usize;
-            let end = (off + sh_size as usize).min(self.bin.len());
+            let end = off.saturating_add(sh_size as usize).min(self.bin.len());
 
-            while off + entsize <= end {
+            while end.saturating_sub(off) >= entsize {
                 let r_offset = read_u64_le!(self.bin, off);
                 let r_info = read_u64_le!(self.bin, off + 8);
+                let addend = read_u64_le!(self.bin, off + 16);
 
                 let r_type = (r_info & 0xFFFFFFFF) as u32;
                 let r_sym = (r_info >> 32) as u32;
 
                 if r_type == R_AARCH64_RELATIVE {
-                    let value = self.base.wrapping_add(r_offset);
+                    let value = self.base.wrapping_add(addend);
                     loader.write_qword(self.rebase_vaddr(r_offset), value);
                     off += entsize;
                     continue;
                 }
                 if r_type == R_AARCH64_IRELATIVE {
-                    let resolver = self.base.wrapping_add(r_offset);
+                    let resolver = self.base.wrapping_add(addend);
                     let patch = self.rebase_vaddr(r_offset);
                     let _ = loader.write_qword(patch, patch);
                     log::debug!(
@@ -826,45 +842,37 @@ impl Elf64 {
         dynamic_linking: bool,
         force_base: u64,
     ) {
-        let elf64_base: u64;
-        // Static ELFs map kernel-style by PT_LOAD segments whenever any PT_LOAD
-        // exists (or the caller already chose segment mode for ld-bootstrap).
-        // Hoisted to function scope so the section walk below can also consume it;
-        // `dynamic_linking` stays on the section-walk path, so default is false.
-        let mut map_by_segments = self.segment_mode;
+        // Main images and sectionless libraries get their runtime bytes from PT_LOAD.
+        // The section walk below still populates the symbol tables.
+        let has_loads = self.elf_phdr.iter().any(|ph| ph.p_type == PT_LOAD);
+        let map_by_segments = self.segment_mode
+            || (has_loads && (!is_lib || !dynamic_linking || self.elf_shdr.is_empty()));
 
-        if dynamic_linking {
-            elf64_base = if is_lib {
+        let elf64_base = if dynamic_linking {
+            if is_lib {
                 loader
                     .lib_alloc(self.image_size())
                     .expect("cannot allocate elf64 library space")
+            } else if self.elf_hdr.e_type == ET_EXEC {
+                0
             } else {
                 ELF64_DYN_BASE
-            };
+            }
+        } else if force_base != CFG_DEFAULT_BASE {
+            force_base
+        } else if self.elf_hdr.e_type == ET_DYN {
+            // A static PIE can load a fixed-address executable into the same process.
+            ELF64_DYN_BASE
         } else {
-            if force_base == CFG_DEFAULT_BASE {
-                elf64_base = ELF64_STA_BASE;
-            } else {
-                elf64_base = force_base;
-            }
+            ELF64_STA_BASE
+        };
 
-            // Map the image by PT_LOAD segments (kernel-style) whenever segments
-            // exist, or when the caller already chose segment mode (real-ld.so
-            // bootstrap). Static executables take this path too: sections carry
-            // absolute vaddrs and must not be re-mapped per-section over the
-            // segments.
-            map_by_segments = self.segment_mode
-                || (!dynamic_linking && self.elf_phdr.iter().any(|ph| ph.p_type == PT_LOAD));
-
-            if !map_by_segments {
-                // Tiny ELFs (hand-crafted) may be smaller than 512 bytes; clamp the
-                // copy length to the actual binary size to avoid a slice OOB panic.
-                let hdr_copy_len = self.bin.len().min(512);
-                loader
-                    .map("elf64.hdr", elf64_base, 512, Perm::READ_WRITE)
-                    .expect("cannot create elf64.hdr map");
-                loader.write_bytes(elf64_base, &self.bin[..hdr_copy_len]);
-            }
+        if !dynamic_linking && !map_by_segments {
+            let hdr_copy_len = self.bin.len().min(512);
+            loader
+                .map("elf64.hdr", elf64_base, 512, Perm::READ_WRITE)
+                .expect("cannot create elf64.hdr map");
+            loader.write_bytes(elf64_base, &self.bin[..hdr_copy_len]);
         }
 
         self.base = elf64_base;

@@ -16,7 +16,8 @@ use super::trace_syscall64;
 use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
-use crate::syscall::linux::{self, current_tid};
+use crate::syscall::linux::{self, current_tid, process};
+use crate::threading::process::exit_status;
 
 const CLONE_VM: u64 = 0x100;
 const CLONE_VFORK: u64 = 0x4000;
@@ -45,7 +46,7 @@ pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
         NR64_FUTEX => futex(emu),
         NR64_EXIT => exit_thread(emu),
         NR64_EXECVE => execve(emu),
-        NR64_WAIT4 => wait4(emu),
+        NR64_WAIT4 => process::wait_child(emu, Arch::X86_64),
         NR64_WAITID => waitid(emu),
         // No pidfds: Go (1.23+) and glibc fall back to wait4/waitid on ENOSYS.
         NR64_PIDFD_OPEN => ret0_named(emu, ENOSYS, "pidfd_open"),
@@ -97,14 +98,17 @@ fn wake_waiters(emu: &mut emu::Emu, uaddr: u64, max: u64) -> u64 {
 /// End the current thread. A CLONE_CHILD_CLEARTID / set_tid_address word is
 /// zeroed and its futex waiters woken (how pthread_join and Go's thread
 /// teardown learn the thread is gone), and a vfork parent is released.
-fn retire_current_thread(emu: &mut emu::Emu) {
+pub(super) fn retire_current_thread(emu: &mut emu::Emu, status: u64) {
     let tid = current_tid(emu);
     let clear = emu.threads[emu.current_thread_id].clear_child_tid;
     if clear != 0 {
         emu.maps.write_dword(clear, 0);
         wake_waiters(emu, clear, u64::MAX);
     }
-    wake_waiters(emu, VFORK_WAIT_KEY | tid, u64::MAX);
+    if wake_waiters(emu, VFORK_WAIT_KEY | tid, u64::MAX) != 0 {
+        emu.processes
+            .record_completed_child(tid, exit_status(status));
+    }
     emu.threads[emu.current_thread_id].suspended = true;
 }
 
@@ -127,7 +131,9 @@ fn clone(emu: &mut emu::Emu) {
     let tls = emu.regs().r8;
 
     if flags & CLONE_VM == 0 {
-        emu.regs_mut().rax = 1001;
+        const SIMULATED_CHILD_PID: u64 = 1001;
+        emu.processes.record_completed_child(SIMULATED_CHILD_PID, 0);
+        emu.regs_mut().rax = SIMULATED_CHILD_PID;
         trace_syscall64_args(
             emu,
             "clone",
@@ -247,7 +253,7 @@ fn exit_thread(emu: &mut emu::Emu) {
     }
     let status = emu.regs().rdi;
     let tid = current_tid(emu);
-    retire_current_thread(emu);
+    retire_current_thread(emu, status);
     trace_syscall64_args(
         emu,
         "exit",
@@ -271,6 +277,17 @@ fn read_string_array(emu: &emu::Emu, mut ptr: u64) -> Vec<String> {
     out
 }
 
+/// Identify the parent parked by CLONE_VFORK before replacing the child image.
+pub(crate) fn vfork_parent(emu: &emu::Emu) -> Option<(usize, u64)> {
+    let tid = current_tid(emu);
+    let key = VFORK_WAIT_KEY | tid;
+    let index = emu
+        .threads
+        .iter()
+        .position(|t| t.blocked_on_cs == Some(key))?;
+    Some((index, tid))
+}
+
 /// execve(path, argv, envp): the command line is what an analyst wants, so
 /// it is logged whole. In a vfork child the thread is retired (its image
 /// would be replaced) and the parent resumes; elsewhere the call "succeeds"
@@ -285,38 +302,13 @@ fn execve(emu: &mut emu::Emu) {
         &[("path", path), ("argv", format!("{argv:?}"))],
     );
 
-    let key = VFORK_WAIT_KEY | current_tid(emu);
-    let is_vfork_child = emu.threads.iter().any(|t| t.blocked_on_cs == Some(key));
-    if is_vfork_child {
-        retire_current_thread(emu);
+    if vfork_parent(emu).is_some() {
+        retire_current_thread(emu, 0);
     }
     emu.regs_mut().rax = 0;
 }
 
-/// wait4(pid, *status, options, *rusage): every child we ever report has
-/// already finished (exec'd children are retired on the spot), so answer
-/// "exited with 0" right away.
-fn wait4(emu: &mut emu::Emu) {
-    let pid = emu.regs().rdi as i64;
-    let status_ptr = emu.regs().rsi;
-    let tid = if pid > 0 {
-        pid as u64
-    } else {
-        emu.threads
-            .iter()
-            .filter(|t| t.suspended)
-            .map(|t| t.id)
-            .next_back()
-            .unwrap_or(1001)
-    };
-    if status_ptr != 0 {
-        emu.maps.write_dword(status_ptr, 0);
-    }
-    emu.regs_mut().rax = tid;
-    trace_syscall64_args(emu, "wait4", &[("pid", tid.to_string())]);
-}
-
-/// waitid(idtype, id, *siginfo, options, *rusage): like `wait4`, the child
+/// waitid(idtype, id, *siginfo, options, *rusage): the simulated child
 /// is already gone, so fill a CLD_EXITED siginfo with status 0.
 fn waitid(emu: &mut emu::Emu) {
     const SIGCHLD: u32 = 17;

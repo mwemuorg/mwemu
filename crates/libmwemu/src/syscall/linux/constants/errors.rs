@@ -34,7 +34,8 @@ pub const EDOM: u64 = -33i64 as u64; /* Math argument out of domain of func */
 pub const ERANGE: u64 = -34i64 as u64; /* Math result not representable */
 pub const ENAMETOOLONG: u64 = -36i64 as u64;
 pub const ENOSYS: u64 = -38i64 as u64; /* Function not implemented */
-pub const ENOTSOCK: u64 = -88i64 as u64; /* Socket operation on non-socket */
-
+pub const ENOTEMPTY: u64 = -39i64 as u64;
+pub const ELOOP: u64 = -40i64 as u64;
 pub const EOVERFLOW: u64 = -75i64 as u64;
+pub const ENOTSOCK: u64 = -88i64 as u64; /* Socket operation on non-socket */
 pub const EOPNOTSUPP: u64 = -95i64 as u64;

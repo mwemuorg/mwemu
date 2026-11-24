@@ -4,6 +4,7 @@ use crate::arch::x86::XCR0_ENABLED_MASK;
 use crate::color;
 use crate::emu::Emu;
 use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::exception::types::ExceptionType;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
@@ -14,8 +15,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().set_eax(XCR0_ENABLED_MASK);
         }
         _ => {
-            emu.regs_mut().set_edx(0);
-            emu.regs_mut().set_eax(7);
+            emu.exception(ExceptionType::BadAddressDereferencing);
+            return false;
         }
     }
     true
