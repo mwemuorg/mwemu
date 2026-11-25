@@ -66,11 +66,11 @@ impl GdbServer {
     pub fn run(&mut self, emu: &mut Emu) -> Result<(), GdbServerError> {
         let listener = TcpListener::bind(format!("127.0.0.1:{}", self.port))?;
         let port = listener.local_addr()?.port();
-        log::info!("GDB server listening on port {}...", port);
-        log::info!("Connect with: target remote localhost:{}", port);
+        log::debug!("GDB server listening on port {}...", port);
+        log::debug!("Connect with: target remote localhost:{}", port);
 
         let (stream, addr) = listener.accept()?;
-        log::info!("GDB client connected from {}", addr);
+        log::debug!("GDB client connected from {}", addr);
 
         self.serve_connection(emu, stream)
     }
@@ -99,16 +99,16 @@ fn run_64bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
         Ok(disconnect_reason) => {
             match disconnect_reason {
                 DisconnectReason::Disconnect => {
-                    log::info!("GDB client disconnected");
+                    log::debug!("GDB client disconnected");
                 }
                 DisconnectReason::TargetExited(code) => {
-                    log::info!("Target exited with code {}", code);
+                    log::debug!("Target exited with code {}", code);
                 }
                 DisconnectReason::TargetTerminated(sig) => {
-                    log::info!("Target terminated with signal {:?}", sig);
+                    log::debug!("Target terminated with signal {:?}", sig);
                 }
                 DisconnectReason::Kill => {
-                    log::info!("GDB sent kill command");
+                    log::debug!("GDB sent kill command");
                 }
             }
             Ok(())
@@ -126,16 +126,16 @@ fn run_aarch64(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
         Ok(disconnect_reason) => {
             match disconnect_reason {
                 DisconnectReason::Disconnect => {
-                    log::info!("GDB client disconnected");
+                    log::debug!("GDB client disconnected");
                 }
                 DisconnectReason::TargetExited(code) => {
-                    log::info!("Target exited with code {}", code);
+                    log::debug!("Target exited with code {}", code);
                 }
                 DisconnectReason::TargetTerminated(sig) => {
-                    log::info!("Target terminated with signal {:?}", sig);
+                    log::debug!("Target terminated with signal {:?}", sig);
                 }
                 DisconnectReason::Kill => {
-                    log::info!("GDB sent kill command");
+                    log::debug!("GDB sent kill command");
                 }
             }
             Ok(())
@@ -153,16 +153,16 @@ fn run_32bit(emu: &mut Emu, stream: TcpStream) -> Result<(), GdbServerError> {
         Ok(disconnect_reason) => {
             match disconnect_reason {
                 DisconnectReason::Disconnect => {
-                    log::info!("GDB client disconnected");
+                    log::debug!("GDB client disconnected");
                 }
                 DisconnectReason::TargetExited(code) => {
-                    log::info!("Target exited with code {}", code);
+                    log::debug!("Target exited with code {}", code);
                 }
                 DisconnectReason::TargetTerminated(sig) => {
-                    log::info!("Target terminated with signal {:?}", sig);
+                    log::debug!("Target terminated with signal {:?}", sig);
                 }
                 DisconnectReason::Kill => {
-                    log::info!("GDB sent kill command");
+                    log::debug!("GDB sent kill command");
                 }
             }
             Ok(())

@@ -38,6 +38,7 @@ impl Filter for DropNoisyDepsFilter {
         // (ureq/rustls/ring/webpki spam OCSP responses and HTTP headers at debug).
         const NOISY: &[&str] = &[
             "goblin",
+            "gdbstub",
             "ureq",
             "rustls",
             "webpki",
