@@ -452,16 +452,15 @@ pub fn nt_raise_hard_error(emu: &mut Emu) {
     let mut param_strings = Vec::new();
     if parameters != 0 && num_params > 0 {
         for i in 0..num_params.min(4) {
-            if let Some(ptr) = emu.maps.read_qword(parameters + (i as u64) * 8) {
-                if unicode_mask & (1 << i) != 0 && ptr != 0 {
-                    if let Some(buf_ptr) = emu.maps.read_qword(ptr + 8) {
-                        if buf_ptr != 0 {
-                            let s = emu.maps.read_wide_string(buf_ptr);
-                            if !s.is_empty() {
-                                param_strings.push(s);
-                            }
-                        }
-                    }
+            if let Some(ptr) = emu.maps.read_qword(parameters + (i as u64) * 8)
+                && unicode_mask & (1 << i) != 0
+                && ptr != 0
+                && let Some(buf_ptr) = emu.maps.read_qword(ptr + 8)
+                && buf_ptr != 0
+            {
+                let s = emu.maps.read_wide_string(buf_ptr);
+                if !s.is_empty() {
+                    param_strings.push(s);
                 }
             }
         }
