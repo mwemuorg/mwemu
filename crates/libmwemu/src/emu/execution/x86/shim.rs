@@ -2,12 +2,12 @@ use std::cell::Cell;
 
 use super::Emu;
 
-// API-shim entry-point cache. Resolved ONCE on the first time execution
-// enters the loader-DLL VA range; thereafter every per-instruction
-// lookup is a single thread-local Cell read with no locks or hashing.
-// `0xFFFF_FFFF_FFFF_FFFF` is the "tried-and-resolved" sentinel for
-// symbols whose module is loaded but the symbol itself is missing — we
-// still want to skip the export-walk on every subsequent instruction.
+// API-shim entry-point cache. Resolved lazily when execution first enters
+// the loader-DLL VA range; thereafter every per-instruction lookup is a
+// single thread-local Cell read with no locks or hashing. Each group of
+// symbols is re-resolved once its host module appears in the maps — the
+// shim table may first be queried during LdrInitializeThunk before
+// kernelbase or user32 are loaded.
 thread_local! {
     static SHIM_TABLE: Cell<Option<ShimTable>> = const { Cell::new(None) };
 }
@@ -21,62 +21,53 @@ pub(super) struct ShimTable {
 }
 
 impl Emu {
+    pub(in crate::emu::execution) fn invalidate_shim_table(&self) {
+        SHIM_TABLE.with(|c| c.set(None));
+    }
+
     #[inline]
     pub(super) fn shim_table(&mut self) -> ShimTable {
         let cached = SHIM_TABLE.with(|c| c.get());
-        // kernelbase symbols are always present once kernelbase is loaded
-        // (which happens during early `--ssdt` setup). user32 is loaded
-        // on-demand by the LoadLibraryA shim, so mba may resolve to 0 on
-        // the first pass — refresh it lazily once user32 appears.
         if let Some(t) = cached {
-            if t.mba != 0 || self.maps.get_map_by_name("user32.pe").is_none() {
+            let need_kb = t.lla == 0 && self.maps.get_map_by_name("kernelbase.pe").is_some();
+            let need_mba = t.mba == 0 && self.maps.get_map_by_name("user32.pe").is_some();
+            if !need_kb && !need_mba {
                 return t;
             }
-            // user32 is loaded now but mba was 0 — re-resolve just mba.
-            let mba = crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
-                self,
-                "user32.dll",
-                "MessageBoxA",
-            );
-            let new = ShimTable { mba, ..t };
+            let resolve = crate::winapi::winapi64::kernel32::resolve_api_name_in_module;
+            let new = ShimTable {
+                lla: if need_kb {
+                    resolve(self, "kernelbase.dll", "LoadLibraryA")
+                } else {
+                    t.lla
+                },
+                lpa: if need_kb {
+                    resolve(self, "kernelbase.dll", "GetProcAddress")
+                } else {
+                    t.lpa
+                },
+                lpa2: if need_kb {
+                    resolve(self, "kernelbase.dll", "GetProcAddressForCaller")
+                } else {
+                    t.lpa2
+                },
+                mba: if need_mba {
+                    resolve(self, "user32.dll", "MessageBoxA")
+                } else {
+                    t.mba
+                },
+            };
             SHIM_TABLE.with(|c| c.set(Some(new)));
-            if self.cfg.verbose >= 1 {
-                log::trace!("shim table mba resolved: 0x{:x}", mba);
-            }
             return new;
         }
+        let resolve = crate::winapi::winapi64::kernel32::resolve_api_name_in_module;
         let t = ShimTable {
-            lla: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
-                self,
-                "kernelbase.dll",
-                "LoadLibraryA",
-            ),
-            lpa: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
-                self,
-                "kernelbase.dll",
-                "GetProcAddress",
-            ),
-            lpa2: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
-                self,
-                "kernelbase.dll",
-                "GetProcAddressForCaller",
-            ),
-            mba: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
-                self,
-                "user32.dll",
-                "MessageBoxA",
-            ),
+            lla: resolve(self, "kernelbase.dll", "LoadLibraryA"),
+            lpa: resolve(self, "kernelbase.dll", "GetProcAddress"),
+            lpa2: resolve(self, "kernelbase.dll", "GetProcAddressForCaller"),
+            mba: resolve(self, "user32.dll", "MessageBoxA"),
         };
         SHIM_TABLE.with(|c| c.set(Some(t)));
-        if self.cfg.verbose >= 1 {
-            log::trace!(
-                "shim table resolved: LLA=0x{:x} GPA=0x{:x} GPA-FC=0x{:x} MBA=0x{:x}",
-                t.lla,
-                t.lpa,
-                t.lpa2,
-                t.mba,
-            );
-        }
         t
     }
 }

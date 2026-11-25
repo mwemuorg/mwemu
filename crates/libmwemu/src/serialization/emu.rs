@@ -479,6 +479,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             section_handles: HashMap::new(),
             file_section_names: HashMap::new(),
             file_handles: HashMap::new(),
+            virtual_system32_dlls: HashSet::new(),
             section_view_dll: HashMap::new(),
             last_closed_section_dll: None,
             fts_handles: HashMap::new(),

@@ -84,6 +84,15 @@ impl Emu {
                 "ntdll!LdrInitializeThunk DID NOT complete — bailed out mid-init (process_terminated set). pos={}",
                 self.pos,
             );
+            // The loader terminated because a DLL dependency could not be
+            // loaded or initialised (missing gdi32full.dll, etc.).  Reset
+            // the flag and redirect RIP to the entry point so run() can
+            // still execute the EXE — the binary may never call the missing
+            // APIs, and the emulator already has stubs for the most common ones.
+            self.process_terminated = false;
+            self.is_running
+                .store(1, std::sync::atomic::Ordering::Relaxed);
+            self.regs_mut().rip = entry_point;
         } else if self.regs().rip == entry_point {
             log::trace!(
                 "ntdll!LdrInitializeThunk emulated completely. pos={} rip=ep=0x{:x}",

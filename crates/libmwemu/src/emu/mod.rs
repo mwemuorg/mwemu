@@ -298,6 +298,7 @@ pub struct Emu {
     pub(crate) section_handles: HashMap<u64, String>, // KnownDll section handle → DLL filename — from NtOpenSection only
     pub(crate) file_section_names: HashMap<u64, String>, // file-backed section handle → DLL filename — from NtCreateSection(file_handle)
     pub(crate) file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
+    pub(crate) virtual_system32_dlls: HashSet<String>, // basenames (lowercase) of DLLs that passed the virtual SYSTEM32 path in NtOpenFile/NtCreateFile
     pub(crate) section_view_dll: HashMap<u64, String>, // section_view base → DLL filename; used by NtAreMappedFilesTheSame to compare views from the same file
     pub(crate) fts_handles: HashMap<u64, FtsState>,    // macOS FTS traversal state
     pub(crate) getopt_char_index: usize, // position within current argv element for grouped flags (-la)

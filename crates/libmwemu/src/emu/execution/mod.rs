@@ -262,6 +262,9 @@ impl Emu {
     pub(crate) fn run_preflight(&mut self) -> Result<(), MwemuError> {
         self.check_api_stop()?;
         self.apply_cfg_seed();
+        if self.cfg.emulate_winapi {
+            self.invalidate_shim_table();
+        }
         if !self.os.is_linux()
             && self.cfg.arch.is_64bits()
             && self.cfg.ssdt_use_ldr_initialize_thunk

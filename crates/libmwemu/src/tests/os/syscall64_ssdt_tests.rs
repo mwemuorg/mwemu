@@ -2211,7 +2211,6 @@ fn native_unsupported_services_preserve_outputs_and_follow_the_requested_mode() 
     ] {
         for number in [
             WIN64_NTCREATETHREADEX,
-            WIN64_NTRAISEHARDERROR,
             WIN64_NTSETINFORMATIONPROCESS,
             WIN64_NTSETINFORMATIONTHREAD,
             WIN64_NTWAITFORALERTBYTHREADID,

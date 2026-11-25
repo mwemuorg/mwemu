@@ -434,3 +434,51 @@ fn replace_process_tls(emu: &mut Emu, buffer: u64, size: u32) -> Option<u64> {
     emu.maps.write_dword(entry, THREAD_UPDATED);
     Some(STATUS_SUCCESS)
 }
+
+/// `NtRaiseHardError(NTSTATUS ErrorStatus, ULONG NumberOfParameters,
+///   ULONG UnicodeStringParameterMask, PULONG_PTR Parameters,
+///   ULONG ValidResponseOptions, PULONG Response)`
+pub fn nt_raise_hard_error(emu: &mut Emu) {
+    let error_status = emu.regs().r10 as u32;
+    let num_params = emu.regs().rdx as u32;
+    let unicode_mask = emu.regs().r8 as u32;
+    let parameters = emu.regs().r9;
+    let response_option = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+    let response_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+    // Read Unicode string parameters to identify the failing resource.
+    // Each parameter marked in unicode_mask points to a UNICODE_STRING:
+    //   { Length: u16, MaxLength: u16, Padding: u32, Buffer: *u16 }
+    let mut param_strings = Vec::new();
+    if parameters != 0 && num_params > 0 {
+        for i in 0..num_params.min(4) {
+            if let Some(ptr) = emu.maps.read_qword(parameters + (i as u64) * 8) {
+                if unicode_mask & (1 << i) != 0 && ptr != 0 {
+                    if let Some(buf_ptr) = emu.maps.read_qword(ptr + 8) {
+                        if buf_ptr != 0 {
+                            let s = emu.maps.read_wide_string(buf_ptr);
+                            if !s.is_empty() {
+                                param_strings.push(s);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    log_orange!(
+        emu,
+        "syscall 0x{:x}: NtRaiseHardError status=0x{:x} option={} response_ptr=0x{:x} params={:?}",
+        WIN64_NTRAISEHARDERROR,
+        error_status,
+        response_option,
+        response_ptr,
+        param_strings
+    );
+
+    if response_ptr != 0 {
+        emu.maps.write_dword(response_ptr, 1); // ResponseOk
+    }
+    emu.regs_mut().rax = STATUS_SUCCESS;
+}

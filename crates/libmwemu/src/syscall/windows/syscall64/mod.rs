@@ -151,6 +151,7 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
         WIN64_NTQUERYSYMBOLICLINKOBJECT => registry::nt_query_symbolic_link_object(emu),
         WIN64_NTQUERYDEBUGFILTERSTATE => system::nt_query_debug_filter_state(emu),
         WIN64_NTRAISEEXCEPTION => process::nt_raise_exception(emu),
+        WIN64_NTRAISEHARDERROR => process::nt_raise_hard_error(emu),
         WIN64_NTQUERYSECURITYATTRIBUTESTOKEN => process::nt_query_security_attributes_token(emu),
         WIN64_NTCONTINUE => process::nt_continue(emu),
         WIN64_NTCREATEPROFILEEX => process::nt_create_profile_ex(emu),
@@ -207,6 +208,29 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                     WIN64_NTQUERYATTRIBUTESFILE,
                     nt_name,
                     path,
+                );
+                emu.regs_mut().rax = STATUS_SUCCESS;
+            } else if basename.ends_with(".dll")
+                && nt_name.to_ascii_lowercase().contains("system32")
+            {
+                // Virtual SYSTEM32 DLL: not in maps_folder but under
+                // SYSTEM32.  Return SUCCESS so the loader proceeds to
+                // map it (map_file_section will produce a stub PE).
+                if file_info_ptr != 0 && emu.maps.is_mapped(file_info_ptr) {
+                    const FAKE_FILETIME: u64 = 0x01DA_0000_0000_0000;
+                    let _ = emu.maps.write_qword(file_info_ptr, FAKE_FILETIME);
+                    let _ = emu.maps.write_qword(file_info_ptr + 0x08, FAKE_FILETIME);
+                    let _ = emu.maps.write_qword(file_info_ptr + 0x10, FAKE_FILETIME);
+                    let _ = emu.maps.write_qword(file_info_ptr + 0x18, FAKE_FILETIME);
+                    let _ = emu
+                        .maps
+                        .write_dword(file_info_ptr + 0x20, FILE_ATTRIBUTE_NORMAL as u32);
+                }
+                log_orange!(
+                    emu,
+                    "syscall 0x{:x}: NtQueryAttributesFile name={:?} → virtual SYSTEM32 DLL",
+                    WIN64_NTQUERYATTRIBUTESFILE,
+                    nt_name,
                 );
                 emu.regs_mut().rax = STATUS_SUCCESS;
             } else {
@@ -345,8 +369,11 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 .next()
                 .unwrap_or("")
                 .to_lowercase();
-            let exists = resolve_maps_dll(emu, &basename).is_some();
-            if exists {
+            let resolved = resolve_maps_dll(emu, &basename).is_some();
+            let is_virtual_dll = !resolved
+                && basename.ends_with(".dll")
+                && nt_name.to_ascii_lowercase().contains("system32");
+            if resolved || is_virtual_dll {
                 let h = next_handle();
                 if file_handle_out != 0 && emu.maps.is_mapped(file_handle_out) {
                     let _ = emu.maps.write_qword(file_handle_out, h);
@@ -359,14 +386,18 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 }
                 // Track the handle → basename so a follow-up NtCreateSection(file: h)
                 // can mark the new section as backed by this DLL and NtMapViewOfSection
-                // will load the real PE.
+                // will load the real PE (or build a stub for virtual DLLs).
                 emu.file_handles.insert(h, basename.clone());
+                if is_virtual_dll {
+                    emu.virtual_system32_dlls.insert(basename.clone());
+                }
                 log_orange!(
                     emu,
-                    "syscall 0x{:x}: NtOpenFile name={:?} → handle 0x{:x} (SUCCESS)",
+                    "syscall 0x{:x}: NtOpenFile name={:?} → handle 0x{:x} (SUCCESS{})",
                     nr,
                     nt_name,
                     h,
+                    if is_virtual_dll { ", virtual" } else { "" },
                 );
                 emu.regs_mut().rax = STATUS_SUCCESS;
             } else {
@@ -405,7 +436,12 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                     .map(str::to_ascii_lowercase)
                     .eq(["device", "condrv"]))
                 || emu.handle_management.is_console_device(root_dir);
-            let exists = is_console || resolve_maps_dll(emu, &basename).is_some();
+            let resolved = resolve_maps_dll(emu, &basename).is_some();
+            let is_virtual_dll = !is_console
+                && !resolved
+                && basename.ends_with(".dll")
+                && nt_name.to_ascii_lowercase().contains("system32");
+            let exists = is_console || resolved || is_virtual_dll;
             if exists {
                 let h = if is_console {
                     const OBJECT_ATTRIBUTES_FLAGS64: u64 = 24;
@@ -449,6 +485,9 @@ fn dispatch(emu: &mut Emu, nr: u64, real_nr: u64) {
                 }
                 if !is_console {
                     emu.file_handles.insert(h, basename.clone());
+                    if is_virtual_dll {
+                        emu.virtual_system32_dlls.insert(basename.clone());
+                    }
                 }
                 log_orange!(
                     emu,

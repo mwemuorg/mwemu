@@ -692,6 +692,73 @@ fn section_view_base(emu: &mut Emu, size: u64, requested_base: u64) -> Result<u6
     })
 }
 
+/// Build a minimal stub PE image for a virtual SYSTEM32 DLL.
+/// The image has a single .text section whose DllMain returns TRUE so the
+/// loader's LdrpInitializeNode succeeds without executing real DLL code.
+fn map_stub_dll(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u64, u64), u64> {
+    const STUB_IMAGE_SIZE: u64 = 0x2000; // 2 pages: headers + .text
+    let size = align_up(STUB_IMAGE_SIZE, PAGE_SIZE).ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+    let base = section_view_base(emu, size, requested_base)?;
+    let name = format!("section_view_{base:x}");
+    emu.maps
+        .create_map(&name, base, size, Permission::READ_WRITE_EXECUTE)
+        .map_err(|_| STATUS_NO_MEMORY)?;
+
+    // --- DOS header ---
+    emu.maps.write_word(base, 0x5A4D); // e_magic = "MZ"
+    emu.maps.write_dword(base + 0x3C, 0x80); // e_lfanew
+
+    // --- PE signature ---
+    let pe = base + 0x80;
+    emu.maps.write_dword(pe, 0x0000_4550); // "PE\0\0"
+
+    // --- COFF header (20 bytes) ---
+    let coff = pe + 4;
+    emu.maps.write_word(coff, 0x8664); // Machine = AMD64
+    emu.maps.write_word(coff + 2, 1); // NumberOfSections
+    emu.maps.write_word(coff + 16, 0xF0); // SizeOfOptionalHeader
+    emu.maps.write_word(coff + 18, 0x2022); // Characteristics = DLL | EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+
+    // --- Optional header 64 (240 = 0xF0 bytes) ---
+    let opt = coff + 20;
+    emu.maps.write_word(opt, 0x020B); // Magic = PE32+
+    // AddressOfEntryPoint: points to DllMain stub in .text at RVA 0x1000
+    emu.maps.write_dword(opt + 16, 0x1000);
+    emu.maps.write_qword(opt + 24, base); // ImageBase
+    emu.maps.write_dword(opt + 32, 0x1000); // SectionAlignment
+    emu.maps.write_dword(opt + 36, 0x200); // FileAlignment
+    emu.maps.write_dword(opt + 56, STUB_IMAGE_SIZE as u32); // SizeOfImage
+    emu.maps.write_dword(opt + 60, 0x200); // SizeOfHeaders
+    emu.maps.write_dword(opt + 64, 0); // CheckSum
+    emu.maps.write_word(opt + 68, 2); // Subsystem = GUI
+    emu.maps.write_word(opt + 70, 0x160); // DllCharacteristics = DYNAMIC_BASE | NX_COMPAT | HIGH_ENTROPY_VA
+    emu.maps.write_dword(opt + 108, 16); // NumberOfRvaAndSizes
+
+    // --- Section header (.text) ---
+    let sect = opt + 0xF0;
+    // Name: ".text\0\0\0"
+    emu.maps.write_dword(sect, 0x7865_742E); // ".tex"
+    emu.maps.write_byte(sect + 4, b't');
+    emu.maps.write_dword(sect + 8, 0x10); // VirtualSize
+    emu.maps.write_dword(sect + 12, 0x1000); // VirtualAddress (RVA)
+    emu.maps.write_dword(sect + 16, 0x200); // SizeOfRawData
+    emu.maps.write_dword(sect + 20, 0x200); // PointerToRawData
+    emu.maps.write_dword(sect + 36, 0x6000_0020); // Characteristics = CODE | EXECUTE | READ
+
+    // --- DllMain stub at RVA 0x1000 ---
+    // BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) { return TRUE; }
+    // x64:  mov eax, 1  /  ret
+    let entry = base + 0x1000;
+    emu.maps.write_byte(entry, 0xB8); // mov eax, ...
+    emu.maps.write_dword(entry + 1, 1); // ... 1
+    emu.maps.write_byte(entry + 5, 0xC3); // ret
+
+    log::trace!("map_stub_dll: mapped virtual DLL {dll:?} at 0x{base:x} size=0x{size:x}",);
+
+    emu.section_view_dll.insert(base, dll.to_string());
+    Ok((base, size))
+}
+
 fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u64, u64), u64> {
     const DOS_LFANEW_OFFSET: u64 = 0x3c;
     const NT_SIZE_OF_IMAGE_OFFSET: u64 = 0x50;
@@ -707,8 +774,17 @@ fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u6
         if dll.is_empty() || dll.contains(['/', '\\', ':']) || !dll.ends_with(".dll") {
             return Err(STATUS_INVALID_IMAGE_FORMAT);
         }
-        let path = resolve_maps_dll(emu, dll).ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
-        let raw = fs::read(path).map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?;
+        let raw = match resolve_maps_dll(emu, dll) {
+            Some(path) => fs::read(path).map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?,
+            None if emu.virtual_system32_dlls.contains(dll) => {
+                // Virtual SYSTEM32 stub: the DLL is not in maps_folder but
+                // was opened successfully (NtOpenFile returned SUCCESS for a
+                // virtual SYSTEM32 DLL). Build a minimal PE image whose
+                // DllMain immediately returns TRUE so the loader proceeds.
+                return map_stub_dll(emu, dll, requested_base);
+            }
+            None => return Err(STATUS_INVALID_IMAGE_FORMAT),
+        };
         let pe = PE::parse(&raw).map_err(|_| STATUS_INVALID_IMAGE_FORMAT)?;
         if !pe.is_64 || pe.header.coff_header.machine != COFF_MACHINE_X86_64 {
             return Err(STATUS_INVALID_IMAGE_FORMAT);
